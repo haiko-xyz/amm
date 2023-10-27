@@ -1,0 +1,18 @@
+[package]
+name = "amm"
+cairo-version = "2.1.0"
+version.workspace = true
+
+[dependencies]
+starknet = "2.1.0"
+snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry.git", tag = "v0.8.3" }
+
+[lib]
+
+[[target.starknet-contract]]
+sierra = true
+casm = true
+allowed-libfuncs-list.name = "experimental"
+
+[cairo]
+sierra-replace-ids = true

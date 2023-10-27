@@ -1,0 +1,25 @@
+use serde::Serde;
+use core::result::ResultTrait;
+use traits::TryInto;
+use option::OptionTrait;
+use array::ArrayTrait;
+use starknet::deploy_syscall;
+
+use amm::tests::helpers::contracts::fee_controller::FeeController;
+use amm::tests::helpers::actions::params::{fee_controller_params, FeeControllerParams};
+use amm::interfaces::IFeeController::{
+    IFeeController, IFeeControllerDispatcher, IFeeControllerDispatcherTrait
+};
+
+
+fn deploy_fee_controller(params: FeeControllerParams) -> IFeeControllerDispatcher {
+    let mut constructor_calldata = ArrayTrait::<felt252>::new();
+    params.market_manager.serialize(ref constructor_calldata);
+
+    let (deployed_address, _) = deploy_syscall(
+        FeeController::TEST_CLASS_HASH.try_into().unwrap(), 0, constructor_calldata.span(), false
+    )
+        .unwrap();
+
+    IFeeControllerDispatcher { contract_address: deployed_address }
+}

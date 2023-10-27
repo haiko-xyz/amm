@@ -1,0 +1,17 @@
+[package]
+name = "strategies"
+cairo-version = "2.1.0"
+version.workspace = true
+
+[dependencies]
+starknet = "2.1.0"
+amm = { path = "../amm" }
+
+[lib]
+
+[[target.starknet-contract]]
+sierra = true
+allowed-libfuncs-list.name = "experimental"
+
+[cairo]
+sierra-replace-ids = true
