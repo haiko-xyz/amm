@@ -60,7 +60,7 @@ fn before() -> (
     approve(usdc, alice(), market_manager.contract_address, initial_usdc);
 
     // Deploy quoter.
-    let quoter = deploy_quoter(market_manager.contract_address);
+    let quoter = deploy_quoter(owner(), market_manager.contract_address);
 
     (market_manager, eth, btc, usdc, quoter)
 }

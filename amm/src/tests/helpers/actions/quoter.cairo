@@ -8,8 +8,9 @@ use array::ArrayTrait;
 use amm::contracts::quoter::Quoter;
 use amm::interfaces::IQuoter::{IQuoter, IQuoterDispatcher, IQuoterDispatcherTrait};
 
-fn deploy_quoter(market_manager: ContractAddress) -> IQuoterDispatcher {
+fn deploy_quoter(owner: ContractAddress, market_manager: ContractAddress) -> IQuoterDispatcher {
     let mut constructor_calldata = ArrayTrait::<felt252>::new();
+    owner.serialize(ref constructor_calldata);
     market_manager.serialize(ref constructor_calldata);
 
     let (deployed_address, _) = deploy_syscall(

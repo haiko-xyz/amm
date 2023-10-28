@@ -53,7 +53,7 @@ fn before() -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, IQ
     approve(quote_token, alice(), market_manager.contract_address, initial_quote_amount);
 
     // Deploy quoter.
-    let quoter = deploy_quoter(market_manager.contract_address);
+    let quoter = deploy_quoter(owner(), market_manager.contract_address);
 
     (market_manager, base_token, quote_token, quoter)
 }
@@ -95,6 +95,15 @@ fn swap_test_cases() -> Array<SwapCase> {
                 exact_input: false,
                 amount: to_e18(1),
                 threshold_sqrt_price: Option::None(())
+            }
+        );
+    cases
+        .append(
+            SwapCase {
+                is_buy: true,
+                exact_input: true,
+                amount: to_e18(1),
+                threshold_sqrt_price: Option::Some(to_e28(48))
             }
         );
 
@@ -160,6 +169,9 @@ fn test_quote_cases() {
         );
         let (amount_in, amount_out, _) = swap(market_manager, params);
         let amount = if swap_case.exact_input { amount_out } else { amount_in };
+
+        'sqrt price'.print();
+        market_manager.curr_sqrt_price(market_id).print();
 
         // Check that the quote is correct.
         assert(quote == amount, 'Incorrect quote: Case 1' + swap_index.into());
