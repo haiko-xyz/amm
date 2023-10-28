@@ -16,7 +16,7 @@ It should be read alongside the [Technical Overview](./technical-overview.md) fo
 
 ## 1. Naming conventions
 
-The table below summarises the key terminology used by Sphinx and their closest analogue from Uniswap.
+The table below summarises the key terminology used by Sphinx, and their closest analogue from Uniswap.
 
 | Term                 | Equivalent to                                         |
 | -------------------- | ----------------------------------------------------- |
@@ -30,27 +30,27 @@ The table below summarises the key terminology used by Sphinx and their closest 
 
 #### Markets
 
-Markets are similar to pools, except they are defined by a base and quote asset pair that is not order agnostic. This is useful because strategies often rely on oracle feeds defined over specific base and quote assets, so this distinction helps with selecting the correct oracle feed.
+Markets are similar to pools, except they are defined over an explicit base and quote asset pair. Strategies often rely on oracle feeds defined over specific base and quote assets, so this distinction is useful.
 
 #### Limits
 
-Limits are identical to ticks, except the have a current minimum width of `0.00001 (1e-5)` instead of `0.0001 (1e-4)`. The current range of valid limits is `[-8388608, 8388607]` rather than `[-887272, 887272]`.
+Limits are similar to ticks, except the have a lower minimum width of `0.00001 (1e-5)` instead of `0.0001 (1e-4)`. The current range of valid limits is `[-8388608, 8388607]` rather than `[-887272, 887272]`.
 
 #### Width
 
-Width is identical to tick spacing, except as stated above, they have a lower minimum width.
+Width is identical to tick spacing (except with a lower minimum width).
 
 #### Fee factor
 
-Fee factor is identical to fee growth inside. The difference in naming is purely preference and to allow shorter variable names for cleaner code.
+Fee factor is identical to fee growth inside.
 
 #### Threshold price
 
-Similarly, threshold price is identical to sqrt price limit. The difference in naming is for clarity and avoid reusing the term 'limit' which has a different meaning in Sphinx.
+Threshold price is identical to sqrt price limit. The difference in naming is for clarity and to avoid reusing the term 'limit', which has a different meaning in Sphinx.
 
 ## 2. Contract architecture
 
-Sphinx abandons the factory pattern in favour of a single `MarketManager` contract. In this respect, it is more similar to Uniswap V4 than Uniswap V3. Managing all interactions through a single contract offers gas optimisations and a simpler architecture.
+Sphinx abandons the factory pattern in favour of a single `MarketManager` contract. In this respect, it is more similar to Uniswap V4. Managing all interactions through a single contract offers gas optimisations and a simpler architecture.
 
 The `MarketManager` contract contains the bulk of the business logic. It is the main entrypoint for:
 
@@ -62,7 +62,7 @@ The `MarketManager` contract contains the bulk of the business logic. It is the 
 
 Each market created through `MarketManager` has the option of being deployed with an associated `Strategy`, which defines logic for LPing within that market. More information on this can be found in the [Strategies](#5-strategies) section below.
 
-The current `sphinx` repo is a monorepo containing both the core AMM logic (under `/amm`) as well as a library of reusable strategies (under `/strategies`). This helps with code reuse, as most of the strategies import libraries from the core protocol. They may be split up into seperate repos in the future as the size of the library grows.
+The current `sphinx` repo is a monorepo containing both the core AMM logic (under `/amm`) as well as a library of reusable strategies (under `/strategies`). This helps with code reuse, as most of the strategies import libraries from the core protocol.
 
 ## 3. Market types
 
@@ -72,28 +72,32 @@ Three market types are available:
 
 1. Linear Markets: similar to Uniswap V2 pools where liquidity positions are placed across the entire virtual price range.
 2. Concentrated Markets: similar to Uniswap V3 pools, allowing for concentrated liquidity.
-3. Hybrid Markets: start out asLinear Markets but are upgradeable to Concentrated Markets.
+3. Hybrid Markets: start out as Linear Markets but are upgradeable to Concentrated Markets.
 
-In practice, this is achieved by enforcing that all positions in Linear Markets are placed across the entire price range of the pool. Upgrading is achieved simply by removing this requirement.
+In practice, Linear and Concentrated Markets are identical except the former enforces the condition that all positions are placed across the entire price range of the pool.
+
+Upgrading to a Concentrated Market is achieved by removing this requirement.
 
 ## 4. Limit orders
 
-Sphinx supports limit orders, which are implemented as abstractions over regular liquidity positions by adding a mechanism to automatically remove liquidity once the position is filled.
+Sphinx supports limit orders, which are implemented as abstractions over regular liquidity positions by automatically removing liquidity once the position is filled.
 
-In Uniswap V4, limit orders are proposed to be implemented as hooks, whereas in Sphinx they are integrated into the core protocol. This allows strategies to easily place limit orders without having to worry about their underlying implementation.
+In Uniswap V4, limit orders are proposed to be implemented as hooks, whereas in Sphinx they are integrated into the core protocol itself. This allows strategies to easily place limit orders without having to worry about their underlying implementation.
 
-Limit orders are implemented using a batching mechanism as follows:
+Limit orders use a batching mechanism for efficient filling, as follows:
 
 1. All limit orders placed at the same limit are allocated to a `batch`, which can be thought of as a pool of assets at that limit.
-2. Each `batch` keeps track of a total amount of `liquidity`, as well as base and quote token balances.
+2. Each `batch` keeps track of a total amount of `liquidity`, as well as total base and quote token balances.
 3. As the market price moves, the batch's base and quote balances are updated accordingly.
 4. Limit orders are claimed by withdrawing the owner's pro rata share of the batch's base and quote balances.
 5. Once a `batch` is fully filled, a `nonce` counter increments to start a new batch at that limit. This allows proper accounting of filled amounts as price moves back and forth over the limit.
-6. Finally, depositing to partially filled batches is disallowed, in line with the specification of limit orders and to avoid unnecessary complexity.
+6. Depositing to partially filled batches is disallowed, both to prevent unnecessary complexity and to prevent limit orders being placed at the current active limit.
 
 ## 5. Strategies
 
-As explained above, each market created through `MarketManager` has the option of being deployed with an associated `Strategy`, which defines logic for LPing within that market. Specifically, any time a swap is executed, a designated `updatePositions()` function is called, which runs the strategic's logic and, if needed, updates its positions. This works in a similar way to Uniswap V4's `beforeSwap()` hook.
+As explained above, each market created through `MarketManager` has the option of being deployed with an associated `Strategy`, which defines logic for market making within that pool.
+
+Specifically, any time a swap is executed, a designated `updatePositions()` function is called, which updates the strategy's positions. Positions are updated prior to swap execution, in a similar way to Uniswap V4's `beforeSwap()` hook.
 
 Note that strategies are not trading strategies, but rather market making strategies. They help LPs automatically manage liquidity positions without the overhead of active management.
 
@@ -107,7 +111,7 @@ Limits are implemented as ticks, but with a lower minimum width of `0.00001 (1e-
 
 The current range of valid limits is `[-8388608, 8388607]` rather than `[-887272, 887272]`. This gives a total of `16,777,216 (2 ** 24)` valid limits, which are stored in a three-level tree structure, each comprising a `u32` bitmap for a total of `256 ** 3 (16,777,216)` valid limits.
 
-Storing limits in a tree structure allows traversal (searching for the next initialised limit) in an efficient way. The tree can be expanded to four levels to allow for even greater precision of prices if needed.
+Storing limits in a tree structure allows efficient traversal when searching for the next initialised limit. The tree can be expanded to four levels to allow for even greater precision of prices if needed.
 
 ## 7. Data types
 
@@ -120,6 +124,6 @@ Sphinx uses `UD47x28` fixed point numbers stored inside a `u256` to handle decim
 
 Token amounts, as well as liquidity units, are represented as unscaled integers corresponding to the token's decimals as per their ERC20 specification (standardised at `18` for Starknet).
 
-In Uniswap V3, all prices are represented as `u160` fixed point numbers, with 96 bits for the integer part and 64 bits for the fractional part. The 28 decimals used by Sphinx roughly corresponds to 93 bits of precision, so the two are comparable.
+In Uniswap V3, all prices are represented as `u160` fixed point numbers, with 96 bits for the integer part and 64 bits for the fractional part. The 28 decimals used by Sphinx roughly corresponds to comparable 93 bits of precision.
 
-> Note: Sphinx currently uses `UD47x28` fixed point numbers that fit inside a single `felt252` slot (a legacy optimisation). However, given these numbers are currently stored inside a `u256` value and bitpacked into `felt252` slots, in the future they will likely be replaced with `UD49x28` or `UD47x30` fixed point numbers that take full advantage of the 256 bits.
+> Note: Sphinx currently uses `UD47x28` fixed point numbers that fit inside a single `felt252` slot (a legacy optimisation). However, given these numbers are now stored inside a regular `u256` and bitpacked as structs into `felt252` slots, they will likely be replaced with `UD49x28` or `UD47x30` fixed point numbers to take full advantage of the 256 bits.

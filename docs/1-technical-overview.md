@@ -1,15 +1,17 @@
 # Technical overview
 
-This document provides an overview of Sphinx's smart contracts. It focuses on the call logic for the five main functions called by the user, including breaking down the internal call logic and mapping external interactions with strategy contracts.
+This document provides a technical overview of Sphinx's smart contracts. It focuses on the five main functions called by users, breaking down their internal call logic and mapping interactions with external `Strategy` contracts.
+
+It may be helpful to first review the Naming Conventions section of [Sphinx vs Uniswap](./sphinx-vs-uniswap.md) before reading this document.
 
 ## Contracts
 
 ### `MarketManager`
 
-The `MarketManager` contract is the main entrypoint for all user interactions. It is responsible for:
+The `MarketManager` contract is the main entrypoint for user interactions. It is responsible for:
 
 1. Creating new markets
-2. Adding and removing liquidity to new or existing positions
+2. Adding and removing liquidity to / from new or existing positions
 3. Swapping assets through one or multiple markets
 4. Placing and collecting limit orders
 5. Other miscellaneous actions such as flash loans, protocol fees, sweeping etc
@@ -21,7 +23,7 @@ The `MarketManager` contract is the main entrypoint for all user interactions. I
 1. Providing liquidity to the market by placing and removing liquidity positions and limit orders
 2. Collecting and distributing swap fees on behalf of LPs that deposit to the strategy
 
-All `Strategy` contracts must implement the minimal `IStrategy` interface, as follows:
+All `Strategy` contracts must implement a minimal `IStrategy` interface:
 
 ```rust
 #[starknet::interface]
@@ -60,13 +62,13 @@ fn create_market(
 ) -> felt252;
 ```
 
-This initialises the market with the provided parameters and assigns a `market_id`, which is simply the Poseidon chain hash of the immutable parameters. The immutable parameters are those in the list above, excluding `start_limit`, `protocol_share` and `is_concentrated` (these can be configurable later by the contract owner).
+This initialises a market with the provided parameters and assigns a `market_id`, which is simply the Poseidon chain hash of the immutable parameters (i.e. those in the list above, excluding `start_limit`, `protocol_share` and `is_concentrated`).
 
 Duplicate markets are disallowed by checking the `market_id` against a mapping of existing markets.
 
 ### Adding or removing liquidity
 
-Adding or removing liquidity is achieved by calling `modify_liquidity()`, and passing in the relevant `market_id`, a price range denominated in limits, and either a positive or negative `liquidity_delta`.
+Liquidity providers can add or remove liquidity by calling `modify_liquidity()`, and passing in the relevant `market_id`, a price range denominated in limits, and either a positive or negative `liquidity_delta`.
 
 ```rust
 fn modify_position(
@@ -81,16 +83,6 @@ fn modify_position(
 ### Collecting fees
 
 Similarly, fees can be collected from an existing position by calling `modify_position`, and passing in a `liquidity_delta` of 0.
-
-```rust
-fn modify_position(
-  ref self: TContractState,
-  market_id: felt252,
-  lower_limit: u32,
-  upper_limit: u32,
-  liquidity_delta: i256,
-) -> (i256, i256, u256, u256);
-```
 
 ### Swapping tokens (single market)
 
@@ -108,9 +100,11 @@ fn swap(
 ) -> (u256, u256, u256);
 ```
 
+The `swap()` function iteratively searches for the next initialised limit in the market and fills the order against available liquidity up to this limit.
+
 If the market is deployed with a strategy, this complicates the call logic somewhat:
 
-- The swap will first execute the `update_positions()` function of the `Strategy` contract. This can include instructions to place or remove liquidity positions or limit orders, which may involve further `modify_position` calls to the `MarketManager` contract.
+- The swap will first call the `update_positions()` function of the `Strategy` contract. This can include instructions to place or remove liquidity positions or limit orders from the market, which may involve further `modify_position` calls to the `MarketManager` contract.
 - Once executed, the call returns to the `MarketManager` context and executes the swap.
 - Finally, the `cleanup()` function of the `Strategy` contract is called to perform residual updates, if any.
 
@@ -136,7 +130,7 @@ fn swap_multiple(
 ) -> u256;
 ```
 
-This function calls `swap()` for each market in the route, passing in the output amount of the previous swap as the input amount for the next swap. The execution flow for each `swap` is identical to the single market case.
+`swap_multiple()` loops through each market in the route and calls `swap()`, passing in the output amount of the previous swap as the input amount. The execution flow for each `swap` is identical to the single market case.
 
 ### Creating a limit order
 
@@ -152,18 +146,20 @@ fn create_order(
 ) -> felt252;
 ```
 
-This initialises the order with the provided parameters and assigns an `order_id` from an incrementing counter. Under the hood, creating a limit order places a liquidity position at the specified `limit` (technically, over the interval between `limit` and `limit` + `width`). All limit orders placed at the same `limit` are batched for efficient filling. Once filled, a `nonce` counter increases for that limit to start a new batch.
+Doing so initialises an order with the provided parameters and assigns an `order_id` from an incrementing counter. Under the hood, creating a limit order places a liquidity position at the specified `limit`(technically, over the interval between `limit` and `limit` + `width`).
 
-The filling of limit orders is handled in the `swap` function. The `swap` function iteratively searches for the next initialised limit and fills the swap order against available liquidity between the current and next limit. Where a limit order is:
+All limit orders placed at the same `limit` are batched for efficient filling. Once filled, a `nonce` counter increases for that limit to start a new batch.
 
-- Fully filled, the liquidity for that batch is removed by calling the internal `_modify_liquidity()` function, and the base and quote balances updated
+The filling of limit orders is handled in the `swap()` function. While iterating through initialised limits, the `swap()` function will also check for limit orders that it should fill. If, after swapping, a limit order becomes:
+
+- Fully filled, the liquidity for that batch is removed by calling the internal `_modify_liquidity()` function, and the base and quote balances for that batch updated.
 - Partially filled, the base and quote balances for the batch are updated without removing liquidity from the batch.
 
 ### Collecting a limit order
 
 Collecting a limit order returns any filled and unfilled amounts to the order owner.
 
-In a traditional order book setting, proceeds from filled limit orders are automatically returned to the swapper's account. Alternatively, the order can be cancelled to return any unfilled or partially filled proceeds. Since automatic token transfer is not gas efficient in a blockchain setting, both actions above are combined into a single `collect_order()` function.
+In a traditional order book setting, proceeds from filled limit orders are automatically returned to the swapper. Alternatively, the order can be manually cancelled to return any unfilled or partially filled proceeds. In Sphinx, both actions are combined into a single `collect_order()` function to achieve the desired outcome while remaining gas efficient.
 
 ```rust
 fn collect_order(
@@ -173,7 +169,7 @@ fn collect_order(
 ) -> (u256, u256);
 ```
 
-Collecting an order withdraws the owner's pro rata share of the batch's base and quote balances. If the order is partially filled, a `_modify_position()` call is made to remove the withdrawing user's liquidity from the batch and pool.
+Collecting an order withdraws the owner's pro rata share of a batch's base and quote balances. If the order is partially filled, a further`_modify_position()` call is made to remove the user's liquidity from the batch and pool.
 
 The lifecycle of a limit order is summarised in the diagrams below.
 
