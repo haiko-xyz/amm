@@ -8,7 +8,6 @@ mod Quoter {
     use core::array::ArrayTrait;
     use starknet::syscalls::call_contract_syscall;
     use starknet::ContractAddress;
-    use debug::PrintTrait;
 
     // Local imports.
     use amm::interfaces::IQuoter::IQuoter;
@@ -33,6 +32,14 @@ mod Quoter {
 
     #[external(v0)]
     impl Quoter of IQuoter<ContractState> {
+
+        // Get market manager.
+        //
+        // # Returns
+        // * `market_manager` - market manager address
+        fn market_manager(self: @ContractState) -> ContractAddress {
+            return self.market_manager.read();
+        }
 
         // Obtain quote for a swap.
         //
@@ -140,6 +147,14 @@ mod Quoter {
                     return quote.into();
                 },
             }
+        }
+
+        // Update market manager.
+        //
+        // # Arguments
+        // * `market_manager` - market manager address
+        fn set_market_manager(ref self: ContractState, market_manager: ContractAddress) {
+            self.market_manager.write(market_manager);
         }
     }
 }
