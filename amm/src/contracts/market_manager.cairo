@@ -158,9 +158,8 @@ mod MarketManager {
     struct MultiSwap {
         caller: ContractAddress,
         swap_id: u128,
-        base_token: ContractAddress,
-        quote_token: ContractAddress,
-        is_buy: bool,
+        in_token: ContractAddress,
+        out_token: ContractAddress,
         amount_in: u256,
         amount_out: u256,
     }
@@ -815,9 +814,8 @@ mod MarketManager {
         // Swap tokens across multiple markets in a multi-hop route.
         // 
         // # Arguments
-        // * `base_token` - base token address
-        // * `quote_token` - quote token address
-        // * `is_buy` - whether swap is a buy or sell
+        // * `in_token` - in token address
+        // * `out_token` - out token address
         // * `amount` - amount of tokens to swap in
         // * `route` - list of market ids defining the route to swap through
         // * `deadline` - deadline for swap to be executed by
@@ -826,16 +824,15 @@ mod MarketManager {
         // * `amount_out` - amount of tokens swapped out net of fees
         fn swap_multiple(
             ref self: ContractState,
-            base_token: ContractAddress,
-            quote_token: ContractAddress,
-            is_buy: bool,
+            in_token: ContractAddress,
+            out_token: ContractAddress,
             amount: u256,
             route: Span<felt252>,
             deadline: Option<u64>,
         ) -> u256 {
             // Execute swap.
             let amount_out = self
-                ._swap_multiple(base_token, quote_token, is_buy, amount, route, deadline, false);
+                ._swap_multiple(in_token, out_token, amount, route, deadline, false);
 
             // Increment swap id.
             let swap_id = self.swap_id.read();
@@ -848,9 +845,8 @@ mod MarketManager {
                         MultiSwap {
                             caller: get_caller_address(),
                             swap_id,
-                            base_token,
-                            quote_token,
-                            is_buy,
+                            in_token,
+                            out_token,
                             amount_in: amount,
                             amount_out,
                         }
@@ -904,9 +900,8 @@ mod MarketManager {
         // Returned as error message.
         // 
         // # Arguments
-        // * `base_token` - base token address
-        // * `quote_token` - quote token address
-        // * `is_buy` - whether swap is a buy or sell
+        // * `in_token` - in token address
+        // * `out_token` - out token address
         // * `amount` - amount of tokens to swap in
         // * `route` - list of market ids defining the route to swap through
         // * `deadline` - deadline for swap to be executed by
@@ -915,15 +910,14 @@ mod MarketManager {
         // * `amount_out` - amount of tokens swapped out net of fees
         fn quote_multiple(
             ref self: ContractState,
-            base_token: ContractAddress,
-            quote_token: ContractAddress,
-            is_buy: bool,
+            in_token: ContractAddress,
+            out_token: ContractAddress,
             amount: u256,
             route: Span<felt252>,
             deadline: Option<u64>,
         ) {
             let amount_out = self._swap_multiple(
-                base_token, quote_token, is_buy, amount, route, deadline, true
+                in_token, out_token, amount, route, deadline, true
             );
             assert(false, amount_out.try_into().unwrap());
         }
@@ -1569,9 +1563,8 @@ mod MarketManager {
         // Called by `swap_multiple` and `quote_multiple`.
         // 
         // # Arguments
-        // * `base_token` - base token address
-        // * `quote_token` - quote token address
-        // * `is_buy` - whether swap is a buy or sell
+        // * `in_token` - in token address
+        // * `out_token` - out token address
         // * `amount` - amount of tokens to swap in
         // * `route` - list of market ids defining the route to swap through
         // * `deadline` - deadline for swap to be executed by
@@ -1581,9 +1574,8 @@ mod MarketManager {
         // * `amount_out` - amount of tokens swapped out net of fees
         fn _swap_multiple(
             ref self: ContractState,
-            base_token: ContractAddress,
-            quote_token: ContractAddress,
-            is_buy: bool,
+            in_token: ContractAddress,
+            out_token: ContractAddress,
             amount: u256,
             route: Span<felt252>,
             deadline: Option<u64>,
@@ -1596,11 +1588,7 @@ mod MarketManager {
 
             // Initialise swap values.
             let mut i = 0;
-            let mut in_token = if is_buy {
-                quote_token
-            } else {
-                base_token
-            };
+            let mut in_token_iter = in_token;
             let mut amount_out = amount;
 
             loop {
@@ -1613,9 +1601,9 @@ mod MarketManager {
                 let market_info = self.market_info.read(market_id);
 
                 // Check that route is valid.
-                let is_buy_iter = in_token == market_info.quote_token;
+                let is_buy_iter = in_token_iter == market_info.quote_token;
                 if !is_buy_iter {
-                    assert(in_token == market_info.base_token, 'RouteMismatch');
+                    assert(in_token_iter == market_info.base_token, 'RouteMismatch');
                 }
 
                 // Execute swap and update values.
@@ -1631,7 +1619,7 @@ mod MarketManager {
                         quote_mode
                     );
                 amount_out = amount_out_iter;
-                in_token =
+                in_token_iter =
                     if is_buy_iter {
                         market_info.base_token
                     } else {
@@ -1641,6 +1629,10 @@ mod MarketManager {
                 i += 1;
             };
 
+            // Check that final token is out token.
+            assert(in_token_iter == out_token, 'RouteMismatch');
+
+            // Return amount out.
             amount_out
         }
     }

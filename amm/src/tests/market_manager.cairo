@@ -3,5 +3,6 @@ mod test_deploy_token;
 mod test_create_market;
 mod test_modify_position;
 mod test_swap;
+mod test_swap_multiple;
 mod test_limit_orders;
 mod test_upgrade_market_manager;

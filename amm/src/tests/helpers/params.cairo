@@ -67,6 +67,16 @@ struct SwapParams {
     deadline: Option<u64>
 }
 
+#[derive(Drop, Copy)]
+struct SwapMultipleParams {
+    owner: ContractAddress,
+    in_token: ContractAddress,
+    out_token: ContractAddress,
+    amount: u256,
+    route: Span<felt252>,
+    deadline: Option<u64>,
+}
+
 ////////////////////////////////
 // CONSTANTS
 ////////////////////////////////
@@ -101,19 +111,12 @@ fn default_deploy_params() -> DeployParams {
 
 fn default_token_params() -> (ContractAddress, ERC20ConstructorParams, ERC20ConstructorParams) {
     let treasury = treasury();
-    let base_params = ERC20ConstructorParams {
-        name_: 'Ethereum',
-        symbol_: 'ETH',
-        initial_supply: to_e28(5000000000000000000000000000000000000000000),
-        recipient: treasury
-    };
-    let quote_params = ERC20ConstructorParams {
-        name_: 'USDC',
-        symbol_: 'USDC',
-        initial_supply: to_e28(100000000000000000000000000000000000000000000),
-        recipient: treasury
-    };
-
+    let base_params = token_params(
+        'Ethereum', 'ETH', to_e28(5000000000000000000000000000000000000000000), treasury
+    );
+    let quote_params = token_params(
+        'USDC', 'USDC', to_e28(100000000000000000000000000000000000000000000), treasury
+    );
     (treasury, base_params, quote_params)
 }
 
@@ -166,4 +169,15 @@ fn swap_params(
     deadline: Option<u64>
 ) -> SwapParams {
     SwapParams { owner, market_id, is_buy, exact_input, amount, threshold_sqrt_price, deadline }
+}
+
+fn swap_multiple_params(
+    owner: ContractAddress,
+    in_token: ContractAddress,
+    out_token: ContractAddress,
+    amount: u256,
+    route: Span<felt252>,
+    deadline: Option<u64>,
+) -> SwapMultipleParams {
+    SwapMultipleParams { owner, in_token, out_token, amount, route, deadline }
 }

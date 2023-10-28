@@ -14,7 +14,9 @@ use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDi
 use amm::interfaces::IERC20::{IERC20Dispatcher, IERC20DispatcherTrait};
 use amm::types::i256::i256;
 use amm::tests::helpers::actions::{market_manager, token};
-use amm::tests::helpers::params::{CreateMarketParams, ModifyPositionParams, SwapParams};
+use amm::tests::helpers::params::{
+    CreateMarketParams, ModifyPositionParams, SwapParams, SwapMultipleParams
+};
 
 
 fn deploy_market_manager(owner: ContractAddress,) -> IMarketManagerDispatcher {
@@ -67,6 +69,18 @@ fn swap(market_manager: IMarketManagerDispatcher, params: SwapParams) -> (u256, 
             params.amount,
             params.exact_input,
             params.threshold_sqrt_price,
+            params.deadline,
+        )
+}
+
+fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleParams) -> u256 {
+    set_contract_address(params.owner);
+    market_manager
+        .swap_multiple(
+            params.in_token,
+            params.out_token,
+            params.amount,
+            params.route,
             params.deadline,
         )
 }
