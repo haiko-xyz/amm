@@ -12,7 +12,7 @@ use amm::tests::helpers::contracts::upgraded_market_manager::{
 };
 use amm::tests::helpers::actions::market_manager::{deploy_market_manager, create_market};
 use amm::tests::helpers::actions::token::deploy_token;
-use amm::tests::helpers::actions::params::{owner, default_token_params, default_market_params};
+use amm::tests::helpers::params::{owner, default_token_params, default_market_params};
 
 
 ////////////////////////////////

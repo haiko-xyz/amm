@@ -13,8 +13,8 @@ use amm::libraries::math::price_math;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::interfaces::IERC20::{IERC20Dispatcher, IERC20DispatcherTrait};
 use amm::types::i256::i256;
-use amm::tests::helpers::actions::{market_manager, token, params};
-use amm::tests::helpers::actions::params::{CreateMarketParams, ModifyPositionParams, SwapParams};
+use amm::tests::helpers::actions::{market_manager, token};
+use amm::tests::helpers::params::{CreateMarketParams, ModifyPositionParams, SwapParams};
 
 
 fn deploy_market_manager(owner: ContractAddress,) -> IMarketManagerDispatcher {

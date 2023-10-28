@@ -1,5 +1,5 @@
 use amm::tests::helpers::actions::market_manager::deploy_market_manager;
-use amm::tests::helpers::actions::params::owner;
+use amm::tests::helpers::params::owner;
 use amm::contracts::market_manager::MarketManager;
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};

@@ -6,7 +6,7 @@ use starknet::deploy_syscall;
 
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT};
 use amm::libraries::tree::_get_segment_and_position;
-use amm::tests::helpers::actions::params;
+use amm::tests::helpers::params;
 use amm::tests::helpers::actions::token::deploy_token;
 use amm::tests::helpers::actions::market_manager::{deploy_market_manager, create_market};
 use amm::interfaces::IERC20::{IERC20Dispatcher, IERC20DispatcherTrait};
