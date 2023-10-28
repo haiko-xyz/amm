@@ -34,7 +34,6 @@ use amm::types::i256::I256Trait;
 // * `width` - limit width
 // * `is_buy` - whether swap is a buy or sell
 // * `exact_input` - whether swap amount is exact input or output
-// * `quote_mode` - if enabled, does not perform any state updates
 //
 // # Returns
 // * `partial_fill_info` - info on final partially filled limit
@@ -52,7 +51,6 @@ fn swap_iter(
     width: u32,
     is_buy: bool,
     exact_input: bool,
-    quote_mode: bool,
 ) -> Option<PartialFillInfo> {
     // Break loop if amount remaining filled or price threshold reached. 
     if amount_rem == 0
@@ -136,20 +134,18 @@ fn swap_iter(
 
         // Update fee factors (unless in quote mode).
         let mut limit_info = self.limit_info.read((market_id, target_limit));
-        if !quote_mode {
-            // Asserts below are for debugging u256 overflow bugs - can likely be removed later on.
-            assert(
-                market_state.quote_fee_factor >= limit_info.quote_fee_factor,
-                'LimitInfoQuoteFeeFactor'
-            );
-            assert(
-                market_state.base_fee_factor >= limit_info.base_fee_factor, 'LimitInfoBaseFeeFactor'
-            );
-            limit_info.quote_fee_factor = market_state.quote_fee_factor
-                - limit_info.quote_fee_factor;
-            limit_info.base_fee_factor = market_state.base_fee_factor - limit_info.base_fee_factor;
-            self.limit_info.write((market_id, target_limit), limit_info);
-        }
+        // Asserts below are for debugging u256 overflow bugs - can likely be removed later on.
+        assert(
+            market_state.quote_fee_factor >= limit_info.quote_fee_factor,
+            'LimitInfoQuoteFeeFactor'
+        );
+        assert(
+            market_state.base_fee_factor >= limit_info.base_fee_factor, 'LimitInfoBaseFeeFactor'
+        );
+        limit_info.quote_fee_factor = market_state.quote_fee_factor
+            - limit_info.quote_fee_factor;
+        limit_info.base_fee_factor = market_state.base_fee_factor - limit_info.base_fee_factor;
+        self.limit_info.write((market_id, target_limit), limit_info);
 
         // Apply liquidity deltas.
         let mut liquidity_delta = limit_info.liquidity_delta;
@@ -185,7 +181,6 @@ fn swap_iter(
             width,
             is_buy,
             exact_input,
-            quote_mode,
         );
     } else if market_state.curr_sqrt_price != start_sqrt_price {
         // If sqrt price has changed, calculate new limit.

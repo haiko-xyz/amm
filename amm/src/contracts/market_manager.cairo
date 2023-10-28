@@ -808,7 +808,6 @@ mod MarketManager {
                     threshold_sqrt_price,
                     swap_id,
                     deadline,
-                    false
                 )
         }
 
@@ -835,7 +834,7 @@ mod MarketManager {
         ) -> u256 {
             // Execute swap.
             let amount_out = self
-                ._swap_multiple(base_token, quote_token, is_buy, amount, route, deadline, false);
+                ._swap_multiple(base_token, quote_token, is_buy, amount, route, deadline);
 
             // Increment swap id.
             let swap_id = self.swap_id.read();
@@ -861,7 +860,7 @@ mod MarketManager {
             amount_out
         }
 
-        // Obtain quote for a swap between tokens.
+        // Obtain quote for a swap between tokens (returned as error message).
         //
         // # Arguments
         // * `market_id` - market id
@@ -870,7 +869,7 @@ mod MarketManager {
         // * `exact_input` - true if `amount` is exact input, or false if exact output
         // * `threshold_sqrt_price` - maximum sqrt price to swap at for buys, minimum for sells
         // 
-        // # Returns
+        // # Returns (as error message)
         // * `amount` - amount out (if exact input) or amount in (if exact output)
         fn quote(
             ref self: ContractState,
@@ -879,7 +878,7 @@ mod MarketManager {
             amount: u256,
             exact_input: bool,
             threshold_sqrt_price: Option<u256>,
-        ) -> u256 {
+        ) {
             let (amount_in, amount_out, _) = self
                 ._swap(
                     market_id,
@@ -889,17 +888,18 @@ mod MarketManager {
                     threshold_sqrt_price,
                     1,
                     Option::None(()),
-                    true
                 );
             let return_amount = if exact_input {
                 amount_out
             } else {
                 amount_in
             };
-            return return_amount;
+            // Return amount as error message.
+            assert(false, return_amount.try_into().unwrap());
         }
 
         // Obtain quote for a swap across multiple markets in a multi-hop route.
+        // Returned as error message.
         // 
         // # Arguments
         // * `base_token` - base token address
@@ -909,7 +909,7 @@ mod MarketManager {
         // * `route` - list of market ids defining the route to swap through
         // * `deadline` - deadline for swap to be executed by
         //
-        // # Returns
+        // # Returns (as error message)
         // * `amount_out` - amount of tokens swapped out net of fees
         fn quote_multiple(
             ref self: ContractState,
@@ -919,8 +919,9 @@ mod MarketManager {
             amount: u256,
             route: Span<felt252>,
             deadline: Option<u64>,
-        ) -> u256 {
-            self._swap_multiple(base_token, quote_token, is_buy, amount, route, deadline, true)
+        ) {
+            let amount_out = self._swap_multiple(base_token, quote_token, is_buy, amount, route, deadline);
+            assert(false, amount_out.try_into().unwrap());
         }
 
         // Initiates a flash loan.
@@ -1376,7 +1377,6 @@ mod MarketManager {
         // * `threshold_sqrt_price` - maximum sqrt price to swap at for buys, minimum for sells
         // * `swap_id` - unique swap id
         // * `deadline` - deadline for swap to be executed by
-        // * `quote_mode` - if enabled, does not perform any state updates
         //
         // # Returns
         // * `amount_in` - amount of tokens swapped in gross of fees
@@ -1391,7 +1391,6 @@ mod MarketManager {
             threshold_sqrt_price: Option<u256>,
             swap_id: u128,
             deadline: Option<u64>,
-            quote_mode: bool,
         ) -> (u256, u256, u256) {
             // Fetch market info and state.
             let market_info = self.market_info.read(market_id);
@@ -1456,7 +1455,6 @@ mod MarketManager {
                 market_info.width,
                 is_buy,
                 exact_input,
-                quote_mode,
             );
 
             // Calculate swap amounts.
@@ -1470,11 +1468,6 @@ mod MarketManager {
             } else {
                 amount - amount_rem
             };
-
-            // No state updates performed up to this point. Return quoted amount if quote mode enabled. 
-            if quote_mode {
-                return (amount_in, amount_out, swap_fees + protocol_fees);
-            }
 
             // Calculate protocol fee and update fee balances. Write updates to storage.
             if is_buy {
@@ -1571,7 +1564,6 @@ mod MarketManager {
         // * `amount` - amount of tokens to swap in
         // * `route` - list of market ids defining the route to swap through
         // * `deadline` - deadline for swap to be executed by
-        // * `quote_mode` - if enabled, does not perform any state updates
         //
         // # Returns
         // * `amount_out` - amount of tokens swapped out net of fees
@@ -1583,7 +1575,6 @@ mod MarketManager {
             amount: u256,
             route: Span<felt252>,
             deadline: Option<u64>,
-            quote_mode: bool,
         ) -> u256 {
             assert(route.len() > 1, 'NotMultiSwap');
 
@@ -1624,7 +1615,6 @@ mod MarketManager {
                         Option::None(()),
                         swap_id,
                         deadline,
-                        quote_mode,
                     );
                 amount_out = amount_out_iter;
                 in_token =
