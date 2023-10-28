@@ -39,6 +39,12 @@ trait IStrategy<TContractState> {
 }
 ```
 
+### `Quoter`
+
+The `Quoter` contract is responsible for providing quotes for swaps.
+
+It calls `quote()` and `quote_multiple()` in the `MarketManager` contract, and extracts the quoted amount via an error message. Terminating the call with an error message is necessary to avoid committing state updates to the `MarketManager` contract.
+
 ## Contract interactions
 
 ### Creating a market
@@ -180,6 +186,32 @@ The lifecycle of a limit order is summarised in the diagrams below.
 #### Fig 2b. Order execution flow (partially filled)
 
 ![Order Partially Filled](img/order_partially_filled.png)
+
+### Quoting a swap
+
+Obtaining quotes for swaps and multi-market swaps is done via the `Quoter` contract, by calling `quote()` and `quote_multiple()` respectively.
+
+As explained above, the quoted amount is extracted via an error message to avoid committing state updates to the `MarketManager` contract.
+
+```rust
+fn quote(
+  self: @ContractState,
+  market_id: felt252,
+  is_buy: bool,
+  amount: u256,
+  exact_input: bool,
+  threshold_sqrt_price: Option<u256>,
+) -> u256;
+
+fn quote_multiple(
+  self: @ContractState,
+  base_token: ContractAddress,
+  quote_token: ContractAddress,
+  is_buy: bool,
+  amount: u256,
+  route: Span<felt252>,
+) -> u256;
+```
 
 ### Upgrading the `MarketManager` contract
 
