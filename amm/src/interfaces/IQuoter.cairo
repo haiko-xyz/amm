@@ -13,9 +13,8 @@ trait IQuoter<TContractState> {
 
     fn quote_multiple(
         self: @TContractState,
-        base_token: ContractAddress,
-        quote_token: ContractAddress,
-        is_buy: bool,
+        in_token: ContractAddress,
+        out_token: ContractAddress,
         amount: u256,
         route: Span<felt252>,
     ) -> u256;

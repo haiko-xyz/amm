@@ -904,7 +904,6 @@ mod MarketManager {
         // * `out_token` - out token address
         // * `amount` - amount of tokens to swap in
         // * `route` - list of market ids defining the route to swap through
-        // * `deadline` - deadline for swap to be executed by
         //
         // # Returns (as error message)
         // * `amount_out` - amount of tokens swapped out net of fees
@@ -914,10 +913,9 @@ mod MarketManager {
             out_token: ContractAddress,
             amount: u256,
             route: Span<felt252>,
-            deadline: Option<u64>,
         ) {
             let amount_out = self._swap_multiple(
-                in_token, out_token, amount, route, deadline, true
+                in_token, out_token, amount, route, Option::None(()), true
             );
             assert(false, amount_out.try_into().unwrap());
         }

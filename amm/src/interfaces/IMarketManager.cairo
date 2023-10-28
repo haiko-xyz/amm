@@ -141,7 +141,6 @@ trait IMarketManager<TContractState> {
         out_token: ContractAddress,
         amount: u256,
         route: Span<felt252>,
-        deadline: Option<u64>,
     );
 
     fn flash_loan(ref self: TContractState, token: ContractAddress, amount: u256);

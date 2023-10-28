@@ -92,9 +92,8 @@ mod Quoter {
         // Obtain quote for a multi-market swap.
         //
         // # Arguments
-        // * `base_token` - base token address
-        // * `quote_token` - quote token address
-        // * `is_buy` - whether swap is a buy or sell
+        // * `in_token` - in token address
+        // * `out_token` - out token address
         // * `amount` - amount of tokens to swap in
         // * `route` - list of market ids defining the route to swap through
         //
@@ -102,26 +101,25 @@ mod Quoter {
         // * `amount` - quoted amount out
         fn quote_multiple(
             self: @ContractState,
-            base_token: ContractAddress,
-            quote_token: ContractAddress,
-            is_buy: bool,
+            in_token: ContractAddress,
+            out_token: ContractAddress,
             amount: u256,
             route: Span<felt252>,
         ) -> u256 {
             // Compile calldata.
             let mut calldata = array![];
-            calldata.append(base_token.into());
-            calldata.append(quote_token.into());
-            calldata.append(is_buy.into());
+            calldata.append(in_token.into());
+            calldata.append(out_token.into());
             calldata.append(amount.low.into());
             calldata.append(amount.high.into());
-
+            calldata.append(route.len().into());
             let mut i = 0;
             loop {
                 if i == route.len() {
                     break;
                 }
                 calldata.append(*route.at(i));
+                i += 1;
             };
 
             // Call `quote_multiple` in market manager.
