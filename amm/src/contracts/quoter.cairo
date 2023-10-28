@@ -33,6 +33,18 @@ mod Quoter {
 
     #[external(v0)]
     impl Quoter of IQuoter<ContractState> {
+
+        // Obtain quote for a swap.
+        //
+        // # Arguments
+        // * `market_id` - market ID
+        // * `is_buy` - whether swap is a buy or sell
+        // * `amount` - amount of tokens to swap in
+        // * `exact_input` - true if `amount` is exact input, otherwise exact output
+        // * `threshold_sqrt_price` - maximum sqrt price to swap at for buys, minimum for sells
+        //
+        // # Returns
+        // * `amount` - quoted amount out if exact input, quoted amount in if exact output
         fn quote(
             self: @ContractState,
             market_id: felt252,
@@ -72,7 +84,61 @@ mod Quoter {
                 },
                 Result::Err(error) => {
                     let quote = *error.at(0);
-                    quote.print();
+                    return quote.into();
+                },
+            }
+        }
+
+        // Obtain quote for a multi-market swap.
+        //
+        // # Arguments
+        // * `base_token` - base token address
+        // * `quote_token` - quote token address
+        // * `is_buy` - whether swap is a buy or sell
+        // * `amount` - amount of tokens to swap in
+        // * `route` - list of market ids defining the route to swap through
+        //
+        // # Returns
+        // * `amount` - quoted amount out
+        fn quote_multiple(
+            self: @ContractState,
+            base_token: ContractAddress,
+            quote_token: ContractAddress,
+            is_buy: bool,
+            amount: u256,
+            route: Span<felt252>,
+        ) -> u256 {
+            // Compile calldata.
+            let mut calldata = array![];
+            calldata.append(base_token.into());
+            calldata.append(quote_token.into());
+            calldata.append(is_buy.into());
+            calldata.append(amount.low.into());
+            calldata.append(amount.high.into());
+
+            let mut i = 0;
+            loop {
+                if i == route.len() {
+                    break;
+                }
+                calldata.append(*route.at(i));
+            };
+
+            // Call `quote_multiple` in market manager.
+            let res = call_contract_syscall(
+                address: self.market_manager.read(),
+                entry_point_selector: selector!("quote_multiple"),
+                calldata: calldata.span(),
+            );
+
+            // Extract quote from error message.
+            match res {
+                Result::Ok(_) => {
+                    assert(false, 'QuoteResultOk');
+                    return 0;
+                },
+                Result::Err(error) => {
+                    let quote = *error.at(0);
                     return quote.into();
                 },
             }
