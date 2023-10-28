@@ -2,7 +2,7 @@
 
 This document provides a technical overview of Sphinx's smart contracts. It focuses on the five main functions called by users, breaking down their internal call logic and mapping interactions with external `Strategy` contracts.
 
-It may be helpful to first review the Naming Conventions section of [Sphinx vs Uniswap](./sphinx-vs-uniswap.md) before reading this document.
+It may be helpful to first review the Naming Conventions section of [Sphinx vs Uniswap](./2-sphinx-vs-uniswap.md) before reading this document.
 
 ## Contracts
 

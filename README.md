@@ -1,10 +1,11 @@
 # Sphinx AMM
 
-This repo contains the core contracts of Sphinx AMM. 
+This repo contains the core contracts of Sphinx AMM.
 
 You can get started by reading through the following docs:
-- [Technical Overview](./docs/technical-overview.md)
-- [Comparison of Sphinx vs Uniswap](./docs/sphinx-vs-uniswap.md)
+
+- [Technical Overview](./docs/1-technical-overview.md)
+- [Comparison of Sphinx vs Uniswap](./docs/2-sphinx-vs-uniswap.md)
 
 ## Getting started
 

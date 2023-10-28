@@ -2,7 +2,7 @@
 
 This document compares Sphinx's AMM implementation to Uniswap's [V3](https://github.com/Uniswap/v3-core) and [V4](https://github.com/Uniswap/v4-core) implementations. It aims to identify key differences in order to assist auditors with their review of the Sphinx codebase.
 
-It should be read alongside the [Technical Overview](./technical-overview.md) for a high-level understanding of the protocol.
+It should be read alongside the [Technical Overview](./1-technical-overview.md) for a high-level understanding of the protocol.
 
 ### Key differences
 
