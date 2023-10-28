@@ -162,7 +162,7 @@ fn test_quote_cases() {
         let amount = if swap_case.exact_input { amount_out } else { amount_in };
 
         // Check that the quote is correct.
-        assert(quote == amount_in, 'Incorrect quote: Case 1' + swap_index.into());
+        assert(quote == amount, 'Incorrect quote: Case 1' + swap_index.into());
 
         swap_index += 1;
     };
