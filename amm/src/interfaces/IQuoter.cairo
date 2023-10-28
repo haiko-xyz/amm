@@ -1,4 +1,5 @@
 use starknet::ContractAddress;
+use starknet::class_hash::ClassHash;
 
 #[starknet::interface]
 trait IQuoter<TContractState> {
@@ -22,4 +23,6 @@ trait IQuoter<TContractState> {
     ) -> u256;
 
     fn set_market_manager(ref self: TContractState, market_manager: ContractAddress);
+
+    fn upgrade(ref self: TContractState, new_class_hash: ClassHash);
 }

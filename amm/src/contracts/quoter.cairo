@@ -8,6 +8,9 @@ mod Quoter {
     use core::array::ArrayTrait;
     use starknet::syscalls::call_contract_syscall;
     use starknet::ContractAddress;
+    use starknet::info::get_caller_address;
+    use starknet::replace_class_syscall;
+    use starknet::class_hash::ClassHash;
 
     // Local imports.
     use amm::interfaces::IQuoter::IQuoter;
@@ -18,6 +21,7 @@ mod Quoter {
 
     #[storage]
     struct Storage {
+        owner: ContractAddress,
         market_manager: ContractAddress,
     }
 
@@ -26,8 +30,16 @@ mod Quoter {
     ////////////////////////////////
 
     #[constructor]
-    fn constructor(ref self: ContractState, market_manager: ContractAddress) {
+    fn constructor(ref self: ContractState, owner: ContractAddress, market_manager: ContractAddress) {
+        self.owner.write(owner);
         self.market_manager.write(market_manager);
+    }
+
+    #[generate_trait]
+    impl ModifierImpl of ModifierTrait {
+        fn assert_only_owner(self: @ContractState) {
+            assert(self.owner.read() == get_caller_address(), 'OnlyOwner')
+        }
     }
 
     #[external(v0)]
@@ -154,7 +166,18 @@ mod Quoter {
         // # Arguments
         // * `market_manager` - market manager address
         fn set_market_manager(ref self: ContractState, market_manager: ContractAddress) {
+            self.assert_only_owner();
             self.market_manager.write(market_manager);
+        }
+
+        // Upgrade contract class.
+        // Callable by owner only.
+        //
+        // # Arguments
+        // # `new_class_hash` - New class hash of the contract
+        fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+            self.assert_only_owner();
+            replace_class_syscall(new_class_hash);
         }
     }
 }
