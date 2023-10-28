@@ -134,7 +134,7 @@ trait IMarketManager<TContractState> {
         amount: u256,
         exact_input: bool,
         threshold_sqrt_price: Option<u256>,
-    ) -> u256;
+    );
 
     fn quote_multiple(
         ref self: TContractState,
@@ -144,7 +144,7 @@ trait IMarketManager<TContractState> {
         amount: u256,
         route: Span<felt252>,
         deadline: Option<u64>,
-    ) -> u256;
+    );
 
     fn flash_loan(ref self: TContractState, token: ContractAddress, amount: u256);
 
