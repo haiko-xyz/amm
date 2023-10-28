@@ -1,5 +1,5 @@
 use amm::tests::helpers::actions::token::deploy_token;
-use amm::tests::helpers::actions::params::{token_params, treasury, ERC20ConstructorParams};
+use amm::tests::helpers::params::{token_params, treasury, ERC20ConstructorParams};
 use amm::tests::helpers::utils::to_e28;
 use amm::interfaces::IERC20::{IERC20, IERC20Dispatcher, IERC20DispatcherTrait};
 

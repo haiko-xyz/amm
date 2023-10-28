@@ -119,9 +119,8 @@ trait IMarketManager<TContractState> {
 
     fn swap_multiple(
         ref self: TContractState,
-        base_token: ContractAddress,
-        quote_token: ContractAddress,
-        is_buy: bool,
+        in_token: ContractAddress,
+        out_token: ContractAddress,
         amount: u256,
         route: Span<felt252>,
         deadline: Option<u64>,
@@ -138,12 +137,10 @@ trait IMarketManager<TContractState> {
 
     fn quote_multiple(
         ref self: TContractState,
-        base_token: ContractAddress,
-        quote_token: ContractAddress,
-        is_buy: bool,
+        in_token: ContractAddress,
+        out_token: ContractAddress,
         amount: u256,
         route: Span<felt252>,
-        deadline: Option<u64>,
     );
 
     fn flash_loan(ref self: TContractState, token: ContractAddress, amount: u256);

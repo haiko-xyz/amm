@@ -8,7 +8,7 @@ use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDi
 use amm::interfaces::IERC20::{IERC20Dispatcher, IERC20DispatcherTrait};
 use amm::tests::helpers::actions::market_manager::{deploy_market_manager, create_market};
 use amm::tests::helpers::actions::token::deploy_token;
-use amm::tests::helpers::actions::params::{owner, default_token_params, default_market_params};
+use amm::tests::helpers::params::{owner, default_token_params, default_market_params};
 
 
 ////////////////////////////////

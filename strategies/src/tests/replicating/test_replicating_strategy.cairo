@@ -14,10 +14,9 @@ use amm::interfaces::IERC20::{IERC20Dispatcher, IERC20DispatcherTrait};
 use amm::tests::helpers::actions::{
     market_manager::{deploy_market_manager, create_market, modify_position},
     token::{deploy_token, fund, approve},
-    params::{
-        owner, alice, treasury, default_token_params, default_market_params, modify_position_params,
-        swap_params
-    }
+};
+use amm::tests::helpers::params::{
+    owner, alice, treasury, default_token_params, default_market_params, modify_position_params, swap_params
 };
 use amm::tests::helpers::utils::encode_sqrt_price;
 use amm::tests::helpers::actions::market_manager::swap;

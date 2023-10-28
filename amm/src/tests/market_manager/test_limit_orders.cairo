@@ -11,7 +11,7 @@ use amm::tests::helpers::actions::market_manager::{
     deploy_market_manager, create_market, modify_position
 };
 use amm::tests::helpers::actions::token::{deploy_token, fund, approve};
-use amm::tests::helpers::actions::params::{
+use amm::tests::helpers::params::{
     owner, alice, bob, charlie, treasury, default_token_params, default_market_params,
     modify_position_params
 };

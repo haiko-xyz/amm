@@ -12,8 +12,8 @@ use array::ArrayTrait;
 
 use amm::contracts::tokens::erc20::ERC20;
 use amm::interfaces::IERC20::{IERC20, IERC20Dispatcher, IERC20DispatcherTrait};
-use amm::tests::helpers::actions::{params, market_manager};
-use amm::tests::helpers::actions::params::{ERC20ConstructorParams, token_params, treasury};
+use amm::tests::helpers::actions::market_manager;
+use amm::tests::helpers::params::{ERC20ConstructorParams, token_params, treasury};
 
 
 fn deploy_token(params: ERC20ConstructorParams) -> IERC20Dispatcher {

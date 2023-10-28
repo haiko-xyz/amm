@@ -6,11 +6,10 @@ use array::ArrayTrait;
 use starknet::deploy_syscall;
 
 use amm::tests::helpers::contracts::fee_controller::FeeController;
-use amm::tests::helpers::actions::params::{fee_controller_params, FeeControllerParams};
+use amm::tests::helpers::params::{fee_controller_params, FeeControllerParams};
 use amm::interfaces::IFeeController::{
     IFeeController, IFeeControllerDispatcher, IFeeControllerDispatcherTrait
 };
-
 
 fn deploy_fee_controller(params: FeeControllerParams) -> IFeeControllerDispatcher {
     let mut constructor_calldata = ArrayTrait::<felt252>::new();
