@@ -3,6 +3,7 @@ use starknet::class_hash::ClassHash;
 
 #[starknet::interface]
 trait IQuoter<TContractState> {
+    fn owner(self: @TContractState) -> ContractAddress;
     fn market_manager(self: @TContractState) -> ContractAddress;
 
     fn quote(

@@ -45,6 +45,14 @@ mod Quoter {
     #[external(v0)]
     impl Quoter of IQuoter<ContractState> {
 
+        // Get owner.
+        //
+        // # Returns
+        // * `owner` - owner address
+        fn owner(self: @ContractState) -> ContractAddress {
+            return self.owner.read();
+        }
+        
         // Get market manager.
         //
         // # Returns
