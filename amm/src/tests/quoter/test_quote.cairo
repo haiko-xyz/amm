@@ -170,9 +170,6 @@ fn test_quote_cases() {
         let (amount_in, amount_out, _) = swap(market_manager, params);
         let amount = if swap_case.exact_input { amount_out } else { amount_in };
 
-        'sqrt price'.print();
-        market_manager.curr_sqrt_price(market_id).print();
-
         // Check that the quote is correct.
         assert(quote == amount, 'Incorrect quote: Case 1' + swap_index.into());
 
