@@ -20,22 +20,18 @@ use amm::tests::helpers::params::{
 };
 
 // External imports.
+use snforge_std::{declare, ContractClassTrait, start_prank, stop_prank};
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
 fn deploy_market_manager(owner: ContractAddress,) -> IMarketManagerDispatcher {
-    let mut constructor_calldata = ArrayTrait::<felt252>::new();
-    owner.serialize(ref constructor_calldata);
-    let (deployed_address, _) = deploy_syscall(
-        MarketManager::TEST_CLASS_HASH.try_into().unwrap(), 0, constructor_calldata.span(), false
-    )
-        .unwrap();
-
-    IMarketManagerDispatcher { contract_address: deployed_address }
+    let contract = declare('MarketManager');
+    let contract_address = contract.deploy(@array![owner.into()]).unwrap();
+    IMarketManagerDispatcher { contract_address }
 }
 
 fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketParams) -> felt252 {
-    set_contract_address(params.owner);
-    market_manager
+    start_prank(market_manager.contract_address, params.owner);
+    let market_id = market_manager
         .create_market(
             params.base_token,
             params.quote_token,
@@ -48,22 +44,27 @@ fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketP
             params.allow_positions,
             params.allow_orders,
             params.is_concentrated
-        )
+        );
+    stop_prank(market_manager.contract_address);
+    market_id
 }
 
 fn modify_position(
     market_manager: IMarketManagerDispatcher, params: ModifyPositionParams,
 ) -> (i256, i256, u256, u256) {
-    set_contract_address(params.owner);
-    market_manager
+    start_prank(market_manager.contract_address, params.owner);
+    let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
         .modify_position(
             params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
-        )
+        );
+    stop_prank(market_manager.contract_address);
+
+    (base_amount, quote_amount, base_fees, quote_fees)
 }
 
 fn swap(market_manager: IMarketManagerDispatcher, params: SwapParams) -> (u256, u256, u256) {
-    set_contract_address(params.owner);
-    market_manager
+    start_prank(market_manager.contract_address, params.owner);
+    let (amount_in, amount_out, fees) = market_manager
         .swap(
             params.market_id,
             params.is_buy,
@@ -71,17 +72,21 @@ fn swap(market_manager: IMarketManagerDispatcher, params: SwapParams) -> (u256, 
             params.exact_input,
             params.threshold_sqrt_price,
             params.deadline,
-        )
+        );
+    stop_prank(market_manager.contract_address);
+    (amount_in, amount_out, fees)
 }
 
 fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleParams) -> u256 {
-    set_contract_address(params.owner);
-    market_manager
+    start_prank(market_manager.contract_address, params.owner);
+    let amount_out = market_manager
         .swap_multiple(
             params.in_token,
             params.out_token,
             params.amount,
             params.route,
             params.deadline,
-        )
+        );
+    stop_prank(market_manager.contract_address);
+    amount_out
 }

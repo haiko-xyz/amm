@@ -1,6 +1,6 @@
 // Core lib imports.
-use starknet::testing::set_contract_address;
 use cmp::{min, max};
+use debug::PrintTrait;
 
 // Local imports.
 use amm::libraries::constants::{MAX, OFFSET, MAX_LIMIT};
@@ -8,18 +8,19 @@ use amm::libraries::id;
 use amm::libraries::math::fee_math;
 use amm::types::i256::I256Trait;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
-use amm::interfaces::IERC20::{IERC20Dispatcher, IERC20DispatcherTrait};
-use amm::tests::helpers::actions::market_manager::{
-    deploy_market_manager, create_market, modify_position, swap, swap_multiple
+use super::helpers::{
+    market_manager::{deploy_market_manager, create_market, modify_position, swap, swap_multiple},
+    token::{declare_token, deploy_token, fund, approve},
 };
-use amm::tests::helpers::actions::token::{deploy_token, fund, approve};
 use amm::tests::helpers::params::{
     owner, alice, treasury, token_params, default_market_params, modify_position_params, 
     swap_params, swap_multiple_params, default_token_params
 };
 use amm::tests::helpers::utils::{to_e28, to_e18, encode_sqrt_price};
 
-use debug::PrintTrait;
+// External imports.
+use snforge_std::start_prank;
+use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
 ////////////////////////////////
 // SETUP
@@ -34,8 +35,9 @@ fn before() -> (IMarketManagerDispatcher, felt252, IERC20Dispatcher, IERC20Dispa
 
     // Deploy tokens.
     let (treasury, base_token_params, quote_token_params) = default_token_params();
-    let base_token = deploy_token(base_token_params);
-    let quote_token = deploy_token(quote_token_params);
+    let erc20_class = declare_token();
+    let base_token = deploy_token(erc20_class, base_token_params);
+    let quote_token = deploy_token(erc20_class, quote_token_params);
 
     // Fund LP with initial token balances and approve market manager as spender.
     let initial_base_amount = to_e28(5000000000000000000000000000000000000000000);
@@ -62,33 +64,33 @@ fn before() -> (IMarketManagerDispatcher, felt252, IERC20Dispatcher, IERC20Dispa
 ////////////////////////////////
 
 #[test]
-// #[fuzzer(runs: 30, seed: 88)]
+#[fuzzer(runs: 30, seed: 88)]
 fn test_fee_factor_invariants(
     pos1_limit1: u16,
     pos1_limit2: u16,
-    pos1_liquidity: u256,
+    pos1_liquidity: u32,
     pos2_limit1: u16,
     pos2_limit2: u16,
-    pos2_liquidity: u256,
+    pos2_liquidity: u32,
     pos3_limit1: u16,
     pos3_limit2: u16,
-    pos3_liquidity: u256,
+    pos3_liquidity: u32,
     pos4_limit1: u16,
     pos4_limit2: u16,
-    pos4_liquidity: u256,
+    pos4_liquidity: u32,
     pos5_limit1: u16,
     pos5_limit2: u16,
-    pos5_liquidity: u256,
-    swap1_amount: u256,
-    swap2_amount: u256,
-    swap3_amount: u256,
-    swap4_amount: u256,
-    swap5_amount: u256,
-    swap6_amount: u256,
-    swap7_amount: u256,
-    swap8_amount: u256,
-    swap9_amount: u256,
-    swap10_amount: u256,
+    pos5_liquidity: u32,
+    swap1_amount: u32,
+    swap2_amount: u32,
+    swap3_amount: u32,
+    swap4_amount: u32,
+    swap5_amount: u32,
+    swap6_amount: u32,
+    swap7_amount: u32,
+    swap8_amount: u32,
+    swap9_amount: u32,
+    swap10_amount: u32,
 ) {
     let (market_manager, market_id, base_token, quote_token) = before();
 
@@ -104,11 +106,11 @@ fn test_fee_factor_invariants(
     let pos5_lower_limit = OFFSET - 32768 + min(pos5_limit1, pos5_limit2).into();
     let pos5_upper_limit = OFFSET - 32768 + max(pos5_limit1, pos5_limit2).into();
     let mut position_params = array![
-        (pos1_lower_limit, pos1_upper_limit, pos1_liquidity),
-        (pos2_lower_limit, pos2_upper_limit, pos2_liquidity),
-        (pos3_lower_limit, pos3_upper_limit, pos3_liquidity),
-        (pos4_lower_limit, pos4_upper_limit, pos4_liquidity),
-        (pos5_lower_limit, pos5_upper_limit, pos5_liquidity),
+        (pos1_lower_limit, pos1_upper_limit, pos1_liquidity.into() * 1000),
+        (pos2_lower_limit, pos2_upper_limit, pos2_liquidity.into() * 1000),
+        (pos3_lower_limit, pos3_upper_limit, pos3_liquidity.into() * 1000),
+        (pos4_lower_limit, pos4_upper_limit, pos4_liquidity.into() * 1000),
+        (pos5_lower_limit, pos5_upper_limit, pos5_liquidity.into() * 1000),
     ].span();
 
     // Place positions.
@@ -119,7 +121,7 @@ fn test_fee_factor_invariants(
         }
         let (lower_limit, upper_limit, liquidity) = *position_params.at(i);
         let mut params = modify_position_params(
-            alice(), market_id, lower_limit, upper_limit, I256Trait::new(liquidity, false)
+            alice(), market_id, lower_limit, upper_limit, I256Trait::new(liquidity.into(), false)
         );
         modify_position(market_manager, params);
         i += 1;
@@ -140,7 +142,7 @@ fn test_fee_factor_invariants(
         // Execute swap.
         let amount = *swap_amounts.at(j);
         let mut params = swap_params(
-            alice(), market_id, true, true, amount, Option::None(()), Option::None(())
+            alice(), market_id, true, true, amount.into(), Option::None(()), Option::None(())
         );
         swap(market_manager, params);
 
