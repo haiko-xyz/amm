@@ -67,9 +67,11 @@ fn swap_iter(
     let target_limit_opt = tree::next_limit(
         @self, market_id, is_buy, width, market_state.curr_limit
     );
-    // If running out of liquidity, we throw an error instead of returning a partial fill.
-    // Note this is different from the Uniswap implementation.
-    assert(target_limit_opt.is_some(), 'NoLiquidity');
+    // If running out of liquidity, we stop the swap execution.
+    if target_limit_opt.is_none() {
+        return Option::None(());
+    }
+    // assert(target_limit_opt.is_some(), 'NoLiquidity');
     let target_limit = min(target_limit_opt.unwrap(), price_math::max_limit(width));
 
     // Convert target limit to target sqrt price, and cap it at the threshold.
