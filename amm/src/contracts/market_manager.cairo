@@ -1398,7 +1398,7 @@ mod MarketManager {
 
             // Validate inputs.
             assert(market_info.quote_token.is_non_zero(), 'MarketNull');
-            assert(amount > 0, 'FlashAmtZero');
+            assert(amount > 0, 'AmtZero');
             if threshold_sqrt_price.is_some() {
                 limit_prices::check_threshold(
                     threshold_sqrt_price.unwrap(), market_state.curr_sqrt_price, is_buy
