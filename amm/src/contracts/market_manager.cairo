@@ -1458,6 +1458,7 @@ mod MarketManager {
             );
 
             // Calculate swap amounts.
+            assert(amount >= amount_rem, 'SwapAmtSubAmtRem');
             let amount_in = if exact_input {
                 amount - amount_rem
             } else {
@@ -1504,6 +1505,7 @@ mod MarketManager {
             let in_reserves = self.reserves.read(in_token);
             let out_reserves = self.reserves.read(out_token);
             self.reserves.write(in_token, in_reserves + amount_in);
+            assert(out_reserves >= amount_out, 'SwapOutReservesSubAmtOut');
             self.reserves.write(out_token, out_reserves - amount_out);
 
             // Handle fully filled limit orders. Must be done after state updates above.

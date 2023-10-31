@@ -25,3 +25,7 @@ allowed-libfuncs-list.name = "experimental"
 
 [cairo]
 sierra-replace-ids = true
+
+[tool.snforge]
+fuzzer_runs = 30
+fuzzer_seed = 88888
