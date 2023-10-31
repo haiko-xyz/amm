@@ -101,10 +101,10 @@ fn swap_iter(
     // Update amount remaining and amount calc.
     // Amount calc refers to amount out for exact input, and vice versa for exact out.
     if exact_input {
-        amount_rem -= amount_in_iter + fees;
+        amount_rem -= min(amount_in_iter + fees, amount_rem);
         amount_calc += amount_out_iter;
     } else {
-        amount_rem -= amount_out_iter;
+        amount_rem -= min(amount_out_iter, amount_rem);
         amount_calc += amount_in_iter + fees;
     }
 
