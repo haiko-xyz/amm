@@ -1,3 +1,4 @@
+// Core lib imports.
 use core::serde::Serde;
 use core::traits::Into;
 use core::result::ResultTrait;
@@ -8,16 +9,18 @@ use starknet::deploy_syscall;
 use starknet::ContractAddress;
 use starknet::testing::{set_caller_address, set_contract_address, set_block_timestamp};
 
+// Local imports.
 use amm::contracts::market_manager::MarketManager;
 use amm::libraries::math::price_math;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
-use amm::interfaces::IERC20::{IERC20Dispatcher, IERC20DispatcherTrait};
 use amm::types::i256::i256;
 use amm::tests::helpers::actions::{market_manager, token};
 use amm::tests::helpers::params::{
     CreateMarketParams, ModifyPositionParams, SwapParams, SwapMultipleParams
 };
 
+// External imports.
+use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
 fn deploy_market_manager(owner: ContractAddress,) -> IMarketManagerDispatcher {
     set_contract_address(owner);

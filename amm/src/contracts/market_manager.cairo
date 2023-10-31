@@ -17,7 +17,6 @@ mod MarketManager {
     use starknet::class_hash::ClassHash;
 
     // Local imports.
-    use amm::contracts::tokens::erc721::ERC721;
     use amm::libraries::tree;
     use amm::libraries::id;
     use amm::libraries::limit_prices;
@@ -30,8 +29,6 @@ mod MarketManager {
     use amm::interfaces::IStrategy::{IStrategyDispatcher, IStrategyDispatcherTrait};
     use amm::interfaces::IFeeController::{IFeeControllerDispatcher, IFeeControllerDispatcherTrait};
     use amm::interfaces::ILoanReceiver::{ILoanReceiverDispatcher, ILoanReceiverDispatcherTrait};
-    use amm::interfaces::IERC20::{IERC20Dispatcher, IERC20DispatcherTrait};
-    use amm::interfaces::IERC721::IERC721;
     use amm::types::core::{
         MarketInfo, MarketState, OrderBatch, Position, LimitInfo, LimitOrder, PositionInfo, SwapParams
     };
@@ -40,6 +37,11 @@ mod MarketManager {
         MarketInfoStorePacking, MarketStateStorePacking, LimitInfoStorePacking,
         OrderBatchStorePacking, PositionStorePacking, LimitOrderStorePacking
     };
+
+    // External imports.
+    use openzeppelin::token::erc721::erc721::ERC721;
+    use openzeppelin::token::erc721::interface::IERC721;
+    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
     ////////////////////////////////
     // STORAGE
@@ -1184,19 +1186,19 @@ mod MarketManager {
     impl ERC721Impl of IERC721<ContractState> {
         fn balance_of(self: @ContractState, account: ContractAddress) -> u256 {
             let unsafe_state = ERC721::unsafe_new_contract_state();
-            ERC721::IERC721::balance_of(@unsafe_state, account)
+            ERC721::ERC721Impl::balance_of(@unsafe_state, account)
         }
 
         fn owner_of(self: @ContractState, token_id: u256) -> ContractAddress {
             let unsafe_state = ERC721::unsafe_new_contract_state();
-            ERC721::IERC721::owner_of(@unsafe_state, token_id)
+            ERC721::ERC721Impl::owner_of(@unsafe_state, token_id)
         }
 
         fn transfer_from(
             ref self: ContractState, from: ContractAddress, to: ContractAddress, token_id: u256
         ) {
             let mut unsafe_state = ERC721::unsafe_new_contract_state();
-            ERC721::IERC721::transfer_from(ref unsafe_state, from, to, token_id)
+            ERC721::ERC721Impl::transfer_from(ref unsafe_state, from, to, token_id)
         }
 
         fn safe_transfer_from(
@@ -1207,31 +1209,31 @@ mod MarketManager {
             data: Span<felt252>
         ) {
             let mut unsafe_state = ERC721::unsafe_new_contract_state();
-            ERC721::IERC721::safe_transfer_from(ref unsafe_state, from, to, token_id, data)
+            ERC721::ERC721Impl::safe_transfer_from(ref unsafe_state, from, to, token_id, data)
         }
 
         fn approve(ref self: ContractState, to: ContractAddress, token_id: u256) {
             let mut unsafe_state = ERC721::unsafe_new_contract_state();
-            ERC721::IERC721::approve(ref unsafe_state, to, token_id)
+            ERC721::ERC721Impl::approve(ref unsafe_state, to, token_id)
         }
 
         fn set_approval_for_all(
             ref self: ContractState, operator: ContractAddress, approved: bool
         ) {
             let mut unsafe_state = ERC721::unsafe_new_contract_state();
-            ERC721::IERC721::set_approval_for_all(ref unsafe_state, operator, approved)
+            ERC721::ERC721Impl::set_approval_for_all(ref unsafe_state, operator, approved)
         }
 
         fn get_approved(self: @ContractState, token_id: u256) -> ContractAddress {
             let unsafe_state = ERC721::unsafe_new_contract_state();
-            ERC721::IERC721::get_approved(@unsafe_state, token_id)
+            ERC721::ERC721Impl::get_approved(@unsafe_state, token_id)
         }
 
         fn is_approved_for_all(
             self: @ContractState, owner: ContractAddress, operator: ContractAddress
         ) -> bool {
             let unsafe_state = ERC721::unsafe_new_contract_state();
-            ERC721::IERC721::is_approved_for_all(@unsafe_state, owner, operator)
+            ERC721::ERC721Impl::is_approved_for_all(@unsafe_state, owner, operator)
         }
     }
 

@@ -7,16 +7,20 @@ trait IUpgradedMarketManager<TContractState> {
 
 #[starknet::contract]
 mod UpgradedMarketManager {
+    // Core lib imports.
     use starknet::ContractAddress;
     use starknet::info::get_caller_address;
 
+    // Local imports.
     use super::IUpgradedMarketManager;
-    use amm::contracts::tokens::erc721::ERC721;
     use amm::types::core::{MarketInfo, MarketState, OrderBatch, Position, LimitInfo, LimitOrder};
     use amm::libraries::store_packing::{
         MarketInfoStorePacking, MarketStateStorePacking, LimitInfoStorePacking,
         OrderBatchStorePacking, PositionStorePacking, LimitOrderStorePacking
     };
+
+    // External imports.
+    use openzeppelin::token::erc721::erc721::ERC721;
 
     ////////////////////////////////
     // STORAGE

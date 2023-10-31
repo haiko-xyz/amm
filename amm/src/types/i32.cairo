@@ -18,15 +18,15 @@ struct i32 {
 // METHODS
 ////////////////////////////////
 
-trait I32Trait {
+trait i32Trait {
     fn new(val: u32, sign: bool) -> i32;
     fn one() -> i32;
 }
 
-impl I32Zeroable of Zeroable<i32> {
+impl i32Zeroable of Zeroable<i32> {
     #[inline(always)]
     fn zero() -> i32 {
-        I32Trait::new(0_u32, false)
+        i32Trait::new(0_u32, false)
     }
 
     #[inline(always)]
@@ -40,7 +40,7 @@ impl I32Zeroable of Zeroable<i32> {
     }
 }
 
-impl I32Impl of I32Trait {
+impl i32Impl of i32Trait {
     #[inline(always)]
     fn new(val: u32, sign: bool) -> i32 {
         i32 { val, sign: if val == 0 {
@@ -52,7 +52,7 @@ impl I32Impl of I32Trait {
 
     #[inline(always)]
     fn one() -> i32 {
-        I32Trait::new(1_u32, false)
+        i32Trait::new(1_u32, false)
     }
 }
 
@@ -72,7 +72,7 @@ impl Felt252TryIntoI32 of TryInto<felt252, i32> {
     #[inline(always)]
     fn try_into(self: felt252) -> Option<i32> {
         let abs: u32 = self.try_into().unwrap();
-        Option::Some(I32Trait::new(abs, false))
+        Option::Some(i32Trait::new(abs, false))
     }
 }
 
@@ -190,7 +190,7 @@ impl I32Mul of Mul<i32> {
     fn mul(lhs: i32, rhs: i32) -> i32 {
         let res_sign: bool = lhs.sign ^ rhs.sign;
         let mag: u32 = U32Mul::mul(lhs.val, rhs.val);
-        I32Trait::new(mag, res_sign)
+        i32Trait::new(mag, res_sign)
     }
 }
 
@@ -199,7 +199,7 @@ impl I32Div of Div<i32> {
     fn div(lhs: i32, rhs: i32) -> i32 {
         let res_sign = lhs.sign ^ rhs.sign;
         let mag: u32 = U32Div::div(lhs.val, rhs.val);
-        I32Trait::new(mag, res_sign)
+        i32Trait::new(mag, res_sign)
     }
 }
 
@@ -208,7 +208,7 @@ impl I32Rem of Rem<i32> {
     fn rem(lhs: i32, rhs: i32) -> i32 {
         let res_sign = lhs.sign;
         let mag: u32 = U32Rem::rem(lhs.val, rhs.val);
-        I32Trait::new(mag, res_sign)
+        i32Trait::new(mag, res_sign)
     }
 }
 

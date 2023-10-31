@@ -1,3 +1,4 @@
+// Core lib imports.
 use core::traits::AddEq;
 use core::serde::Serde;
 use starknet::ContractAddress;
@@ -10,10 +11,12 @@ use option::OptionTrait;
 use traits::TryInto;
 use array::ArrayTrait;
 
-use amm::contracts::tokens::erc20::ERC20;
-use amm::interfaces::IERC20::{IERC20, IERC20Dispatcher, IERC20DispatcherTrait};
-use amm::tests::helpers::actions::market_manager;
+// Local imports.
 use amm::tests::helpers::params::{ERC20ConstructorParams, token_params, treasury};
+
+// External imports.
+use openzeppelin::token::erc20::erc20::ERC20;
+use openzeppelin::token::erc20::interface::{IERC20, IERC20Dispatcher, IERC20DispatcherTrait};
 
 
 fn deploy_token(params: ERC20ConstructorParams) -> IERC20Dispatcher {

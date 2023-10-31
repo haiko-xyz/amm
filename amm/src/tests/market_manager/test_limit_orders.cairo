@@ -1,10 +1,12 @@
+// Core lib imports.
 use starknet::testing::set_contract_address;
+use debug::PrintTrait;
 
+// Local imports.
 use amm::libraries::id;
 use amm::libraries::math::math;
 use amm::libraries::constants::OFFSET;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
-use amm::interfaces::IERC20::{IERC20Dispatcher, IERC20DispatcherTrait};
 use amm::types::core::{MarketState, OrderBatch};
 use amm::types::i256::{i256, I256Trait};
 use amm::tests::helpers::actions::market_manager::{
@@ -17,8 +19,8 @@ use amm::tests::helpers::params::{
 };
 use amm::tests::helpers::utils::to_e28;
 
-use debug::PrintTrait;
-
+// External imports.
+use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
 ////////////////////////////////
 // SETUP

@@ -7,8 +7,7 @@ use amm::libraries::math::price_math::{
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT, MIN_SQRT_PRICE, MAX_SQRT_PRICE};
 use amm::libraries::math::bit_math::msb;
 use amm::tests::helpers::utils::approx_eq;
-use amm::types::i32::{i32, I32Trait};
-
+use amm::types::i32::{i32, i32Trait};
 
 ////////////////////////////////
 // TESTS - shift_limit, unshift_limit
@@ -17,38 +16,38 @@ use amm::types::i32::{i32, I32Trait};
 #[test]
 #[available_gas(2000000000)]
 fn test_shift_limit_width_1_cases() {
-    let mut limit: i32 = I32Trait::new(MIN_LIMIT, true);
+    let mut limit: i32 = i32Trait::new(MIN_LIMIT, true);
     let mut width = 1;
     assert(shift_limit(limit, width) == 0, 'shift(-MAX,1)');
 
-    limit = I32Trait::new(501234, true);
+    limit = i32Trait::new(501234, true);
     assert(shift_limit(limit, width) == 7887374, 'shift(-501234,1)');
 
-    limit = I32Trait::new(0, false);
+    limit = i32Trait::new(0, false);
     assert(shift_limit(limit, width) == OFFSET, 'shift(0,1)');
 
-    limit = I32Trait::new(1960, false);
+    limit = i32Trait::new(1960, false);
     assert(shift_limit(limit, width) == 8390568, 'shift(1960,1)');
 
-    limit = I32Trait::new(MAX_LIMIT, false);
+    limit = i32Trait::new(MAX_LIMIT, false);
     assert(shift_limit(limit, width) == 16777215, 'shift(MAX,1)');
 }
 
 #[test]
 #[available_gas(2000000000)]
 fn test_shift_limit_width_gt_1_cases() {
-    let mut limit: i32 = I32Trait::new(8388600, true);
+    let mut limit: i32 = i32Trait::new(8388600, true);
     let mut width = 10;
     assert(shift_limit(limit, width) == 0, 'shift(-8388600,10)');
 
-    limit = I32Trait::new(501230, false);
+    limit = i32Trait::new(501230, false);
     assert(shift_limit(limit, width) == 8889830, 'shift(501230,10)');
 
-    limit = I32Trait::new(1650000, true);
+    limit = i32Trait::new(1650000, true);
     width = 33; // offset = 8872347
     assert(shift_limit(limit, width) == 6738600, 'shift(-1650000,33)');
 
-    limit = I32Trait::new(0, false);
+    limit = i32Trait::new(0, false);
     assert(shift_limit(limit, width) == 8388600, 'shift(0,33)');
 }
 
@@ -56,7 +55,7 @@ fn test_shift_limit_width_gt_1_cases() {
 #[should_panic(expected: ('SHIFT_LIMIT_UNDERFLOW',))]
 #[available_gas(2000000000)]
 fn test_shift_limit_cases_underflow() {
-    let limit: i32 = I32Trait::new(OFFSET + 1, true);
+    let limit: i32 = i32Trait::new(OFFSET + 1, true);
     let width = 10;
     shift_limit(limit, width);
 }
@@ -65,7 +64,7 @@ fn test_shift_limit_cases_underflow() {
 #[should_panic(expected: ('SHIFT_LIMIT_OVERFLOW',))]
 #[available_gas(2000000000)]
 fn test_shift_limit_cases_overflow() {
-    let limit: i32 = I32Trait::new(MAX_LIMIT + 1, false);
+    let limit: i32 = i32Trait::new(MAX_LIMIT + 1, false);
     let width = 1;
     shift_limit(limit, width);
 }
@@ -75,19 +74,19 @@ fn test_shift_limit_cases_overflow() {
 fn test_unshift_limit_width_1_cases() {
     let mut limit: u32 = OFFSET + 1;
     let mut width = 1;
-    assert(unshift_limit(limit, width) == I32Trait::new(1, false), 'unshift(OFFSET+1,1)');
+    assert(unshift_limit(limit, width) == i32Trait::new(1, false), 'unshift(OFFSET+1,1)');
 
     limit = 0;
-    assert(unshift_limit(limit, width) == I32Trait::new(OFFSET, true), 'unshift(0,1)');
+    assert(unshift_limit(limit, width) == i32Trait::new(OFFSET, true), 'unshift(0,1)');
 
     limit = 1960;
-    assert(unshift_limit(limit, width) == I32Trait::new(8386648, true), 'unshift(1960,1)');
+    assert(unshift_limit(limit, width) == i32Trait::new(8386648, true), 'unshift(1960,1)');
 
     limit = 501234;
-    assert(unshift_limit(limit, width) == I32Trait::new(7887374, true), 'unshift(501234,1)');
+    assert(unshift_limit(limit, width) == i32Trait::new(7887374, true), 'unshift(501234,1)');
 
     limit = OFFSET + MAX_LIMIT;
-    assert(unshift_limit(limit, width) == I32Trait::new(MAX_LIMIT, false), 'unshift(OFFSET+MAX,1)');
+    assert(unshift_limit(limit, width) == i32Trait::new(MAX_LIMIT, false), 'unshift(OFFSET+MAX,1)');
 }
 
 #[test]
@@ -95,17 +94,17 @@ fn test_unshift_limit_width_1_cases() {
 fn test_unshift_limit_width_gt_1_cases() {
     let mut limit: u32 = 0;
     let mut width = 10;
-    assert(unshift_limit(limit, width) == I32Trait::new(8388600, true), 'unshift(0,10)');
+    assert(unshift_limit(limit, width) == i32Trait::new(8388600, true), 'unshift(0,10)');
 
     limit = 9373560;
-    assert(unshift_limit(limit, width) == I32Trait::new(984960, false), 'unshift(9373560,10)');
+    assert(unshift_limit(limit, width) == i32Trait::new(984960, false), 'unshift(9373560,10)');
 
     limit = 2887335;
     width = 45;
-    assert(unshift_limit(limit, width) == I32Trait::new(5501250, true), 'unshift(-2887335,45)');
+    assert(unshift_limit(limit, width) == i32Trait::new(5501250, true), 'unshift(-2887335,45)');
 
     limit = 8388585;
-    assert(unshift_limit(limit, width) == I32Trait::new(0, false), 'unshift(8388585,45)');
+    assert(unshift_limit(limit, width) == i32Trait::new(0, false), 'unshift(8388585,45)');
 }
 
 ////////////////////////////////

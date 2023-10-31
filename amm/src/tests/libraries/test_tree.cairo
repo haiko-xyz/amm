@@ -1,20 +1,23 @@
+// Core lib imports.
 use core::result::ResultTrait;
 use traits::TryInto;
 use option::OptionTrait;
 use array::ArrayTrait;
 use starknet::deploy_syscall;
 
+// Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT};
 use amm::libraries::tree::_get_segment_and_position;
 use amm::tests::helpers::params;
 use amm::tests::helpers::actions::token::deploy_token;
 use amm::tests::helpers::actions::market_manager::{deploy_market_manager, create_market};
-use amm::interfaces::IERC20::{IERC20Dispatcher, IERC20DispatcherTrait};
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::tests::helpers::contracts::tree_contract::{
     TestTreeContract, ITestTreeContractDispatcher, ITestTreeContractDispatcherTrait
 };
 
+// External imports.
+use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
 ////////////////////////////////
 // SETUP

@@ -1,6 +1,9 @@
+// Core lib imports.
 use starknet::ContractAddress;
 use starknet::testing::set_contract_address;
+use integer::BoundedU128;
 
+// Local imports.
 use amm::libraries::id;
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::libraries::math::price_math;
@@ -10,7 +13,6 @@ use amm::interfaces::IMarketManager::{
 };
 use amm::types::core::{MarketState};
 use amm::types::i256::{i256, I256Trait};
-use amm::interfaces::IERC20::{IERC20Dispatcher, IERC20DispatcherTrait};
 use amm::tests::helpers::actions::{
     market_manager::{deploy_market_manager, create_market, modify_position},
     token::{deploy_token, fund, approve},
@@ -31,7 +33,9 @@ use strategies::strategies::replicating::{
     pragma_interfaces::{DataType, PragmaPricesResponse},
 };
 use strategies::tests::utils::{to_e18, to_e28, approx_eq};
-use integer::BoundedU128;
+
+// External imports.
+use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
 use debug::PrintTrait;
 

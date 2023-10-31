@@ -111,19 +111,21 @@ mod ReplicatingStrategy {
     use super::{PositionInfo, StrategyParams, OracleParams};
     use amm::contracts::market_manager::MarketManager;
     use amm::contracts::market_manager::MarketManager::ContractState as MMContractState;
-    use amm::contracts::tokens::erc20::ERC20;
     use amm::types::core::{MarketState, SwapParams};
     use amm::libraries::id;
     use amm::libraries::math::{math, price_math, liquidity_math, fee_math};
     use amm::libraries::constants::ONE;
     use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
     use amm::interfaces::IStrategy::IStrategy;
-    use amm::interfaces::IERC20::{ERC20ABI, IERC20Dispatcher, IERC20DispatcherTrait};
     use amm::types::i256::{I256Trait, i256};
     use strategies::strategies::replicating::pragma_interfaces::{
         IOracleABIDispatcher, IOracleABIDispatcherTrait, AggregationMode, DataType, SimpleDataType,
         PragmaPricesResponse
     };
+
+    // External imports.
+    use openzeppelin::token::erc20::erc20::ERC20;
+    use openzeppelin::token::erc20::interface::{ERC20ABI, IERC20Dispatcher, IERC20DispatcherTrait};
 
     #[storage]
     struct Storage {

@@ -1,15 +1,18 @@
+// Core lib imports.
 use starknet::contract_address_const;
 
+// Local imports.
 use amm::contracts::market_manager::MarketManager;
 use amm::libraries::math::price_math;
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_WIDTH};
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
-use amm::interfaces::IERC20::{IERC20Dispatcher, IERC20DispatcherTrait};
 use amm::tests::helpers::actions::market_manager::{deploy_market_manager, create_market};
 use amm::tests::helpers::actions::token::deploy_token;
 use amm::tests::helpers::params::{owner, default_token_params, default_market_params};
 
+// External imports.
+use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
 ////////////////////////////////
 // SETUP
