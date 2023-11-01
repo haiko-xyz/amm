@@ -248,7 +248,7 @@ mod MarketManager {
     #[generate_trait]
     impl ModifierImpl of ModifierTrait {
         fn assert_only_owner(self: @ContractState) {
-            assert(self.owner.read() == get_caller_address(), 'OnlyOwner')
+            assert(self.owner.read() == get_caller_address(), 'OnlyOwner');
         }
     }
 
@@ -1310,11 +1310,17 @@ mod MarketManager {
                 // Update reserves.
                 if base_amount.val != 0 {
                     let mut base_reserves = self.reserves.read(market_info.base_token);
+                    if base_amount.sign {
+                        assert(base_reserves >= base_amount.val, 'ModifyPosBaseReserves');
+                    }
                     liquidity_math::add_delta(ref base_reserves, base_amount);
                     self.reserves.write(market_info.base_token, base_reserves);
                 }
                 if quote_amount.val != 0 {
                     let mut quote_reserves = self.reserves.read(market_info.quote_token);
+                    if quote_amount.sign {
+                        assert(quote_reserves >= quote_amount.val, 'ModifyPosQuoteReserves');
+                    }
                     liquidity_math::add_delta(ref quote_reserves, quote_amount);
                     self.reserves.write(market_info.quote_token, quote_reserves);
                 }
@@ -1324,8 +1330,16 @@ mod MarketManager {
                 if base_amount.val > 0 {
                     let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
                     if base_amount.sign {
+                        assert(
+                            base_token.balance_of(contract) >= base_amount.val,
+                            'ModifyPosBaseTransfer'
+                        );
                         base_token.transfer(caller, base_amount.val);
                     } else {
+                        assert(
+                            base_token.balance_of(caller) >= base_amount.val,
+                            'ModifyPosBaseTransferFrom'
+                        );
                         base_token.transfer_from(caller, contract, base_amount.val);
                     }
                 }
@@ -1334,8 +1348,16 @@ mod MarketManager {
                         contract_address: market_info.quote_token
                     };
                     if quote_amount.sign {
+                        assert(
+                            quote_token.balance_of(contract) >= quote_amount.val,
+                            'ModifyPosQuoteTransfer'
+                        );
                         quote_token.transfer(caller, quote_amount.val);
                     } else {
+                        assert(
+                            quote_token.balance_of(caller) >= quote_amount.val,
+                            'ModifyPosQuoteTransferFrom'
+                        );
                         quote_token.transfer_from(caller, contract, quote_amount.val);
                     }
                 }
