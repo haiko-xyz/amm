@@ -2,11 +2,13 @@ use starknet::deploy_syscall;
 use starknet::ContractAddress;
 use starknet::testing::set_contract_address;
 
-use strategies::tests::common::contracts::mock_pragma_oracle::{
-    MockPragmaOracle, IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait
-};
-use strategies::strategies::replicating::replicating_strategy::{
-    ReplicatingStrategy, IReplicatingStrategyDispatcher, IReplicatingStrategyDispatcherTrait
+use strategies::strategies::replicating::{
+    replicating_strategy::{
+        ReplicatingStrategy, IReplicatingStrategyDispatcher, IReplicatingStrategyDispatcherTrait
+    },
+    mock_pragma_oracle::{
+        MockPragmaOracle, IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait
+    }
 };
 
 fn deploy_mock_pragma_oracle(owner: ContractAddress,) -> IMockPragmaOracleDispatcher {

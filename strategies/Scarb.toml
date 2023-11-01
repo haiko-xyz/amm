@@ -16,7 +16,11 @@ allowed-libfuncs-list.name = "experimental"
 build-external-contracts = [
   'amm::contracts::market_manager::MarketManager',
   'openzeppelin::token::erc20::erc20::ERC20',
-] # temp - for testing
+]
 
 [cairo]
 sierra-replace-ids = true
+
+[tool.snforge]
+fuzzer_runs = 3
+fuzzer_seed = 88888

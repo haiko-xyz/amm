@@ -27,10 +27,10 @@ use amm::libraries::constants::MAX;
 use strategies::strategies::replicating::{
     replicating_strategy::{IReplicatingStrategyDispatcher, IReplicatingStrategyDispatcherTrait},
     pragma_interfaces::{DataType, PragmaPricesResponse},
+    mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
 };
 use strategies::tests::{
     cairo_test::replicating::helpers::{deploy_replicating_strategy, deploy_mock_pragma_oracle},
-    common::contracts::mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
     common::utils::{to_e18, to_e28, approx_eq},
 };
 
