@@ -8,6 +8,7 @@ on:
 
 env:
   SCARB_VERSION: 2.3.0
+  SNFORGE_VERSION: 2.3.0
 
 jobs:
   build:
@@ -18,11 +19,21 @@ jobs:
       - name: Setup Scarb
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | bash -s -- -v ${{ env.SCARB_VERSION }}
-      - run: cd amm
-      - run: scarb test -f tests::cairo_test
-      - run: snforge test tests::snforge
-      - run: scarb build
-      - run: cd ../strategies
-      - run: scarb test -f tests::cairo_test
-      - run: snforge test tests::snforge
-      - run: scarb build
+
+      - name: Setup Foundry
+        run: |
+          curl -L https://raw.githubusercontent.com/foundry-rs/starknet-foundry/master/scripts/install.sh | sh -s -- -v ${{ env.SNFORGE_VERSION }}
+
+      - name: Build and test `amm`
+        working-directory: ./sphinx/amm
+        run: |
+          scarb test -f tests::cairo_test
+          snforge test tests::snforge
+          scarb build
+
+      - name: Build and test `strategies`
+        working-directory: ./sphinx/strategies
+        run: |
+          scarb test -f tests::cairo_test
+          snforge test tests::snforge
+          scarb build
