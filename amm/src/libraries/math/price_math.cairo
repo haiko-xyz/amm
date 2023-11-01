@@ -8,7 +8,7 @@ use integer::BoundedU256;
 use amm::libraries::math::math;
 use amm::libraries::math::price_math;
 use amm::libraries::math::bit_math;
-use amm::types::i32::{i32, I32Trait, I32Zeroable};
+use amm::types::i32::{i32, i32Trait, i32Zeroable};
 use amm::types::i256::{i256, I256Trait};
 use amm::libraries::constants::{
     ONE, ONE_SQUARED, HALF, MAX_LIMIT, MIN_LIMIT, OFFSET, MAX_LIMIT_SHIFTED, Q128, MIN_SQRT_PRICE,
@@ -28,9 +28,9 @@ use amm::libraries::constants::{
 // # Returns
 // * `shifted_limit` - shifted limit
 fn shift_limit(limit: i32, width: u32) -> u32 {
-    assert(limit >= I32Trait::new(MIN_LIMIT, true), 'SHIFT_LIMIT_UNDERFLOW');
-    assert(limit <= I32Trait::new(MAX_LIMIT, false), 'SHIFT_LIMIT_OVERFLOW');
-    let shifted: i32 = limit + I32Trait::new(offset(width), false);
+    assert(limit >= i32Trait::new(MIN_LIMIT, true), 'SHIFT_LIMIT_UNDERFLOW');
+    assert(limit <= i32Trait::new(MAX_LIMIT, false), 'SHIFT_LIMIT_OVERFLOW');
+    let shifted: i32 = limit + i32Trait::new(offset(width), false);
     shifted.val
 }
 
@@ -43,8 +43,8 @@ fn shift_limit(limit: i32, width: u32) -> u32 {
 // # Returns
 // * `unshifted_limit` - unshifted limit
 fn unshift_limit(limit: u32, width: u32) -> i32 {
-    let unshifted: i32 = I32Trait::new(limit, false) - I32Trait::new(offset(width), false);
-    assert(unshifted <= I32Trait::new(max_limit(width), false), 'UNSHIFT_LIMIT_OVERFLOW');
+    let unshifted: i32 = i32Trait::new(limit, false) - i32Trait::new(offset(width), false);
+    assert(unshifted <= i32Trait::new(max_limit(width), false), 'UNSHIFT_LIMIT_OVERFLOW');
     unshifted
 }
 
@@ -85,7 +85,7 @@ fn limit_to_sqrt_price(limit: u32, width: u32) -> u256 {
     let unshifted = unshift_limit(limit, width);
 
     // Check limit ID is in range
-    assert(unshifted <= I32Trait::new(MAX_LIMIT, false), 'LIMIT_OVERFLOW');
+    assert(unshifted <= i32Trait::new(MAX_LIMIT, false), 'LIMIT_OVERFLOW');
 
     // Calculate sqrt price
     _exp1_00001(unshifted)
@@ -129,7 +129,7 @@ fn sqrt_price_to_limit(sqrt_price: u256, width: u32) -> u32 {
         0
     };
 
-    let signed_limit: i32 = I32Trait::new(unsigned_limit.try_into().unwrap(), sign);
+    let signed_limit: i32 = i32Trait::new(unsigned_limit.try_into().unwrap(), sign);
     shift_limit(signed_limit, width)
 }
 
@@ -163,7 +163,7 @@ fn price_to_limit(price: u256, width: u32, round_up: bool) -> u32 {
             0
         };
 
-    let signed_limit: i32 = I32Trait::new(unsigned_limit.try_into().unwrap(), sign);
+    let signed_limit: i32 = i32Trait::new(unsigned_limit.try_into().unwrap(), sign);
     shift_limit(signed_limit, width)
 }
 
