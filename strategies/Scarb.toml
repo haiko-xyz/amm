@@ -22,5 +22,5 @@ build-external-contracts = [
 sierra-replace-ids = true
 
 [tool.snforge]
-fuzzer_runs = 3
+fuzzer_runs = 30
 fuzzer_seed = 88888

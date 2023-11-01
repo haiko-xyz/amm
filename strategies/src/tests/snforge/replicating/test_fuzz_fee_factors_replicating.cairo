@@ -1,4 +1,3 @@
-use core::traits::AddEq;
 // Core lib imports.
 use cmp::{min, max};
 
@@ -248,11 +247,25 @@ fn test_fee_factor_invariants_replicating(
 
         // Update oracle price.
         if price_chg % 2 == 0 {
-            oracle_price += price_chg.into();
+            oracle_price += price_chg.into() * 100;
         } else {
-            oracle_price -= price_chg.into();
+            oracle_price -= price_chg.into() * 100;
         }
         oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', oracle_price);
+
+        // Fetch new optimal bid and ask.
+        let bid = strategy.bid();
+        let ask = strategy.ask();
+        let (new_bid, new_ask) = strategy.get_bid_ask();
+        let strategy_params = array![
+            (new_bid - 2000, new_bid, bid.liquidity),
+            (new_ask, new_ask + 2000, ask.liquidity),
+        ].span();
+
+        // Snapshot state before.
+        let (market_state_bef, strategy_pos_bef) = snapshot_all(
+            market_manager, market_id, strategy_params
+        );
 
         // Execute swap, skipping fail cases.
         if swap_amount != 0 {
@@ -261,8 +274,9 @@ fn test_fee_factor_invariants_replicating(
             let mut params = swap_params(
                 alice(), market_id, is_buy, true, swap_amount.into(), Option::None(()), Option::None(())
             );
-            start_prank(strategy.contract_address, alice());
+            
             start_prank(market_manager.contract_address, strategy.contract_address);
+            start_prank(strategy.contract_address, market_manager.contract_address);
             // Manually call update positions.
             IStrategyDispatcher{ contract_address: strategy.contract_address }.update_positions(
                 SwapParams {
@@ -274,14 +288,16 @@ fn test_fee_factor_invariants_replicating(
                 }
             );
             stop_prank(market_manager.contract_address);
-            stop_prank(strategy.contract_address);
+
             // Execute swap with strategy update disabled.
             start_prank(market_manager.contract_address, alice());
             swap(market_manager, params);
             stop_prank(market_manager.contract_address);
+            
+            stop_prank(strategy.contract_address);
         }
 
-        // Place position, skipping fail cases.
+        // Modify position, skipping fail cases.
         if lower_limit != upper_limit && liquidity != 0 {
             let amount = if is_remove { liq_rem } else { liquidity };
             let mut params = modify_position_params(
@@ -289,6 +305,39 @@ fn test_fee_factor_invariants_replicating(
             );
             modify_position(market_manager, params);
         }
+
+        // Snapshot state after.
+        let (market_state_aft, strategy_pos_aft) = snapshot_all(
+            market_manager, market_id, strategy_params
+        );
+
+        // Check fee factor invariants.
+        // Loop through positions.
+        let mut j = 0;
+        loop {
+            if j >= strategy_pos_aft.len() {
+                break;
+            }
+
+            // Invariant 1: fee factor inside position is never negative.
+            // No actual checks need to be performed here as it would have failed on snapshot.
+
+            // Invariant 2: fee factor inside position always increases after swap.
+            let before = *strategy_pos_aft.at(j);
+            let after = *strategy_pos_aft.at(j);
+            assert(after.base_fee_factor >= before.base_fee_factor, 'Invariant 2: base');
+            assert(after.quote_fee_factor >= before.quote_fee_factor, 'Invariant 2: quote');
+
+            // Invariant 3: position fee factor should never exceed global fee factor.
+            assert(after.base_fee_factor <= market_state_aft.base_fee_factor, 'Invariant 3: base');
+            assert(after.quote_fee_factor <= market_state_aft.quote_fee_factor, 'Invariant 3: quote');
+
+            // Invariant 4: fee factor inside position should always be gte fee factor last.
+            assert(after.base_fee_factor >= before.base_fee_factor_last, 'Invariant 4: base');
+            assert(after.quote_fee_factor >= before.quote_fee_factor_last, 'Invariant 4: quote');
+
+            j += 1;
+        };
 
         // Move to next position.
         i += 1;
@@ -303,7 +352,7 @@ fn test_fee_factor_invariants_replicating(
 fn snapshot_all(
     market_manager: IMarketManagerDispatcher,
     market_id: felt252,
-    position_params: Span<(u32, u32, u256, u256)>
+    position_params: Span<(u32, u32, u256)>
 ) -> (MarketState, Span<PositionState>) {
     // Fetch market state.
     let market_state_full = market_manager.market_state(market_id);
@@ -322,7 +371,7 @@ fn snapshot_all(
         }
 
         // Fetch position params.
-        let (lower_limit, upper_limit, liquidity, _) = *position_params.at(i);
+        let (lower_limit, upper_limit, liquidity) = *position_params.at(i);
 
         // Fetch position.
         let position_id = id::position_id(market_id, alice().into(), lower_limit, upper_limit);
@@ -365,59 +414,4 @@ fn snapshot_all(
 
     // Return global state and position states.
     (market_state, position_states.span())
-}
-
-// Returns global state of market and all positions.
-fn snapshot_single(
-    market_manager: IMarketManagerDispatcher,
-    market_id: felt252,
-    lower_limit: u32,
-    upper_limit: u32,
-) -> (MarketState, PositionState) {
-    // Fetch market state.
-    let market_state_full = market_manager.market_state(market_id);
-    let market_state = MarketState {
-        curr_limit: market_state_full.curr_limit,
-        base_fee_factor: market_state_full.base_fee_factor,
-        quote_fee_factor: market_state_full.quote_fee_factor,
-    };
-
-    // Fetch position.
-    let position_id = id::position_id(market_id, alice().into(), lower_limit, upper_limit);
-    let position = market_manager.position(position_id);
-
-    // Fetch limit info.
-    let lower_limit_info = market_manager.limit_info(market_id, lower_limit);
-    let upper_limit_info = market_manager.limit_info(market_id, upper_limit);
-
-    // Fetch fee factors.
-    let (base_fee_factor, quote_fee_factor) = fee_math::get_fee_inside(
-        lower_limit_info,
-        upper_limit_info,
-        lower_limit,
-        upper_limit,
-        market_state.curr_limit,
-        market_state.base_fee_factor,
-        market_state.quote_fee_factor,
-    );
-
-    // Append position state.
-    let position_state = PositionState {
-        liquidity: position.liquidity,
-        base_fee_factor,
-        quote_fee_factor,
-        base_fee_factor_last: position.base_fee_factor_last,
-        quote_fee_factor_last: position.quote_fee_factor_last,
-        lower_limit: LimitState {
-            base_fee_factor: lower_limit_info.base_fee_factor,
-            quote_fee_factor: lower_limit_info.quote_fee_factor,
-        },
-        upper_limit: LimitState {
-            base_fee_factor: upper_limit_info.base_fee_factor,
-            quote_fee_factor: upper_limit_info.quote_fee_factor,
-        },
-    };
-
-    // Return global state and position states.
-    (market_state, position_state)
 }

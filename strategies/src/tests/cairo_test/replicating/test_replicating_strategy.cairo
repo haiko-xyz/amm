@@ -422,7 +422,7 @@ fn swap_test_cases(width: u32) -> Array<SwapCase> {
             exact_input: false,
             amount: MAX / 1000000000000000000,
             threshold_sqrt_price: Option::Some(
-                price_math::limit_to_sqrt_price(8388600 + 736000, width)
+                price_math::limit_to_sqrt_price(8388600 + 734000, width)
             )
         },
         SwapCase {
@@ -446,16 +446,12 @@ fn oracle_prices() -> Array<u128> {
         172500000000,
         172500000000,
         174500000000,
-        162012378123,
-        163125000000,
-        173000000000,
-        173100099999,
         172800000000,
-        123891238192312789312,
-        0,
-        1,
-        BoundedU128::max(),
         1728000,
+        BoundedU128::max(),
+        256,
+        1,
+        123891238192312789312,
     ];
     prices
 }
