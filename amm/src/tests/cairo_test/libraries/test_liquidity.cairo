@@ -1,9 +1,10 @@
 use amm::libraries::liquidity::{max_liquidity_per_limit};
-use amm::libraries::constants::{MAX, MAX_NUM_LIMITS};
+use amm::libraries::constants::{MAX_UNSCALED, MAX_NUM_LIMITS};
 
 ////////////////////////////////
 // TESTS
 ////////////////////////////////
+use debug::PrintTrait;
 
 #[test]
 #[available_gas(2000000000)]
@@ -11,23 +12,23 @@ fn test_max_liquidity_per_limit_cases() {
     assert(
         max_liquidity_per_limit(
             1
-        ) == 215679586192710245037529934681952285020293520212746125572932066370044,
+        ) == 21567958619271024503752993468195228502029,
         'max_liq(1)'
     );
 
     assert(
         max_liquidity_per_limit(
             10
-        ) == 2156795219151999683915048371002508225752981573655282275105219731209647,
+        ) == 215679521915199968391504837100250822575298,
         'max_liq(10)'
     );
 
     assert(
         max_liquidity_per_limit(
             250
-        ) == 53919784062735716724989536173912144504116344331104434414967879984570070,
+        ) == 5391978406273571672498953617391214450411634,
         'max_liq(250)'
     );
 
-    assert(max_liquidity_per_limit(MAX_NUM_LIMITS) == MAX, 'max_liq(MAX)');
+    assert(max_liquidity_per_limit(MAX_NUM_LIMITS) == MAX_UNSCALED, 'max_liq(MAX)');
 }
