@@ -17,12 +17,9 @@ mod MarketManager {
     use starknet::class_hash::ClassHash;
 
     // Local imports.
-    use amm::libraries::tree;
-    use amm::libraries::id;
-    use amm::libraries::limit_prices;
-    use amm::libraries::liquidity as liquidity_helpers;
-    use amm::libraries::swap as swap_helpers;
-    use amm::libraries::order as order_helpers;
+    use amm::libraries::{
+        tree, id, limit_prices, liquidity as liquidity_helpers, swap as swap_helpers, order as order_helpers
+    };
     use amm::libraries::math::{math, price_math, fee_math, liquidity_math};
     use amm::libraries::constants::{ONE, MAX, MAX_WIDTH, MAX_LIMIT_SHIFTED};
     use amm::interfaces::IMarketManager::IMarketManager;
@@ -300,7 +297,14 @@ mod MarketManager {
             self.market_state.read(market_id).protocol_share
         }
 
-        fn position(self: @ContractState, position_id: felt252) -> Position {
+        fn position(
+            self: @ContractState, 
+            market_id: felt252,
+            owner: felt252,
+            lower_limit: u32,
+            upper_limit: u32
+        ) -> Position {
+            let position_id = id::position_id(market_id, owner, lower_limit, upper_limit);
             self.positions.read(position_id)
         }
 
@@ -363,8 +367,7 @@ mod MarketManager {
             upper_limit: u32
         ) -> (u256, u256) {
             // Fetch state.
-            let position_id = id::position_id(market_id, owner.into(), lower_limit, upper_limit);
-            let position = self.positions.read(position_id);
+            let position = self.position(market_id, owner.into(), lower_limit, upper_limit);
             let market_state = self.market_state.read(market_id);
             let lower_limit_info = self.limit_info.read((market_id, lower_limit));
             let upper_limit_info = self.limit_info.read((market_id, upper_limit));

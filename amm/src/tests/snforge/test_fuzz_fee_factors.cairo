@@ -4,7 +4,6 @@ use cmp::{min, max};
 
 // Local imports.
 use amm::libraries::constants::{MAX, OFFSET, MAX_LIMIT};
-use amm::libraries::id;
 use amm::libraries::math::fee_math;
 use amm::types::i256::I256Trait;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
@@ -347,8 +346,7 @@ fn snapshot_all(
         let (lower_limit, upper_limit, liquidity, _) = *position_params.at(i);
 
         // Fetch position.
-        let position_id = id::position_id(market_id, alice().into(), lower_limit, upper_limit);
-        let position = market_manager.position(position_id);
+        let position = market_manager.position(market_id, alice().into(), lower_limit, upper_limit);
 
         // Fetch limit info.
         let lower_limit_info = market_manager.limit_info(market_id, lower_limit);
@@ -408,8 +406,7 @@ fn snapshot_single(
     };
 
     // Fetch position.
-    let position_id = id::position_id(market_id, alice().into(), lower_limit, upper_limit);
-    let position = market_manager.position(position_id);
+    let position = market_manager.position(market_id, alice().into(), lower_limit, upper_limit);
 
     // Fetch limit info.
     let lower_limit_info = market_manager.limit_info(market_id, lower_limit);

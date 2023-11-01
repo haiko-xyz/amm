@@ -5,7 +5,6 @@ use starknet::testing::set_contract_address;
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
-use amm::libraries::id;
 use amm::libraries::math::price_math;
 use amm::libraries::constants::{MAX, OFFSET, MAX_LIMIT, MIN_LIMIT};
 use amm::interfaces::IMarketManager::IMarketManager;
@@ -471,8 +470,7 @@ fn test_modify_position_collect_position_fees() {
     // Run checks
     let base_fees_exp = 30000000000000000000000000;
     let quote_fees_exp = 30000000000000000000000000;
-    let position_id = id::position_id(market_id, alice().into(), lower_limit, upper_limit);
-    let position = market_manager.position(position_id);
+    let position = market_manager.position(market_id, alice().into(), lower_limit, upper_limit);
 
     assert(base_amount.val == base_fees_exp, 'Base fees');
     assert(quote_amount.val == quote_fees_exp, 'Quote fees');

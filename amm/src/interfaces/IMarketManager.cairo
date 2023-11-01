@@ -30,7 +30,13 @@ trait IMarketManager<TContractState> {
 
     fn protocol_share(self: @TContractState, market_id: felt252) -> u16;
 
-    fn position(self: @TContractState, position_id: felt252) -> Position;
+    fn position(
+        self: @TContractState, 
+        market_id: felt252,
+        owner: felt252,
+        lower_limit: u32,
+        upper_limit: u32
+    ) -> Position;
 
     fn order(self: @TContractState, order_id: felt252) -> LimitOrder;
 

@@ -112,7 +112,6 @@ mod ReplicatingStrategy {
     use amm::contracts::market_manager::MarketManager;
     use amm::contracts::market_manager::MarketManager::ContractState as MMContractState;
     use amm::types::core::{MarketState, SwapParams};
-    use amm::libraries::id;
     use amm::libraries::math::{math, price_math, liquidity_math, fee_math};
     use amm::libraries::constants::ONE;
     use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
@@ -357,13 +356,9 @@ mod ReplicatingStrategy {
             let market_info = market_manager.market_info(market_id);
             let contract = get_contract_address();
             let bid_position = market_manager
-                .position(
-                    id::position_id(market_id, contract.into(), bid.lower_limit, bid.upper_limit)
-                );
+                .position(market_id, contract.into(), bid.lower_limit, bid.upper_limit);
             let ask_position = market_manager
-                .position(
-                    id::position_id(market_id, contract.into(), ask.lower_limit, ask.upper_limit)
-                );
+                .position(market_id, contract.into(), ask.lower_limit, ask.upper_limit);
 
             // Calculate base and quote amounts inside strategy, either in reserves or in positions.
             let (bid_base, bid_quote, bid_base_fees, bid_quote_fees) =
@@ -636,9 +631,7 @@ mod ReplicatingStrategy {
             let contract = get_contract_address();
             let bid = self.bid.read();
             let bid_position = market_manager
-                .position(
-                    id::position_id(market_id, contract.into(), bid.lower_limit, bid.upper_limit)
-                );
+                .position(market_id, contract.into(), bid.lower_limit, bid.upper_limit);
             let (bid_base, bid_quote, bid_base_fees, bid_quote_fees) =
                 liquidity_math::amounts_inside_position(
                 @market_state,
@@ -650,9 +643,7 @@ mod ReplicatingStrategy {
 
             let ask = self.ask.read();
             let ask_position = market_manager
-                .position(
-                    id::position_id(market_id, contract.into(), ask.lower_limit, ask.upper_limit)
-                );
+                .position(market_id, contract.into(), ask.lower_limit, ask.upper_limit);
             let (ask_base, ask_quote, ask_base_fees, ask_quote_fees) =
                 liquidity_math::amounts_inside_position(
                 @market_state,
@@ -1107,7 +1098,7 @@ mod ReplicatingStrategy {
 
             // Calculate amount of new liquidity to add.
             if next_bid_limit < strategy_params.slippage {
-                bid = Default::default()
+                bid = Default::default();
             } else if quote_reserves != 0 {
                 let lower_limit = next_bid_limit - strategy_params.slippage;
                 let liquidity_delta = liquidity_math::quote_amount_to_liquidity(
@@ -1129,7 +1120,7 @@ mod ReplicatingStrategy {
             };
             if next_ask_limit
                 + strategy_params.slippage > price_math::max_limit(market_info.width) {
-                bid = Default::default()
+                bid = Default::default();
             } else if base_reserves != 0 {
                 let upper_limit = next_ask_limit + strategy_params.slippage;
                 let liquidity_delta = liquidity_math::base_amount_to_liquidity(

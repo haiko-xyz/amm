@@ -3,7 +3,6 @@ use starknet::testing::set_contract_address;
 use debug::PrintTrait;
 
 // Local imports.
-use amm::libraries::id;
 use amm::libraries::math::math;
 use amm::libraries::constants::OFFSET;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
@@ -89,8 +88,7 @@ fn test_create_bid_order_initialises_order_and_batch() {
     // Fetch limit order, batch and position.
     let order = market_manager.order(order_id);
     let batch = market_manager.batch(order.batch_id);
-    let position = market_manager
-        .position(id::position_id(market_id, order.batch_id, limit, limit + 1));
+    let position = market_manager.position(market_id, order.batch_id, limit, limit + 1);
 
     // Run checks.
     assert(order.liquidity == liquidity, 'Create bid: liquidity');
@@ -121,8 +119,7 @@ fn test_create_ask_order_initialises_order_and_batch() {
     // Fetch limit order, batch and position.
     let order = market_manager.order(order_id);
     let batch = market_manager.batch(order.batch_id);
-    let position = market_manager
-        .position(id::position_id(market_id, order.batch_id, limit, limit + 1));
+    let position = market_manager.position(market_id, order.batch_id, limit, limit + 1);
 
     // Run checks.
     assert(order.liquidity == liquidity, 'Create ask: amount');

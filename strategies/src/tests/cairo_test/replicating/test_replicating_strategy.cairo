@@ -4,7 +4,6 @@ use starknet::testing::set_contract_address;
 use integer::BoundedU128;
 
 // Local imports.
-use amm::libraries::id;
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::libraries::math::price_math;
 use amm::libraries::math::liquidity_math;
@@ -297,13 +296,6 @@ fn test_replicating_strategy_withdraw() {
     let ask = strategy.ask();
     let base_reserves = strategy.base_reserves();
     let quote_reserves = strategy.quote_reserves();
-
-    id::position_id(
-        0x0302b338c5346fee8cb221ac9d6f722b5b4b6daa95b43758ff28062dc2419d12, 
-        0x011d97ded7dfec9c6479c504db640184176438bc694187fd3592408f7c408359, 
-        9118420, 
-        9128420
-    ).print();
     
     // Run checks.
     assert(
@@ -559,15 +551,11 @@ fn test_replicating_strategy_swap_cases() {
         let ask = strategy.ask();
         let bid_position = market_manager
             .position(
-                id::position_id(
-                    market_id, strategy.contract_address.into(), bid.lower_limit, bid.upper_limit
-                )
+                market_id, strategy.contract_address.into(), bid.lower_limit, bid.upper_limit
             );
         let ask_position = market_manager
             .position(
-                id::position_id(
-                    market_id, strategy.contract_address.into(), ask.lower_limit, ask.upper_limit
-                )
+                market_id, strategy.contract_address.into(), ask.lower_limit, ask.upper_limit
             );
 
         index += 1;
