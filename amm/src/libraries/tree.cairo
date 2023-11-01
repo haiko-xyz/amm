@@ -76,8 +76,9 @@ fn flip(ref self: ContractState, market_id: felt252, width: u32, limit: u32) {
 //
 // # Arguments
 // * `market_id` - The id of the market
-// * `limit` - The current limit
 // * `is_buy` - Whether to search to the left (buy) or right (sell) within segment
+// * `width` - The width of the limit
+// * `start_limit` - The current limit
 //
 // # Returns
 // * `next_limit` - Next limit greater than current limit if buying, or less than if selling, or none
@@ -86,7 +87,7 @@ fn next_limit(
 ) -> Option<u32> {
     // Compress limit by width.
     let mut scaled_limit = start_limit / width;
-    // If selling (searching right), increment by 1 to exclude current limit from search.
+    // If selling (searching right), increment by 1 to include current limit in search.
     if !is_buy {
         scaled_limit += 1;
     }
@@ -177,7 +178,7 @@ fn next_limit(
 // * `segment` - segment of the limit
 // * `position` - position of the limit within the segment
 fn _get_segment_and_position(limit: u32) -> (u32, u8) {
-    assert(limit <= MAX_LIMIT_SHIFTED, 'SEG_POS_LIMIT_OVERFLOW');
+    assert(limit <= MAX_LIMIT_SHIFTED, 'SegPosLimitOverflow');
     let segment: u32 = limit / 256;
     let position: u8 = (limit % 256).try_into().unwrap();
     (segment, position)
@@ -221,11 +222,7 @@ fn _next_bit_left(segment: u256, position: u8) -> Option<u8> {
 fn _next_bit_right(segment: u256, position: u8) -> Option<u8> {
     // Generate mask for all bits to right of current bit, excluding it. 
     // e.g. 00000011 for position = 2 (as position is zero-indexed)
-    let mask: u256 = if position == 255 {
-        0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-    } else {
-        math::pow(2, position.into()) - 1
-    };
+    let mask: u256 = math::pow(2, position.into()) - 1;
     let masked: u256 = segment & mask;
 
     // If masked is non-zero, then the next limit is within the same segment.
