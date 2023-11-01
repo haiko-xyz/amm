@@ -18,7 +18,8 @@ mod MarketManager {
 
     // Local imports.
     use amm::libraries::{
-        tree, id, limit_prices, liquidity as liquidity_helpers, swap as swap_helpers, order as order_helpers
+        tree, id, limit_prices, liquidity as liquidity_helpers, swap as swap_helpers,
+        order as order_helpers
     };
     use amm::libraries::math::{math, price_math, fee_math, liquidity_math};
     use amm::libraries::constants::{ONE, MAX, MAX_WIDTH, MAX_LIMIT_SHIFTED};
@@ -298,7 +299,7 @@ mod MarketManager {
         }
 
         fn position(
-            self: @ContractState, 
+            self: @ContractState,
             market_id: felt252,
             owner: felt252,
             lower_limit: u32,

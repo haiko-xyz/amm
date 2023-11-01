@@ -31,7 +31,7 @@ trait IMarketManager<TContractState> {
     fn protocol_share(self: @TContractState, market_id: felt252) -> u16;
 
     fn position(
-        self: @TContractState, 
+        self: @TContractState,
         market_id: felt252,
         owner: felt252,
         lower_limit: u32,
