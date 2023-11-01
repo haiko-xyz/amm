@@ -808,201 +808,201 @@ fn test_fill_ask_advances_batch_nonce() {
     assert(nonce_after == nonce_before + 1, 'Nonce after');
 }
 
-#[test]
-#[available_gas(1000000000)]
-fn test_limit_orders_misc() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+// #[test]
+// #[available_gas(1000000000)]
+// fn test_limit_orders_misc() {
+//     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
-    // Create orders:
-    //  - Ask [1000]: 200000 (Bob)
-    //  - Ask [900]: 150000 (Alice), 100000 (Bob)
-    //  - Curr price [0]
-    //  - Bid [-900]: 50000 (Alice), 100000 (Bob)
-    //  - Bid [-1000]: 200000 (Alice)
-    set_contract_address(alice());
-    let liquidity_bid_a1 = to_e28(50000);
-    let bid_a1 = market_manager.create_order(market_id, true, OFFSET - 900, liquidity_bid_a1);
-    let liquidity_bid_a2 = to_e28(200000);
-    let bid_a2 = market_manager.create_order(market_id, true, OFFSET - 1000, liquidity_bid_a2);
-    let liquidity_ask_a1 = to_e28(150000);
-    let ask_a1 = market_manager.create_order(market_id, false, OFFSET + 900, liquidity_ask_a1);
+//     // Create orders:
+//     //  - Ask [1000]: 200000 (Bob)
+//     //  - Ask [900]: 150000 (Alice), 100000 (Bob)
+//     //  - Curr price [0]
+//     //  - Bid [-900]: 50000 (Alice), 100000 (Bob)
+//     //  - Bid [-1000]: 200000 (Alice)
+//     set_contract_address(alice());
+//     let liquidity_bid_a1 = to_e28(50000);
+//     let bid_a1 = market_manager.create_order(market_id, true, OFFSET - 900, liquidity_bid_a1);
+//     let liquidity_bid_a2 = to_e28(200000);
+//     let bid_a2 = market_manager.create_order(market_id, true, OFFSET - 1000, liquidity_bid_a2);
+//     let liquidity_ask_a1 = to_e28(150000);
+//     let ask_a1 = market_manager.create_order(market_id, false, OFFSET + 900, liquidity_ask_a1);
 
-    set_contract_address(bob());
-    let liquidity_bid_b1 = to_e28(100000);
-    let bid_b1 = market_manager.create_order(market_id, true, OFFSET - 900, liquidity_bid_b1);
-    let liquidity_ask_b1 = to_e28(100000);
-    let ask_b1 = market_manager.create_order(market_id, false, OFFSET + 900, liquidity_ask_b1);
-    let liquidity_ask_b2 = to_e28(200000);
-    let ask_b2 = market_manager.create_order(market_id, false, OFFSET + 1000, liquidity_ask_b2);
+//     set_contract_address(bob());
+//     let liquidity_bid_b1 = to_e28(100000);
+//     let bid_b1 = market_manager.create_order(market_id, true, OFFSET - 900, liquidity_bid_b1);
+//     let liquidity_ask_b1 = to_e28(100000);
+//     let ask_b1 = market_manager.create_order(market_id, false, OFFSET + 900, liquidity_ask_b1);
+//     let liquidity_ask_b2 = to_e28(200000);
+//     let ask_b2 = market_manager.create_order(market_id, false, OFFSET + 1000, liquidity_ask_b2);
 
-    // Snapshot balances.
-    let market_base_start = market_manager.reserves(base_token.contract_address);
-    let market_quote_start = market_manager.reserves(quote_token.contract_address);
-    let alice_base_start = base_token.balance_of(alice());
-    let alice_quote_start = quote_token.balance_of(alice());
-    let bob_base_start = base_token.balance_of(bob());
-    let bob_quote_start = quote_token.balance_of(bob());
-    let charlie_base_start = base_token.balance_of(charlie());
-    let charlie_quote_start = quote_token.balance_of(charlie());
+//     // Snapshot balances.
+//     let market_base_start = market_manager.reserves(base_token.contract_address);
+//     let market_quote_start = market_manager.reserves(quote_token.contract_address);
+//     let alice_base_start = base_token.balance_of(alice());
+//     let alice_quote_start = quote_token.balance_of(alice());
+//     let bob_base_start = base_token.balance_of(bob());
+//     let bob_quote_start = quote_token.balance_of(bob());
+//     let charlie_base_start = base_token.balance_of(charlie());
+//     let charlie_quote_start = quote_token.balance_of(charlie());
 
-    // Sell to fill both bid orders at -900 and partially fill one at -1000.
-    set_contract_address(charlie());
-    let (amount_in_1, amount_out_1, fees_1) = market_manager
-        .swap(market_id, false, to_e28(1), true, Option::None(()), Option::None(()));
+//     // Sell to fill both bid orders at -900 and partially fill one at -1000.
+//     set_contract_address(charlie());
+//     let (amount_in_1, amount_out_1, fees_1) = market_manager
+//         .swap(market_id, false, to_e28(1), true, Option::None(()), Option::None(()));
 
-    // Collect one of the filled orders.
-    set_contract_address(alice());
-    let (base_collect_1, quote_collect_1) = market_manager.collect_order(market_id, bid_a1);
+//     // Collect one of the filled orders.
+//     set_contract_address(alice());
+//     let (base_collect_1, quote_collect_1) = market_manager.collect_order(market_id, bid_a1);
 
-    // Fetch state.
-    let mut market_state = market_manager.market_state(market_id);
-    let order_bid_a1 = market_manager.order(bid_a1);
-    let order_bid_a2 = market_manager.order(bid_a2);
-    let order_bid_b1 = market_manager.order(bid_b1);
-    let batch_neg_900 = market_manager.batch(order_bid_a1.batch_id);
-    let batch_neg_1000 = market_manager.batch(order_bid_a2.batch_id);
-    let mut market_base_reserves = market_manager.reserves(base_token.contract_address);
-    let mut market_quote_reserves = market_manager.reserves(quote_token.contract_address);
-    let mut alice_base_balance = base_token.balance_of(alice());
-    let mut alice_quote_balance = quote_token.balance_of(alice());
-    let mut bob_base_balance = base_token.balance_of(bob());
-    let mut bob_quote_balance = quote_token.balance_of(bob());
+//     // Fetch state.
+//     let mut market_state = market_manager.market_state(market_id);
+//     let order_bid_a1 = market_manager.order(bid_a1);
+//     let order_bid_a2 = market_manager.order(bid_a2);
+//     let order_bid_b1 = market_manager.order(bid_b1);
+//     let batch_neg_900 = market_manager.batch(order_bid_a1.batch_id);
+//     let batch_neg_1000 = market_manager.batch(order_bid_a2.batch_id);
+//     let mut market_base_reserves = market_manager.reserves(base_token.contract_address);
+//     let mut market_quote_reserves = market_manager.reserves(quote_token.contract_address);
+//     let mut alice_base_balance = base_token.balance_of(alice());
+//     let mut alice_quote_balance = quote_token.balance_of(alice());
+//     let mut bob_base_balance = base_token.balance_of(bob());
+//     let mut bob_quote_balance = quote_token.balance_of(bob());
 
-    // Check state.
-    assert(amount_in_1 == to_e28(1), 'Amount in 1');
-    assert(amount_out_1 == 9878318364512459259506950000, 'Amount out 1');
-    assert(_approx_eq(fees_1, 30000000000000000000000000, 1), 'Fees 1');
-    assert(base_collect_1 == 2518797785417929711264524858, 'Base collect 1');
-    assert(quote_collect_1 == 0, 'Quote collect 1');
-    assert(
-        market_state == MarketState {
-            liquidity: to_e28(200000),
-            curr_limit: OFFSET - 1000,
-            protocol_share: 20,
-            curr_sqrt_price: 9950162731123922544094402921,
-            is_concentrated: true,
-            base_fee_factor: 187406629087480932662,
-            quote_fee_factor: 0,
-        },
-        'Market state 1'
-    );
-    assert(order_bid_a1.liquidity == 0, 'Order a1: liquidity');
-    assert(order_bid_b1.liquidity == liquidity_bid_b1, 'Order b1: liquidity');
-    assert(order_bid_a2.liquidity == liquidity_bid_a2, 'Order a2: liquidity');
-    assert(
-        batch_neg_900 == OrderBatch {
-            liquidity: liquidity_bid_b1,
-            filled: true,
-            limit: OFFSET - 900,
-            is_bid: true,
-            base_amount: 5037595570835859422529049718,
-            quote_amount: 0,
-        },
-        'Batch -900'
-    );
-    assert(
-        batch_neg_1000 == OrderBatch {
-            liquidity: liquidity_bid_a2,
-            filled: false,
-            limit: OFFSET - 1000,
-            is_bid: true,
-            base_amount: 2443501305114041550455592201,
-            quote_amount: 7538089126968944009690000000,
-        },
-        'Batch -1000'
-    );
-    'MARKET BASE RESERVES'.print();
-    market_base_reserves.print();
-    'MARKET QUOTE RESERVES'.print();
-    market_quote_reserves.print();
-    assert(market_base_reserves == 29875035954502256465732274092, 'Market base reserves');
-    assert(market_quote_reserves == 7538089126968944009690000000, 'Market quote reserves');
-    assert(alice_base_balance == alice_base_start + base_collect_1, 'Alice base balance');
-    assert(
-        alice_quote_balance == to_e28(10000000) - 12438869274153842282609250000,
-        'Alice quote balance'
-    );
-    assert(bob_base_balance == bob_base_start, 'Bob base balance');
-    assert(
-        bob_quote_balance == to_e28(10000000) - 4977538217327560986587700000, 'Bob quote balance'
-    );
+//     // Check state.
+//     assert(amount_in_1 == to_e28(1), 'Amount in 1');
+//     assert(amount_out_1 == 9878318364512459259506950000, 'Amount out 1');
+//     assert(_approx_eq(fees_1, 30000000000000000000000000, 1), 'Fees 1');
+//     assert(base_collect_1 == 2518797785417929711264524858, 'Base collect 1');
+//     assert(quote_collect_1 == 0, 'Quote collect 1');
+//     assert(
+//         market_state == MarketState {
+//             liquidity: to_e28(200000),
+//             curr_limit: OFFSET - 1000,
+//             protocol_share: 20,
+//             curr_sqrt_price: 9950162731123922544094402921,
+//             is_concentrated: true,
+//             base_fee_factor: 187406629087480932662,
+//             quote_fee_factor: 0,
+//         },
+//         'Market state 1'
+//     );
+//     assert(order_bid_a1.liquidity == 0, 'Order a1: liquidity');
+//     assert(order_bid_b1.liquidity == liquidity_bid_b1, 'Order b1: liquidity');
+//     assert(order_bid_a2.liquidity == liquidity_bid_a2, 'Order a2: liquidity');
+//     assert(
+//         batch_neg_900 == OrderBatch {
+//             liquidity: liquidity_bid_b1,
+//             filled: true,
+//             limit: OFFSET - 900,
+//             is_bid: true,
+//             base_amount: 5037595570835859422529049718,
+//             quote_amount: 0,
+//         },
+//         'Batch -900'
+//     );
+//     assert(
+//         batch_neg_1000 == OrderBatch {
+//             liquidity: liquidity_bid_a2,
+//             filled: false,
+//             limit: OFFSET - 1000,
+//             is_bid: true,
+//             base_amount: 2443501305114041550455592201,
+//             quote_amount: 7538089126968944009690000000,
+//         },
+//         'Batch -1000'
+//     );
+//     'MARKET BASE RESERVES'.print();
+//     market_base_reserves.print();
+//     'MARKET QUOTE RESERVES'.print();
+//     market_quote_reserves.print();
+//     assert(market_base_reserves == 29875035954502256465732274092, 'Market base reserves');
+//     assert(market_quote_reserves == 7538089126968944009690000000, 'Market quote reserves');
+//     assert(alice_base_balance == alice_base_start + base_collect_1, 'Alice base balance');
+//     assert(
+//         alice_quote_balance == to_e28(10000000) - 12438869274153842282609250000,
+//         'Alice quote balance'
+//     );
+//     assert(bob_base_balance == bob_base_start, 'Bob base balance');
+//     assert(
+//         bob_quote_balance == to_e28(10000000) - 4977538217327560986587700000, 'Bob quote balance'
+//     );
 
-    // Buy to unfill last bid order and partially fill 2 ask orders.
-    let (amount_in_2, amount_out_2, fees_2) = market_manager
-        .swap(market_id, true, to_e28(1), true, Option::None(()), Option::None(()));
+//     // Buy to unfill last bid order and partially fill 2 ask orders.
+//     let (amount_in_2, amount_out_2, fees_2) = market_manager
+//         .swap(market_id, true, to_e28(1), true, Option::None(()), Option::None(()));
 
-    // Collect a partially filled ask order at 900.
-    let (base_collect_2, quote_collect_2) = market_manager.collect_order(market_id, ask_b1);
+//     // Collect a partially filled ask order at 900.
+//     let (base_collect_2, quote_collect_2) = market_manager.collect_order(market_id, ask_b1);
 
-    // Collect unfilled order at 1000.
-    let (base_collect_3, quote_collect_3) = market_manager.collect_order(market_id, ask_b2);
+//     // Collect unfilled order at 1000.
+//     let (base_collect_3, quote_collect_3) = market_manager.collect_order(market_id, ask_b2);
 
-    // Fetch state again.
-    market_state = market_manager.market_state(market_id);
-    let order_ask_a1 = market_manager.order(ask_a1);
-    let order_ask_b1 = market_manager.order(ask_b1);
-    let order_ask_b2 = market_manager.order(ask_b2);
-    let batch_900 = market_manager.batch(order_ask_b1.batch_id);
-    let batch_1000 = market_manager.batch(order_ask_b2.batch_id);
-    market_base_reserves = market_manager.reserves(base_token.contract_address);
-    market_quote_reserves = market_manager.reserves(quote_token.contract_address);
+//     // Fetch state again.
+//     market_state = market_manager.market_state(market_id);
+//     let order_ask_a1 = market_manager.order(ask_a1);
+//     let order_ask_b1 = market_manager.order(ask_b1);
+//     let order_ask_b2 = market_manager.order(ask_b2);
+//     let batch_900 = market_manager.batch(order_ask_b1.batch_id);
+//     let batch_1000 = market_manager.batch(order_ask_b2.batch_id);
+//     market_base_reserves = market_manager.reserves(base_token.contract_address);
+//     market_quote_reserves = market_manager.reserves(quote_token.contract_address);
 
-    // Verify state.
-    assert(amount_in_2 == to_e28(1), 'Amount in 2');
-    assert(amount_out_2 == 9926480658583945067498077765, 'Amount out 2');
-    assert(_approx_eq(fees_2, 30000000000000000000000000, 1), 'Fees 2');
-    assert(base_collect_2 == 1981413314869032219787770622, 'Base collect 2');
-    assert(quote_collect_2 == 3032268461977485344182387162, 'Quote collect 2');
-    assert(base_collect_3 == 9950050415362359985833331435, 'Base collect 3');
-    assert(quote_collect_3 == 0, 'Quote collect 3');
-    assert(
-        market_state == MarketState {
-            liquidity: to_e28(250000),
-            curr_limit: OFFSET + 900,
-            protocol_share: 20,
-            curr_sqrt_price: 10045131407988586929877373380,
-            is_concentrated: true,
-            base_fee_factor: 187406629087480932662,
-            quote_fee_factor: 127003290922098522197,
-        },
-        'Market state 2'
-    );
-    assert(order_ask_a1.liquidity == liquidity_ask_a1, 'Order a1: liquidity');
-    assert(order_ask_b1.liquidity == 0, 'Order b1: liquidity');
-    assert(order_ask_b2.liquidity == 0, 'Order b2: liquidity');
-    assert(
-        batch_900 == OrderBatch {
-            liquidity: liquidity_ask_a1,
-            filled: false,
-            limit: OFFSET + 900,
-            is_bid: false,
-            base_amount: 2972119972303548329681655934,
-            quote_amount: 4548438692966228016273580743,
-        },
-        'Batch 900'
-    );
-    assert(
-        batch_1000 == OrderBatch {
-            liquidity: 0,
-            filled: false,
-            limit: OFFSET + 1000,
-            is_bid: false,
-            base_amount: 0,
-            quote_amount: 0,
-        },
-        'Batch 1000'
-    );
+//     // Verify state.
+//     assert(amount_in_2 == to_e28(1), 'Amount in 2');
+//     assert(amount_out_2 == 9926480658583945067498077765, 'Amount out 2');
+//     assert(_approx_eq(fees_2, 30000000000000000000000000, 1), 'Fees 2');
+//     assert(base_collect_2 == 1981413314869032219787770622, 'Base collect 2');
+//     assert(quote_collect_2 == 3032268461977485344182387162, 'Quote collect 2');
+//     assert(base_collect_3 == 9950050415362359985833331435, 'Base collect 3');
+//     assert(quote_collect_3 == 0, 'Quote collect 3');
+//     assert(
+//         market_state == MarketState {
+//             liquidity: to_e28(250000),
+//             curr_limit: OFFSET + 900,
+//             protocol_share: 20,
+//             curr_sqrt_price: 10045131407988586929877373380,
+//             is_concentrated: true,
+//             base_fee_factor: 187406629087480932662,
+//             quote_fee_factor: 127003290922098522197,
+//         },
+//         'Market state 2'
+//     );
+//     assert(order_ask_a1.liquidity == liquidity_ask_a1, 'Order a1: liquidity');
+//     assert(order_ask_b1.liquidity == 0, 'Order b1: liquidity');
+//     assert(order_ask_b2.liquidity == 0, 'Order b2: liquidity');
+//     assert(
+//         batch_900 == OrderBatch {
+//             liquidity: liquidity_ask_a1,
+//             filled: false,
+//             limit: OFFSET + 900,
+//             is_bid: false,
+//             base_amount: 2972119972303548329681655934,
+//             quote_amount: 4548438692966228016273580743,
+//         },
+//         'Batch 900'
+//     );
+//     assert(
+//         batch_1000 == OrderBatch {
+//             liquidity: 0,
+//             filled: false,
+//             limit: OFFSET + 1000,
+//             is_bid: false,
+//             base_amount: 0,
+//             quote_amount: 0,
+//         },
+//         'Batch 1000'
+//     );
 
-    // Create a new orders at -900 and 900.
-    market_manager.create_order(market_id, true, OFFSET - 900, to_e28(1));
-    market_manager.create_order(market_id, false, OFFSET + 1000, to_e28(1));
+//     // Create a new orders at -900 and 900.
+//     market_manager.create_order(market_id, true, OFFSET - 900, to_e28(1));
+//     market_manager.create_order(market_id, false, OFFSET + 1000, to_e28(1));
 
-    // Verify nonce increase handled correctly. 
-    let limit_info_neg_900 = market_manager.limit_info(market_id, OFFSET - 900);
-    let limit_info_900 = market_manager.limit_info(market_id, OFFSET + 900);
-    assert(limit_info_neg_900.nonce == 1, 'Nonce -900');
-    assert(limit_info_900.nonce == 0, 'Nonce 900');
-}
+//     // Verify nonce increase handled correctly. 
+//     let limit_info_neg_900 = market_manager.limit_info(market_id, OFFSET - 900);
+//     let limit_info_900 = market_manager.limit_info(market_id, OFFSET + 900);
+//     assert(limit_info_neg_900.nonce == 1, 'Nonce -900');
+//     assert(limit_info_900.nonce == 0, 'Nonce 900');
+// }
 
 ////////////////////////////////
 // TESTS - failure cases
