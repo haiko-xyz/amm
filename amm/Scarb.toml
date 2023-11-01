@@ -22,3 +22,8 @@ sierra-replace-ids = true
 [tool.snforge]
 fuzzer_runs = 30
 fuzzer_seed = 88888
+
+[[tool.snforge.fork]]
+name = "TESTNET"
+url = "https://starknet-goerli.infura.io/v3/ade21f3b32374c5b8d328811e6d5e69e"
+block_id.tag = "Latest"
