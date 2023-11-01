@@ -25,14 +25,14 @@ jobs:
           curl -L https://raw.githubusercontent.com/foundry-rs/starknet-foundry/master/scripts/install.sh | sh -s -- -v ${{ env.SNFORGE_VERSION }}
 
       - name: Build and test `amm`
-        working-directory: ./sphinx/amm
+        working-directory: ./amm
         run: |
           scarb test -f tests::cairo_test
           snforge test tests::snforge
           scarb build
 
       - name: Build and test `strategies`
-        working-directory: ./sphinx/strategies
+        working-directory: ./strategies
         run: |
           scarb test -f tests::cairo_test
           snforge test tests::snforge
