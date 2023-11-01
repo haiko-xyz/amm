@@ -1,17 +1,26 @@
 [package]
 name = "strategies"
-cairo-version = "2.1.0"
+cairo-version = "2.3.0"
 version.workspace = true
 
 [dependencies]
-starknet = "2.1.0"
+starknet = "2.3.0"
 amm = { path = "../amm" }
 
 [lib]
 
 [[target.starknet-contract]]
 sierra = true
+casm = true
 allowed-libfuncs-list.name = "experimental"
+build-external-contracts = [
+  'amm::contracts::market_manager::MarketManager',
+  'openzeppelin::token::erc20::erc20::ERC20',
+]
 
 [cairo]
 sierra-replace-ids = true
+
+[tool.snforge]
+fuzzer_runs = 30
+fuzzer_seed = 88888

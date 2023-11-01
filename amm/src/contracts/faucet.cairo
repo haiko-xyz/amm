@@ -22,14 +22,18 @@ trait IFaucet<TContractState> {
 
 #[starknet::contract]
 mod Faucet {
+    // Core lib imports.
     use starknet::ContractAddress;
     use starknet::info::get_caller_address;
     use starknet::info::get_contract_address;
     use starknet::replace_class_syscall;
     use starknet::class_hash::ClassHash;
-    use amm::interfaces::IERC20::{IERC20Dispatcher, IERC20DispatcherTrait};
 
+    // Local imports.
     use super::IFaucet;
+
+    // External imports.
+    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
     #[storage]
     struct Storage {

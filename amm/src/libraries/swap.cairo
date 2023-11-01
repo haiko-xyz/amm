@@ -67,9 +67,11 @@ fn swap_iter(
     let target_limit_opt = tree::next_limit(
         @self, market_id, is_buy, width, market_state.curr_limit
     );
-    // If running out of liquidity, we throw an error instead of returning a partial fill.
-    // Note this is different from the Uniswap implementation.
-    assert(target_limit_opt.is_some(), 'NoLiquidity');
+    // If running out of liquidity, we stop the swap execution.
+    if target_limit_opt.is_none() {
+        return Option::None(());
+    }
+    // assert(target_limit_opt.is_some(), 'NoLiquidity');
     let target_limit = min(target_limit_opt.unwrap(), price_math::max_limit(width));
 
     // Convert target limit to target sqrt price, and cap it at the threshold.
@@ -99,10 +101,10 @@ fn swap_iter(
     // Update amount remaining and amount calc.
     // Amount calc refers to amount out for exact input, and vice versa for exact out.
     if exact_input {
-        amount_rem -= amount_in_iter + fees;
+        amount_rem -= min(amount_in_iter + fees, amount_rem);
         amount_calc += amount_out_iter;
     } else {
-        amount_rem -= amount_out_iter;
+        amount_rem -= min(amount_out_iter, amount_rem);
         amount_calc += amount_in_iter + fees;
     }
 
@@ -136,14 +138,12 @@ fn swap_iter(
         let mut limit_info = self.limit_info.read((market_id, target_limit));
         // Asserts below are for debugging u256 overflow bugs - can likely be removed later on.
         assert(
-            market_state.quote_fee_factor >= limit_info.quote_fee_factor,
-            'LimitInfoQuoteFeeFactor'
+            market_state.quote_fee_factor >= limit_info.quote_fee_factor, 'LimitInfoQuoteFeeFactor'
         );
         assert(
             market_state.base_fee_factor >= limit_info.base_fee_factor, 'LimitInfoBaseFeeFactor'
         );
-        limit_info.quote_fee_factor = market_state.quote_fee_factor
-            - limit_info.quote_fee_factor;
+        limit_info.quote_fee_factor = market_state.quote_fee_factor - limit_info.quote_fee_factor;
         limit_info.base_fee_factor = market_state.base_fee_factor - limit_info.base_fee_factor;
         self.limit_info.write((market_id, target_limit), limit_info);
 

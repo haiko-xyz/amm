@@ -94,6 +94,9 @@ fn update_liquidity(
     );
 
     // Update liquidity position.
+    if liquidity_delta.sign {
+        assert(position.liquidity >= liquidity_delta.val, 'UpdatePosLiq');
+    }
     liquidity_math::add_delta(ref position.liquidity, liquidity_delta);
     if !liquidity_delta.sign {
         assert(position.liquidity.into() < MAX, 'PosLiqOverflow');
@@ -110,6 +113,9 @@ fn update_liquidity(
     } else {
         // Update global liquidity if range is active
         if lower_limit <= market_state.curr_limit && upper_limit > market_state.curr_limit {
+            if liquidity_delta.sign {
+                assert(market_state.liquidity >= liquidity_delta.val, 'UpdateLiqMarketLiq');
+            }
             liquidity_math::add_delta(ref market_state.liquidity, liquidity_delta);
             self.market_state.write(market_id, market_state);
         }
@@ -155,6 +161,9 @@ fn update_limit(
 
     // Add liquidity to limit.
     let liquidity_before = limit_info.liquidity;
+    if liquidity_delta.sign {
+        assert(limit_info.liquidity >= liquidity_delta.val, 'UpdateLimitLiq');
+    }
     liquidity_math::add_delta(ref limit_info.liquidity, liquidity_delta);
     let directional_liquidity_delta = if is_start {
         liquidity_delta
@@ -195,5 +204,5 @@ fn max_liquidity_per_limit(width: u32) -> u256 {
     } else {
         0
     };
-    MAX / intervals.into()
+    MAX_UNSCALED / intervals.into()
 }

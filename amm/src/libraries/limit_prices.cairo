@@ -4,7 +4,6 @@ use option::OptionTrait;
 
 // Local imports.
 use amm::libraries::math::price_math;
-use amm::types::i32::I32Trait;
 use amm::libraries::constants::{MAX_SQRT_PRICE, MIN_SQRT_PRICE};
 
 // Checks limits are different and properly ordered.
