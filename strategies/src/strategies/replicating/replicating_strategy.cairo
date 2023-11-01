@@ -231,6 +231,13 @@ mod ReplicatingStrategy {
     // FUNCTIONS
     ////////////////////////////////
 
+    #[generate_trait]
+    impl ModifierImpl of ModifierTrait {
+        fn assert_only_owner(self: @ContractState) {
+            assert(self.owner.read() == get_caller_address(), 'OnlyOwner');
+        }
+    }
+
     #[external(v0)]
     impl Strategy of IStrategy<ContractState> {
         // Get market manager contract address
@@ -487,8 +494,8 @@ mod ReplicatingStrategy {
             slippage: u32,
             delta: u32,
         ) {
-            assert(get_caller_address() == self.owner.read(), 'OnlyOwner');
-            assert(!self.is_initialised.read(), 'INITIALISED');
+            self.assert_only_owner();
+            assert(!self.is_initialised.read(), 'Initialised');
 
             let mut unsafe_state = ERC20::unsafe_new_contract_state();
             ERC20::InternalImpl::initializer(ref unsafe_state, name, symbol);
@@ -842,7 +849,7 @@ mod ReplicatingStrategy {
         // Manually trigger contract to collect all outstanding positions and pause the contract.
         // Only callable by contract owner.
         fn collect_and_pause(ref self: ContractState) {
-            assert(get_caller_address() == self.owner.read(), 'OnlyOwner');
+            self.assert_only_owner();
             assert(self.is_initialised.read(), 'NotInitialised');
 
             let market_manager = IMarketManagerDispatcher {
@@ -898,7 +905,7 @@ mod ReplicatingStrategy {
         fn change_strategy_params(
             ref self: ContractState, min_spread: u32, slippage: u32, delta: u32,
         ) {
-            assert(get_caller_address() == self.owner.read(), 'OnlyOwner');
+            self.assert_only_owner();
             let market_manager_contract = IMarketManagerDispatcher {
                 contract_address: self.market_manager.read()
             };
@@ -920,7 +927,7 @@ mod ReplicatingStrategy {
             base_currency_id: felt252,
             quote_currency_id: felt252
         ) {
-            assert(get_caller_address() == self.owner.read(), 'OnlyOwner');
+            self.assert_only_owner();
             self.oracle.write(oracle);
             self.oracle_params.write({
                 OracleParams { base_currency_id, quote_currency_id }
@@ -938,21 +945,21 @@ mod ReplicatingStrategy {
         // # Arguments
         // * `owner` - new owner address
         fn set_owner(ref self: ContractState, owner: ContractAddress) {
-            assert(get_caller_address() == self.owner.read(), 'OnlyOwner');
+            self.assert_only_owner();
             self.owner.write(owner);
             self.emit(Event::ChangeOwner(ChangeOwner { new_owner: owner }));
         }
 
         // Pause strategy.
         fn pause(ref self: ContractState) {
-            assert(get_caller_address() == self.owner.read(), 'OnlyOwner');
+            self.assert_only_owner();
             self.is_paused.write(true);
             self.emit(Event::Pause(Pause {}));
         }
 
         // Unpause strategy.
         fn unpause(ref self: ContractState) {
-            assert(get_caller_address() == self.owner.read(), 'OnlyOwner');
+            self.assert_only_owner();
             self.is_paused.write(false);
             self.emit(Event::Unpause(Unpause {}));
         }
@@ -963,7 +970,7 @@ mod ReplicatingStrategy {
         // # Arguments
         // # `new_class_hash` - New class hash of the contract
         fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
-            assert(get_caller_address() == self.owner.read(), 'OnlyOwner');
+            self.assert_only_owner();
             replace_class_syscall(new_class_hash);
         }
     }
@@ -1148,20 +1155,7 @@ mod ReplicatingStrategy {
             self.quote_reserves.write(quote_reserves);
             self.bid.write(bid);
             self.ask.write(ask);
-
-            self.emit(
-                Event::UpdatePositions(
-                    UpdatePositions {
-                        bid_lower_limit: bid.lower_limit,
-                        bid_upper_limit: bid.upper_limit,
-                        bid_liquidity: bid.liquidity,
-                        ask_lower_limit: ask.lower_limit,
-                        ask_upper_limit: ask.upper_limit,
-                        ask_liquidity: ask.liquidity,
-                    }
-                )
-            );
-
+            
             self
                 .emit(
                     Event::UpdatePositions(
