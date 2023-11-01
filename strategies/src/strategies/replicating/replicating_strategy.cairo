@@ -1147,19 +1147,21 @@ mod ReplicatingStrategy {
             self.bid.write(bid);
             self.ask.write(ask);
             
-            self
-                .emit(
-                    Event::UpdatePositions(
-                        UpdatePositions {
-                            bid_lower_limit: bid.lower_limit,
-                            bid_upper_limit: bid.upper_limit,
-                            bid_liquidity: bid.liquidity,
-                            ask_lower_limit: ask.lower_limit,
-                            ask_upper_limit: ask.upper_limit,
-                            ask_liquidity: ask.liquidity,
-                        }
-                    )
-                );
+            if next_bid_limit != bid.upper_limit || next_ask_limit != ask.lower_limit {
+                self
+                    .emit(
+                        Event::UpdatePositions(
+                            UpdatePositions {
+                                bid_lower_limit: bid.lower_limit,
+                                bid_upper_limit: bid.upper_limit,
+                                bid_liquidity: bid.liquidity,
+                                ask_lower_limit: ask.lower_limit,
+                                ask_upper_limit: ask.upper_limit,
+                                ask_liquidity: ask.liquidity,
+                            }
+                        )
+                    );
+            }
 
             (bid, ask)
         }
