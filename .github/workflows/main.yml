@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  SCARB_VERSION: 0.7.0
+  SCARB_VERSION: 2.3.0
 
 jobs:
   build:
@@ -18,5 +18,11 @@ jobs:
       - name: Setup Scarb
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | bash -s -- -v ${{ env.SCARB_VERSION }}
-      - run: scarb test
+      - run: cd amm
+      - run: scarb test -f tests::cairo_test
+      - run: snforge test tests::snforge
+      - run: scarb build
+      - run: cd ../strategies
+      - run: scarb test -f tests::cairo_test
+      - run: snforge test tests::snforge
       - run: scarb build
