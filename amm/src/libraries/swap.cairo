@@ -138,14 +138,12 @@ fn swap_iter(
         let mut limit_info = self.limit_info.read((market_id, target_limit));
         // Asserts below are for debugging u256 overflow bugs - can likely be removed later on.
         assert(
-            market_state.quote_fee_factor >= limit_info.quote_fee_factor,
-            'LimitInfoQuoteFeeFactor'
+            market_state.quote_fee_factor >= limit_info.quote_fee_factor, 'LimitInfoQuoteFeeFactor'
         );
         assert(
             market_state.base_fee_factor >= limit_info.base_fee_factor, 'LimitInfoBaseFeeFactor'
         );
-        limit_info.quote_fee_factor = market_state.quote_fee_factor
-            - limit_info.quote_fee_factor;
+        limit_info.quote_fee_factor = market_state.quote_fee_factor - limit_info.quote_fee_factor;
         limit_info.base_fee_factor = market_state.base_fee_factor - limit_info.base_fee_factor;
         self.limit_info.write((market_id, target_limit), limit_info);
 

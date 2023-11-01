@@ -30,7 +30,8 @@ mod MarketManager {
     use amm::interfaces::IFeeController::{IFeeControllerDispatcher, IFeeControllerDispatcherTrait};
     use amm::interfaces::ILoanReceiver::{ILoanReceiverDispatcher, ILoanReceiverDispatcherTrait};
     use amm::types::core::{
-        MarketInfo, MarketState, OrderBatch, Position, LimitInfo, LimitOrder, PositionInfo, SwapParams
+        MarketInfo, MarketState, OrderBatch, Position, LimitInfo, LimitOrder, PositionInfo,
+        SwapParams
     };
     use amm::types::i256::{i256, I256Zeroable, I256Trait};
     use amm::libraries::store_packing::{
@@ -916,9 +917,8 @@ mod MarketManager {
             amount: u256,
             route: Span<felt252>,
         ) {
-            let amount_out = self._swap_multiple(
-                in_token, out_token, amount, route, Option::None(()), true
-            );
+            let amount_out = self
+                ._swap_multiple(in_token, out_token, amount, route, Option::None(()), true);
             assert(false, amount_out.try_into().unwrap());
         }
 
@@ -1437,9 +1437,10 @@ mod MarketManager {
             // Strategy positions are updated before the swap occurs.
             let caller = get_caller_address();
             if market_info.strategy.is_non_zero() && caller != market_info.strategy {
-                IStrategyDispatcher { contract_address: market_info.strategy }.update_positions(
-                    SwapParams { is_buy, amount, exact_input, threshold_sqrt_price, deadline }
-                );
+                IStrategyDispatcher { contract_address: market_info.strategy }
+                    .update_positions(
+                        SwapParams { is_buy, amount, exact_input, threshold_sqrt_price, deadline }
+                    );
             }
 
             // Get swap fee. 

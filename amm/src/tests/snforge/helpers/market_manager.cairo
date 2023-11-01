@@ -81,11 +81,7 @@ fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleP
     start_prank(market_manager.contract_address, params.owner);
     let amount_out = market_manager
         .swap_multiple(
-            params.in_token,
-            params.out_token,
-            params.amount,
-            params.route,
-            params.deadline,
+            params.in_token, params.out_token, params.amount, params.route, params.deadline,
         );
     stop_prank(market_manager.contract_address);
     amount_out

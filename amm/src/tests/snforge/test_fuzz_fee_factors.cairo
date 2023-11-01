@@ -13,7 +13,7 @@ use amm::tests::snforge::helpers::{
     token::{declare_token, deploy_token, fund, approve},
 };
 use amm::tests::common::params::{
-    owner, alice, treasury, token_params, default_market_params, modify_position_params, 
+    owner, alice, treasury, token_params, default_market_params, modify_position_params,
     swap_params, swap_multiple_params, default_token_params
 };
 use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
@@ -151,7 +151,8 @@ fn test_fee_factor_invariants(
         (pos3_lower_limit, pos3_upper_limit, pos3_liquidity, pos3_rem_liq),
         (pos4_lower_limit, pos4_upper_limit, pos4_liquidity, pos4_rem_liq),
         (pos5_lower_limit, pos5_upper_limit, pos5_liquidity, pos5_rem_liq),
-    ].span();
+    ]
+        .span();
 
     // Place positions.
     let mut i = 0;
@@ -165,7 +166,11 @@ fn test_fee_factor_invariants(
         // Place position if not fail case.
         if lower_limit != upper_limit && liquidity != 0 {
             let mut params = modify_position_params(
-                alice(), market_id, lower_limit, upper_limit, I256Trait::new(liquidity.into(), false)
+                alice(),
+                market_id,
+                lower_limit,
+                upper_limit,
+                I256Trait::new(liquidity.into(), false)
             );
             modify_position(market_manager, params);
         }
@@ -175,10 +180,19 @@ fn test_fee_factor_invariants(
 
     // Execute swaps and check fee factor invariants.
     let swap_amounts = array![
-        swap1_amount, swap2_amount, swap3_amount, swap4_amount, swap5_amount,
-        swap6_amount, swap7_amount, swap8_amount, swap9_amount, swap10_amount,
-    ].span();
-    
+        swap1_amount,
+        swap2_amount,
+        swap3_amount,
+        swap4_amount,
+        swap5_amount,
+        swap6_amount,
+        swap7_amount,
+        swap8_amount,
+        swap9_amount,
+        swap10_amount,
+    ]
+        .span();
+
     // Loop through swaps.
     let mut j = 0;
     loop {
@@ -223,12 +237,19 @@ fn test_fee_factor_invariants(
                 assert(after.quote_fee_factor >= before.quote_fee_factor, 'Invariant 2: quote');
 
                 // Invariant 3: position fee factor should never exceed global fee factor.
-                assert(after.base_fee_factor <= market_state_aft.base_fee_factor, 'Invariant 3: base');
-                assert(after.quote_fee_factor <= market_state_aft.quote_fee_factor, 'Invariant 3: quote');
+                assert(
+                    after.base_fee_factor <= market_state_aft.base_fee_factor, 'Invariant 3: base'
+                );
+                assert(
+                    after.quote_fee_factor <= market_state_aft.quote_fee_factor,
+                    'Invariant 3: quote'
+                );
 
                 // Invariant 4: fee factor inside position should always be gte fee factor last.
                 assert(after.base_fee_factor >= before.base_fee_factor_last, 'Invariant 4: base');
-                assert(after.quote_fee_factor >= before.quote_fee_factor_last, 'Invariant 4: quote');
+                assert(
+                    after.quote_fee_factor >= before.quote_fee_factor_last, 'Invariant 4: quote'
+                );
 
                 k += 1;
             };
@@ -277,8 +298,12 @@ fn test_fee_factor_invariants(
             assert(after_pos.quote_fee_factor <= after_mkt.quote_fee_factor, 'Invariant 3: quote');
 
             // Invariant 5: removing liquidity should always set last fee factor to fee factor.
-            assert(after_pos.base_fee_factor == after_pos.base_fee_factor_last, 'Invariant 5: base');
-            assert(after_pos.quote_fee_factor == after_pos.quote_fee_factor_last, 'Invariant 5: quote');
+            assert(
+                after_pos.base_fee_factor == after_pos.base_fee_factor_last, 'Invariant 5: base'
+            );
+            assert(
+                after_pos.quote_fee_factor == after_pos.quote_fee_factor_last, 'Invariant 5: quote'
+            );
 
             // Execute swap to randomise market conditions.
             let amount = *swap_amounts.at(m);
@@ -341,21 +366,24 @@ fn snapshot_all(
         );
 
         // Append position state.
-        position_states.append(PositionState {
-            liquidity: position.liquidity,
-            base_fee_factor,
-            quote_fee_factor,
-            base_fee_factor_last: position.base_fee_factor_last,
-            quote_fee_factor_last: position.quote_fee_factor_last,
-            lower_limit: LimitState {
-                base_fee_factor: lower_limit_info.base_fee_factor,
-                quote_fee_factor: lower_limit_info.quote_fee_factor,
-            },
-            upper_limit: LimitState {
-                base_fee_factor: upper_limit_info.base_fee_factor,
-                quote_fee_factor: upper_limit_info.quote_fee_factor,
-            },
-        });
+        position_states
+            .append(
+                PositionState {
+                    liquidity: position.liquidity,
+                    base_fee_factor,
+                    quote_fee_factor,
+                    base_fee_factor_last: position.base_fee_factor_last,
+                    quote_fee_factor_last: position.quote_fee_factor_last,
+                    lower_limit: LimitState {
+                        base_fee_factor: lower_limit_info.base_fee_factor,
+                        quote_fee_factor: lower_limit_info.quote_fee_factor,
+                    },
+                    upper_limit: LimitState {
+                        base_fee_factor: upper_limit_info.base_fee_factor,
+                        quote_fee_factor: upper_limit_info.quote_fee_factor,
+                    },
+                }
+            );
 
         i += 1;
     };

@@ -78,10 +78,6 @@ fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleP
     set_contract_address(params.owner);
     market_manager
         .swap_multiple(
-            params.in_token,
-            params.out_token,
-            params.amount,
-            params.route,
-            params.deadline,
+            params.in_token, params.out_token, params.amount, params.route, params.deadline,
         )
 }

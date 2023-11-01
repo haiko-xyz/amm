@@ -131,11 +131,7 @@ fn test_quote_cases() {
     // Mint positions.
     set_contract_address(alice());
     let mut params = modify_position_params(
-        alice(),
-        market_id,
-        OFFSET + 749000,
-        OFFSET + 750000,
-        I256Trait::new(to_e18(100000), false),
+        alice(), market_id, OFFSET + 749000, OFFSET + 750000, I256Trait::new(to_e18(100000), false),
     );
     modify_position(market_manager, params);
 
@@ -152,13 +148,14 @@ fn test_quote_cases() {
         let swap_case: SwapCase = *swap_cases[swap_index];
 
         // Obtain quote.
-        let quote = quoter.quote(
-            market_id,
-            swap_case.is_buy,
-            swap_case.amount,
-            swap_case.exact_input,
-            swap_case.threshold_sqrt_price,
-        );
+        let quote = quoter
+            .quote(
+                market_id,
+                swap_case.is_buy,
+                swap_case.amount,
+                swap_case.exact_input,
+                swap_case.threshold_sqrt_price,
+            );
 
         // Execute swap.
         let mut params = swap_params(
@@ -171,7 +168,11 @@ fn test_quote_cases() {
             Option::None(()),
         );
         let (amount_in, amount_out, _) = swap(market_manager, params);
-        let amount = if swap_case.exact_input { amount_out } else { amount_in };
+        let amount = if swap_case.exact_input {
+            amount_out
+        } else {
+            amount_in
+        };
 
         'sqrt price'.print();
         market_manager.curr_sqrt_price(market_id).print();

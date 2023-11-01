@@ -12,7 +12,7 @@ use amm::tests::cairo_test::helpers::market_manager::{
 };
 use amm::tests::cairo_test::helpers::token::{deploy_token, fund, approve};
 use amm::tests::common::params::{
-    owner, alice, treasury, token_params, default_market_params, modify_position_params, 
+    owner, alice, treasury, token_params, default_market_params, modify_position_params,
     swap_params, swap_multiple_params
 };
 use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
@@ -33,15 +33,9 @@ fn before() -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, IE
 
     // Deploy tokens.
     let max = BoundedU256::max();
-    let eth_params = token_params(
-        'Ethereum', 'ETH', max, treasury()
-    );
-    let btc_params = token_params(
-        'Bitcoin', 'BTC', max, treasury()
-    );
-    let usdc_params = token_params(
-        'USDC', 'USDC', max, treasury()
-    );
+    let eth_params = token_params('Ethereum', 'ETH', max, treasury());
+    let btc_params = token_params('Bitcoin', 'BTC', max, treasury());
+    let usdc_params = token_params('USDC', 'USDC', max, treasury());
     let eth = deploy_token(eth_params);
     let btc = deploy_token(btc_params);
     let usdc = deploy_token(usdc_params);
@@ -86,19 +80,19 @@ fn test_swap_multiple() {
     // Add liquidity positions.
     set_contract_address(alice());
     let mut eth_usdc_position_params = modify_position_params(
-        alice(), 
-        eth_usdc_market_id, 
-        OFFSET + 730000, 
-        OFFSET + 740000, 
+        alice(),
+        eth_usdc_market_id,
+        OFFSET + 730000,
+        OFFSET + 740000,
         I256Trait::new(to_e28(20000000), false)
     );
     modify_position(market_manager, eth_usdc_position_params);
 
     let mut btc_usdc_position_params = modify_position_params(
-        alice(), 
-        btc_usdc_market_id, 
-        OFFSET + 1010000, 
-        OFFSET + 1020000, 
+        alice(),
+        btc_usdc_market_id,
+        OFFSET + 1010000,
+        OFFSET + 1020000,
         I256Trait::new(to_e28(1000000), false)
     );
     modify_position(market_manager, btc_usdc_position_params);
@@ -114,7 +108,7 @@ fn test_swap_multiple() {
         Option::None(())
     );
     let amount_out = swap_multiple(market_manager, swap_params);
-    
+
     // Check amount out.
     assert(amount_out == 61170203579856364, 'Swap multiple: amount out');
 }

@@ -30,7 +30,9 @@ mod Quoter {
     ////////////////////////////////
 
     #[constructor]
-    fn constructor(ref self: ContractState, owner: ContractAddress, market_manager: ContractAddress) {
+    fn constructor(
+        ref self: ContractState, owner: ContractAddress, market_manager: ContractAddress
+    ) {
         self.owner.write(owner);
         self.market_manager.write(market_manager);
     }
@@ -44,7 +46,6 @@ mod Quoter {
 
     #[external(v0)]
     impl Quoter of IQuoter<ContractState> {
-
         // Get owner.
         //
         // # Returns
@@ -52,7 +53,7 @@ mod Quoter {
         fn owner(self: @ContractState) -> ContractAddress {
             return self.owner.read();
         }
-        
+
         // Get market manager.
         //
         // # Returns
