@@ -204,5 +204,5 @@ fn max_liquidity_per_limit(width: u32) -> u256 {
     } else {
         0
     };
-    MAX / intervals.into()
+    MAX_UNSCALED / intervals.into()
 }
