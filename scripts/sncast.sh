@@ -1,5 +1,5 @@
 # Set environment variables
-export STARKNET_RPC="https://starknet-goerli.infura.io/v3/ade21f3b32374c5b8d328811e6d5e69e"
+export STARKNET_RPC=https://starknet-goerli.g.alchemy.com/v2/KDQIvQ6ANSkhkuP-9WP0P6f_eJLW6kHj
 export DEPLOYER=0x01d589e33d4e8976725d62f8cb8bf99d1a1fb2789c79d76072625a4a556535d7
 export OWNER=0x2afc579c1a02e4e36b2717bb664bee705d749d581e150d1dd16311e3b3bb057
 export STARKNET_KEYSTORE=~/.starkli-wallets/deployer/testnet_deployer_keystore.json
