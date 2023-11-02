@@ -108,7 +108,8 @@ fn get_fee_inside(
         upper_limit_info.base_fee_factor
     } else {
         assert(base_fee_factor >= upper_limit_info.base_fee_factor, 'GetFeeInsideBaseAbove');
-        base_fee_factor - upper_limit_info.base_fee_factor
+        base_fee_factor
+            - upper_limit_info.base_fee_factor
     };
     let quote_fees_above = if curr_limit < upper_limit {
         upper_limit_info.quote_fee_factor
