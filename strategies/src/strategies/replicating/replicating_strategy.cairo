@@ -1056,7 +1056,6 @@ mod ReplicatingStrategy {
             let market_manager = IMarketManagerDispatcher { contract_address: market_manager_addr };
             let market_id = self.market_id.read();
             let market_info = market_manager.market_info(market_id);
-            let market_state = market_manager.market_state(market_id);
             let curr_limit = market_manager.curr_limit(market_id);
 
             // Fetch strategy state
