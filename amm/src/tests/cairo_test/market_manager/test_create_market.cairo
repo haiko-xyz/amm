@@ -256,8 +256,8 @@ fn test_create_market_fee_rate_overflow() {
 
 #[test]
 #[available_gas(2000000000)]
-#[should_panic(expected: ('PShareOverflow', 'ENTRYPOINT_FAILED',))]
-fn test_create_market_PShareOverflow() {
+#[should_panic(expected: ('ProtocolShareOverflow', 'ENTRYPOINT_FAILED',))]
+fn test_create_market_protocol_share_overflow() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
 

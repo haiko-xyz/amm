@@ -35,6 +35,14 @@ fn deploy_market_manager(owner: ContractAddress,) -> IMarketManagerDispatcher {
 
 fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketParams) -> felt252 {
     set_contract_address(params.owner);
+    let base_whitelisted = market_manager.is_whitelisted(params.base_token);
+    let quote_whitelisted = market_manager.is_whitelisted(params.quote_token);
+    if !base_whitelisted {
+        market_manager.whitelist(params.base_token);
+    }
+    if !quote_whitelisted {
+        market_manager.whitelist(params.quote_token);
+    }
     market_manager
         .create_market(
             params.base_token,

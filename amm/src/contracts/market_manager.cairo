@@ -51,6 +51,7 @@ mod MarketManager {
         // Ownable
         owner: ContractAddress,
         // Global information
+        whitelist: LegacyMap::<ContractAddress, bool>,
         // Indexed by asset
         reserves: LegacyMap::<ContractAddress, u256>,
         // Indexed by asset
@@ -95,6 +96,7 @@ mod MarketManager {
         Swap: Swap,
         MultiSwap: MultiSwap,
         FlashLoan: FlashLoan,
+        Whitelist: Whitelist,
         EnableConcentrated: EnableConcentrated,
         CollectProtocolFee: CollectProtocolFee,
         Sweep: Sweep,
@@ -195,6 +197,11 @@ mod MarketManager {
     }
 
     #[derive(Drop, starknet::Event)]
+    struct Whitelist {
+        token: ContractAddress
+    }
+
+    #[derive(Drop, starknet::Event)]
     struct EnableConcentrated {
         market_id: felt252
     }
@@ -259,6 +266,10 @@ mod MarketManager {
 
         fn owner(self: @ContractState) -> ContractAddress {
             self.owner.read()
+        }
+
+        fn is_whitelisted(self: @ContractState, token: ContractAddress) -> bool {
+            self.whitelist.read(token)
         }
 
         fn base_token(self: @ContractState, market_id: felt252) -> ContractAddress {
@@ -468,12 +479,14 @@ mod MarketManager {
             assert(width != 0, 'WidthZero');
             assert(width <= MAX_WIDTH, 'WidthOverflow');
             assert(swap_fee_rate <= fee_math::MAX_FEE_RATE, 'SwapFeeOverflow');
-            assert(protocol_share <= fee_math::MAX_FEE_RATE, 'PShareOverflow');
+            assert(protocol_share <= fee_math::MAX_FEE_RATE, 'ProtocolShareOverflow');
             assert(start_limit < MAX_LIMIT_SHIFTED, 'StartLimitOverflow');
 
-            // Check tokens exist.
+            // Check tokens exist and whitelisted.
             IERC20Dispatcher { contract_address: base_token }.name();
             IERC20Dispatcher { contract_address: quote_token }.name();
+            assert(self.whitelist.read(base_token), 'BaseWhitelist');
+            assert(self.whitelist.read(quote_token), 'QuoteWhitelist');
 
             // Check market does not already exist.
             // A market is uniquely identified by the base and quote token, market width, swap fee,
@@ -1018,6 +1031,27 @@ mod MarketManager {
             ERC721::InternalImpl::_burn(ref unsafe_state, position_id.into());
         }
 
+        // Whitelists a token for market creation.
+        // Callable by owner only.
+        //
+        // # Arguments
+        // * `token` - token address
+        fn whitelist(ref self: ContractState, token: ContractAddress) {
+            // Validate caller and inputs.
+            self.assert_only_owner();
+            assert(token.is_non_zero(), 'TokenNull');
+
+            // Check not already whitelisted.
+            let whitelisted = self.whitelist.read(token);
+            assert(!whitelisted, 'AlreadyWhitelisted');
+
+            // Update whitelist.
+            self.whitelist.write(token, true);
+
+            // Emit event.
+            self.emit(Event::Whitelist(Whitelist { token }));
+        }
+
         // Upgrades Linear Market to Concentrated Market by enabling concentrated liquidity positions.
         // Callable by owner only.
         //
@@ -1163,7 +1197,7 @@ mod MarketManager {
         // * `protocol_share` - protocol share
         fn set_protocol_share(ref self: ContractState, market_id: felt252, protocol_share: u16,) {
             self.assert_only_owner();
-            assert(protocol_share <= fee_math::MAX_FEE_RATE, 'PShareOverflow');
+            assert(protocol_share <= fee_math::MAX_FEE_RATE, 'ProtocolShareOverflow');
 
             let mut market_state = self.market_state.read(market_id);
             market_state.protocol_share = protocol_share;

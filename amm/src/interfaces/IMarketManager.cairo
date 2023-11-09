@@ -14,6 +14,8 @@ trait IMarketManager<TContractState> {
 
     fn owner(self: @TContractState) -> ContractAddress;
 
+    fn is_whitelisted(self: @TContractState, token: ContractAddress) -> bool;
+
     fn quote_token(self: @TContractState, market_id: felt252) -> ContractAddress;
 
     fn base_token(self: @TContractState, market_id: felt252) -> ContractAddress;
@@ -154,6 +156,8 @@ trait IMarketManager<TContractState> {
     fn mint(ref self: TContractState, position_id: felt252);
 
     fn burn(ref self: TContractState, position_id: felt252);
+
+    fn whitelist(ref self: TContractState, token: ContractAddress);
 
     fn enable_concentrated(ref self: TContractState, market_id: felt252);
 
