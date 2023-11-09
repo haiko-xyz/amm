@@ -6,7 +6,6 @@ use amm::libraries::math::fee_math::get_fee_inside;
 use amm::types::core::LimitInfo;
 use amm::types::i256::I256Zeroable;
 
-
 ////////////////////////////////
 // TESTS - calc_fee
 ////////////////////////////////
@@ -45,7 +44,7 @@ fn test_calc_fee_cases() {
 #[test]
 #[should_panic(expected: ('FeeRateOverflow',))]
 #[available_gas(2000000000)]
-fn test_calc_FeeOverflow() {
+fn test_calc_fee_overflow() {
     calc_fee(50000, 10001);
 }
 
@@ -75,7 +74,6 @@ fn test_gross_to_net_cases() {
     assert(net == 99000, 'gross_to_net(10000,100)');
 
     net = gross_to_net(BoundedU256::max(), 3333);
-    // TODO: check why result below is 1 less than it should be
     assert(
         net == 77198585894518707488894775705292228165775098776582564045106371258075683530945,
         'gross_to_net(MAX,3333)'

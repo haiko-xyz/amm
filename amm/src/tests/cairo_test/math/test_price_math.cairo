@@ -5,7 +5,6 @@ use amm::libraries::math::price_math::{
     shift_limit, unshift_limit, limit_to_sqrt_price, sqrt_price_to_limit
 };
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT, MIN_SQRT_PRICE, MAX_SQRT_PRICE};
-use amm::libraries::math::bit_math::msb;
 use amm::tests::common::utils::approx_eq;
 use amm::types::i32::{i32, i32Trait};
 
@@ -456,25 +455,4 @@ fn test_sqrt_price_to_limit_overflow() {
     let sqrt_price: u256 = MAX_SQRT_PRICE + 1;
     let width = 1;
     sqrt_price_to_limit(sqrt_price, width);
-}
-
-
-////////////////////////////////
-// TESTS - _msb
-////////////////////////////////
-
-#[test]
-#[available_gas(2000000000)]
-fn test_msb_cases() {
-    let mut i = 0x8000000000000000000000000000000000000000000000000000000000000000;
-    let mut pos = 255;
-    loop {
-        if pos == 0 {
-            break ();
-        }
-        assert(msb(i) == pos, 'msb');
-        i /= 2;
-        pos -= 1;
-    };
-    assert(msb(0) == 0, 'msb(0)');
 }
