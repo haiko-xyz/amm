@@ -394,7 +394,7 @@ mod ReplicatingStrategy {
         // - Ask range position will be placed from R + S + Da to B + Da
         // where: 
         //   S is the slippage parameter (controls how volume affects price)
-        //   D is the delta parameter (controls how portfolio imbalance affects price)
+    //   D is the delta parameter (controls how portfolio imbalance affects price)
         //
         // # Returns
         // * `bid` - new bid limit
