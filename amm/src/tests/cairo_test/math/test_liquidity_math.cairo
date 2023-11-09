@@ -1,7 +1,7 @@
 use integer::BoundedU256;
 
 use amm::libraries::math::liquidity_math::{
-    add_delta, liquidity_to_quote_amount, liquidity_to_base_amount
+    add_delta, liquidity_to_quote, liquidity_to_base
 };
 use amm::libraries::constants::MAX;
 use amm::tests::common::utils::encode_sqrt_price;
@@ -72,23 +72,23 @@ fn test_AddDeltaOverflow() {
 
 
 ////////////////////////////////////
-// TESTS - liquidity_to_quote_amount
+// TESTS - liquidity_to_quote
 ////////////////////////////////////
 
 #[test]
 #[available_gas(2000000000)]
-fn test_liquidity_to_quote_amount_cases() {
+fn test_liquidity_to_quote_cases() {
     let mut start = encode_sqrt_price(1, 1);
     let mut end = encode_sqrt_price(2, 1);
     let mut liq = I256Trait::new(0, false);
     assert(
-        liquidity_to_quote_amount(start, end, liq, true) == I256Trait::new(0, false), 'bd(1,/2,0,T)'
+        liquidity_to_quote(start, end, liq, true) == I256Trait::new(0, false), 'bd(1,/2,0,T)'
     );
 
     end = encode_sqrt_price(1, 1);
     liq = I256Trait::new(2, false);
     assert(
-        liquidity_to_quote_amount(start, end, liq, true) == I256Trait::new(0, false), 'bd(1,1,2,T)'
+        liquidity_to_quote(start, end, liq, true) == I256Trait::new(0, false), 'bd(1,1,2,T)'
     );
 
     let start = encode_sqrt_price(1, 2);
@@ -96,13 +96,13 @@ fn test_liquidity_to_quote_amount_cases() {
     let liq = I256Trait::new(100 * ONE, false);
     // no rounding occurs as we divide by ONE
     assert(
-        liquidity_to_quote_amount(
+        liquidity_to_quote(
             start, end, liq, true
         ) == I256Trait::new(4292893218813452475599155637900, false),
         'bd(/.5,/25,100,T)'
     );
     assert(
-        liquidity_to_quote_amount(
+        liquidity_to_quote(
             start, end, liq, false
         ) == I256Trait::new(4292893218813452475599155637900, false),
         'bd(/.5,/25,100,F)'
@@ -110,36 +110,36 @@ fn test_liquidity_to_quote_amount_cases() {
 }
 
 /////////////////////////////////////
-// TESTS - liquidity_to_base_amount
+// TESTS - liquidity_to_base
 /////////////////////////////////////
 
 #[test]
 #[available_gas(2000000000)]
-fn test_liquidity_to_base_amount_cases() {
+fn test_liquidity_to_base_cases() {
     let mut start = encode_sqrt_price(1, 1);
     let mut end = encode_sqrt_price(2, 1);
     let mut liq = I256Trait::new(0, false);
     assert(
-        liquidity_to_base_amount(start, end, liq, true) == I256Trait::new(0, false), 'qd(1,/2,0,T)'
+        liquidity_to_base(start, end, liq, true) == I256Trait::new(0, false), 'qd(1,/2,0,T)'
     );
 
     end = encode_sqrt_price(1, 1);
     liq = I256Trait::new(2, false);
     assert(
-        liquidity_to_base_amount(start, end, liq, true) == I256Trait::new(0, false), 'qd(1,1,2,T)'
+        liquidity_to_base(start, end, liq, true) == I256Trait::new(0, false), 'qd(1,1,2,T)'
     );
 
     let start = encode_sqrt_price(1, 2);
     let end = encode_sqrt_price(50, 2);
     let liq = I256Trait::new(100 * ONE, false);
     assert(
-        liquidity_to_base_amount(
+        liquidity_to_base(
             start, end, liq, true
         ) == I256Trait::new(1214213562373095048801688724266, false),
         'qd(/.5,/25,100,T)'
     );
     assert(
-        liquidity_to_base_amount(
+        liquidity_to_base(
             start, end, liq, false
         ) == I256Trait::new(1214213562373095048801688724117, false),
         'qd(/.5,/25,100,F)'
@@ -153,5 +153,5 @@ fn test_base_amount_delta_start_price_0() {
     let start = 0;
     let end = encode_sqrt_price(2, 1);
     let liq = I256Trait::new(100 * ONE, false);
-    liquidity_to_base_amount(start, end, liq, true) == I256Trait::new(0, false);
+    liquidity_to_base(start, end, liq, true) == I256Trait::new(0, false);
 }

@@ -66,12 +66,12 @@ trait IMarketManager<TContractState> {
 
     fn protocol_fees(self: @TContractState, asset: ContractAddress) -> u256;
 
-    fn position_fees(
+    fn amounts_inside_position(
         self: @TContractState,
-        owner: ContractAddress,
         market_id: felt252,
+        position_id: felt252,
         lower_limit: u32,
-        upper_limit: u32
+        upper_limit: u32,
     ) -> (u256, u256);
 
     fn ERC721_position_info(self: @TContractState, token_id: felt252) -> PositionInfo;

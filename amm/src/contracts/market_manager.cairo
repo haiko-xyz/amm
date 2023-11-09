@@ -370,56 +370,24 @@ mod MarketManager {
             self.protocol_fees.read(asset)
         }
 
-        // Get base and quote fees accrued inside a position.
-        fn position_fees(
+        fn amounts_inside_position(
             self: @ContractState,
-            owner: ContractAddress,
             market_id: felt252,
+            position_id: felt252,
             lower_limit: u32,
-            upper_limit: u32
+            upper_limit: u32,
         ) -> (u256, u256) {
-            // Fetch state.
-            let position = self.position(market_id, owner.into(), lower_limit, upper_limit);
-            let market_state = self.market_state.read(market_id);
-            let lower_limit_info = self.limit_info.read((market_id, lower_limit));
-            let upper_limit_info = self.limit_info.read((market_id, upper_limit));
-
-            // Get fee factors and calculate accrued fees.
-            let (base_fee_factor, quote_fee_factor) = fee_math::get_fee_inside(
-                lower_limit_info,
-                upper_limit_info,
-                lower_limit,
-                upper_limit,
-                market_state.curr_limit,
-                market_state.base_fee_factor,
-                market_state.quote_fee_factor,
-            );
-            let base_fees = math::mul_div(
-                (base_fee_factor.into() - position.base_fee_factor_last),
-                position.liquidity.into(),
-                ONE,
-                false
-            );
-            let quote_fees = math::mul_div(
-                (quote_fee_factor.into() - position.quote_fee_factor_last),
-                position.liquidity.into(),
-                ONE,
-                false
-            );
-
-            (base_fees, quote_fees)
+            liquidity_helpers::amounts_inside_position(
+                self, market_id, position_id, lower_limit, upper_limit
+            )
         }
 
         // Information corresponding to ERC721 position token.
         fn ERC721_position_info(self: @ContractState, token_id: felt252) -> PositionInfo {
             let position = self.positions.read(token_id);
             let market_info = self.market_info.read(position.market_id);
-            let market_state = self.market_state.read(position.market_id);
-            let lower_limit = self.limit_info.read((position.market_id, position.lower_limit));
-            let upper_limit = self.limit_info.read((position.market_id, position.upper_limit));
-            let (base_amount, quote_amount, base_fees, quote_fees) =
-                liquidity_math::amounts_inside_position(
-                @market_state, market_info.width, @position, lower_limit, upper_limit,
+            let (base_amount, quote_amount) = liquidity_helpers::amounts_inside_position(
+                self, position.market_id, token_id, position.lower_limit, position.upper_limit
             );
 
             PositionInfo {
@@ -430,8 +398,8 @@ mod MarketManager {
                 swap_fee_rate: market_info.swap_fee_rate,
                 fee_controller: market_info.fee_controller,
                 liquidity: position.liquidity,
-                base_amount: base_amount + base_fees,
-                quote_amount: quote_amount + quote_fees,
+                base_amount,
+                quote_amount,
                 base_fee_factor_last: position.base_fee_factor_last,
                 quote_fee_factor_last: position.quote_fee_factor_last,
             }

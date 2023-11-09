@@ -15,7 +15,7 @@ use amm::contracts::market_manager::MarketManager::{
 use amm::contracts::market_manager::MarketManager::InternalTrait;
 use amm::libraries::tree;
 use amm::libraries::id;
-use amm::types::core::{LimitInfo, MarketState, MarketInfo};
+use amm::types::core::{LimitInfo, MarketState, MarketInfo, Position};
 use amm::libraries::math::{liquidity_math, price_math, fee_math, math};
 use amm::libraries::constants::{ONE, MAX_UNSCALED, MAX, HALF, MAX_NUM_LIMITS};
 use amm::types::i256::{I256Trait, i256, I256Zeroable};
@@ -193,6 +193,69 @@ fn update_limit(
 
     // Return limit info
     limit_info
+}
+
+// Get token amounts inside a position.
+//
+// # Arguments
+// * `market_id` - market id
+// * `position_id` - position id
+// * `lower_limit` - lower limit of position
+// * `upper_limit` - upper limit of position
+//
+// # Returns
+// * `base_amount` - base tokens in position, including accrued fees
+// * `quote_amount` - quote tokens in position, including accrued fees
+// * `base_fees` - base tokens accrued in fees
+// * `quote_fees` - quote tokens accrued in fees
+fn amounts_inside_position(
+    self: @ContractState,
+    market_id: felt252,
+    position_id: felt252,
+    lower_limit: u32,
+    upper_limit: u32,
+) -> (u256, u256) {
+    // Fetch state.
+    let market_state = self.market_state.read(market_id);
+    let market_info = self.market_info.read(market_id);
+    let position = self.positions.read(position_id);
+    let lower_limit_info = self.limit_info.read((market_id, lower_limit));
+    let upper_limit_info = self.limit_info.read((market_id, upper_limit));
+
+    // Get fee factors and calculate accrued fees.
+    let (base_fee_factor, quote_fee_factor) = fee_math::get_fee_inside(
+        lower_limit_info,
+        upper_limit_info,
+        position.lower_limit,
+        position.upper_limit,
+        market_state.curr_limit,
+        market_state.base_fee_factor,
+        market_state.quote_fee_factor,
+    );
+
+    // Calculate fees accrued since last update.
+    // Includes various asserts for debugging u256_overflow errors - can be removed later.
+    assert(base_fee_factor >= position.base_fee_factor_last, 'AmtsInsideBaseFeeFactor');
+    let base_fees = math::mul_div(
+        (base_fee_factor - position.base_fee_factor_last), position.liquidity.into(), ONE, false
+    );
+    assert(quote_fee_factor >= position.quote_fee_factor_last, 'AmtsInsideQuoteFeeFactor');
+    let quote_fees = math::mul_div(
+        (quote_fee_factor - position.quote_fee_factor_last), position.liquidity.into(), ONE, false
+    );
+
+    // Calculate amounts inside position.
+    let (base_amount, quote_amount) = liquidity_math::liquidity_to_amounts(
+        market_state.curr_limit,
+        market_state.curr_sqrt_price,
+        I256Trait::new(position.liquidity, false),
+        position.lower_limit,
+        position.upper_limit,
+        market_info.width,
+    );
+
+    // Return amounts
+    (base_amount.val + base_fees, quote_amount.val + quote_fees)
 }
 
 // Calculate max liquidity per limit.

@@ -245,22 +245,22 @@ fn compute_swap_amounts(
     // Calculate amounts in and out.
     let liquidity_i256 = I256Trait::new(liquidity, false);
     let mut amount_in = if is_buy {
-        liquidity_math::liquidity_to_quote_amount(
+        liquidity_math::liquidity_to_quote(
             curr_sqrt_price, target_sqrt_price, liquidity_i256, true
         )
     } else {
-        liquidity_math::liquidity_to_base_amount(
+        liquidity_math::liquidity_to_base(
             target_sqrt_price, curr_sqrt_price, liquidity_i256, true
         )
     }
         .val;
 
     let mut amount_out = if is_buy {
-        liquidity_math::liquidity_to_base_amount(
+        liquidity_math::liquidity_to_base(
             curr_sqrt_price, target_sqrt_price, liquidity_i256, false
         )
     } else {
-        liquidity_math::liquidity_to_quote_amount(
+        liquidity_math::liquidity_to_quote(
             target_sqrt_price, curr_sqrt_price, liquidity_i256, false
         )
     }
@@ -292,11 +292,11 @@ fn compute_swap_amounts(
                 amount_rem_less_fee
             } else {
                 if is_buy {
-                    liquidity_math::liquidity_to_quote_amount(
+                    liquidity_math::liquidity_to_quote(
                         curr_sqrt_price, next_sqrt_price, liquidity_i256, true
                     )
                 } else {
-                    liquidity_math::liquidity_to_base_amount(
+                    liquidity_math::liquidity_to_base(
                         next_sqrt_price, curr_sqrt_price, liquidity_i256, true
                     )
                 }
@@ -307,11 +307,11 @@ fn compute_swap_amounts(
                 amount_rem
             } else {
                 if is_buy {
-                    liquidity_math::liquidity_to_base_amount(
+                    liquidity_math::liquidity_to_base(
                         curr_sqrt_price, next_sqrt_price, liquidity_i256, false
                     )
                 } else {
-                    liquidity_math::liquidity_to_quote_amount(
+                    liquidity_math::liquidity_to_quote(
                         next_sqrt_price, curr_sqrt_price, liquidity_i256, false
                     )
                 }
@@ -321,6 +321,7 @@ fn compute_swap_amounts(
 
     // Calculate fees. 
     // Amount in is net of fees because we capped amounts by net amount remaining.
+    // Fees are rounded down by default to prevent overflow when transferring amounts.
     let fees = fee_math::net_to_fee(amount_in, fee_rate);
 
     // Return amounts.

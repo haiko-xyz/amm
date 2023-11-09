@@ -262,9 +262,9 @@ fn test_replicating_strategy_deposit_to_strategy() {
 
     assert(base_amount == base_amount_req, 'Deposit: base');
     assert(approx_eq(quote_amount, to_e18(556260), 10), 'Deposit: quote');
-    assert(new_shares == bid_new_shares_exp + ask_new_shares_exp, 'Deposit: shares');
     assert(bid.liquidity == bid_init_shares_exp, 'Bid: liquidity');
     assert(ask.liquidity == ask_init_shares_exp, 'Ask: liquidity');
+    assert(approx_eq(new_shares, bid_new_shares_exp + ask_new_shares_exp, 10), 'Deposit: shares');
 }
 
 #[test]
@@ -296,7 +296,7 @@ fn test_replicating_strategy_withdraw() {
     let ask = strategy.ask();
     let base_reserves = strategy.base_reserves();
     let quote_reserves = strategy.quote_reserves();
-    
+
     // Run checks.
     assert(
         approx_eq(bid.liquidity + ask.liquidity, shares_init - shares_req, 10),

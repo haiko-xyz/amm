@@ -51,7 +51,7 @@ trait IReplicatingStrategy<TContractState> {
     fn base_reserves(self: @TContractState) -> u256;
     fn quote_reserves(self: @TContractState) -> u256;
     fn get_oracle_price(self: @TContractState) -> u128;
-    fn get_token_amounts(self: @TContractState) -> (u256, u256, u256, u256);
+    fn get_balances(self: @TContractState) -> (u256, u256);
     fn get_bid_ask(self: @TContractState) -> (u32, u32);
 
     fn initialise(
@@ -113,6 +113,8 @@ mod ReplicatingStrategy {
     use amm::contracts::market_manager::MarketManager::ContractState as MMContractState;
     use amm::types::core::{MarketState, SwapParams};
     use amm::libraries::math::{math, price_math, liquidity_math, fee_math};
+    use amm::libraries::id;
+    use amm::libraries::liquidity as liquidity_helpers;
     use amm::libraries::constants::ONE;
     use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
     use amm::interfaces::IStrategy::IStrategy;
@@ -338,9 +340,7 @@ mod ReplicatingStrategy {
         // # Returns
         // * `base_amount` - total base tokens owned
         // * `quote_amount` - total quote tokens owned
-        // * `base_fees` - total base fees accrued
-        // * `quote_fees` - total quote fees accrued
-        fn get_token_amounts(self: @ContractState) -> (u256, u256, u256, u256) {
+        fn get_balances(self: @ContractState) -> (u256, u256) {
             // Fetch strategy state.
             let base_reserves = self.base_reserves.read();
             let quote_reserves = self.quote_reserves.read();
@@ -349,42 +349,25 @@ mod ReplicatingStrategy {
 
             // Fetch position info from market manager.
             let market_id = self.market_id.read();
-            let market_manager = IMarketManagerDispatcher {
-                contract_address: self.market_manager.read()
-            };
-            let market_state = market_manager.market_state(market_id);
-            let market_info = market_manager.market_info(market_id);
-            let contract = get_contract_address();
-            let bid_position = market_manager
-                .position(market_id, contract.into(), bid.lower_limit, bid.upper_limit);
-            let ask_position = market_manager
-                .position(market_id, contract.into(), ask.lower_limit, ask.upper_limit);
+            let market_manager_addr = self.market_manager.read();
+            let market_manager = IMarketManagerDispatcher { contract_address: market_manager_addr };
+            let contract: felt252 = get_contract_address().into();
+            let bid_pos_id = id::position_id(market_id, contract, bid.lower_limit, bid.upper_limit);
+            let ask_pos_id = id::position_id(market_id, contract, ask.lower_limit, ask.upper_limit);
 
             // Calculate base and quote amounts inside strategy, either in reserves or in positions.
-            let (bid_base, bid_quote, bid_base_fees, bid_quote_fees) =
-                liquidity_math::amounts_inside_position(
-                @market_state,
-                market_info.width,
-                @bid_position,
-                market_manager.limit_info(market_id, bid.lower_limit),
-                market_manager.limit_info(market_id, bid.upper_limit),
+            let (bid_base, bid_quote) = market_manager.amounts_inside_position(
+                market_id, bid_pos_id, bid.lower_limit, bid.upper_limit,
             );
-            let (ask_base, ask_quote, ask_base_fees, ask_quote_fees) =
-                liquidity_math::amounts_inside_position(
-                @market_state,
-                market_info.width,
-                @ask_position,
-                market_manager.limit_info(market_id, ask.lower_limit),
-                market_manager.limit_info(market_id, ask.upper_limit),
+            let (ask_base, ask_quote) = market_manager.amounts_inside_position(
+                market_id, ask_pos_id, ask.lower_limit, ask.upper_limit,
             );
 
             // Return total amounts.
             let base_amount = base_reserves + bid_base + ask_base;
             let quote_amount = quote_reserves + bid_quote + ask_quote;
-            let base_fees = bid_base_fees + ask_base_fees;
-            let quote_fees = bid_quote_fees + ask_quote_fees;
 
-            (base_amount, quote_amount, base_fees, quote_fees)
+            (base_amount, quote_amount)
         }
 
         // Calculate new optimal positions.
@@ -414,10 +397,10 @@ mod ReplicatingStrategy {
             let limit = price_math::price_to_limit(price, market_info.width, false);
 
             // Calculate portfolio imbalance and delta.
-            let (base_amount, quote_amount, base_fees, quote_fees) = self.get_token_amounts();
-            let quote_amount_i256 = I256Trait::new(quote_amount + quote_fees, false);
+            let (base_amount, quote_amount) = self.get_balances();
+            let quote_amount_i256 = I256Trait::new(quote_amount, false);
             let base_amount_in_quote_i256 = I256Trait::new(
-                math::mul_div(base_amount + base_fees, price, ONE, false), false
+                math::mul_div(base_amount, price, ONE, false), false
             );
             let delta_is_bid = base_amount_in_quote_i256 < quote_amount_i256;
             let imbalance_pct = math::mul_div(
@@ -601,92 +584,45 @@ mod ReplicatingStrategy {
         // Deposit liquidity to strategy.
         //
         // # Arguments
-        // * `base_amount` - base asset to deposit
-        // * `quote_amount` - quote asset to deposit
+        // * `base_amount` - base asset desired
+        // * `quote_amount` - quote asset desired
         //
         // # Returns
-        // * `base_amount` - base asset requested
-        // * `quote_amount` - quote asset requested
-        // * `shares` - pool shares minted in the form of liquidity, which is always denominated in base asset
+        // * `base_amount` - base asset deposited
+        // * `quote_amount` - quote asset deposited
+        // * `shares` - pool shares minted
         fn deposit(
             ref self: ContractState, base_amount: u256, quote_amount: u256
         ) -> (u256, u256, u256) {
-            // Run checks
+            // Run checks.
             let mut unsafe_state = ERC20::unsafe_new_contract_state();
             let total_supply = ERC20::IERC20::total_supply(@unsafe_state);
             assert(total_supply != 0, 'UseDepositInitial');
             assert(base_amount != 0 || quote_amount != 0, 'AmountZero');
             assert(!self.is_paused.read(), 'Paused');
 
-            // Fetch current market state
+            // Fetch market info and strategy state.
             let market_manager_addr = self.market_manager.read();
             let market_manager = IMarketManagerDispatcher { contract_address: market_manager_addr };
-            let market_id = self.market_id.read();
-            let market_state = market_manager.market_state(market_id);
-            let market_info = market_manager.market_info(market_id);
+            let market_info = market_manager.market_info(self.market_id.read());
             let mut base_reserves = self.base_reserves.read();
             let mut quote_reserves = self.quote_reserves.read();
+            let (base_balance, quote_balance) = self.get_balances();
 
-            // Calculate token amounts (including accrued fees) in active positions
-            let contract = get_contract_address();
-            let bid = self.bid.read();
-            let bid_position = market_manager
-                .position(market_id, contract.into(), bid.lower_limit, bid.upper_limit);
-            let (bid_base, bid_quote, bid_base_fees, bid_quote_fees) =
-                liquidity_math::amounts_inside_position(
-                @market_state,
-                market_info.width,
-                @bid_position,
-                market_manager.limit_info(market_id, bid.lower_limit),
-                market_manager.limit_info(market_id, bid.upper_limit),
-            );
-
-            let ask = self.ask.read();
-            let ask_position = market_manager
-                .position(market_id, contract.into(), ask.lower_limit, ask.upper_limit);
-            let (ask_base, ask_quote, ask_base_fees, ask_quote_fees) =
-                liquidity_math::amounts_inside_position(
-                @market_state,
-                market_info.width,
-                @ask_position,
-                market_manager.limit_info(market_id, ask.lower_limit),
-                market_manager.limit_info(market_id, ask.upper_limit),
-            );
-
-            // Calculate liquidity minted.
-            let total_base_reserves = base_reserves
-                + bid_base
-                + bid_base_fees
-                + ask_base
-                + ask_base_fees;
-            let total_quote_reserves = quote_reserves
-                + bid_quote
-                + bid_quote_fees
-                + ask_quote
-                + ask_quote_fees;
+            // Calculate shares to mint.
             let base_deposit = min(
                 base_amount,
-                math::mul_div(quote_amount, total_base_reserves, total_quote_reserves, false)
+                math::mul_div(quote_amount, base_balance, quote_balance, false)
             );
             let quote_deposit = min(
                 quote_amount,
-                math::mul_div(base_amount, total_quote_reserves, total_base_reserves, false)
+                math::mul_div(base_amount, quote_balance, base_balance, false)
             );
+            let shares = math::mul_div(total_supply, base_deposit, base_balance, false);
 
-            let base_liquidity = liquidity_math::base_amount_to_liquidity(
-                price_math::limit_to_sqrt_price(ask.lower_limit, market_info.width),
-                price_math::limit_to_sqrt_price(ask.upper_limit, market_info.width),
-                base_deposit
-            );
-            let quote_liquidity = liquidity_math::quote_amount_to_liquidity(
-                price_math::limit_to_sqrt_price(bid.lower_limit, market_info.width),
-                price_math::limit_to_sqrt_price(bid.upper_limit, market_info.width),
-                quote_deposit
-            );
-            let liquidity = base_liquidity + quote_liquidity;
-
-            // Transfer tokens into contract
+            // Transfer tokens into contract.
             let caller = get_caller_address();
+            let contract = get_contract_address();
             if base_deposit != 0 {
                 let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
                 assert(base_token.balance_of(caller) >= base_deposit, 'DepositBase');
@@ -698,18 +634,16 @@ mod ReplicatingStrategy {
                 quote_token.transfer_from(caller, contract, quote_deposit);
             }
 
-            // Update reserves
+            // Update reserves.
             base_reserves += base_deposit;
             quote_reserves += quote_deposit;
-
-            // Commit state updates.
             self.base_reserves.write(base_reserves);
             self.quote_reserves.write(quote_reserves);
 
-            // Mint liquidity
-            ERC20::InternalImpl::_mint(ref unsafe_state, caller, liquidity);
+            // Mint liquidity.
+            ERC20::InternalImpl::_mint(ref unsafe_state, caller, shares);
 
-            // Emit event
+            // Emit event.
             self
                 .emit(
                     Event::Deposit(
@@ -719,7 +653,7 @@ mod ReplicatingStrategy {
                     )
                 );
 
-            (base_deposit, quote_deposit, liquidity)
+            (base_deposit, quote_deposit, shares)
         }
 
         // Burn pool shares and withdraw funds from strategy.
@@ -762,52 +696,35 @@ mod ReplicatingStrategy {
             let mut ask = self.ask.read();
             let bid_liquidity_delta = math::mul_div(bid.liquidity, shares, total_supply, false);
             bid.liquidity -= bid_liquidity_delta;
+            let bid_liquidity_delta_i256 = I256Trait::new(bid_liquidity_delta, true);
             let (bid_base_rem, bid_quote_rem, bid_base_fees, bid_quote_fees) = market_manager
                 .modify_position(
-                    market_id,
-                    bid.lower_limit,
-                    bid.upper_limit,
-                    I256Trait::new(bid_liquidity_delta, true)
+                    market_id, bid.lower_limit, bid.upper_limit, bid_liquidity_delta_i256
                 );
-            // Withdrawal includes all fees in position, not only those belonging to caller.
-            let bid_base_fees_excess = math::mul_div(
-                bid_base_fees, total_supply - shares, total_supply, true
-            );
-            let bid_quote_fees_excess = math::mul_div(
-                bid_quote_fees, total_supply - shares, total_supply, true
-            );
-
             let ask_liquidity_delta = math::mul_div(ask.liquidity, shares, total_supply, false);
             ask.liquidity -= ask_liquidity_delta;
+            let ask_liquidity_delta_i256 = I256Trait::new(ask_liquidity_delta, true);
             let (ask_base_rem, ask_quote_rem, ask_base_fees, ask_quote_fees) = market_manager
                 .modify_position(
-                    market_id,
-                    ask.lower_limit,
-                    ask.upper_limit,
-                    I256Trait::new(ask_liquidity_delta, true)
+                    market_id, ask.lower_limit, ask.upper_limit, ask_liquidity_delta_i256
                 );
-            let ask_base_fees_excess = math::mul_div(
-                ask_base_fees, total_supply - shares, total_supply, true
-            );
-            let ask_quote_fees_excess = math::mul_div(
-                ask_quote_fees, total_supply - shares, total_supply, true
-            );
 
-            base_withdraw += bid_base_rem.val
-                + ask_base_rem.val
-                - bid_base_fees_excess
-                - ask_base_fees_excess;
-            quote_withdraw += bid_quote_rem.val
-                + ask_quote_rem.val
-                - bid_quote_fees_excess
-                - ask_quote_fees_excess;
-            base_reserves += bid_base_fees_excess + ask_base_fees_excess;
-            quote_reserves += bid_quote_fees_excess + ask_quote_fees_excess;
+            // Withdrawal includes all fees in position, not only those belonging to caller.
+            let base_fees_excess = math::mul_div(
+                bid_base_fees + ask_base_fees, total_supply - shares, total_supply, true
+            );
+            let quote_fees_excess = math::mul_div(
+                bid_quote_fees + ask_quote_fees, total_supply - shares, total_supply, true
+            );
+            base_withdraw += bid_base_rem.val + ask_base_rem.val - base_fees_excess;
+            quote_withdraw += bid_quote_rem.val + ask_quote_rem.val - quote_fees_excess;
+            base_reserves += base_fees_excess;
+            quote_reserves += quote_fees_excess;
 
-            // Burn shares
+            // Burn shares.
             ERC20::InternalImpl::_burn(ref unsafe_state, caller, shares);
 
-            // Transfer tokens to caller
+            // Transfer tokens to caller.
             let contract = get_contract_address();
             if base_withdraw != 0 {
                 let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
@@ -818,13 +735,13 @@ mod ReplicatingStrategy {
                 quote_token.transfer(caller, quote_withdraw);
             }
 
-            // Commit state updates
+            // Commit state updates.
             self.base_reserves.write(base_reserves);
             self.quote_reserves.write(quote_reserves);
             self.bid.write(bid);
             self.ask.write(ask);
 
-            // Emit event
+            // Emit event.
             self
                 .emit(
                     Event::Withdraw(
@@ -834,6 +751,7 @@ mod ReplicatingStrategy {
                     )
                 );
 
+            // Return withdrawn amounts.
             (base_withdraw, quote_withdraw)
         }
 
@@ -1100,7 +1018,7 @@ mod ReplicatingStrategy {
                 bid = Default::default();
             } else if quote_reserves != 0 {
                 let lower_limit = next_bid_limit - strategy_params.slippage;
-                let liquidity_delta = liquidity_math::quote_amount_to_liquidity(
+                let liquidity_delta = liquidity_math::quote_to_liquidity(
                     price_math::limit_to_sqrt_price(lower_limit, market_info.width),
                     price_math::limit_to_sqrt_price(next_bid_limit, market_info.width),
                     quote_reserves
@@ -1122,7 +1040,7 @@ mod ReplicatingStrategy {
                 bid = Default::default();
             } else if base_reserves != 0 {
                 let upper_limit = next_ask_limit + strategy_params.slippage;
-                let liquidity_delta = liquidity_math::base_amount_to_liquidity(
+                let liquidity_delta = liquidity_math::base_to_liquidity(
                     price_math::limit_to_sqrt_price(next_ask_limit, market_info.width),
                     price_math::limit_to_sqrt_price(upper_limit, market_info.width),
                     base_reserves
