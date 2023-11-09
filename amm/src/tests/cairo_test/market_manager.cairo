@@ -7,3 +7,4 @@ mod test_swap_multiple;
 mod test_limit_orders;
 mod test_upgrade_market_manager;
 mod test_id;
+mod test_fee_factor;

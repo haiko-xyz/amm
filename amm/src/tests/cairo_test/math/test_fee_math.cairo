@@ -157,6 +157,7 @@ fn empty_limit_info() -> LimitInfo {
         liquidity_delta: I256Zeroable::zero(),
         quote_fee_factor: 0,
         base_fee_factor: 0,
+        initialised: false,
         nonce: 0,
     }
 }

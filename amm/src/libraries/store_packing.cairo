@@ -22,6 +22,7 @@ const TWO_POW_13: felt252 = 0x2000;
 const TWO_POW_14: felt252 = 0x4000;
 const TWO_POW_16: felt252 = 0x10000;
 const TWO_POW_17: felt252 = 0x20000;
+const TWO_POW_18: felt252 = 0x40000;
 const TWO_POW_32: felt252 = 0x100000000;
 const TWO_POW_44: felt252 = 0x100000000000;
 const TWO_POW_48: felt252 = 0x1000000000000;
@@ -89,11 +90,7 @@ impl MarketStateStorePacking of StorePacking<MarketState, PackedMarketState> {
         slab4 += (value.quote_fee_factor % TWO_POW_4.into()) * TWO_POW_12.into();
         slab4 += value.protocol_share.into() * TWO_POW_16.into();
         slab4 += value.curr_limit.into() * TWO_POW_32.into();
-        slab4 += if value.is_concentrated == true {
-            1
-        } else {
-            0
-        } * TWO_POW_64.into();
+        slab4 += bool_to_u256(value.is_concentrated) * TWO_POW_64.into();
 
         PackedMarketState { slab0, slab1, slab2, slab3, slab4: slab4.try_into().unwrap(), }
     }
@@ -134,17 +131,13 @@ impl LimitInfoStorePacking of StorePacking<LimitInfo, PackedLimitInfo> {
         let slab2: felt252 = (value.base_fee_factor / TWO_POW_4.into()).try_into().unwrap();
         let slab3: felt252 = (value.quote_fee_factor / TWO_POW_4.into()).try_into().unwrap();
 
-        let sign: u256 = if value.liquidity_delta.sign == true {
-            1
-        } else {
-            0
-        };
         let mut slab4: u256 = (value.liquidity % TWO_POW_4.into());
         slab4 += (value.liquidity_delta.val % TWO_POW_4.into()) * TWO_POW_4.into();
         slab4 += (value.base_fee_factor % TWO_POW_4.into()) * TWO_POW_8.into();
         slab4 += (value.quote_fee_factor % TWO_POW_4.into()) * TWO_POW_12.into();
-        slab4 += sign * TWO_POW_16.into();
-        slab4 += value.nonce.into() * TWO_POW_17.into();
+        slab4 += bool_to_u256(value.liquidity_delta.sign) * TWO_POW_16.into();
+        slab4 += bool_to_u256(value.initialised) * TWO_POW_17.into();
+        slab4 += value.nonce.into() * TWO_POW_18.into();
 
         PackedLimitInfo { slab0, slab1, slab2, slab3, slab4: slab4.try_into().unwrap(), }
     }
@@ -158,18 +151,16 @@ impl LimitInfoStorePacking of StorePacking<LimitInfo, PackedLimitInfo> {
             + ((value.slab4.into() / TWO_POW_8.into()) & MASK_4.into());
         let quote_fee_factor: u256 = value.slab3.into() * TWO_POW_4.into()
             + ((value.slab4.into() / TWO_POW_12.into()) & MASK_4.into());
-        let sign: bool = if ((value.slab4.into() / TWO_POW_16.into()) & MASK_1) == 1 {
-            true
-        } else {
-            false
-        };
-        let nonce: u128 = ((value.slab4.into() / TWO_POW_17.into()) & MASK_128).try_into().unwrap();
+        let sign: bool = ((value.slab4.into() / TWO_POW_16.into()) & MASK_1) == 1;
+        let initialised: bool = ((value.slab4.into() / TWO_POW_17.into()) & MASK_1) == 1;
+        let nonce: u128 = ((value.slab4.into() / TWO_POW_18.into()) & MASK_128).try_into().unwrap();
 
         LimitInfo {
             liquidity,
             liquidity_delta: I256Trait::new(abs_liquidity_delta, sign),
             base_fee_factor,
             quote_fee_factor,
+            initialised,
             nonce,
         }
     }
@@ -184,16 +175,8 @@ impl OrderBatchStorePacking of StorePacking<OrderBatch, PackedOrderBatch> {
         let mut slab3: u256 = (value.liquidity % TWO_POW_4.into());
         slab3 += (value.base_amount % TWO_POW_4.into()) * TWO_POW_4.into();
         slab3 += (value.quote_amount % TWO_POW_4.into()) * TWO_POW_8.into();
-        slab3 += if value.filled == true {
-            1
-        } else {
-            0
-        } * TWO_POW_12.into();
-        slab3 += if value.is_bid == true {
-            1
-        } else {
-            0
-        } * TWO_POW_13.into();
+        slab3 += bool_to_u256(value.filled) * TWO_POW_12.into();
+        slab3 += bool_to_u256(value.is_bid) * TWO_POW_13.into();
         slab3 += value.limit.into() * TWO_POW_14.into();
 
         PackedOrderBatch { slab0, slab1, slab2, slab3: slab3.try_into().unwrap(), }
@@ -206,16 +189,8 @@ impl OrderBatchStorePacking of StorePacking<OrderBatch, PackedOrderBatch> {
             + ((value.slab3.into() / TWO_POW_4.into()) & MASK_4.into());
         let quote_amount: u256 = value.slab2.into() * TWO_POW_4.into()
             + ((value.slab3.into() / TWO_POW_8.into()) & MASK_4.into());
-        let filled: bool = if ((value.slab3.into() / TWO_POW_12.into()) & MASK_1) == 1 {
-            true
-        } else {
-            false
-        };
-        let is_bid: bool = if ((value.slab3.into() / TWO_POW_13.into()) & MASK_1) == 1 {
-            true
-        } else {
-            false
-        };
+        let filled: bool = ((value.slab3.into() / TWO_POW_12.into()) & MASK_1) == 1;
+        let is_bid: bool = ((value.slab3.into() / TWO_POW_13.into()) & MASK_1) == 1;
         let limit: u32 = ((value.slab3.into() / TWO_POW_14.into()) & MASK_32).try_into().unwrap();
 
         OrderBatch { liquidity, filled, limit, is_bid, base_amount, quote_amount, }
@@ -273,5 +248,17 @@ impl LimitOrderStorePacking of StorePacking<LimitOrder, PackedLimitOrder> {
 
     fn unpack(value: PackedLimitOrder) -> LimitOrder {
         LimitOrder { batch_id: value.batch_id, liquidity: value.liquidity.into(), }
+    }
+}
+
+////////////////////////////////
+// INTERNAL HELPERS
+////////////////////////////////
+
+fn bool_to_u256(value: bool) -> u256 {
+    if value {
+        1
+    } else {
+        0
     }
 }

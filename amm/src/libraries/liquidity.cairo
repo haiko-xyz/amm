@@ -185,12 +185,10 @@ fn update_limit(
     // When liquidity at limit is first initialised, fee factor is set to either 0 or global fees:
     //   * Case 1: limit <= curr_limit -> fee factor = market fee factor
     //   * Case 2: limit > curr_limit -> fee factor = 0
-    if liquidity_before == 0
-        && limit_info.base_fee_factor == 0
-        && limit_info.quote_fee_factor == 0
-        && limit <= *market_state.curr_limit {
-        limit_info.quote_fee_factor = *market_state.quote_fee_factor;
+    if liquidity_before == 0 && !limit_info.initialised && limit <= *market_state.curr_limit {
         limit_info.base_fee_factor = *market_state.base_fee_factor;
+        limit_info.quote_fee_factor = *market_state.quote_fee_factor;
+        limit_info.initialised = true;
     }
 
     // Return limit info

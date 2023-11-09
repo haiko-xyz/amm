@@ -134,17 +134,17 @@ fn swap_iter(
             };
         }
 
-        // Update fee factors (unless in quote mode).
+        // Update fee factors.
         let mut limit_info = self.limit_info.read((market_id, target_limit));
         // Asserts below are for debugging u256 overflow bugs - can likely be removed later on.
         assert(
-            market_state.quote_fee_factor >= limit_info.quote_fee_factor, 'LimitInfoQuoteFeeFactor'
-        );
-        assert(
             market_state.base_fee_factor >= limit_info.base_fee_factor, 'LimitInfoBaseFeeFactor'
         );
-        limit_info.quote_fee_factor = market_state.quote_fee_factor - limit_info.quote_fee_factor;
+        assert(
+            market_state.quote_fee_factor >= limit_info.quote_fee_factor, 'LimitInfoQuoteFeeFactor'
+        );
         limit_info.base_fee_factor = market_state.base_fee_factor - limit_info.base_fee_factor;
+        limit_info.quote_fee_factor = market_state.quote_fee_factor - limit_info.quote_fee_factor;
         self.limit_info.write((market_id, target_limit), limit_info);
 
         // Apply liquidity deltas.

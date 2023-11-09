@@ -62,6 +62,7 @@ struct MarketState {
 // * `base_fee_factor` - as above, but for base fees (encoded as UD47x28)
 // * `quote_fee_factor` - cumulative fee factor below or above current price depending on curr price (encoded as UD47x28) 
 // * `nonce` - current nonce of limit, used for batching limit orders
+// * `initialised` - whether fee factors have been initialised before
 #[derive(Copy, Drop, Serde)]
 struct LimitInfo {
     liquidity: u256,
@@ -69,6 +70,7 @@ struct LimitInfo {
     base_fee_factor: u256,
     quote_fee_factor: u256,
     nonce: u128,
+    initialised: bool,
 }
 
 // A liquidity position.
@@ -207,7 +209,7 @@ struct PackedMarketState {
 // * `slab1` - first 252 bits of `liquidity_delta`
 // * `slab2` - first 252 bits of `quote_fee_factor`
 // * `slab3` - first 252 bits of `base_fee_factor`
-// * `slab4` - last 4 bits of four variables above + sign of `liquidity_delta` + `nonce` 
+// * `slab4` - last 4 bits of four variables above + sign of `liquidity_delta` + `initialised` + `nonce` 
 #[derive(starknet::Store)]
 struct PackedLimitInfo {
     slab0: felt252,
