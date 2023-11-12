@@ -1145,6 +1145,7 @@ mod MarketManager {
         fn transfer_owner(ref self: ContractState, new_owner: ContractAddress) {
             self.assert_only_owner();
             let old_owner = self.owner.read();
+            assert(new_owner != old_owner, 'SameOwner');
             self.queued_owner.write(new_owner);
         }
 
