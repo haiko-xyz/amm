@@ -965,6 +965,10 @@ mod MarketManager {
             );
             assert(position_id == expected_position_id, 'OnlyOwner');
 
+            // Check position exists.
+            let position_info = self.ERC721_position_info(position_id);
+            assert(position_info.base_token.is_non_zero(), 'PositionNull');
+
             // Mint ERC721 token.
             let mut unsafe_state = ERC721::unsafe_new_contract_state();
             ERC721::InternalImpl::_mint(ref unsafe_state, caller, position_id.into());
@@ -985,9 +989,8 @@ mod MarketManager {
                 'NotApprovedNorOwner'
             );
 
-            // Check position exists and is empty.
+            // Check position is empty.
             let position_info = self.ERC721_position_info(position_id);
-            assert(position_info.base_token.is_non_zero(), 'PositionNull');
             assert(
                 position_info.liquidity == 0
                     && position_info.base_amount == 0
@@ -1063,15 +1066,16 @@ mod MarketManager {
             let capped = min(amount, protocol_fees);
             self.protocol_fees.write(token, protocol_fees - capped);
 
-            if capped > 0 {
-                // Update reserves.
-                let reserves = self.reserves.read(token);
-                self.reserves.write(token, reserves - capped);
+            // Return if no fees to collect.
+            if capped == 0 { return 0; }
 
-                // Transfer tokens to recipient.
-                let token_contract = IERC20Dispatcher { contract_address: token };
-                token_contract.transfer(receiver, capped);
-            }
+            // Update reserves.
+            let reserves = self.reserves.read(token);
+            self.reserves.write(token, reserves - capped);
+
+            // Transfer tokens to recipient.
+            let token_contract = IERC20Dispatcher { contract_address: token };
+            token_contract.transfer(receiver, capped);
 
             // Emit event.
             self
@@ -1120,13 +1124,13 @@ mod MarketManager {
                 0
             };
 
-            // Transfer tokens to receiver.
             if amount_collected > 0 {
+                // Transfer tokens to receiver.
                 token_contract.transfer(receiver, amount_collected);
-            }
 
-            // Emit event.
-            self.emit(Event::Sweep(Sweep { receiver, token, amount: amount_collected }));
+                // Emit event.
+                self.emit(Event::Sweep(Sweep { receiver, token, amount: amount_collected }));
+            }
 
             // Return amount collected.
             amount_collected
