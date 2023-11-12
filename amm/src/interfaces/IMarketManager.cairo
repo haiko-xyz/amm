@@ -169,7 +169,9 @@ trait IMarketManager<TContractState> {
         ref self: TContractState, receiver: ContractAddress, token: ContractAddress, amount: u256,
     ) -> u256;
 
-    fn set_owner(ref self: TContractState, new_owner: ContractAddress);
+    fn transfer_owner(ref self: TContractState, new_owner: ContractAddress);
+
+    fn accept_owner(ref self: TContractState);
 
     fn set_flash_loan_fee(ref self: TContractState, token: ContractAddress, fee: u16);
 

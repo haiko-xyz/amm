@@ -50,6 +50,7 @@ mod MarketManager {
     struct Storage {
         // Ownable
         owner: ContractAddress,
+        queued_owner: ContractAddress,
         // Global information
         whitelist: LegacyMap::<ContractAddress, bool>,
         // Indexed by asset
@@ -1136,16 +1137,26 @@ mod MarketManager {
             amount_collected
         }
 
-        // Transfer ownership of the contract.
+        // Request transfer ownership of the contract.
+        // Part 1 of 2 step process to transfer ownership.
         //
         // # Arguments
         // * `new_owner` - New owner of the contract
-        fn set_owner(ref self: ContractState, new_owner: ContractAddress) {
+        fn transfer_owner(ref self: ContractState, new_owner: ContractAddress) {
             self.assert_only_owner();
             let old_owner = self.owner.read();
-            self.owner.write(new_owner);
+            self.queued_owner.write(new_owner);
+        }
 
-            self.emit(Event::ChangeOwner(ChangeOwner { old: old_owner, new: new_owner }));
+        // Called by new owner to accept ownership of the contract.
+        // Part 2 of 2 step process to transfer ownership.
+        fn accept_owner(ref self: ContractState) {
+            let queued_owner = self.queued_owner.read();
+            assert(get_caller_address() == queued_owner, 'OnlyNewOwner');
+            let old_owner = self.owner.read();
+            self.owner.write(queued_owner);
+            self.queued_owner.write(ContractAddressZeroable::zero());
+            self.emit(Event::ChangeOwner(ChangeOwner { old: old_owner, new: queued_owner }));
         }
 
         // Set flash loan fee.
