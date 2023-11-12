@@ -66,7 +66,7 @@ fn before(width: u32) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Disp
 
 #[test]
 #[available_gas(1000000000)]
-fn test_failing_fee_factor() {
+fn test_initialise_fee_factor() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
     // Create position
@@ -86,7 +86,7 @@ fn test_failing_fee_factor() {
         alice(), market_id, is_buy, exact_input, amount, Option::None(()), Option::None(()),
     );
     swap(market_manager, swap_params);
-    print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
+    // print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
 
     // Swap back.
     is_buy = true;
@@ -95,20 +95,24 @@ fn test_failing_fee_factor() {
             alice(), market_id, is_buy, exact_input, amount, Option::None(()), Option::None(()),
         );
     swap(market_manager, swap_params);
-    print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
+    // print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
 
     // Remove position.
     liquidity = I256Trait::new(100000, true);
     params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
-    print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
+    // print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
 
-    // Add liquidity to same limits. 
+    // Adding liquidity to same limits should not re-initialise fee factors.
     liquidity = I256Trait::new(100000, false);
     params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
-    print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
+    // print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
 }
+
+////////////////////////////////
+// INTERNAL HELPERS
+////////////////////////////////
 
 fn print_fee_factors(
     market_manager: IMarketManagerDispatcher,
