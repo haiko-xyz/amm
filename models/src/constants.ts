@@ -1,0 +1,11 @@
+export const BASE: number = 1.00001
+
+export const OFFSET: number = 8388608
+
+export const MAX_LIMIT: number = 8388607
+
+export const MAX_NUM_LIMITS: number = 16771214
+
+export const MAX: string = "361850278866613121369732278309507010552674375171.6087489154079457884512865583"
+
+export const ONE: string = "10000000000000000000000000000"
