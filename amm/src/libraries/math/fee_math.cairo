@@ -10,7 +10,7 @@ use amm::types::core::{LimitInfo, MarketState};
 // FUNCTIONS
 ////////////////////////////////
 
-// Calculates fee, rounding down.
+// Calculates fee, rounding up.
 //
 // # Arguments
 // `amount` - The amount on which the fee is applied
@@ -20,7 +20,7 @@ use amm::types::core::{LimitInfo, MarketState};
 // * `fee` - The fee amount
 fn calc_fee(amount: u256, fee_rate: u16,) -> u256 {
     assert(fee_rate <= MAX_FEE_RATE, 'FeeRateOverflow');
-    math::mul_div(amount, fee_rate.into(), MAX_FEE_RATE.into(), false)
+    math::mul_div(amount, fee_rate.into(), MAX_FEE_RATE.into(), true)
 }
 
 // Calculate amount net of fees to fee.
@@ -50,7 +50,7 @@ fn net_to_gross(net_amount: u256, fee_rate: u16,) -> u256 {
 }
 
 // Converts amount net of fees to amount gross of fees.
-// Rounds up as fees are calculated rounding down.
+// Rounds down as fees are calculated rounding up.
 //
 // # Arguments
 // * `net_amount` - Amount net of fees
@@ -60,7 +60,7 @@ fn net_to_gross(net_amount: u256, fee_rate: u16,) -> u256 {
 // * `gross_amount` - Amount gross of fees
 fn gross_to_net(gross_amount: u256, fee_rate: u16) -> u256 {
     assert(fee_rate <= MAX_FEE_RATE, 'FeeRateOverflow');
-    math::mul_div(gross_amount, (MAX_FEE_RATE - fee_rate).into(), MAX_FEE_RATE.into(), true)
+    math::mul_div(gross_amount, (MAX_FEE_RATE - fee_rate).into(), MAX_FEE_RATE.into(), false)
 }
 
 // Calculates fees accumulated inside a position.

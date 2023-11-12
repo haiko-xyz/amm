@@ -31,7 +31,15 @@ fn encode_sqrt_price(quote_reserves: u256, base_reserves: u256) -> u256 {
     _sqrt(math::mul_div(quote_reserves, ONE_SQUARED, base_reserves, false))
 }
 
-fn approx_eq(x: u256, y: u256, precision: u256) -> bool {
+fn approx_eq(x: u256, y: u256, threshold: u256) -> bool {
+    if x > y {
+        x - y <= threshold
+    } else {
+        y - x <= threshold
+    }
+}
+
+fn approx_eq_x28(x: u256, y: u256, precision: u256) -> bool {
     if x > y {
         x - y <= ONE / math::pow(10, precision)
     } else {
