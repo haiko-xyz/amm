@@ -151,7 +151,15 @@ struct SwapParams {
 
 // Position info returned for ERC721.
 //
-// * `base_token` - address of base token
+// * `base_token` - base token address
+// * `quote_token` - quote token address
+// * `width` - width of market position is in
+// * `strategy` - strategy contract address of market
+// * `swap_fee_rate` - swap fee denominated in bps
+// * `fee_controller` - fee controller contract address of market
+// * `liquidity` - liquidity of position
+// * `base_amount` - amount of base tokens inside position
+// * `quote_amount` - amount of quote tokens inside position
 #[derive(Copy, Drop, Serde)]
 struct PositionInfo {
     base_token: ContractAddress,
@@ -163,8 +171,6 @@ struct PositionInfo {
     liquidity: u256,
     base_amount: u256,
     quote_amount: u256,
-    base_fee_factor_last: u256,
-    quote_fee_factor_last: u256,
 }
 
 ////////////////////////////////

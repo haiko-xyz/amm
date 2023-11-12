@@ -371,6 +371,13 @@ mod MarketManager {
             self.protocol_fees.read(asset)
         }
 
+        // Returns total amount of tokens, inclusive of fees, inside of a liquidity position.
+        // 
+        // # Arguments
+        // * `market_id` - market id
+        // * `position_id` - position id (see `id` library)
+        // * `lower_limit` - lower limit of position
+        // * `upper_limit` - upper limit of position
         fn amounts_inside_position(
             self: @ContractState,
             market_id: felt252,
@@ -384,6 +391,20 @@ mod MarketManager {
         }
 
         // Information corresponding to ERC721 position token.
+        //
+        // # Arguments
+        // * `token_id` - token id (position id)
+        //
+        // # Returns
+        // * `base_token` - base token address
+        // * `quote_token` - quote token address
+        // * `width` - width of market position is in
+        // * `strategy` - strategy contract address of market
+        // * `swap_fee_rate` - swap fee denominated in bps
+        // * `fee_controller` - fee controller contract address of market
+        // * `liquidity` - liquidity of position
+        // * `base_amount` - amount of base tokens inside position
+        // * `quote_amount` - amount of quote tokens inside position
         fn ERC721_position_info(self: @ContractState, token_id: felt252) -> PositionInfo {
             let position = self.positions.read(token_id);
             let market_info = self.market_info.read(position.market_id);
@@ -401,11 +422,8 @@ mod MarketManager {
                 liquidity: position.liquidity,
                 base_amount,
                 quote_amount,
-                base_fee_factor_last: position.base_fee_factor_last,
-                quote_fee_factor_last: position.quote_fee_factor_last,
             }
         }
-
 
         ////////////////////////////////
         // EXTERNAL FUNCTIONS
