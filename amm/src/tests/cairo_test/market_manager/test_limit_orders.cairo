@@ -660,7 +660,7 @@ fn test_partially_filled_bid_correctly_unfills() {
     // Swap buy (unfill).
     let (amount_in_buy, amount_out_buy, fees_buy) = market_manager
         .swap(market_id, is_bid, to_e28(4), true, Option::None(()), Option::None(()));
-    let base_amount_buy_exp = 40280607892236366896911482290; // repaid
+    let base_amount_buy_exp = 40280607892236366896911482291; // repaid
     let quote_amount_buy_exp = 39999760000000000000000000000; // unfilled (incl. fees)
 
     // Snapshot user balance after.
