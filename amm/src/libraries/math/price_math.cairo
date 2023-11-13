@@ -28,8 +28,8 @@ use amm::libraries::constants::{
 // # Returns
 // * `shifted_limit` - shifted limit
 fn shift_limit(limit: i32, width: u32) -> u32 {
-    assert(limit >= i32Trait::new(MIN_LIMIT, true), 'SHIFT_LIMIT_UNDERFLOW');
-    assert(limit <= i32Trait::new(MAX_LIMIT, false), 'SHIFT_LIMIT_OVERFLOW');
+    assert(limit >= i32Trait::new(MIN_LIMIT, true), 'ShiftLimitUnderflow');
+    assert(limit <= i32Trait::new(MAX_LIMIT, false), 'ShiftLimitOverflow');
     let shifted: i32 = limit + i32Trait::new(offset(width), false);
     shifted.val
 }
@@ -44,7 +44,7 @@ fn shift_limit(limit: i32, width: u32) -> u32 {
 // * `unshifted_limit` - unshifted limit
 fn unshift_limit(limit: u32, width: u32) -> i32 {
     let unshifted: i32 = i32Trait::new(limit, false) - i32Trait::new(offset(width), false);
-    assert(unshifted <= i32Trait::new(max_limit(width), false), 'UNSHIFT_LIMIT_OVERFLOW');
+    assert(unshifted <= i32Trait::new(max_limit(width), false), 'UnshiftLimitOverflow');
     unshifted
 }
 
@@ -85,7 +85,7 @@ fn limit_to_sqrt_price(limit: u32, width: u32) -> u256 {
     let unshifted = unshift_limit(limit, width);
 
     // Check limit ID is in range
-    assert(unshifted <= i32Trait::new(MAX_LIMIT, false), 'LIMIT_OVERFLOW');
+    assert(unshifted <= i32Trait::new(max_limit(width), false), 'LimitOverflow');
 
     // Calculate sqrt price
     _exp1_00001(unshifted)
@@ -102,7 +102,7 @@ fn limit_to_sqrt_price(limit: u32, width: u32) -> u256 {
 // # Returns
 // * `limit` - shifted limit
 fn sqrt_price_to_limit(sqrt_price: u256, width: u32) -> u32 {
-    assert(sqrt_price >= MIN_SQRT_PRICE && sqrt_price <= MAX_SQRT_PRICE, 'SQRT_PRICE_OVERFLOW');
+    assert(sqrt_price >= MIN_SQRT_PRICE && sqrt_price <= MAX_SQRT_PRICE, 'SqrtPriceOverflow');
 
     // Handle special case
     if sqrt_price == MAX_SQRT_PRICE {
