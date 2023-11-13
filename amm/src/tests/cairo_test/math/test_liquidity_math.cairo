@@ -1,9 +1,12 @@
 use integer::BoundedU256;
+use debug::PrintTrait;
 
+use amm::libraries::math::price_math::limit_to_sqrt_price;
 use amm::libraries::math::liquidity_math::{
-    add_delta, liquidity_to_quote, liquidity_to_base, base_to_liquidity, quote_to_liquidity
+    add_delta, liquidity_to_quote, liquidity_to_base, base_to_liquidity, quote_to_liquidity, 
+    liquidity_to_amounts
 };
-use amm::libraries::constants::{MAX, ONE};
+use amm::libraries::constants::{MAX, ONE, OFFSET};
 use amm::tests::common::utils::{encode_sqrt_price, approx_eq};
 use amm::types::i256::I256Trait;
 
@@ -316,4 +319,43 @@ fn test_base_to_liquidity_cases(cases: Span<TestCase>) {
         assert(approx_eq(liquidity, case.liquidity, 10000), 'b->l 00' + i.into());
         i += 1;
     };
+}
+
+/////////////////////////////////////
+// TESTS - liquidity_to_amounts
+/////////////////////////////////////
+
+#[test]
+#[available_gas(2000000000)]
+fn test_liquidity_to_amounts() {
+    // Case 1: Position range is above curr price.
+    let curr_limit = OFFSET + 80000;
+    let width = 1;
+    let curr_sqrt_price = limit_to_sqrt_price(curr_limit, width);
+    let mut lower_sqrt_price = limit_to_sqrt_price(OFFSET + 85000, width);
+    let mut upper_sqrt_price = limit_to_sqrt_price(OFFSET + 90000, width);
+    let liquidity = I256Trait::new(10000, false);
+    let (mut base_amount, mut quote_amount) = liquidity_to_amounts(
+        liquidity, curr_sqrt_price, lower_sqrt_price, upper_sqrt_price, width
+    );
+    assert(base_amount.val == 162, 'above base');
+    assert(quote_amount.val == 0, 'above quote');
+
+    // Case 2: Position range is below curr price.
+    lower_sqrt_price = limit_to_sqrt_price(OFFSET + 70000, width);
+    upper_sqrt_price = limit_to_sqrt_price(OFFSET + 75000, width);
+    let (base_amount, quote_amount) = liquidity_to_amounts(
+        liquidity, curr_sqrt_price, lower_sqrt_price, upper_sqrt_price, width
+    );
+    assert(base_amount.val == 0, 'below base');
+    assert(quote_amount.val == 360, 'below quote');
+
+    // Case 3: Position range wraps curr price.
+    lower_sqrt_price = limit_to_sqrt_price(OFFSET + 75000, width);
+    upper_sqrt_price = limit_to_sqrt_price(OFFSET + 85000, width);
+    let (base_amount, quote_amount) = liquidity_to_amounts(
+        liquidity, curr_sqrt_price, lower_sqrt_price, upper_sqrt_price, width
+    );
+    assert(approx_eq(base_amount.val, 166, 1), 'wrap base');
+    assert(quote_amount.val == 369, 'wrap quote');
 }

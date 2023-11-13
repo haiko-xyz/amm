@@ -133,44 +133,31 @@ fn base_to_liquidity(lower_sqrt_price: u256, upper_sqrt_price: u256, base_amount
 // * `base_amount` - amount of base tokens transferred out (-ve) or in (+ve)
 // * `quote_amount` - amount of quote tokens transferred out (-ve) or in (+ve)
 fn liquidity_to_amounts(
-    curr_limit: u32,
-    curr_sqrt_price: u256,
     liquidity_delta: i256,
-    lower_limit: u32,
-    upper_limit: u32,
+    curr_sqrt_price: u256,
+    lower_sqrt_price: u256,
+    upper_sqrt_price: u256,
     width: u32,
 ) -> (i256, i256) {
     // Case 1: price range is below current price, all liquidity is quote token
-    if upper_limit <= curr_limit {
+    if upper_sqrt_price <= curr_sqrt_price {
         let quote_amount = liquidity_math::liquidity_to_quote(
-            price_math::limit_to_sqrt_price(lower_limit, width),
-            price_math::limit_to_sqrt_price(upper_limit, width),
-            liquidity_delta,
-            !liquidity_delta.sign,
+            lower_sqrt_price, upper_sqrt_price, liquidity_delta, !liquidity_delta.sign,
         );
         (I256Zeroable::zero(), quote_amount)
     } // Case 2: price range contains current price
-    else if lower_limit <= curr_limit {
+    else if lower_sqrt_price <= curr_sqrt_price {
         let base_amount = liquidity_math::liquidity_to_base(
-            curr_sqrt_price,
-            price_math::limit_to_sqrt_price(upper_limit, width),
-            liquidity_delta,
-            !liquidity_delta.sign
+            curr_sqrt_price, upper_sqrt_price, liquidity_delta, !liquidity_delta.sign
         );
         let quote_amount = liquidity_math::liquidity_to_quote(
-            price_math::limit_to_sqrt_price(lower_limit, width),
-            curr_sqrt_price,
-            liquidity_delta,
-            !liquidity_delta.sign
+            lower_sqrt_price, curr_sqrt_price, liquidity_delta, !liquidity_delta.sign
         );
         (base_amount, quote_amount)
     } // Case 3: price range is above current price, all liquidity is base token
     else {
         let base_amount = liquidity_math::liquidity_to_base(
-            price_math::limit_to_sqrt_price(lower_limit, width),
-            price_math::limit_to_sqrt_price(upper_limit, width),
-            liquidity_delta,
-            !liquidity_delta.sign
+            lower_sqrt_price, upper_sqrt_price, liquidity_delta, !liquidity_delta.sign
         );
         (base_amount, I256Zeroable::zero())
     }

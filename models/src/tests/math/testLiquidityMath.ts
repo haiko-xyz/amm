@@ -1,7 +1,9 @@
 import { PRECISION, ROUNDING } from "../../config"
-import { liquidityToBase, liquidityToQuote } from "../../math/liquidityMath"
+import { liquidityToAmounts, liquidityToBase, liquidityToQuote } from "../../math/liquidityMath"
 import Decimal from "decimal.js"
 import crypto from "crypto"
+import { limitToSqrtPrice, shiftLimit } from "../../math/priceMath"
+import { OFFSET } from "../../constants"
 
 type TestCase = {
   liquidity: Decimal.Value
@@ -100,6 +102,36 @@ const testCases = () => {
   return cases
 }
 
+const liquidityToAmountsCases = () => {
+  const cases = [
+    {
+      currLimit: OFFSET + 80000,
+      currSqrtPrice: limitToSqrtPrice(OFFSET + 80000, 1),
+      liquidity: new Decimal("10000").div(1e28),
+      lowerLimit: OFFSET + 85000,
+      upperLimit: OFFSET + 90000,
+      width: 1,
+    },
+    {
+      currLimit: OFFSET + 80000,
+      currSqrtPrice: limitToSqrtPrice(OFFSET + 80000, 1),
+      liquidity: new Decimal("10000").div(1e28),
+      lowerLimit: OFFSET + 70000,
+      upperLimit: OFFSET + 75000,
+      width: 1,
+    },
+    {
+      currLimit: OFFSET + 80000,
+      currSqrtPrice: limitToSqrtPrice(OFFSET + 80000, 1),
+      liquidity: new Decimal("10000").div(1e28),
+      lowerLimit: OFFSET + 75000,
+      upperLimit: OFFSET + 85000,
+      width: 1,
+    },
+  ]
+  return cases
+}
+
 const testLiquidityToQuote = () => {
   Decimal.set({ precision: PRECISION, rounding: ROUNDING })
 
@@ -118,6 +150,26 @@ const testLiquidityToBase = () => {
   }
 }
 
+const testLiquidityToAmounts = () => {
+  Decimal.set({ precision: PRECISION, rounding: ROUNDING })
+
+  for (const { currLimit, currSqrtPrice, liquidity, lowerLimit, upperLimit, width } of liquidityToAmountsCases()) {
+    const { baseAmount, quoteAmount } = liquidityToAmounts(
+      currLimit,
+      currSqrtPrice,
+      liquidity,
+      lowerLimit,
+      upperLimit,
+      width
+    )
+    console.log({
+      baseAmount: new Decimal(baseAmount).toFixed(28, 0),
+      quoteAmount: new Decimal(quoteAmount).toFixed(28, 0),
+    })
+  }
+}
+
 // console.log(generateTestCases(5))
 // testLiquidityToQuote()
-testLiquidityToBase()
+// testLiquidityToBase()
+testLiquidityToAmounts()

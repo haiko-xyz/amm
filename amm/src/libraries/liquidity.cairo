@@ -120,11 +120,10 @@ fn update_liquidity(
             self.market_state.write(market_id, market_state);
         }
         liquidity_math::liquidity_to_amounts(
-            market_state.curr_limit,
-            market_state.curr_sqrt_price,
             liquidity_delta,
-            lower_limit,
-            upper_limit,
+            market_state.curr_sqrt_price,
+            price_math::limit_to_sqrt_price(lower_limit, width),
+            price_math::limit_to_sqrt_price(upper_limit, width),
             width,
         )
     };
@@ -246,11 +245,10 @@ fn amounts_inside_position(
 
     // Calculate amounts inside position.
     let (base_amount, quote_amount) = liquidity_math::liquidity_to_amounts(
-        market_state.curr_limit,
-        market_state.curr_sqrt_price,
         I256Trait::new(position.liquidity, false),
-        position.lower_limit,
-        position.upper_limit,
+        market_state.curr_sqrt_price,
+        price_math::limit_to_sqrt_price(position.lower_limit, market_info.width),
+        price_math::limit_to_sqrt_price(position.upper_limit, market_info.width),
         market_info.width,
     );
 
