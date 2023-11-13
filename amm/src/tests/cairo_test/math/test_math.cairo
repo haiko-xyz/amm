@@ -15,7 +15,7 @@ const ONE: u256 = 10000000000000000000000000000;
 
 #[test]
 #[available_gas(2000000000)]
-fn test_pow_cases() {
+fn test_pow() {
     assert(pow(0, 0) == 1, 'pow(0,0)');
     assert(pow(0, 1) == 0, 'pow(0,1)');
     assert(pow(0, 31953) == 0, 'pow(0,31953)');
@@ -39,7 +39,7 @@ fn test_pow_cases() {
 
 #[test]
 #[available_gas(2000000000)]
-fn test_mul_div_cases() {
+fn test_mul_div() {
     assert(mul_div(1, 1, 1, false) == 1, 'mul_div(1,1,1,F)');
     assert(mul_div(1, 1, 1, true) == 1, 'mul_div(1,1,1,T)');
     assert(mul_div(ONE, 1, 2, false) == ONE / 2, 'mul_div(ONE,1,2,F)');
