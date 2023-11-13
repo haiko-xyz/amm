@@ -27,6 +27,19 @@ use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTr
 // SETUP
 ////////////////////////////////
 
+#[derive(Drop, Copy)]
+struct TestCase {
+    lower_limit: u32,
+    upper_limit: u32,
+    liquidity: u256,
+    base_exp: u256,
+    quote_exp: u256,
+}
+
+////////////////////////////////
+// SETUP
+////////////////////////////////
+
 fn before(width: u32) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
     // Get default owner.
     let owner = owner();

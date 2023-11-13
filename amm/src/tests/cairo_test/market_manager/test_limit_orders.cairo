@@ -113,7 +113,7 @@ fn test_create_ask_order_initialises_order_and_batch() {
     let limit = OFFSET + 1000;
     let is_bid = false;
     let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity);
-    let base_amount_exp = 49750252076811799929167;
+    let base_amount_exp = 49750252076811799929168;
     let quote_amount_exp = 0;
 
     // Fetch limit order, batch and position.
@@ -184,7 +184,7 @@ fn test_create_multiple_ask_orders() {
     let mut liquidity = to_e28(1);
     let mut batch_liquidity = liquidity;
     let mut order_id = market_manager.create_order(market_id, is_bid, limit, liquidity);
-    let mut base_amount_exp = 49750252076811799929167;
+    let mut base_amount_exp = 49750252076811799929168;
     let mut batch_base_amount_exp = base_amount_exp;
 
     // Fetch limit order, batch and position.
@@ -260,7 +260,6 @@ fn test_swap_fully_fills_bid_limit_orders() {
     assert(batch.liquidity == liquidity_1 + liquidity_2, 'Create bid: batch liquidity');
     assert(batch.filled == true, 'Create bid: batch filled');
     assert(batch.quote_amount == 0, 'Create bid: batch quote amt');
-    batch.base_amount.print();
     assert(batch.base_amount == base_amount_exp, 'Create bid: batch base amt');
     assert(lower_limit_info.liquidity == 0, 'Create bid: lower limit liq');
     assert(upper_limit_info.liquidity == 0, 'Create bid: upper limit liq');
@@ -278,7 +277,7 @@ fn test_swap_fully_fills_ask_limit_orders() {
     let limit = OFFSET + 1000;
     let liquidity_1 = to_e28(1000000);
     let order_id_1 = market_manager.create_order(market_id, is_bid, limit, liquidity_1);
-    let base_amount_1 = 49750252076811799929166657173;
+    let base_amount_1 = 49750252076811799929166657174;
 
     // Create second limit order.
     set_contract_address(bob());
@@ -371,7 +370,7 @@ fn test_create_and_collect_unfilled_ask_order() {
     let mut limit = OFFSET + 1000;
     let liquidity = to_e28(1000000);
     let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity);
-    let base_amount_exp = 49750252076811799929166657173;
+    let base_amount_exp = 49750252076811799929166657174;
 
     // Collect limit order.
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
@@ -383,6 +382,7 @@ fn test_create_and_collect_unfilled_ask_order() {
     // Fetch order and batch. Run checks.
     let order = market_manager.order(order_id);
     let batch = market_manager.batch(order.batch_id);
+    base_amount.print();
     assert(base_amount == base_amount_exp, 'Collect bid: base amount');
     assert(quote_amount == 0, 'Collect bid: quote amount');
     assert(order.liquidity == 0, 'Collect bid: order liquidity');
@@ -468,7 +468,7 @@ fn test_create_and_collect_fully_filled_ask_order() {
     let mut limit = OFFSET + 1000;
     let liquidity_1 = to_e28(1000000);
     let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity_1);
-    let base_amount_exp = 49750252076811799929166657173;
+    let base_amount_exp = 49750252076811799929166657174;
     let quote_amount_exp = 50401401863374112605702000000;
 
     // Create second limit order.
@@ -590,17 +590,17 @@ fn test_create_and_collect_partially_filled_ask_order() {
     let liquidity_1 = to_e28(500000);
     let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity_1);
     let base_amount_exp = 24875126038405899964583328587;
-    let amount_filled_exp = 19741516335525794238392802523;
-    let amount_unfilled_exp = 5133609702880105726190526064;
+    let amount_filled_exp = 19741516335525794238392802522;
+    let amount_unfilled_exp = 5133609702880105726190526065;
     let amount_earned_exp = 19999880000000000000000000000;
 
     // Create second limit order.
     set_contract_address(alice());
     let liquidity_2 = to_e28(1000000);
     market_manager.create_order(market_id, is_bid, limit, liquidity_2);
-    let base_amount_exp_2 = 49750252076811799929166657173;
-    let amount_filled_exp_2 = 39483032671051588476785605044;
-    let amount_unfilled_exp_2 = 10267219405760211452381052130;
+    let base_amount_exp_2 = 49750252076811799929166657174;
+    let amount_filled_exp_2 = 39483032671051588476785605043;
+    let amount_unfilled_exp_2 = 10267219405760211452381052131;
     let amount_earned_exp_2 = 39999760000000000000000000000;
 
     // Swap buy (partially filled against limit orders).
@@ -618,7 +618,6 @@ fn test_create_and_collect_partially_filled_ask_order() {
     // Fetch limit order, batch and position.
     let order = market_manager.order(order_id);
     let batch = market_manager.batch(order.batch_id);
-
     assert(base_amount == amount_unfilled_exp, 'Collect ask: base amount');
     assert(quote_amount == amount_earned_exp, 'Collect ask: quote amount');
     assert(order.liquidity == 0, 'Collect ask: order liquidity');
@@ -661,7 +660,7 @@ fn test_partially_filled_bid_correctly_unfills() {
     // Swap buy (unfill).
     let (amount_in_buy, amount_out_buy, fees_buy) = market_manager
         .swap(market_id, is_bid, to_e28(4), true, Option::None(()), Option::None(()));
-    let base_amount_buy_exp = 40280607892236366896911482291; // repaid
+    let base_amount_buy_exp = 40280607892236366896911482290; // repaid
     let quote_amount_buy_exp = 39999760000000000000000000000; // unfilled (incl. fees)
 
     // Snapshot user balance after.
@@ -705,7 +704,7 @@ fn test_partially_filled_ask_correctly_unfills() {
     // Swap buy (partial fill).
     let (amount_in_sell, amount_out_sell, fees_sell) = market_manager
         .swap(market_id, !is_bid, to_e28(6), true, Option::None(()), Option::None(()));
-    let base_amount_sell_exp = 59224549006577382715178407566; // filled
+    let base_amount_sell_exp = 59224549006577382715178407565; // filled
     let quote_amount_sell_exp = 59999640000000000000000000000; // earned incl. fees
 
     // Swap sell (unfill).

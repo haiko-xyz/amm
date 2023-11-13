@@ -44,7 +44,6 @@ fn liquidity_to_quote(
 }
 
 // Calculate the amount of base tokens received for a given liquidity delta and price range.
-// Does not implement checks for non-zero price.
 //
 // # Arguments
 // * `lower_sqrt_price` - starting sqrt price of the range
@@ -61,26 +60,25 @@ fn liquidity_to_base(
         return i256 { val: 0, sign: false };
     }
 
-    let product = u256_wide_mul(lower_sqrt_price, upper_sqrt_price);
-    let (q, r) = u512_safe_div_rem_by_u256(
-        product, u256_try_as_non_zero(upper_sqrt_price - lower_sqrt_price).expect('MulDivByZero')
-    );
-
-    // Switch between formulas depending on whether denominator is zero.
-    let q_u256 = u256 { low: q.limb0, high: q.limb1 };
-    let abs_base_amount = if q_u256 == 0 || q.limb2 != 0 || q.limb3 != 0 {
+    // Switch between formulas depending on magnitude of price, to maintain precision.
+    let abs_base_amount = if lower_sqrt_price > ONE || upper_sqrt_price > ONE {
         math::mul_div(
-            math::mul_div(liquidity_delta.val, ONE, lower_sqrt_price, round_up),
-            upper_sqrt_price - lower_sqrt_price,
+            math::mul_div(liquidity_delta.val, upper_sqrt_price - lower_sqrt_price, lower_sqrt_price, round_up),
+            ONE,
             upper_sqrt_price,
             round_up
         )
     } else {
+        let product = u256_wide_mul(lower_sqrt_price, upper_sqrt_price);
+        let (q, r) = u512_safe_div_rem_by_u256(
+            product, u256_try_as_non_zero(upper_sqrt_price - lower_sqrt_price).expect('MulDivByZero')
+        );
+        let q_u256 = u256 { low: q.limb0, high: q.limb1 };
         let denominator = q_u256 + if r != 0 && !round_up {
-            1
-        } else {
-            0
-        };
+                1
+            } else {
+                0
+            };
         math::mul_div(liquidity_delta.val, ONE, denominator, round_up)
     };
 
@@ -114,12 +112,10 @@ fn base_to_liquidity(lower_sqrt_price: u256, upper_sqrt_price: u256, base_amount
         return 0;
     }
     math::mul_div(
-        base_amount,
-        math::mul_div(
-            lower_sqrt_price, upper_sqrt_price, upper_sqrt_price - lower_sqrt_price, false
-        ),
-        ONE,
-        false,
+        math::mul_div(base_amount, upper_sqrt_price, ONE, false),
+        lower_sqrt_price,
+        upper_sqrt_price - lower_sqrt_price, 
+        false
     )
 }
 

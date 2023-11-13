@@ -51,7 +51,7 @@ fn test_shift_limit_width_gt_1_cases() {
 }
 
 #[test]
-#[should_panic(expected: ('SHIFT_LIMIT_UNDERFLOW',))]
+#[should_panic(expected: ('ShiftLimitUnderflow',))]
 #[available_gas(2000000000)]
 fn test_shift_limit_cases_underflow() {
     let limit: i32 = i32Trait::new(OFFSET + 1, true);
@@ -60,7 +60,7 @@ fn test_shift_limit_cases_underflow() {
 }
 
 #[test]
-#[should_panic(expected: ('SHIFT_LIMIT_OVERFLOW',))]
+#[should_panic(expected: ('ShiftLimitOverflow',))]
 #[available_gas(2000000000)]
 fn test_shift_limit_cases_overflow() {
     let limit: i32 = i32Trait::new(MAX_LIMIT + 1, false);
@@ -270,7 +270,7 @@ fn test_limit_to_sqrt_price_width_gt_1_cases() {
 }
 
 #[test]
-#[should_panic(expected: ('LIMIT_OVERFLOW',))]
+#[should_panic(expected: ('LimitOverflow',))]
 #[available_gas(2000000000)]
 fn test_limit_to_sqrt_price_overflow() {
     let limit: u32 = OFFSET + MAX_LIMIT + 1;
@@ -442,7 +442,7 @@ fn test_sqrt_price_to_limit_width_gt_1_cases() {
 }
 
 #[test]
-#[should_panic(expected: ('SQRT_PRICE_OVERFLOW',))]
+#[should_panic(expected: ('SqrtPriceOverflow',))]
 #[available_gas(2000000000)]
 fn test_sqrt_price_to_limit_underflow() {
     let sqrt_price: u256 = MIN_SQRT_PRICE - 1;
@@ -451,7 +451,7 @@ fn test_sqrt_price_to_limit_underflow() {
 }
 
 #[test]
-#[should_panic(expected: ('SQRT_PRICE_OVERFLOW',))]
+#[should_panic(expected: ('SqrtPriceOverflow',))]
 #[available_gas(2000000000)]
 fn test_sqrt_price_to_limit_overflow() {
     let sqrt_price: u256 = MAX_SQRT_PRICE + 1;

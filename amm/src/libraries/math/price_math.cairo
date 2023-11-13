@@ -81,11 +81,11 @@ fn max_limit(width: u32) -> u32 {
 // # Returns
 // * `sqrt_price` - sqrt price encoded as UD47x28
 fn limit_to_sqrt_price(limit: u32, width: u32) -> u256 {
+    // Check limit ID is in range
+    assert(limit <= max_limit(width), 'LimitOverflow');
+
     // Unshift limit
     let unshifted = unshift_limit(limit, width);
-
-    // Check limit ID is in range
-    assert(unshifted <= i32Trait::new(max_limit(width), false), 'LimitOverflow');
 
     // Calculate sqrt price
     _exp1_00001(unshifted)
