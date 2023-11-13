@@ -245,20 +245,14 @@ fn compute_swap_amounts(
     // Calculate amounts in and out.
     let liquidity_i256 = I256Trait::new(liquidity, false);
     let mut amount_in = if is_buy {
-        liquidity_math::liquidity_to_quote(
-            curr_sqrt_price, target_sqrt_price, liquidity_i256, true
-        )
+        liquidity_math::liquidity_to_quote(curr_sqrt_price, target_sqrt_price, liquidity_i256, true)
     } else {
-        liquidity_math::liquidity_to_base(
-            target_sqrt_price, curr_sqrt_price, liquidity_i256, true
-        )
+        liquidity_math::liquidity_to_base(target_sqrt_price, curr_sqrt_price, liquidity_i256, true)
     }
         .val;
 
     let mut amount_out = if is_buy {
-        liquidity_math::liquidity_to_base(
-            curr_sqrt_price, target_sqrt_price, liquidity_i256, false
-        )
+        liquidity_math::liquidity_to_base(curr_sqrt_price, target_sqrt_price, liquidity_i256, false)
     } else {
         liquidity_math::liquidity_to_quote(
             target_sqrt_price, curr_sqrt_price, liquidity_i256, false

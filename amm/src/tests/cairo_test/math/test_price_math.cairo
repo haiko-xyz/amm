@@ -188,7 +188,9 @@ fn test_limit_to_sqrt_price_width_1_cases() {
 
     limit = OFFSET + 5500000;
     assert(
-        approx_eq_x28(limit_to_sqrt_price(limit, width), 8770786455175854494079784255897072914655, 6),
+        approx_eq_x28(
+            limit_to_sqrt_price(limit, width), 8770786455175854494079784255897072914655, 6
+        ),
         'l->p 5500000'
     );
 

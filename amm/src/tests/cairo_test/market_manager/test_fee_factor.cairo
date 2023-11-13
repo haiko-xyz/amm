@@ -107,7 +107,7 @@ fn test_initialise_fee_factor() {
     liquidity = I256Trait::new(100000, false);
     params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
-    // print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
+// print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
 }
 
 ////////////////////////////////

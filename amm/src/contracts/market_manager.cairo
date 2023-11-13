@@ -1086,7 +1086,9 @@ mod MarketManager {
             self.protocol_fees.write(token, protocol_fees - capped);
 
             // Return if no fees to collect.
-            if capped == 0 { return 0; }
+            if capped == 0 {
+                return 0;
+            }
 
             // Update reserves.
             let reserves = self.reserves.read(token);

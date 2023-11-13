@@ -96,9 +96,7 @@ fn liquidity_to_base(
 // 
 // # Returns
 // * `liquidity_delta` - liquidity delta
-fn quote_to_liquidity(
-    lower_sqrt_price: u256, upper_sqrt_price: u256, quote_amount: u256
-) -> u256 {
+fn quote_to_liquidity(lower_sqrt_price: u256, upper_sqrt_price: u256, quote_amount: u256) -> u256 {
     math::mul_div(quote_amount, ONE, upper_sqrt_price - lower_sqrt_price, false)
 }
 
@@ -111,9 +109,7 @@ fn quote_to_liquidity(
 // 
 // # Returns
 // * `liquidity_delta` - liquidity delta
-fn base_to_liquidity(
-    lower_sqrt_price: u256, upper_sqrt_price: u256, base_amount: u256
-) -> u256 {
+fn base_to_liquidity(lower_sqrt_price: u256, upper_sqrt_price: u256, base_amount: u256) -> u256 {
     if lower_sqrt_price == upper_sqrt_price {
         return 0;
     }

@@ -1,6 +1,8 @@
 use integer::BoundedU256;
 
-use amm::libraries::math::fee_math::{calc_fee, gross_to_net, net_to_gross, net_to_fee, get_fee_inside};
+use amm::libraries::math::fee_math::{
+    calc_fee, gross_to_net, net_to_gross, net_to_fee, get_fee_inside
+};
 use amm::tests::common::utils::approx_eq;
 use amm::types::core::LimitInfo;
 use amm::types::i256::I256Zeroable;
@@ -75,7 +77,9 @@ fn test_gross_to_net() {
     // Allow max deviation of 1
     net = gross_to_net(BoundedU256::max(), 3333);
     assert(
-        approx_eq(net, 77198585894518707488894775705292228165775098776582564045106371258075683530945, 1),
+        approx_eq(
+            net, 77198585894518707488894775705292228165775098776582564045106371258075683530945, 1
+        ),
         'gross_to_net(MAX,3333)'
     );
 
@@ -115,7 +119,10 @@ fn test_net_to_gross() {
     net = net_to_gross(100000, 100);
     assert(net == 101010, 'net_to_gross(10000,100)');
 
-    net = net_to_gross(104212880313584575881213886507819117067942986199076507635511825607121816675942, 1000);
+    net =
+        net_to_gross(
+            104212880313584575881213886507819117067942986199076507635511825607121816675942, 1000
+        );
     assert(net == BoundedU256::max(), 'net_to_gross(MAX*0.9,1000)');
 
     net = net_to_gross(BoundedU256::max(), 0);
@@ -161,11 +168,23 @@ fn test_net_to_fee() {
     fee = net_to_fee(100000, 100);
     assert(fee == 1010, 'net_to_fee(10000,100)');
 
-    fee = net_to_fee(104212880313584575881213886507819117067942986199076507635511825607121816675942, 1000);
-    assert(fee == 11579208923731619542357098500868790785326998466564056403945758400791312963993, 'net_to_fee(MAX*0.9,1000)');
+    fee =
+        net_to_fee(
+            104212880313584575881213886507819117067942986199076507635511825607121816675942, 1000
+        );
+    assert(
+        fee == 11579208923731619542357098500868790785326998466564056403945758400791312963993,
+        'net_to_fee(MAX*0.9,1000)'
+    );
 
-    fee = net_to_fee(77198585894518707488894775705292228165775098776582564045106371258075683530945, 3333);
-    assert(fee == 38593503342797487934676209303395679687494885889057999994351212749837446108990, 'net_to_fee(MAX,0)');
+    fee =
+        net_to_fee(
+            77198585894518707488894775705292228165775098776582564045106371258075683530945, 3333
+        );
+    assert(
+        fee == 38593503342797487934676209303395679687494885889057999994351212749837446108990,
+        'net_to_fee(MAX,0)'
+    );
 }
 
 #[test]
