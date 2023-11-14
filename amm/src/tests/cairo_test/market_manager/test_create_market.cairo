@@ -51,12 +51,14 @@ fn test_create_market_initialises_immutables() {
 
     // Check market was initialised with correct immutables.
     let market_info = market_manager.market_info(market_id);
+    let market_state = market_manager.market_state(market_id);
     assert(market_info.base_token == params.base_token, 'Create mkt: base token');
     assert(market_info.quote_token == params.quote_token, 'Create mkt: quote token');
     assert(market_info.width == params.width, 'Create mkt: width');
     assert(market_info.strategy == params.strategy, 'Create mkt: strategy');
     assert(market_info.swap_fee_rate == params.swap_fee_rate, 'Create mkt: swap fee');
     assert(market_info.fee_controller == params.fee_controller, 'Create mkt: fee controller');
+    assert(market_state.protocol_share == params.protocol_share, 'Create mkt: protocol share');
 }
 
 #[test]

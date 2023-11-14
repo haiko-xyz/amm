@@ -40,7 +40,9 @@ struct TestCase {
 // SETUP
 ////////////////////////////////
 
-fn before(width: u32) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
+fn _before(
+    width: u32, is_concentrated: bool, allow_orders: bool, allow_positions: bool
+) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
     // Get default owner.
     let owner = owner();
 
@@ -58,6 +60,9 @@ fn before(width: u32) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Disp
     params.quote_token = quote_token.contract_address;
     params.width = width;
     params.start_limit = OFFSET - 230260; // initial limit
+    params.is_concentrated = is_concentrated;
+    params.allow_orders = allow_orders;
+    params.allow_positions = allow_positions;
     let market_id = create_market(market_manager, params);
 
     // Fund LP with initial token balances and approve market manager as spender.
@@ -69,6 +74,22 @@ fn before(width: u32) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Disp
     approve(quote_token, alice(), market_manager.contract_address, initial_quote_amount);
 
     (market_manager, base_token, quote_token, market_id)
+}
+
+fn before(width: u32) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
+    _before(width, true, true, true)
+}
+
+fn before_strategy_only() -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
+    _before(1, true, true, false)
+}
+
+fn before_linear() -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
+    _before(1, false, true, true)
+}
+
+fn before_no_orders() -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
+    _before(1, true, false, true)
 }
 
 ////////////////////////////////
@@ -400,6 +421,44 @@ fn test_modify_position_below_curr_price_cases() {
 }
 
 #[test]
+#[available_gas(1000000000)]
+fn test_modify_position_collect_position_fees() {
+    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    set_contract_address(owner());
+    market_manager.set_protocol_share(market_id, 0);
+
+    // Create position
+    set_contract_address(alice());
+    let lower_limit = OFFSET - MIN_LIMIT;
+    let upper_limit = OFFSET + MAX_LIMIT;
+    let liquidity = I256Trait::new(to_e28(1), false);
+    market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
+
+    // Execute some swaps
+    let mut is_buy = true;
+    let exact_input = true;
+    let mut amount = to_e28(1);
+    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
+    is_buy = false;
+    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
+
+    // Poke position to collect fees.
+    let (base_amount, quote_amount, _, _) = market_manager
+        .modify_position(market_id, lower_limit, upper_limit, I256Trait::new(0, false));
+
+    // Run checks
+    let base_fees_exp = 30000000000000000000000000;
+    let quote_fees_exp = 30000000000000000000000000;
+    let position = market_manager.position(market_id, alice().into(), lower_limit, upper_limit);
+
+    assert(base_amount.val == base_fees_exp, 'Base fees');
+    assert(quote_amount.val == quote_fees_exp, 'Quote fees');
+    assert(position.liquidity == liquidity.val, 'Liquidity');
+    assert(position.base_fee_factor_last == base_fees_exp, 'Base fee factor');
+    assert(position.quote_fee_factor_last == quote_fees_exp, 'Quote fee factor');
+}
+
+#[test]
 #[available_gas(100000000)]
 fn test_modify_position_accumulates_protocol_fees() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
@@ -452,44 +511,6 @@ fn test_modify_position_zero_protocol_fees() {
     let quote_protocol_fees = market_manager.protocol_fees(market_manager.quote_token(market_id));
     assert(base_protocol_fees == 0, 'Base protocol fees');
     assert(quote_protocol_fees == 0, 'Quote protocol fees');
-}
-
-#[test]
-#[available_gas(1000000000)]
-fn test_modify_position_collect_position_fees() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
-    set_contract_address(owner());
-    market_manager.set_protocol_share(market_id, 0);
-
-    // Create position
-    set_contract_address(alice());
-    let lower_limit = OFFSET - MIN_LIMIT;
-    let upper_limit = OFFSET + MAX_LIMIT;
-    let liquidity = I256Trait::new(to_e28(1), false);
-    market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
-
-    // Execute some swaps
-    let mut is_buy = true;
-    let exact_input = true;
-    let mut amount = to_e28(1);
-    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
-    is_buy = false;
-    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
-
-    // Poke position to collect fees.
-    let (base_amount, quote_amount, _, _) = market_manager
-        .modify_position(market_id, lower_limit, upper_limit, I256Trait::new(0, false));
-
-    // Run checks
-    let base_fees_exp = 30000000000000000000000000;
-    let quote_fees_exp = 30000000000000000000000000;
-    let position = market_manager.position(market_id, alice().into(), lower_limit, upper_limit);
-
-    assert(base_amount.val == base_fees_exp, 'Base fees');
-    assert(quote_amount.val == quote_fees_exp, 'Quote fees');
-    assert(position.liquidity == liquidity.val, 'Liquidity');
-    assert(position.base_fee_factor_last == base_fees_exp, 'Base fee factor');
-    assert(position.quote_fee_factor_last == quote_fees_exp, 'Quote fee factor');
 }
 
 ////////////////////////////////
@@ -596,6 +617,53 @@ fn test_modify_position_liq_at_limit_overflow_width_25() {
     let liquidity = I256Trait::new(
         5391986440943200102664956187771026056941394884607090101542536769168491, false
     );
+    let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
+    modify_position(market_manager, params);
+}
+
+#[test]
+#[available_gas(100000000)]
+#[should_panic(expected: ('UpdateLimitLiq', 'ENTRYPOINT_FAILED',))]
+fn test_modify_position_remove_more_than_position() {
+    let (market_manager, base_token, quote_token, market_id) = before(width: 25);
+
+    // Create position
+    let lower_limit = 8388575;
+    let upper_limit = 8388600;
+    let mut liquidity = I256Trait::new(1000000000, false);
+    let mut params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
+    modify_position(market_manager, params);
+
+    // Remove more than position.
+    liquidity = I256Trait::new(1000000001, true);
+    params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
+    modify_position(market_manager, params);
+}
+
+#[test]
+#[available_gas(100000000)]
+#[should_panic(expected: ('PositionsDisabled', 'ENTRYPOINT_FAILED',))]
+fn test_modify_position_strategy_only_market() {
+    let (market_manager, base_token, quote_token, market_id) = before_strategy_only();
+
+    // Create position
+    let lower_limit = 8388575;
+    let upper_limit = 8388600;
+    let liquidity = I256Trait::new(100, false);
+    let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
+    modify_position(market_manager, params);
+}
+
+#[test]
+#[available_gas(100000000)]
+#[should_panic(expected: ('LinearOnly', 'ENTRYPOINT_FAILED',))]
+fn test_modify_position_concentrated_in_linear_market() {
+    let (market_manager, base_token, quote_token, market_id) = before_linear();
+
+    // Create position
+    let lower_limit = 8388575;
+    let upper_limit = 8388600;
+    let liquidity = I256Trait::new(100, false);
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
 }
