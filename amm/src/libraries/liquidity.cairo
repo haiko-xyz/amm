@@ -205,8 +205,6 @@ fn update_limit(
 // # Returns
 // * `base_amount` - base tokens in position, including accrued fees
 // * `quote_amount` - quote tokens in position, including accrued fees
-// * `base_fees` - base tokens accrued in fees
-// * `quote_fees` - quote tokens accrued in fees
 fn amounts_inside_position(
     self: @ContractState,
     market_id: felt252,
@@ -245,7 +243,7 @@ fn amounts_inside_position(
 
     // Calculate amounts inside position.
     let (base_amount, quote_amount) = liquidity_math::liquidity_to_amounts(
-        I256Trait::new(position.liquidity, false),
+        I256Trait::new(position.liquidity, true),
         market_state.curr_sqrt_price,
         price_math::limit_to_sqrt_price(position.lower_limit, market_info.width),
         price_math::limit_to_sqrt_price(position.upper_limit, market_info.width),
