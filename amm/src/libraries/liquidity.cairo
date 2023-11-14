@@ -158,18 +158,17 @@ fn update_limit(
     // Fetch limit.
     let mut limit_info = self.limit_info.read((market_id, limit));
 
-    // Add liquidity to limit.
+    // Add liquidity to limits.
     let liquidity_before = limit_info.liquidity;
     if liquidity_delta.sign {
         assert(limit_info.liquidity >= liquidity_delta.val, 'UpdateLimitLiq');
     }
     liquidity_math::add_delta(ref limit_info.liquidity, liquidity_delta);
-    let directional_liquidity_delta = if is_start {
-        liquidity_delta
+    if is_start {
+        limit_info.liquidity_delta += liquidity_delta;
     } else {
-        I256Trait::new(liquidity_delta.val, !liquidity_delta.sign)
-    };
-    limit_info.liquidity_delta += directional_liquidity_delta;
+        limit_info.liquidity_delta += I256Trait::new(liquidity_delta.val, !liquidity_delta.sign);
+    }
 
     // Check for liquidity overflow.
     if !liquidity_delta.sign {
