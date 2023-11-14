@@ -80,7 +80,9 @@ fn before(width: u32) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Disp
     _before(width, true, true, true)
 }
 
-fn before_strategy_only() -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
+fn before_strategy_only() -> (
+    IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252
+) {
     _before(1, true, true, false)
 }
 
@@ -631,7 +633,9 @@ fn test_modify_position_remove_more_than_position() {
     let lower_limit = 8388575;
     let upper_limit = 8388600;
     let mut liquidity = I256Trait::new(1000000000, false);
-    let mut params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
+    let mut params = modify_position_params(
+        alice(), market_id, lower_limit, upper_limit, liquidity
+    );
     modify_position(market_manager, params);
 
     // Remove more than position.

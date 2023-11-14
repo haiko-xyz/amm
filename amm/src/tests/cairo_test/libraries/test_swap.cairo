@@ -1,8 +1,6 @@
 use amm::libraries::math::fee_math::gross_to_net;
 use amm::libraries::constants::{MAX, ONE};
-use amm::libraries::swap::{
-    compute_swap_amounts, next_sqrt_price_input, next_sqrt_price_output
-};
+use amm::libraries::swap::{compute_swap_amounts, next_sqrt_price_input, next_sqrt_price_output};
 use amm::tests::common::utils::encode_sqrt_price;
 use amm::tests::common::utils::to_e28;
 
@@ -243,9 +241,7 @@ fn test_next_sqrt_price_in_cases() {
     assert(next_sqrt_price_input(1, 1, MAX, false) == 1, 'next_sqrt_price_in_amt_max');
     assert(next_sqrt_price_input(256, 100, 0, false) == 256, 'next_sqrt_price_in_buy_amt_0');
     assert(next_sqrt_price_input(256, 100, 0, true) == 256, 'next_sqrt_price_in_sell_amt_0');
-    assert(
-        next_sqrt_price_input(MAX, MAX, MAX, false) == ONE, 'next_sqrt_price_in_sell_all_max'
-    );
+    assert(next_sqrt_price_input(MAX, MAX, MAX, false) == ONE, 'next_sqrt_price_in_sell_all_max');
     assert(
         next_sqrt_price_input(ONE, ONE, ONE / 10, true) == 11000000000000000000000000000,
         'next_sqrt_price_in_buy_amt_0.1'
@@ -254,9 +250,7 @@ fn test_next_sqrt_price_in_cases() {
         next_sqrt_price_input(ONE, ONE, ONE / 10, false) == 9090909090909090909090909091,
         'next_sqrt_price_in_sell_amt_0.1'
     );
-    assert(
-        next_sqrt_price_input(ONE, 1, MAX / 2, false) == 1, 'next_sqrt_price_in_sell_rtns_1'
-    );
+    assert(next_sqrt_price_input(ONE, 1, MAX / 2, false) == 1, 'next_sqrt_price_in_sell_rtns_1');
 }
 
 #[test]

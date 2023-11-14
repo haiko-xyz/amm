@@ -81,14 +81,14 @@ fn test_compute_swap_amounts_invariants(
     // Invariant 5
     if target_sqrt_price <= curr_sqrt_price {
         assert(
-            target_sqrt_price.into() <= next_sqrt_price && 
-            next_sqrt_price <= curr_sqrt_price.into(),
+            target_sqrt_price.into() <= next_sqrt_price
+                && next_sqrt_price <= curr_sqrt_price.into(),
             'Invariant 5a'
         );
     } else {
         assert(
-            curr_sqrt_price.into() <= next_sqrt_price && 
-            next_sqrt_price <= target_sqrt_price.into(),
+            curr_sqrt_price.into() <= next_sqrt_price
+                && next_sqrt_price <= target_sqrt_price.into(),
             'Invariant 5b'
         );
     }
@@ -100,15 +100,12 @@ fn test_compute_swap_amounts_invariants(
 // 2. If buying, amount in >= liquidity to quote (rounding up)
 //    If selling, amount in >= liquidity to base (rounding up)
 #[test]
-fn test_next_sqrt_price_input_invariants(
-    curr_sqrt_price: u128,
-    liquidity: u128,
-    amount_in: u128,
-) {
+fn test_next_sqrt_price_input_invariants(curr_sqrt_price: u128, liquidity: u128, amount_in: u128,) {
     let is_buy = liquidity % 2 == 0; // bool fuzzing not supported, so use even/odd for rng
 
     // Return if invalid
-    if !is_buy && curr_sqrt_price == 0 || curr_sqrt_price.into() < MIN_SQRT_PRICE || liquidity == 0 {
+    if !is_buy
+        && curr_sqrt_price == 0 || curr_sqrt_price.into() < MIN_SQRT_PRICE || liquidity == 0 {
         return;
     }
 
@@ -132,9 +129,7 @@ fn test_next_sqrt_price_input_invariants(
         );
         assert(amount_in.into() >= quote.val, 'Invariant 2b');
     } else {
-        let base = liquidity_to_base(
-            next_sqrt_price, curr_sqrt_price.into(), liquidity_i256, true
-        );
+        let base = liquidity_to_base(next_sqrt_price, curr_sqrt_price.into(), liquidity_i256, true);
         assert(amount_in.into() >= base.val, 'Invariant 2a');
     }
 }
@@ -147,14 +142,13 @@ fn test_next_sqrt_price_input_invariants(
 // 3. If selling, next price > 0
 #[test]
 fn test_next_sqrt_price_output_invariants(
-    curr_sqrt_price: u128,
-    liquidity: u128,
-    amount_out: u128,
+    curr_sqrt_price: u128, liquidity: u128, amount_out: u128,
 ) {
     let is_buy = liquidity % 2 == 0; // bool fuzzing not supported, so use even/odd for rng
 
     // Return if invalid
-    if !is_buy && curr_sqrt_price == 0 || curr_sqrt_price.into() < MIN_SQRT_PRICE || liquidity == 0 {
+    if !is_buy
+        && curr_sqrt_price == 0 || curr_sqrt_price.into() < MIN_SQRT_PRICE || liquidity == 0 {
         return;
     }
     if is_buy {
