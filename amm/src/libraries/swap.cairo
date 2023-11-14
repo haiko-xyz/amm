@@ -272,9 +272,9 @@ fn compute_swap_amounts(
         target_sqrt_price
     } else {
         if exact_input {
-            next_sqrt_price_amount_in(curr_sqrt_price, liquidity, amount_rem_less_fee, is_buy)
+            next_sqrt_price_input(curr_sqrt_price, liquidity, amount_rem_less_fee, is_buy)
         } else {
-            next_sqrt_price_amount_out(curr_sqrt_price, liquidity, amount_rem, is_buy)
+            next_sqrt_price_output(curr_sqrt_price, liquidity, amount_rem, is_buy)
         }
     };
 
@@ -333,7 +333,7 @@ fn compute_swap_amounts(
 //
 // # Returns
 // * `next_sqrt_price` - next sqrt price
-fn next_sqrt_price_amount_in(
+fn next_sqrt_price_input(
     curr_sqrt_price: u256, liquidity: u256, amount_in: u256, is_buy: bool,
 ) -> u256 {
     // Input validation.
@@ -379,7 +379,8 @@ fn next_sqrt_price_amount_in(
 // * `is_buy` - whether swap is a buy or sell
 //
 // # Returns
-fn next_sqrt_price_amount_out(
+// * `next_sqrt_price` - next sqrt price
+fn next_sqrt_price_output(
     curr_sqrt_price: u256, liquidity: u256, amount_out: u256, is_buy: bool,
 ) -> u256 {
     // Input validation.
@@ -397,6 +398,6 @@ fn next_sqrt_price_amount_out(
         math::mul_div(liquidity, curr_sqrt_price, liquidity - product, true)
     } else {
         // Sell case: sqrt_price - amount * ONE / liquidity
-        curr_sqrt_price - math::mul_div(amount_out, ONE, liquidity, false)
+        curr_sqrt_price - math::mul_div(amount_out, ONE, liquidity, true)
     }
 }

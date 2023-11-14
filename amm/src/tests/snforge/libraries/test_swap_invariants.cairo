@@ -1,9 +1,16 @@
-use integer::BoundedU256;
+// Core lib imports.
+use integer::{BoundedU256, u256_wide_mul, u512};
 
+// Local imports.
 use amm::libraries::constants::{MIN_SQRT_PRICE, MAX_SQRT_PRICE};
-use amm::libraries::swap::compute_swap_amounts;
+use amm::libraries::math::math;
+use amm::libraries::math::liquidity_math::{liquidity_to_base, liquidity_to_quote};
+use amm::libraries::swap::{compute_swap_amounts, next_sqrt_price_input, next_sqrt_price_output};
+use amm::libraries::constants::ONE;
+use amm::types::i256::I256Trait;
 use amm::tests::common::utils::approx_eq;
 
+// External imports.
 use snforge_std::PrintTrait;
 
 // Check following invariants:
@@ -84,5 +91,108 @@ fn test_compute_swap_amounts_invariants(
             next_sqrt_price <= target_sqrt_price.into(),
             'Invariant 5b'
         );
+    }
+}
+
+// Check following invariants:
+// 1. If buying, next price >= curr price
+//    If selling, next price <= curr price
+// 2. If buying, amount in >= liquidity to quote (rounding up)
+//    If selling, amount in >= liquidity to base (rounding up)
+#[test]
+fn test_next_sqrt_price_input_invariants(
+    curr_sqrt_price: u128,
+    liquidity: u128,
+    amount_in: u128,
+) {
+    let is_buy = liquidity % 2 == 0; // bool fuzzing not supported, so use even/odd for rng
+
+    // Return if invalid
+    if !is_buy && curr_sqrt_price == 0 || curr_sqrt_price.into() < MIN_SQRT_PRICE || liquidity == 0 {
+        return;
+    }
+
+    // Compute next sqrt price
+    let next_sqrt_price = next_sqrt_price_input(
+        curr_sqrt_price.into(), liquidity.into(), amount_in.into(), is_buy
+    );
+
+    // Invariant 1
+    if is_buy {
+        assert(curr_sqrt_price.into() <= next_sqrt_price, 'Invariant 1a');
+    } else {
+        assert(next_sqrt_price <= curr_sqrt_price.into(), 'Invariant 1b');
+    }
+
+    // Invariant 2
+    let liquidity_i256 = I256Trait::new(liquidity.into(), false);
+    if is_buy {
+        let quote = liquidity_to_quote(
+            curr_sqrt_price.into(), next_sqrt_price, liquidity_i256, true
+        );
+        assert(amount_in.into() >= quote.val, 'Invariant 2b');
+    } else {
+        let base = liquidity_to_base(
+            next_sqrt_price, curr_sqrt_price.into(), liquidity_i256, true
+        );
+        assert(amount_in.into() >= base.val, 'Invariant 2a');
+    }
+}
+
+// Check following invariants:
+// 1. If buying, next price >= curr price
+//    If selling, next price <= curr price
+// 2. If buying, amount out <= liquidity to base (rounding down)
+//    If selling, amount out <= liquidity to quote (rounding down)
+// 3. If selling, next price > 0
+#[test]
+fn test_next_sqrt_price_output_invariants(
+    curr_sqrt_price: u128,
+    liquidity: u128,
+    amount_out: u128,
+) {
+    let is_buy = liquidity % 2 == 0; // bool fuzzing not supported, so use even/odd for rng
+
+    // Return if invalid
+    if !is_buy && curr_sqrt_price == 0 || curr_sqrt_price.into() < MIN_SQRT_PRICE || liquidity == 0 {
+        return;
+    }
+    if is_buy {
+        let product_wide: u512 = u256_wide_mul(amount_out.into(), curr_sqrt_price.into());
+        let product = math::mul_div(amount_out.into(), curr_sqrt_price.into(), ONE, true);
+        if product_wide.limb2 != 0 || product_wide.limb3 != 0 || product >= liquidity.into() {
+            return;
+        }
+    }
+
+    // Compute next sqrt price
+    let next_sqrt_price = next_sqrt_price_output(
+        curr_sqrt_price.into(), liquidity.into(), amount_out.into(), is_buy
+    );
+
+    // Invariant 1
+    if is_buy {
+        assert(curr_sqrt_price.into() <= next_sqrt_price, 'Invariant 1a');
+    } else {
+        assert(next_sqrt_price <= curr_sqrt_price.into(), 'Invariant 1b');
+    }
+
+    // Invariant 2
+    let liquidity_i256 = I256Trait::new(liquidity.into(), false);
+    if is_buy {
+        let base = liquidity_to_base(
+            curr_sqrt_price.into(), next_sqrt_price, liquidity_i256, false
+        );
+        assert(amount_out.into() <= base.val, 'Invariant 2a');
+    } else {
+        let quote = liquidity_to_quote(
+            next_sqrt_price, curr_sqrt_price.into(), liquidity_i256, false
+        );
+        assert(amount_out.into() <= quote.val, 'Invariant 2b');
+    }
+
+    // Invariant 3
+    if !is_buy {
+        assert(next_sqrt_price > 0, 'Invariant 3');
     }
 }
