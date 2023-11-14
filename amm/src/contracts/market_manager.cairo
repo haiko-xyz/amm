@@ -951,7 +951,9 @@ mod MarketManager {
 
             // Ping callback function to return tokens.
             // Borrower must be smart contract that implements `ILoanReceiver` interface.
-            ILoanReceiverDispatcher { contract_address: borrower }.on_flash_loan(amount);
+            ILoanReceiverDispatcher { contract_address: borrower }.on_flash_loan(
+                token, amount, fees
+            );
 
             // Check balances correctly returned.
             let balance_after = token_contract.balance_of(contract);
@@ -1215,6 +1217,7 @@ mod MarketManager {
 
         // Upgrade contract class.
         // Callable by owner only.
+        // TODO: add timelock
         //
         // # Arguments
         // # `new_class_hash` - New class hash of the contract
