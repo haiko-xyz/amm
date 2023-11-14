@@ -2,9 +2,15 @@ export const BASE: number = 1.00001
 
 export const OFFSET: number = 8388608
 
+export const MIN_LIMIT: number = -8388608
+
 export const MAX_LIMIT: number = 8388607
 
-export const MAX_NUM_LIMITS: number = 16771214
+export const MIN_SQRT_PRICE: number = 6087798248
+
+export const MAX_SQRT_PRICE: string = "16426217810307785371400150253392501988217060775"
+
+export const MAX_NUM_LIMITS: number = 16771215
 
 export const MAX: string = "361850278866613121369732278309507010552674375171.6087489154079457884512865583"
 

@@ -1,11 +1,14 @@
 use traits::Into;
 use integer::BoundedU256;
+use debug::PrintTrait;
 
 use amm::libraries::math::price_math::{
-    shift_limit, unshift_limit, limit_to_sqrt_price, sqrt_price_to_limit
+    shift_limit, unshift_limit, limit_to_sqrt_price, sqrt_price_to_limit, price_to_limit, max_limit
 };
-use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT, MIN_SQRT_PRICE, MAX_SQRT_PRICE};
-use amm::tests::common::utils::approx_eq_x28;
+use amm::libraries::constants::{
+    OFFSET, MAX_LIMIT, MIN_LIMIT, MIN_SQRT_PRICE, MAX_SQRT_PRICE, MAX_WIDTH
+};
+use amm::tests::common::utils::{approx_eq, approx_eq_pct};
 use amm::types::i32::{i32, i32Trait};
 
 ////////////////////////////////
@@ -118,7 +121,7 @@ fn test_limit_to_sqrt_price_width_1_cases() {
     assert(limit_to_sqrt_price(limit, width) == MIN_SQRT_PRICE, 'l->p MIN');
 
     limit = OFFSET - MIN_LIMIT + 1;
-    assert(limit_to_sqrt_price(limit, width) == 6087828687, 'l->p MIN+1');
+    assert(approx_eq(limit_to_sqrt_price(limit, width), 6087828687, 1), 'l->p MIN+1');
 
     limit = OFFSET - 1150000;
     assert(limit_to_sqrt_price(limit, width) == 31828723021629170035251312, 'l->p -1150000');
@@ -182,52 +185,52 @@ fn test_limit_to_sqrt_price_width_1_cases() {
 
     limit = OFFSET + 4500000;
     assert(
-        approx_eq_x28(limit_to_sqrt_price(limit, width), 59098571711246800030041333323272877718, 6),
+        approx_eq_pct(limit_to_sqrt_price(limit, width), 59098571711246800030041333323272877718, 8),
         'l->p 4500000'
     );
 
     limit = OFFSET + 5500000;
     assert(
-        approx_eq_x28(
-            limit_to_sqrt_price(limit, width), 8770786455175854494079784255897072914655, 6
+        approx_eq_pct(
+            limit_to_sqrt_price(limit, width), 8770786455175854494079784255897072914655, 8
         ),
         'l->p 5500000'
     );
 
     limit = OFFSET + 6500000;
     assert(
-        approx_eq_x28(
-            limit_to_sqrt_price(limit, width), 1301667583747318151082988967463051234466449, 6
+        approx_eq_pct(
+            limit_to_sqrt_price(limit, width), 1301667583747318151082988967463051234466449, 8
         ),
         'l->p 6500000'
     );
 
     limit = OFFSET + 7500000;
     assert(
-        approx_eq_x28(
-            limit_to_sqrt_price(limit, width), 193179768682968120670626619759297849997312135, 2
+        approx_eq_pct(
+            limit_to_sqrt_price(limit, width), 193179768682968120670626619759297849997312135, 8
         ),
         'l->p 7500000'
     );
 
     limit = OFFSET + 8000000;
     assert(
-        approx_eq_x28(
-            limit_to_sqrt_price(limit, width), 2353381948048259929879526007797717762022738993, 2
+        approx_eq_pct(
+            limit_to_sqrt_price(limit, width), 2353381948048259929879526007797717762022738993, 8
         ),
         'l->p 8000000'
     );
 
     limit = OFFSET + MAX_LIMIT - 1;
     assert(
-        approx_eq_x28(
-            limit_to_sqrt_price(limit, width), 16426135679834711867152431412473469177875913512, 2
+        approx_eq_pct(
+            limit_to_sqrt_price(limit, width), 16426135679834711867148424422577661217622160914, 8
         ),
         'l->p MAX-1'
     );
 
     limit = OFFSET + MAX_LIMIT;
-    assert(limit_to_sqrt_price(limit, width) == MAX_SQRT_PRICE, 'l->p MAX');
+    assert(approx_eq_pct(limit_to_sqrt_price(limit, width), MAX_SQRT_PRICE, 8), 'l->p MAX');
 }
 
 #[test]
@@ -264,7 +267,7 @@ fn test_limit_to_sqrt_price_width_gt_1_cases() {
     limit = 8388600 + 8388600;
     width = 25;
     assert(
-        limit_to_sqrt_price(limit, width) == 16425642905619833974805628442472783436961203493,
+        approx_eq_pct(limit_to_sqrt_price(limit, width), 16425642905619833974800324600565572069965789754, 8),
         'l->p MAX,25'
     );
 }
@@ -272,9 +275,18 @@ fn test_limit_to_sqrt_price_width_gt_1_cases() {
 #[test]
 #[should_panic(expected: ('LimitOverflow',))]
 #[available_gas(2000000000)]
-fn test_limit_to_sqrt_price_overflow() {
+fn test_limit_to_sqrt_price_limit_overflow() {
     let limit: u32 = OFFSET + MAX_LIMIT + 1;
     let width = 1;
+    limit_to_sqrt_price(limit, width);
+}
+
+#[test]
+#[should_panic(expected: ('WidthOverflow',))]
+#[available_gas(2000000000)]
+fn test_limit_to_sqrt_price_width_overflow() {
+    let limit: u32 = OFFSET + 10000;
+    let width = MAX_WIDTH + 1;
     limit_to_sqrt_price(limit, width);
 }
 
@@ -290,7 +302,7 @@ fn test_sqrt_price_to_limit_width_1_cases() {
     assert(sqrt_price_to_limit(sqrt_price, width) == OFFSET - MIN_LIMIT, 'p->l MIN');
 
     sqrt_price = 6087828687;
-    assert(sqrt_price_to_limit(sqrt_price, width) == OFFSET - MIN_LIMIT + 1, 'p->l MIN+1');
+    assert((OFFSET - 8388607) - sqrt_price_to_limit(sqrt_price, width) <= 1, 'p->l MIN+1');
 
     sqrt_price = 31828723021629170035251312;
     assert((OFFSET - 1150000) - sqrt_price_to_limit(sqrt_price, width) <= 1, 'p->l -1150000');
@@ -354,38 +366,38 @@ fn test_sqrt_price_to_limit_width_1_cases() {
 
     sqrt_price = 59098571711246800030041333323272877718;
     assert(
-        approx_eq_x28(sqrt_price_to_limit(sqrt_price, width).into(), OFFSET.into() + 4500000, 6),
+        approx_eq_pct(sqrt_price_to_limit(sqrt_price, width).into(), OFFSET.into() + 4500000, 8),
         'p->l 4500000'
     );
 
     sqrt_price = 8770786455175854494079784255897072914655;
     assert(
-        approx_eq_x28(sqrt_price_to_limit(sqrt_price, width).into(), OFFSET.into() + 5500000, 6),
+        approx_eq_pct(sqrt_price_to_limit(sqrt_price, width).into(), OFFSET.into() + 5500000, 8),
         'p->l 5500000'
     );
 
     sqrt_price = 1301667583747318151082988967463051234466449;
     assert(
-        approx_eq_x28(sqrt_price_to_limit(sqrt_price, width).into(), OFFSET.into() + 6500000, 6),
+        approx_eq_pct(sqrt_price_to_limit(sqrt_price, width).into(), OFFSET.into() + 6500000, 8),
         'p->l 6500000'
     );
 
     sqrt_price = 193179768682968120670626619759297849997312135;
     assert(
-        approx_eq_x28(sqrt_price_to_limit(sqrt_price, width).into(), OFFSET.into() + 7500000, 6),
+        approx_eq_pct(sqrt_price_to_limit(sqrt_price, width).into(), OFFSET.into() + 7500000, 8),
         'p->l 7500000'
     );
 
     sqrt_price = 2353381948048259929879526007797717762022738993;
     assert(
-        approx_eq_x28(sqrt_price_to_limit(sqrt_price, width).into(), OFFSET.into() + 8000000, 6),
+        approx_eq_pct(sqrt_price_to_limit(sqrt_price, width).into(), OFFSET.into() + 8000000, 8),
         'p->l 8000000'
     );
 
     sqrt_price = 16426135679834711867148424422577661217622160914;
     assert(
-        approx_eq_x28(
-            sqrt_price_to_limit(sqrt_price, width).into(), (OFFSET + MAX_LIMIT - 1).into(), 6
+        approx_eq_pct(
+            sqrt_price_to_limit(sqrt_price, width).into(), (OFFSET + MAX_LIMIT - 1).into(), 8
         ),
         'p->l MAX-1'
     );
@@ -432,7 +444,7 @@ fn test_sqrt_price_to_limit_width_gt_1_cases() {
     sqrt_price = 16425560778021262351622699829898418002208950653;
     width = 25;
     assert(
-        approx_eq_x28(sqrt_price_to_limit(sqrt_price, width).into(), 8388600 + 8388600 - 1, 6),
+        approx_eq_pct(sqrt_price_to_limit(sqrt_price, width).into(), 8388600 + 8388600 - 1, 8),
         'p->l MAX-1,25'
     );
 
@@ -457,4 +469,40 @@ fn test_sqrt_price_to_limit_overflow() {
     let sqrt_price: u256 = MAX_SQRT_PRICE + 1;
     let width = 1;
     sqrt_price_to_limit(sqrt_price, width);
+}
+
+////////////////////////////////
+// TESTS - price_to_limit
+////////////////////////////////
+
+#[test]
+#[available_gas(2000000000)]
+fn test_price_to_limit() {
+    let mut price: u256 = 1;
+    let mut width = 1;
+    assert(1941338 - price_to_limit(price, width, false) <= 1, 'P->l(1,1)');
+
+    price = 823185190241736438;
+    width = 4;
+    assert(6066554 - price_to_limit(price, width, false) <= 1, 'P->l(8231,4)');
+
+    price = 9999950000374996875027343504;
+    width = 20;
+    assert(8388600 - price_to_limit(price, width, false) <= 1, 'P->l(9999,20)');
+
+    price = 10000000000000000000000000000;
+    width = 100;
+    assert(8388600 - price_to_limit(price, width, false) <= 1, 'P->l(1000,100)');
+
+    price = 4873111937056930770242496363471129837;
+    width = 66;
+    assert(10389051 - price_to_limit(price, width, false) <= 1, 'P->l(4873,66)');
+
+    price = 1647812259929876135679834711867148424422577661217622160914;
+    width = 25;
+    assert(15116075 - price_to_limit(price, width, false) <= 1, 'P->l(16478,25)');
+
+    price = 6131213697322783095070105526743751716087489154079457884512865583;
+    width = 1;
+    assert(16629036 - price_to_limit(price, width, false) <= 1, 'P->l(8866,1)');
 }

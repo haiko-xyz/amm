@@ -39,11 +39,11 @@ fn approx_eq(x: u256, y: u256, threshold: u256) -> bool {
     }
 }
 
-fn approx_eq_x28(x: u256, y: u256, precision: u256) -> bool {
+fn approx_eq_pct(x: u256, y: u256, precision: u256) -> bool {
     if x > y {
-        x - y <= ONE / math::pow(10, precision)
+        math::mul_div(x, ONE, y, false) - ONE <= math::pow(10, precision)
     } else {
-        y - x <= ONE / math::pow(10, precision)
+        math::mul_div(y, ONE, x, false) - ONE <= math::pow(10, precision)
     }
 }
 

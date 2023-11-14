@@ -12,7 +12,7 @@ use amm::types::i32::{i32, i32Trait, i32Zeroable};
 use amm::types::i256::{i256, I256Trait};
 use amm::libraries::constants::{
     ONE, ONE_SQUARED, HALF, MAX_LIMIT, MIN_LIMIT, OFFSET, MAX_LIMIT_SHIFTED, Q128, MIN_SQRT_PRICE,
-    MAX_SQRT_PRICE, LOG2_1_00001
+    MAX_SQRT_PRICE, LOG2_1_00001, MAX_WIDTH
 };
 
 ////////////////////////////////
@@ -83,6 +83,7 @@ fn max_limit(width: u32) -> u32 {
 fn limit_to_sqrt_price(limit: u32, width: u32) -> u256 {
     // Check limit ID is in range
     assert(limit <= max_limit(width), 'LimitOverflow');
+    assert(width <= MAX_WIDTH, 'WidthOverflow');
 
     // Unshift limit
     let unshifted = unshift_limit(limit, width);
@@ -119,7 +120,7 @@ fn sqrt_price_to_limit(sqrt_price: u256, width: u32) -> u32 {
 
     let log2: u256 = _log2(rebased);
 
-    let limit = math::mul_div(log2, 2 * ONE, LOG2_1_00001, false);
+    let limit = math::mul_div(log2, 2 * ONE, LOG2_1_00001, sign);
 
     // We need to round up for negative sqrt prices
     let remainder: u256 = limit % ONE;
