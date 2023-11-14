@@ -18,7 +18,7 @@ fn test_msb_invariant(value: u256) {
 
     // Invariant 1
     assert(value >= exp, 'Invariant 1');
-    
+
     // Invariant 2
     if msb < 255 {
         assert(value < math::pow(2, (msb + 1).into()), 'Invariant 2');

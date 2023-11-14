@@ -10,13 +10,18 @@ use amm::interfaces::ILoanReceiver::{
     ILoanReceiver, ILoanReceiverDispatcher, ILoanReceiverDispatcherTrait
 };
 
-fn deploy_loan_receiver(market_manager: ContractAddress, return_funds: bool) -> ILoanReceiverDispatcher {
+fn deploy_loan_receiver(
+    market_manager: ContractAddress, return_funds: bool
+) -> ILoanReceiverDispatcher {
     let mut constructor_calldata = ArrayTrait::<felt252>::new();
     market_manager.serialize(ref constructor_calldata);
     return_funds.serialize(ref constructor_calldata);
 
     let (deployed_address, _) = deploy_syscall(
-        FlashLoanReceiver::TEST_CLASS_HASH.try_into().unwrap(), 0, constructor_calldata.span(), false
+        FlashLoanReceiver::TEST_CLASS_HASH.try_into().unwrap(),
+        0,
+        constructor_calldata.span(),
+        false
     )
         .unwrap();
 

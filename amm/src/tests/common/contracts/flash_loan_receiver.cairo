@@ -27,11 +27,11 @@ mod FlashLoanReceiver {
         // * `fee` - flash loan fee
         fn on_flash_loan(
             ref self: ContractState, token: ContractAddress, amount: u256, fee: u256,
-        ){
+        ) {
             if !self.return_funds.read() {
                 return;
             }
-            let dispatcher = IERC20Dispatcher{ contract_address: token };
+            let dispatcher = IERC20Dispatcher { contract_address: token };
             dispatcher.transfer(self.market_manager.read(), amount + fee);
         }
     }

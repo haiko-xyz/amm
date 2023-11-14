@@ -3,7 +3,7 @@ use debug::PrintTrait;
 
 use amm::libraries::math::price_math::limit_to_sqrt_price;
 use amm::libraries::math::liquidity_math::{
-    add_delta, liquidity_to_quote, liquidity_to_base, base_to_liquidity, quote_to_liquidity, 
+    add_delta, liquidity_to_quote, liquidity_to_base, base_to_liquidity, quote_to_liquidity,
     liquidity_to_amounts
 };
 use amm::libraries::constants::{MAX, ONE, OFFSET};
@@ -118,7 +118,8 @@ fn test_cases_set1() -> Span<TestCase> {
             base_amount: 1214213562373095048801688724210,
             quote_amount: 4292893218813452475599155637896,
         },
-    ].span();
+    ]
+        .span();
     cases
 }
 
@@ -164,7 +165,8 @@ fn test_cases_set2() -> Span<TestCase> {
             base_amount: 86946211086165655591010015832212364180061819198653137971033493500,
             quote_amount: 6694776804892192838968383171335234269706615406494047211195719122600000000,
         }
-    ].span();
+    ]
+        .span();
     cases
 }
 // 105324756*233337802229883332333378022298108/10^28*121639496252071918121639496252071/(233337802229883332333378022298108-121639496252071918121639496252071)
@@ -190,14 +192,17 @@ fn test_liquidity_to_quote_cases_set2() {
 fn test_liquidity_to_quote_cases(cases: Span<TestCase>) {
     let mut i = 0;
     loop {
-        if i == cases.len() { break; }
+        if i == cases.len() {
+            break;
+        }
         let case = *cases.at(i);
         let quote = liquidity_to_quote(
             case.lower_sqrt_price,
             case.upper_sqrt_price,
             I256Trait::new(case.liquidity, false),
             case.round_up
-        ).val;
+        )
+            .val;
         assert(approx_eq(quote, case.quote_amount, 10), 'l->q 00' + i.into());
         i += 1;
     };
@@ -224,14 +229,17 @@ fn test_liquidity_to_base_cases_set2() {
 fn test_liquidity_to_base_cases(cases: Span<TestCase>) {
     let mut i = 0;
     loop {
-        if i == cases.len() { break; }
+        if i == cases.len() {
+            break;
+        }
         let case = *cases.at(i);
         let base = liquidity_to_base(
             case.lower_sqrt_price,
             case.upper_sqrt_price,
             I256Trait::new(case.liquidity, false),
             case.round_up
-        ).val;
+        )
+            .val;
         assert(approx_eq(base, case.base_amount, 100), 'l->b 00' + i.into());
         i += 1;
     };
@@ -268,16 +276,16 @@ fn test_quote_to_liquidity_cases_set2() {
 fn test_quote_to_liquidity_cases(cases: Span<TestCase>) {
     let mut i = 0;
     loop {
-        if i == cases.len() { break; }
+        if i == cases.len() {
+            break;
+        }
         let case = *cases.at(i);
-        if case.quote_amount == 0 { 
+        if case.quote_amount == 0 {
             i += 1;
-            continue; 
-        } 
+            continue;
+        }
         let liquidity = quote_to_liquidity(
-            case.lower_sqrt_price,
-            case.upper_sqrt_price,
-            case.quote_amount,
+            case.lower_sqrt_price, case.upper_sqrt_price, case.quote_amount,
         );
         assert(approx_eq(liquidity, case.liquidity, 100), 'q->l 00' + i.into());
         i += 1;
@@ -305,16 +313,16 @@ fn test_base_to_liquidity_cases_set2() {
 fn test_base_to_liquidity_cases(cases: Span<TestCase>) {
     let mut i = 0;
     loop {
-        if i == cases.len() { break; }
+        if i == cases.len() {
+            break;
+        }
         let case = *cases.at(i);
-        if case.base_amount == 0 || case.base_amount < 10000000000 { 
+        if case.base_amount == 0 || case.base_amount < 10000000000 {
             i += 1;
-            continue; 
-        } 
+            continue;
+        }
         let liquidity = base_to_liquidity(
-            case.lower_sqrt_price,
-            case.upper_sqrt_price,
-            case.base_amount,
+            case.lower_sqrt_price, case.upper_sqrt_price, case.base_amount,
         );
         assert(approx_eq(liquidity, case.liquidity, 10000), 'b->l 00' + i.into());
         i += 1;

@@ -17,16 +17,16 @@ use snforge_std::PrintTrait;
 // 3. mul_div(floor, d, x, false) <= y
 //    mul_div(ceil, d, x, true) >= y 
 #[test]
-fn test_mul_div_invariants(
-    x: u256,
-    y: u256, 
-    d: u256,
-) {
-    if d == 0 { return; }   
+fn test_mul_div_invariants(x: u256, y: u256, d: u256,) {
+    if d == 0 {
+        return;
+    }
 
     // Return if overflow
     let (overflow, rem) = check_for_overflow(x, y, d);
-    if overflow { return; }
+    if overflow {
+        return;
+    }
 
     // Invariant 1
     let ceil = mul_div(x, y, d, true);
@@ -40,7 +40,9 @@ fn test_mul_div_invariants(
     // Invariant 2
     if y != 0 {
         let (overflow_2, _) = check_for_overflow(ceil, d, y);
-        if overflow_2 { return; }
+        if overflow_2 {
+            return;
+        }
 
         let x1 = mul_div(floor, d, y, false);
         let x2 = mul_div(ceil, d, y, true);
@@ -51,7 +53,9 @@ fn test_mul_div_invariants(
     // Invariant 3
     if x != 0 {
         let (overflow_3, _) = check_for_overflow(ceil, d, x);
-        if overflow_3 { return; }
+        if overflow_3 {
+            return;
+        }
 
         let y1 = mul_div(floor, d, x, false);
         let y2 = mul_div(ceil, d, x, true);

@@ -267,7 +267,9 @@ fn test_limit_to_sqrt_price_width_gt_1_cases() {
     limit = 8388600 + 8388600;
     width = 25;
     assert(
-        approx_eq_pct(limit_to_sqrt_price(limit, width), 16425642905619833974800324600565572069965789754, 8),
+        approx_eq_pct(
+            limit_to_sqrt_price(limit, width), 16425642905619833974800324600565572069965789754, 8
+        ),
         'l->p MAX,25'
     );
 }

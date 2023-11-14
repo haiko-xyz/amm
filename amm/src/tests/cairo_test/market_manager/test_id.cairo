@@ -9,20 +9,20 @@ use starknet::{ContractAddress, contract_address_const};
 
 struct PositionIdInfo {
     market_id: felt252,
-    owner: felt252, 
+    owner: felt252,
     lower_limit: u32,
     upper_limit: u32,
 }
 
 struct BatchIdInfo {
     market_id: felt252,
-    limit: u32, 
+    limit: u32,
     nonce: u128,
 }
 
 struct OrderIdInfo {
     market_id: felt252,
-    limit: u32, 
+    limit: u32,
     nonce: u128,
     owner: ContractAddress,
 }
@@ -88,7 +88,7 @@ fn test_market_id() {
     market_info.allow_positions = false;
     last_market_id = market_id;
     market_id = id::market_id(market_info);
-    assert(market_id != last_market_id, 'Market id: allow positions');  
+    assert(market_id != last_market_id, 'Market id: allow positions');
 
     // Vary allow orders.
     market_info.allow_orders = false;
@@ -103,10 +103,7 @@ fn test_market_id() {
 fn test_position_id() {
     // Define base position.
     let mut position = PositionIdInfo {
-        market_id: 123,
-        owner: 0x777,
-        lower_limit: 1000,
-        upper_limit: 2000,
+        market_id: 123, owner: 0x777, lower_limit: 1000, upper_limit: 2000,
     };
     let mut position_id = id::position_id(
         position.market_id, position.owner, position.lower_limit, position.upper_limit
@@ -123,25 +120,28 @@ fn test_position_id() {
     // Vary owner.
     position.owner = 0x888;
     last_position_id = position_id;
-    position_id = id::position_id(
-        position.market_id, position.owner, position.lower_limit, position.upper_limit
-    );
+    position_id =
+        id::position_id(
+            position.market_id, position.owner, position.lower_limit, position.upper_limit
+        );
     assert(position_id != last_position_id, 'Posiiton id: owner');
 
     // Vary lower limit.
     position.lower_limit = 2000;
     last_position_id = position_id;
-    position_id = id::position_id(
-        position.market_id, position.owner, position.lower_limit, position.upper_limit
-    );
+    position_id =
+        id::position_id(
+            position.market_id, position.owner, position.lower_limit, position.upper_limit
+        );
     assert(position_id != last_position_id, 'Posiiton id: lower limit');
 
     // Vary upper limit.
     position.upper_limit = 3000;
     last_position_id = position_id;
-    position_id = id::position_id(
-        position.market_id, position.owner, position.lower_limit, position.upper_limit
-    );
+    position_id =
+        id::position_id(
+            position.market_id, position.owner, position.lower_limit, position.upper_limit
+        );
     assert(position_id != last_position_id, 'Posiiton id: upper limit');
 }
 
@@ -149,14 +149,10 @@ fn test_position_id() {
 #[test]
 #[available_gas(1000000000)]
 fn test_batch_id() {
-     // Define base batch.
-    let mut batch = BatchIdInfo {
-        market_id: 123,
-        limit: 1000,
-        nonce: 18,
-    };
+    // Define base batch.
+    let mut batch = BatchIdInfo { market_id: 123, limit: 1000, nonce: 18, };
     let mut batch_id = id::batch_id(batch.market_id, batch.limit, batch.nonce);
-    
+
     // Vary market id.
     batch.market_id = 456;
     let mut last_batch_id = batch_id;
@@ -183,10 +179,7 @@ fn test_batch_id() {
 fn test_order_id() {
     // Define base order.
     let mut order = OrderIdInfo {
-        market_id: 123,
-        limit: 1000,
-        nonce: 18,
-        owner: contract_address_const::<0x777>(),
+        market_id: 123, limit: 1000, nonce: 18, owner: contract_address_const::<0x777>(),
     };
     let mut order_id = id::order_id(order.market_id, order.limit, order.nonce, order.owner);
 

@@ -951,9 +951,8 @@ mod MarketManager {
 
             // Ping callback function to return tokens.
             // Borrower must be smart contract that implements `ILoanReceiver` interface.
-            ILoanReceiverDispatcher { contract_address: borrower }.on_flash_loan(
-                token, amount, fees
-            );
+            ILoanReceiverDispatcher { contract_address: borrower }
+                .on_flash_loan(token, amount, fees);
 
             // Check balances correctly returned.
             let balance_after = token_contract.balance_of(contract);

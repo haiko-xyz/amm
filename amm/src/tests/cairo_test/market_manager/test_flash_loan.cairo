@@ -30,7 +30,9 @@ use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTr
 // SETUP
 ////////////////////////////////
 
-fn before(return_funds: bool) -> (
+fn before(
+    return_funds: bool
+) -> (
     IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252, ILoanReceiverDispatcher
 ) {
     // Get default owner.
