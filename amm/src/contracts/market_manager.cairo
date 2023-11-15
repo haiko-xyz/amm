@@ -390,6 +390,36 @@ mod MarketManager {
             )
         }
 
+        // Returns the token amounts to be transferred for creating a liquidity position.
+        //
+        // # Arguments
+        // * `market_id` - market id
+        // * `lower_limit` - lower limit of position
+        // * `upper_limit` - upper limit of position
+        // * `liquidity` - liquidity of position
+        //
+        // # Returns
+        // * `base_amount` - amount of base tokens to transfer
+        // * `quote_amount` - amount of quote tokens to transfer
+        fn modify_position_amounts(
+            self: @ContractState,
+            market_id: felt252,
+            lower_limit: u32,
+            upper_limit: u32,
+            liquidity_delta: u256,
+        ) -> (u256, u256) {
+            let market_state = self.market_state.read(market_id);
+            let market_info = self.market_info.read(market_id);
+            let (base_amount, quote_amount) = liquidity_math::liquidity_to_amounts(
+                I256Trait::new(liquidity_delta, false),
+                market_state.curr_sqrt_price,
+                price_math::limit_to_sqrt_price(lower_limit, market_info.width),
+                price_math::limit_to_sqrt_price(upper_limit, market_info.width),
+                market_info.width,
+            );
+            (base_amount.val, quote_amount.val)
+        }
+
         // Information corresponding to ERC721 position token.
         //
         // # Arguments
