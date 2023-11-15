@@ -105,27 +105,24 @@ const testCases = () => {
 const liquidityToAmountsCases = () => {
   const cases = [
     {
-      currLimit: OFFSET + 80000,
-      currSqrtPrice: limitToSqrtPrice(OFFSET + 80000, 1),
       liquidity: new Decimal("10000").div(1e28),
-      lowerLimit: OFFSET + 85000,
-      upperLimit: OFFSET + 90000,
+      currSqrtPrice: limitToSqrtPrice(OFFSET + 80000, 1),
+      lowerSqrtPrice: limitToSqrtPrice(OFFSET + 85000, 1),
+      upperSqrtPrice: limitToSqrtPrice(OFFSET + 90000, 1),
       width: 1,
     },
     {
-      currLimit: OFFSET + 80000,
-      currSqrtPrice: limitToSqrtPrice(OFFSET + 80000, 1),
       liquidity: new Decimal("10000").div(1e28),
-      lowerLimit: OFFSET + 70000,
-      upperLimit: OFFSET + 75000,
+      currSqrtPrice: limitToSqrtPrice(OFFSET + 80000, 1),
+      lowerSqrtPrice: limitToSqrtPrice(OFFSET + 70000, 1),
+      upperSqrtPrice: limitToSqrtPrice(OFFSET + 75000, 1),
       width: 1,
     },
     {
-      currLimit: OFFSET + 80000,
-      currSqrtPrice: limitToSqrtPrice(OFFSET + 80000, 1),
       liquidity: new Decimal("10000").div(1e28),
-      lowerLimit: OFFSET + 75000,
-      upperLimit: OFFSET + 85000,
+      currSqrtPrice: limitToSqrtPrice(OFFSET + 80000, 1),
+      lowerSqrtPrice: limitToSqrtPrice(OFFSET + 75000, 1),
+      upperSqrtPrice: limitToSqrtPrice(OFFSET + 85000, 1),
       width: 1,
     },
   ]
@@ -153,13 +150,12 @@ const testLiquidityToBase = () => {
 const testLiquidityToAmounts = () => {
   Decimal.set({ precision: PRECISION, rounding: ROUNDING })
 
-  for (const { currLimit, currSqrtPrice, liquidity, lowerLimit, upperLimit, width } of liquidityToAmountsCases()) {
+  for (const { liquidity, currSqrtPrice, lowerSqrtPrice, upperSqrtPrice, width } of liquidityToAmountsCases()) {
     const { baseAmount, quoteAmount } = liquidityToAmounts(
-      currLimit,
-      currSqrtPrice,
       liquidity,
-      lowerLimit,
-      upperLimit,
+      currSqrtPrice,
+      lowerSqrtPrice,
+      upperSqrtPrice,
       width
     )
     console.log({

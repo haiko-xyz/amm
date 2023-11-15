@@ -62,38 +62,29 @@ export type TokenAmounts = {
 }
 
 export const liquidityToAmounts = (
-  currLimit: Decimal.Value,
-  currSqrtPrice: Decimal.Value,
   liquidityDelta: Decimal.Value,
-  lowerLimit: Decimal.Value,
-  upperLimit: Decimal.Value,
+  currSqrtPrice: Decimal.Value,
+  lowerSqrtPrice: Decimal.Value,
+  upperSqrtPrice: Decimal.Value,
   width: Decimal.Value
 ): TokenAmounts => {
   Decimal.set({ precision: PRECISION, rounding: ROUNDING })
-  let upperLimitDec = new Decimal(upperLimit)
-  let lowerLimitDec = new Decimal(lowerLimit)
+  let upperSqrtPriceDec = new Decimal(upperSqrtPrice)
+  let lowerSqrtPriceDec = new Decimal(lowerSqrtPrice)
 
-  if (upperLimitDec.lte(currLimit)) {
+  if (upperSqrtPriceDec.lte(currSqrtPrice)) {
     return {
       baseAmount: "0",
-      quoteAmount: liquidityToQuote(
-        limitToSqrtPrice(lowerLimit, width),
-        limitToSqrtPrice(upperLimit, width),
-        liquidityDelta
-      ).toFixed(),
+      quoteAmount: liquidityToQuote(lowerSqrtPrice, upperSqrtPrice, liquidityDelta).toFixed(),
     }
-  } else if (lowerLimitDec.lte(currLimit)) {
+  } else if (lowerSqrtPriceDec.lte(currSqrtPrice)) {
     return {
-      baseAmount: liquidityToBase(currSqrtPrice, limitToSqrtPrice(upperLimit, width), liquidityDelta).toFixed(),
-      quoteAmount: liquidityToQuote(limitToSqrtPrice(lowerLimit, width), currSqrtPrice, liquidityDelta).toFixed(),
+      baseAmount: liquidityToBase(currSqrtPrice, upperSqrtPrice, liquidityDelta).toFixed(),
+      quoteAmount: liquidityToQuote(lowerSqrtPrice, currSqrtPrice, liquidityDelta).toFixed(),
     }
   } else {
     return {
-      baseAmount: liquidityToBase(
-        limitToSqrtPrice(lowerLimit, width),
-        limitToSqrtPrice(upperLimit, width),
-        liquidityDelta
-      ).toFixed(),
+      baseAmount: liquidityToBase(lowerSqrtPrice, upperSqrtPrice, liquidityDelta).toFixed(),
       quoteAmount: "0",
     }
   }

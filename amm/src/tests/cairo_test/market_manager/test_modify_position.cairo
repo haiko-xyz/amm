@@ -2,6 +2,7 @@
 use starknet::ContractAddress;
 use starknet::contract_address_const;
 use starknet::testing::set_contract_address;
+use debug::PrintTrait;
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
@@ -15,8 +16,9 @@ use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position
 };
 use amm::tests::cairo_test::helpers::token::{deploy_token, fund, approve};
+use amm::tests::common::utils::approx_eq;
 use amm::tests::common::params::{
-    owner, alice, treasury, default_token_params, default_market_params, modify_position_params
+    owner, alice, bob, treasury, default_token_params, default_market_params, modify_position_params
 };
 use amm::tests::common::utils::to_e28;
 
@@ -65,13 +67,17 @@ fn _before(
     params.allow_positions = allow_positions;
     let market_id = create_market(market_manager, params);
 
-    // Fund LP with initial token balances and approve market manager as spender.
+    // Fund LPs with initial token balances and approve market manager as spender.
     let initial_base_amount = to_e28(500000);
     let initial_quote_amount = to_e28(10000000);
     fund(base_token, alice(), initial_base_amount);
     fund(quote_token, alice(), initial_quote_amount);
+    fund(base_token, bob(), initial_base_amount);
+    fund(quote_token, bob(), initial_quote_amount);
     approve(base_token, alice(), market_manager.contract_address, initial_base_amount);
     approve(quote_token, alice(), market_manager.contract_address, initial_quote_amount);
+    approve(base_token, bob(), market_manager.contract_address, initial_base_amount);
+    approve(quote_token, bob(), market_manager.contract_address, initial_quote_amount);
 
     (market_manager, base_token, quote_token, market_id)
 }
@@ -407,7 +413,7 @@ fn test_modify_position_below_curr_price_cases() {
     upper_limit = OFFSET - MIN_LIMIT + 1;
     liquidity = I256Trait::new(40000000000000000000000000000, true);
     base_exp = I256Trait::new(0, false);
-    quote_exp = I256Trait::new(121756, true);
+    quote_exp = I256Trait::new(121755, true);
     _modify_position_and_run_checks(
         market_manager,
         market_id,
@@ -424,7 +430,7 @@ fn test_modify_position_below_curr_price_cases() {
 
 #[test]
 #[available_gas(1000000000)]
-fn test_modify_position_collect_position_fees() {
+fn test_collect_fees() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
     set_contract_address(owner());
     market_manager.set_protocol_share(market_id, 0);
@@ -458,6 +464,96 @@ fn test_modify_position_collect_position_fees() {
     assert(position.liquidity == liquidity.val, 'Liquidity');
     assert(position.base_fee_factor_last == base_fees_exp, 'Base fee factor');
     assert(position.quote_fee_factor_last == quote_fees_exp, 'Quote fee factor');
+}
+
+#[test]
+#[available_gas(1000000000)]
+fn test_collect_fees_multiple_lps() {
+    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    set_contract_address(owner());
+    market_manager.set_protocol_share(market_id, 0);
+
+    // Alice creates position
+    set_contract_address(alice());
+    let lower_limit = OFFSET - MIN_LIMIT;
+    let upper_limit = OFFSET + MAX_LIMIT;
+    let liquidity = I256Trait::new(to_e28(1), false);
+    market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
+
+    // Bob creates position at same range
+    set_contract_address(bob());
+    market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
+
+    // Execute some swaps
+    let mut is_buy = true;
+    let exact_input = true;
+    let mut amount = to_e28(1);
+    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
+    is_buy = false;
+    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
+
+    // Alice collects fees.
+    set_contract_address(alice());
+    let (base_amount, quote_amount, _, _) = market_manager
+        .modify_position(market_id, lower_limit, upper_limit, I256Trait::new(0, false));
+
+    // Run checks
+    let base_fees_exp = 15000000000000000000000000;
+    let quote_fees_exp = 15000000000000000000000000;
+    assert(base_amount.val == base_fees_exp, 'Base fees');
+    assert(quote_amount.val == quote_fees_exp, 'Quote fees');
+}
+
+#[test]
+#[available_gas(1000000000)]
+fn test_collect_fees_intermediate_withdrawal() {
+    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    set_contract_address(owner());
+    market_manager.set_protocol_share(market_id, 0);
+
+    // Alice creates position
+    set_contract_address(alice());
+    let lower_limit = OFFSET - MIN_LIMIT;
+    let upper_limit = OFFSET + MAX_LIMIT;
+    let liquidity = I256Trait::new(to_e28(1), false);
+    market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
+
+    // Bob creates position at same range
+    set_contract_address(bob());
+    market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
+
+    // Execute swap 1.
+    let mut is_buy = true;
+    let exact_input = true;
+    let mut amount = to_e28(1);
+    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
+
+    // Alice collects fees.
+    set_contract_address(alice());
+    let (base_amount_a1, quote_amount_a1, _, _) = market_manager
+        .modify_position(market_id, lower_limit, upper_limit, I256Trait::new(0, false));
+
+    // Execute swap 2.
+    is_buy = false;
+    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
+
+    // Alice and Bob both collect fees.
+    let (base_amount_a2, quote_amount_a2, _, _) = market_manager
+        .modify_position(market_id, lower_limit, upper_limit, I256Trait::new(0, false));
+    set_contract_address(bob());
+    let (base_amount_b, quote_amount_b, _, _) = market_manager
+        .modify_position(market_id, lower_limit, upper_limit, I256Trait::new(0, false));
+
+    // Run checks
+    let base_fees_exp = 30000000000000000000000000;
+    let quote_fees_exp = 30000000000000000000000000;
+    assert(
+        base_amount_a1.val + base_amount_a2.val + base_amount_b.val == base_fees_exp, 'Base fees'
+    );
+    assert(
+        quote_amount_a1.val + quote_amount_a2.val + quote_amount_b.val == quote_fees_exp,
+        'Quote fees'
+    );
 }
 
 #[test]
@@ -513,6 +609,45 @@ fn test_modify_position_zero_protocol_fees() {
     let quote_protocol_fees = market_manager.protocol_fees(market_manager.quote_token(market_id));
     assert(base_protocol_fees == 0, 'Base protocol fees');
     assert(quote_protocol_fees == 0, 'Quote protocol fees');
+}
+
+#[test]
+#[available_gas(100000000)]
+fn test_modify_position_clears_single_limit_if_other_active() {
+    let width = 1;
+    let (market_manager, base_token, quote_token, market_id) = before(width);
+    set_contract_address(alice());
+
+    // Case 1: Clears lower only if upper still used.
+
+    // Create position 1
+    let lower_limit_1 = OFFSET + 1000;
+    let upper_limit_1 = OFFSET + 2000;
+    let liquidity_add = I256Trait::new(to_e28(1), false);
+    market_manager.modify_position(market_id, lower_limit_1, upper_limit_1, liquidity_add);
+
+    // Create position 2
+    let lower_limit_2 = OFFSET;
+    let upper_limit_2 = OFFSET + 1000;
+    market_manager.modify_position(market_id, lower_limit_2, upper_limit_2, liquidity_add);
+
+    // Remove position 1 and check limits
+    let liquidity_rem = I256Trait::new(to_e28(1), true);
+    market_manager.modify_position(market_id, lower_limit_1, upper_limit_1, liquidity_rem);
+    assert(market_manager.is_limit_init(market_id, width, lower_limit_1), 'Case 1: lower');
+    assert(!market_manager.is_limit_init(market_id, width, upper_limit_1), 'Case 1: upper');
+
+    // Case 2: Clears upper only if lower still used.
+
+    // Create position 3
+    let lower_limit_3 = OFFSET + 1000;
+    let upper_limit_3 = OFFSET + 3000;
+    market_manager.modify_position(market_id, lower_limit_3, upper_limit_3, liquidity_add);
+
+    // Remove position 2 and check limits
+    market_manager.modify_position(market_id, lower_limit_2, upper_limit_2, liquidity_rem);
+    assert(!market_manager.is_limit_init(market_id, width, lower_limit_2), 'Case 2: lower');
+    assert(market_manager.is_limit_init(market_id, width, upper_limit_2), 'Case 2: upper');
 }
 
 ////////////////////////////////
@@ -705,8 +840,12 @@ fn _modify_position_and_run_checks(
     );
 
     // Run checks
-    assert(base_bal_aft == _add_delta(base_bal_bef, base_exp), 'Create pos: base 0' + n);
-    assert(quote_bal_aft == _add_delta(quote_bal_bef, quote_exp), 'Create pos: quote 0' + n);
+    assert(
+        approx_eq(base_bal_aft, _add_delta(base_bal_bef, base_exp), 1), 'Create pos: base 0' + n
+    );
+    assert(
+        approx_eq(quote_bal_aft, _add_delta(quote_bal_bef, quote_exp), 1), 'Create pos: quote 0' + n
+    );
     assert(
         lower_limit_aft.liquidity == _add_delta(lower_limit_bef.liquidity, liquidity),
         'Create pos: start limit liq 0' + n

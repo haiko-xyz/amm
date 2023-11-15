@@ -60,8 +60,11 @@ fn before() -> (IMarketManagerDispatcher, felt252, IERC20Dispatcher, IERC20Dispa
 // TESTS
 ////////////////////////////////
 
+// Check for following invariants:
+// 1. Amounts inside position are equal to amounts withdrawn.
+// 2. Amounts paid out plus retained protocol fees should be lower than or equal to amounts paid in.
 #[test]
-fn test_amounts_inside_position_invariants(
+fn test_modify_position_invariants(
     pos1_limit1: u16,
     pos1_limit2: u16,
     pos1_liquidity: u32,
@@ -116,6 +119,12 @@ fn test_amounts_inside_position_invariants(
     ]
         .span();
 
+    // Snapshot start state and initialise fee counters.
+    let mut base_protocol_fees = 0;
+    let mut quote_protocol_fees = 0;
+    let mut start_base_lp = base_token.balance_of(alice());
+    let mut start_quote_lp = quote_token.balance_of(alice());
+
     // Place positions.
     let mut i = 0;
     loop {
@@ -163,11 +172,17 @@ fn test_amounts_inside_position_invariants(
         // Execute swap, skipping fail cases.
         let amount = *swap_amounts.at(j);
         let is_buy = amount % 2 == 0;
+        let market_state = market_manager.market_state(market_id);
         if amount != 0 {
             let mut params = swap_params(
                 alice(), market_id, is_buy, true, amount.into(), Option::None(()), Option::None(())
             );
-            swap(market_manager, params);
+            let (amount_in, amount_out, fees) = swap(market_manager, params);
+            if is_buy {
+                quote_protocol_fees += fee_math::calc_fee(fees, market_state.protocol_share);
+            } else {
+                base_protocol_fees += fee_math::calc_fee(fees, market_state.protocol_share);
+            }
         }
         j += 1;
     };
@@ -196,22 +211,18 @@ fn test_amounts_inside_position_invariants(
             let (base_amount, quote_amount, _, _) = modify_position(market_manager, params);
 
             // Check amount inside position match withdrawn.
-            'base_amount_exp'.print();
-            base_amount_exp.print();
-            'base_amount'.print();
-            base_amount.val.print();
-
-            assert(base_amount_exp == base_amount.val, 'Invariant: base');
-            assert(quote_amount_exp == quote_amount.val, 'Invariant: quote');
-
-            // Execute swap to randomise market conditions.
-            let amount = *swap_amounts.at(m);
-            let is_buy = amount % 2 == 0;
-            let mut params = swap_params(
-                alice(), market_id, is_buy, true, amount.into(), Option::None(()), Option::None(())
-            );
+            assert(base_amount_exp == base_amount.val, 'Invariant 1: base');
+            assert(quote_amount_exp == quote_amount.val, 'Invariant 1: quote');
         }
 
         m += 1;
     };
+
+    // Snapshot end state and check invariants.
+    let mut end_base_lp = base_token.balance_of(alice());
+    let mut end_quote_lp = quote_token.balance_of(alice());
+    let base_diff = max(start_base_lp, end_base_lp) - min(start_base_lp, end_base_lp);
+    let quote_diff = max(start_quote_lp, end_quote_lp) - min(start_quote_lp, end_quote_lp);
+    assert(base_diff >= base_protocol_fees, 'Invariant 2: base');
+    assert(quote_diff >= quote_protocol_fees, 'Invariant 2: quote');
 }
