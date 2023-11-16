@@ -50,7 +50,6 @@ fn test_compute_swap_amounts_invariants(
         amount_rem.into(),
         fee_rate.into(),
         exact_input,
-        width.into(),
     );
 
     // Invariant 1
