@@ -66,13 +66,25 @@ trait IMarketManager<TContractState> {
 
     fn protocol_fees(self: @TContractState, asset: ContractAddress) -> u256;
 
-    fn position_fees(
+    fn amounts_inside_position(
         self: @TContractState,
-        owner: ContractAddress,
+        market_id: felt252,
+        position_id: felt252,
+        lower_limit: u32,
+        upper_limit: u32,
+    ) -> (u256, u256);
+
+    fn liquidity_to_amounts(
+        self: @TContractState,
         market_id: felt252,
         lower_limit: u32,
-        upper_limit: u32
+        upper_limit: u32,
+        liquidity_delta: u256,
     ) -> (u256, u256);
+
+    fn amount_to_liquidity(
+        self: @TContractState, market_id: felt252, is_bid: bool, limit: u32, amount: u256,
+    ) -> u256;
 
     fn ERC721_position_info(self: @TContractState, token_id: felt252) -> PositionInfo;
 
@@ -169,7 +181,9 @@ trait IMarketManager<TContractState> {
         ref self: TContractState, receiver: ContractAddress, token: ContractAddress, amount: u256,
     ) -> u256;
 
-    fn set_owner(ref self: TContractState, new_owner: ContractAddress);
+    fn transfer_owner(ref self: TContractState, new_owner: ContractAddress);
+
+    fn accept_owner(ref self: TContractState);
 
     fn set_flash_loan_fee(ref self: TContractState, token: ContractAddress, fee: u16);
 

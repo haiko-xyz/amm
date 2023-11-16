@@ -62,7 +62,6 @@ struct MarketState {
 // * `base_fee_factor` - as above, but for base fees (encoded as UD47x28)
 // * `quote_fee_factor` - cumulative fee factor below or above current price depending on curr price (encoded as UD47x28) 
 // * `nonce` - current nonce of limit, used for batching limit orders
-// * `initialised` - whether fee factors have been initialised before
 #[derive(Copy, Drop, Serde)]
 struct LimitInfo {
     liquidity: u256,
@@ -70,7 +69,6 @@ struct LimitInfo {
     base_fee_factor: u256,
     quote_fee_factor: u256,
     nonce: u128,
-    initialised: bool,
 }
 
 // A liquidity position.
@@ -151,7 +149,15 @@ struct SwapParams {
 
 // Position info returned for ERC721.
 //
-// * `base_token` - address of base token
+// * `base_token` - base token address
+// * `quote_token` - quote token address
+// * `width` - width of market position is in
+// * `strategy` - strategy contract address of market
+// * `swap_fee_rate` - swap fee denominated in bps
+// * `fee_controller` - fee controller contract address of market
+// * `liquidity` - liquidity of position
+// * `base_amount` - amount of base tokens inside position
+// * `quote_amount` - amount of quote tokens inside position
 #[derive(Copy, Drop, Serde)]
 struct PositionInfo {
     base_token: ContractAddress,
@@ -163,8 +169,6 @@ struct PositionInfo {
     liquidity: u256,
     base_amount: u256,
     quote_amount: u256,
-    base_fee_factor_last: u256,
-    quote_fee_factor_last: u256,
 }
 
 ////////////////////////////////
@@ -209,7 +213,7 @@ struct PackedMarketState {
 // * `slab1` - first 252 bits of `liquidity_delta`
 // * `slab2` - first 252 bits of `quote_fee_factor`
 // * `slab3` - first 252 bits of `base_fee_factor`
-// * `slab4` - last 4 bits of four variables above + sign of `liquidity_delta` + `initialised` + `nonce` 
+// * `slab4` - last 4 bits of four variables above + sign of `liquidity_delta` + `nonce` 
 #[derive(starknet::Store)]
 struct PackedLimitInfo {
     slab0: felt252,

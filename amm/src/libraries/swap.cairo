@@ -87,35 +87,37 @@ fn swap_iter(
     };
 
     // Compute swap amounts and update for new price and accrued fees.
-    let (amount_in_iter, amount_out_iter, fees, next_sqrt_price) = compute_swap_amounts(
+    let (amount_in_iter, amount_out_iter, fee_iter, next_sqrt_price) = compute_swap_amounts(
         market_state.curr_sqrt_price,
         target_sqrt_price,
         market_state.liquidity,
         amount_rem,
         fee_rate,
         exact_input,
-        width,
     );
     market_state.curr_sqrt_price = next_sqrt_price;
 
     // Update amount remaining and amount calc.
     // Amount calc refers to amount out for exact input, and vice versa for exact out.
     if exact_input {
-        amount_rem -= min(amount_in_iter + fees, amount_rem);
+        amount_rem -= min(amount_in_iter + fee_iter, amount_rem);
         amount_calc += amount_out_iter;
     } else {
         amount_rem -= min(amount_out_iter, amount_rem);
-        amount_calc += amount_in_iter + fees;
+        amount_calc += amount_in_iter + fee_iter;
     }
 
     // Calculate protocol fees and update swap fee balance.
-    let protocol_fee = fee_math::calc_fee(fees, market_state.protocol_share);
-    protocol_fees += protocol_fee;
-    swap_fees += fees - protocol_fee;
+    let protocol_fee_iter = fee_math::calc_fee(fee_iter, market_state.protocol_share);
+    protocol_fees += protocol_fee_iter;
+    swap_fees += fee_iter - protocol_fee_iter;
 
     // Update fee factor.
-    if market_state.liquidity != 0 {
-        let fee_factor = math::mul_div(fees - protocol_fee, ONE, market_state.liquidity, false);
+    if market_state.liquidity != 0 && fee_iter != 0 {
+        let fee_factor = math::mul_div(
+            fee_iter - protocol_fee_iter, ONE, market_state.liquidity, false
+        );
+        assert(fee_factor != 0, 'FeeFactorUnderflow');
         if is_buy {
             market_state.quote_fee_factor += fee_factor;
         } else {
@@ -203,7 +205,7 @@ fn swap_iter(
             return Option::Some(
                 PartialFillInfo {
                     limit: curr_limit,
-                    amount_in: amount_in_iter + fees - protocol_fees,
+                    amount_in: amount_in_iter + fee_iter - protocol_fee_iter,
                     amount_out: amount_out_iter,
                     is_buy,
                 }
@@ -223,7 +225,6 @@ fn swap_iter(
 // * `amount_rem` - amount remaining to be swapped
 // * `fee_rate` - fee rate
 // * `exact_in` - whether swap amount is exact input or output
-// * `width` - limit width
 //  
 // # Returns
 // * `amount_in` - amount of tokens swapped in (excluding fees)
@@ -237,7 +238,6 @@ fn compute_swap_amounts(
     amount_rem: u256,
     fee_rate: u16,
     exact_input: bool,
-    width: u32,
 ) -> (u256, u256, u256, u256) {
     // Determine whether swap is a buy or sell.
     let is_buy = target_sqrt_price > curr_sqrt_price;
@@ -245,22 +245,16 @@ fn compute_swap_amounts(
     // Calculate amounts in and out.
     let liquidity_i256 = I256Trait::new(liquidity, false);
     let mut amount_in = if is_buy {
-        liquidity_math::liquidity_to_quote_amount(
-            curr_sqrt_price, target_sqrt_price, liquidity_i256, true
-        )
+        liquidity_math::liquidity_to_quote(curr_sqrt_price, target_sqrt_price, liquidity_i256, true)
     } else {
-        liquidity_math::liquidity_to_base_amount(
-            target_sqrt_price, curr_sqrt_price, liquidity_i256, true
-        )
+        liquidity_math::liquidity_to_base(target_sqrt_price, curr_sqrt_price, liquidity_i256, true)
     }
         .val;
 
     let mut amount_out = if is_buy {
-        liquidity_math::liquidity_to_base_amount(
-            curr_sqrt_price, target_sqrt_price, liquidity_i256, false
-        )
+        liquidity_math::liquidity_to_base(curr_sqrt_price, target_sqrt_price, liquidity_i256, false)
     } else {
-        liquidity_math::liquidity_to_quote_amount(
+        liquidity_math::liquidity_to_quote(
             target_sqrt_price, curr_sqrt_price, liquidity_i256, false
         )
     }
@@ -278,9 +272,9 @@ fn compute_swap_amounts(
         target_sqrt_price
     } else {
         if exact_input {
-            next_sqrt_price_amount_in(curr_sqrt_price, liquidity, amount_rem_less_fee, is_buy)
+            next_sqrt_price_input(curr_sqrt_price, liquidity, amount_rem_less_fee, is_buy)
         } else {
-            next_sqrt_price_amount_out(curr_sqrt_price, liquidity, amount_rem, is_buy)
+            next_sqrt_price_output(curr_sqrt_price, liquidity, amount_rem, is_buy)
         }
     };
 
@@ -292,11 +286,11 @@ fn compute_swap_amounts(
                 amount_rem_less_fee
             } else {
                 if is_buy {
-                    liquidity_math::liquidity_to_quote_amount(
+                    liquidity_math::liquidity_to_quote(
                         curr_sqrt_price, next_sqrt_price, liquidity_i256, true
                     )
                 } else {
-                    liquidity_math::liquidity_to_base_amount(
+                    liquidity_math::liquidity_to_base(
                         next_sqrt_price, curr_sqrt_price, liquidity_i256, true
                     )
                 }
@@ -307,20 +301,24 @@ fn compute_swap_amounts(
                 amount_rem
             } else {
                 if is_buy {
-                    liquidity_math::liquidity_to_base_amount(
+                    liquidity_math::liquidity_to_base(
                         curr_sqrt_price, next_sqrt_price, liquidity_i256, false
                     )
                 } else {
-                    liquidity_math::liquidity_to_quote_amount(
+                    liquidity_math::liquidity_to_quote(
                         next_sqrt_price, curr_sqrt_price, liquidity_i256, false
                     )
                 }
                     .val
             };
+            
     }
 
     // Calculate fees. 
     // Amount in is net of fees because we capped amounts by net amount remaining.
+    // Fees are rounded down by default to prevent overflow when transferring amounts.
+    // Note that in Uniswap, if target price is not reached, LP takes the remainder 
+    // of the maximum input as fee. We don't do that here.
     let fees = fee_math::net_to_fee(amount_in, fee_rate);
 
     // Return amounts.
@@ -338,7 +336,7 @@ fn compute_swap_amounts(
 //
 // # Returns
 // * `next_sqrt_price` - next sqrt price
-fn next_sqrt_price_amount_in(
+fn next_sqrt_price_input(
     curr_sqrt_price: u256, liquidity: u256, amount_in: u256, is_buy: bool,
 ) -> u256 {
     // Input validation.
@@ -384,7 +382,8 @@ fn next_sqrt_price_amount_in(
 // * `is_buy` - whether swap is a buy or sell
 //
 // # Returns
-fn next_sqrt_price_amount_out(
+// * `next_sqrt_price` - next sqrt price
+fn next_sqrt_price_output(
     curr_sqrt_price: u256, liquidity: u256, amount_out: u256, is_buy: bool,
 ) -> u256 {
     // Input validation.
@@ -402,6 +401,6 @@ fn next_sqrt_price_amount_out(
         math::mul_div(liquidity, curr_sqrt_price, liquidity - product, true)
     } else {
         // Sell case: sqrt_price - amount * ONE / liquidity
-        curr_sqrt_price - math::mul_div(amount_out, ONE, liquidity, false)
+        curr_sqrt_price - math::mul_div(amount_out, ONE, liquidity, true)
     }
 }

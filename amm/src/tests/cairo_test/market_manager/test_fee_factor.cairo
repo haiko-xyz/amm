@@ -66,13 +66,13 @@ fn before(width: u32) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Disp
 
 #[test]
 #[available_gas(1000000000)]
-fn test_failing_fee_factor() {
+fn test_reinitialise_fee_factor() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
     // Create position
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let mut liquidity = I256Trait::new(100000, false);
+    let mut liquidity = I256Trait::new(100000000, false);
     let mut params = modify_position_params(
         alice(), market_id, lower_limit, upper_limit, liquidity
     );
@@ -81,12 +81,11 @@ fn test_failing_fee_factor() {
     // Swap so fee factors of position are non-zero.
     let mut is_buy = false;
     let exact_input = true;
-    let amount = 1000;
+    let amount = 100000;
     let mut swap_params = swap_params(
         alice(), market_id, is_buy, exact_input, amount, Option::None(()), Option::None(()),
     );
-    swap(market_manager, swap_params);
-    print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
+    let (amount_in, amount_out, fee) = swap(market_manager, swap_params);
 
     // Swap back.
     is_buy = true;
@@ -98,17 +97,21 @@ fn test_failing_fee_factor() {
     print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
 
     // Remove position.
-    liquidity = I256Trait::new(100000, true);
+    liquidity = I256Trait::new(100000000, true);
     params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
     print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
 
-    // Add liquidity to same limits. 
-    liquidity = I256Trait::new(100000, false);
+    // Adding liquidity to same limits should re-initialise fee factors.
+    liquidity = I256Trait::new(100000000, false);
     params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
     print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
 }
+
+////////////////////////////////
+// INTERNAL HELPERS
+////////////////////////////////
 
 fn print_fee_factors(
     market_manager: IMarketManagerDispatcher,

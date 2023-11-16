@@ -12,7 +12,7 @@ use amm::types::i32::{i32, i32Trait, i32Zeroable};
 use amm::types::i256::{i256, I256Trait};
 use amm::libraries::constants::{
     ONE, ONE_SQUARED, HALF, MAX_LIMIT, MIN_LIMIT, OFFSET, MAX_LIMIT_SHIFTED, Q128, MIN_SQRT_PRICE,
-    MAX_SQRT_PRICE, LOG2_1_00001
+    MAX_SQRT_PRICE, LOG2_1_00001, MAX_WIDTH
 };
 
 ////////////////////////////////
@@ -28,8 +28,8 @@ use amm::libraries::constants::{
 // # Returns
 // * `shifted_limit` - shifted limit
 fn shift_limit(limit: i32, width: u32) -> u32 {
-    assert(limit >= i32Trait::new(MIN_LIMIT, true), 'SHIFT_LIMIT_UNDERFLOW');
-    assert(limit <= i32Trait::new(MAX_LIMIT, false), 'SHIFT_LIMIT_OVERFLOW');
+    assert(limit >= i32Trait::new(MIN_LIMIT, true), 'ShiftLimitUnderflow');
+    assert(limit <= i32Trait::new(MAX_LIMIT, false), 'ShiftLimitOverflow');
     let shifted: i32 = limit + i32Trait::new(offset(width), false);
     shifted.val
 }
@@ -44,7 +44,7 @@ fn shift_limit(limit: i32, width: u32) -> u32 {
 // * `unshifted_limit` - unshifted limit
 fn unshift_limit(limit: u32, width: u32) -> i32 {
     let unshifted: i32 = i32Trait::new(limit, false) - i32Trait::new(offset(width), false);
-    assert(unshifted <= i32Trait::new(max_limit(width), false), 'UNSHIFT_LIMIT_OVERFLOW');
+    assert(unshifted <= i32Trait::new(max_limit(width), false), 'UnshiftLimitOverflow');
     unshifted
 }
 
@@ -81,11 +81,12 @@ fn max_limit(width: u32) -> u32 {
 // # Returns
 // * `sqrt_price` - sqrt price encoded as UD47x28
 fn limit_to_sqrt_price(limit: u32, width: u32) -> u256 {
+    // Check limit ID is in range
+    assert(limit <= max_limit(width), 'LimitOverflow');
+    assert(width <= MAX_WIDTH, 'WidthOverflow');
+
     // Unshift limit
     let unshifted = unshift_limit(limit, width);
-
-    // Check limit ID is in range
-    assert(unshifted <= i32Trait::new(MAX_LIMIT, false), 'LIMIT_OVERFLOW');
 
     // Calculate sqrt price
     _exp1_00001(unshifted)
@@ -102,7 +103,7 @@ fn limit_to_sqrt_price(limit: u32, width: u32) -> u256 {
 // # Returns
 // * `limit` - shifted limit
 fn sqrt_price_to_limit(sqrt_price: u256, width: u32) -> u32 {
-    assert(sqrt_price >= MIN_SQRT_PRICE && sqrt_price <= MAX_SQRT_PRICE, 'SQRT_PRICE_OVERFLOW');
+    assert(sqrt_price >= MIN_SQRT_PRICE && sqrt_price <= MAX_SQRT_PRICE, 'SqrtPriceOverflow');
 
     // Handle special case
     if sqrt_price == MAX_SQRT_PRICE {
@@ -119,7 +120,7 @@ fn sqrt_price_to_limit(sqrt_price: u256, width: u32) -> u32 {
 
     let log2: u256 = _log2(rebased);
 
-    let limit = math::mul_div(log2, 2 * ONE, LOG2_1_00001, false);
+    let limit = math::mul_div(log2, 2 * ONE, LOG2_1_00001, sign);
 
     // We need to round up for negative sqrt prices
     let remainder: u256 = limit % ONE;

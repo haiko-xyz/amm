@@ -50,6 +50,7 @@ mod MarketManager {
     struct Storage {
         // Ownable
         owner: ContractAddress,
+        queued_owner: ContractAddress,
         // Global information
         whitelist: LegacyMap::<ContractAddress, bool>,
         // Indexed by asset
@@ -370,56 +371,104 @@ mod MarketManager {
             self.protocol_fees.read(asset)
         }
 
-        // Get base and quote fees accrued inside a position.
-        fn position_fees(
+        // Returns total amount of tokens, inclusive of fees, inside of a liquidity position.
+        // 
+        // # Arguments
+        // * `market_id` - market id
+        // * `position_id` - position id (see `id` library)
+        // * `lower_limit` - lower limit of position
+        // * `upper_limit` - upper limit of position
+        fn amounts_inside_position(
             self: @ContractState,
-            owner: ContractAddress,
+            market_id: felt252,
+            position_id: felt252,
+            lower_limit: u32,
+            upper_limit: u32,
+        ) -> (u256, u256) {
+            liquidity_helpers::amounts_inside_position(
+                self, market_id, position_id, lower_limit, upper_limit
+            )
+        }
+
+        // Returns the token amounts to be transferred for creating a liquidity position.
+        //
+        // # Arguments
+        // * `market_id` - market id
+        // * `lower_limit` - lower limit of position
+        // * `upper_limit` - upper limit of position
+        // * `liquidity` - liquidity of position
+        //
+        // # Returns
+        // * `base_amount` - amount of base tokens to transfer
+        // * `quote_amount` - amount of quote tokens to transfer
+        fn liquidity_to_amounts(
+            self: @ContractState,
             market_id: felt252,
             lower_limit: u32,
-            upper_limit: u32
+            upper_limit: u32,
+            liquidity_delta: u256,
         ) -> (u256, u256) {
-            // Fetch state.
-            let position = self.position(market_id, owner.into(), lower_limit, upper_limit);
             let market_state = self.market_state.read(market_id);
-            let lower_limit_info = self.limit_info.read((market_id, lower_limit));
-            let upper_limit_info = self.limit_info.read((market_id, upper_limit));
+            let market_info = self.market_info.read(market_id);
+            let (base_amount, quote_amount) = liquidity_math::liquidity_to_amounts(
+                I256Trait::new(liquidity_delta, false),
+                market_state.curr_sqrt_price,
+                price_math::limit_to_sqrt_price(lower_limit, market_info.width),
+                price_math::limit_to_sqrt_price(upper_limit, market_info.width),
+                market_info.width,
+            );
+            (base_amount.val, quote_amount.val)
+        }
 
-            // Get fee factors and calculate accrued fees.
-            let (base_fee_factor, quote_fee_factor) = fee_math::get_fee_inside(
-                lower_limit_info,
-                upper_limit_info,
-                lower_limit,
-                upper_limit,
-                market_state.curr_limit,
-                market_state.base_fee_factor,
-                market_state.quote_fee_factor,
-            );
-            let base_fees = math::mul_div(
-                (base_fee_factor.into() - position.base_fee_factor_last),
-                position.liquidity.into(),
-                ONE,
-                false
-            );
-            let quote_fees = math::mul_div(
-                (quote_fee_factor.into() - position.quote_fee_factor_last),
-                position.liquidity.into(),
-                ONE,
-                false
-            );
-
-            (base_fees, quote_fees)
+        // Convert desired token amount to liquidity.
+        //
+        // # Arguments
+        // * `market_id` - market id
+        // * `is_buy` - whether order is a bid or ask
+        // * `limit` - limit at which order is placed
+        // * `amount` - amount of tokens to convert
+        //
+        // # Returns
+        // * `liquidity` - equivalent liquidity
+        fn amount_to_liquidity(
+            self: @ContractState, market_id: felt252, is_bid: bool, limit: u32, amount: u256,
+        ) -> u256 {
+            let market_info = self.market_info.read(market_id);
+            if is_bid {
+                liquidity_math::quote_to_liquidity(
+                    price_math::limit_to_sqrt_price(limit, market_info.width),
+                    price_math::limit_to_sqrt_price(limit + market_info.width, market_info.width),
+                    amount,
+                )
+            } else {
+                liquidity_math::base_to_liquidity(
+                    price_math::limit_to_sqrt_price(limit, market_info.width),
+                    price_math::limit_to_sqrt_price(limit + market_info.width, market_info.width),
+                    amount,
+                )
+            }
         }
 
         // Information corresponding to ERC721 position token.
+        //
+        // # Arguments
+        // * `token_id` - token id (position id)
+        //
+        // # Returns
+        // * `base_token` - base token address
+        // * `quote_token` - quote token address
+        // * `width` - width of market position is in
+        // * `strategy` - strategy contract address of market
+        // * `swap_fee_rate` - swap fee denominated in bps
+        // * `fee_controller` - fee controller contract address of market
+        // * `liquidity` - liquidity of position
+        // * `base_amount` - amount of base tokens inside position
+        // * `quote_amount` - amount of quote tokens inside position
         fn ERC721_position_info(self: @ContractState, token_id: felt252) -> PositionInfo {
             let position = self.positions.read(token_id);
             let market_info = self.market_info.read(position.market_id);
-            let market_state = self.market_state.read(position.market_id);
-            let lower_limit = self.limit_info.read((position.market_id, position.lower_limit));
-            let upper_limit = self.limit_info.read((position.market_id, position.upper_limit));
-            let (base_amount, quote_amount, base_fees, quote_fees) =
-                liquidity_math::amounts_inside_position(
-                @market_state, market_info.width, @position, lower_limit, upper_limit,
+            let (base_amount, quote_amount) = liquidity_helpers::amounts_inside_position(
+                self, position.market_id, token_id, position.lower_limit, position.upper_limit
             );
 
             PositionInfo {
@@ -430,13 +479,10 @@ mod MarketManager {
                 swap_fee_rate: market_info.swap_fee_rate,
                 fee_controller: market_info.fee_controller,
                 liquidity: position.liquidity,
-                base_amount: base_amount + base_fees,
-                quote_amount: quote_amount + quote_fees,
-                base_fee_factor_last: position.base_fee_factor_last,
-                quote_fee_factor_last: position.quote_fee_factor_last,
+                base_amount,
+                quote_amount,
             }
         }
-
 
         ////////////////////////////////
         // EXTERNAL FUNCTIONS
@@ -964,7 +1010,8 @@ mod MarketManager {
 
             // Ping callback function to return tokens.
             // Borrower must be smart contract that implements `ILoanReceiver` interface.
-            ILoanReceiverDispatcher { contract_address: borrower }.on_flash_loan(amount);
+            ILoanReceiverDispatcher { contract_address: borrower }
+                .on_flash_loan(token, amount, fees);
 
             // Check balances correctly returned.
             let balance_after = token_contract.balance_of(contract);
@@ -997,6 +1044,10 @@ mod MarketManager {
             );
             assert(position_id == expected_position_id, 'OnlyOwner');
 
+            // Check position exists.
+            let position_info = self.ERC721_position_info(position_id);
+            assert(position_info.base_token.is_non_zero(), 'PositionNull');
+
             // Mint ERC721 token.
             let mut unsafe_state = ERC721::unsafe_new_contract_state();
             ERC721::InternalImpl::_mint(ref unsafe_state, caller, position_id.into());
@@ -1017,9 +1068,8 @@ mod MarketManager {
                 'NotApprovedNorOwner'
             );
 
-            // Check position exists and is empty.
+            // Check position is empty.
             let position_info = self.ERC721_position_info(position_id);
-            assert(position_info.base_token.is_non_zero(), 'PositionNull');
             assert(
                 position_info.liquidity == 0
                     && position_info.base_amount == 0
@@ -1095,15 +1145,18 @@ mod MarketManager {
             let capped = min(amount, protocol_fees);
             self.protocol_fees.write(token, protocol_fees - capped);
 
-            if capped > 0 {
-                // Update reserves.
-                let reserves = self.reserves.read(token);
-                self.reserves.write(token, reserves - capped);
-
-                // Transfer tokens to recipient.
-                let token_contract = IERC20Dispatcher { contract_address: token };
-                token_contract.transfer(receiver, capped);
+            // Return if no fees to collect.
+            if capped == 0 {
+                return 0;
             }
+
+            // Update reserves.
+            let reserves = self.reserves.read(token);
+            self.reserves.write(token, reserves - capped);
+
+            // Transfer tokens to recipient.
+            let token_contract = IERC20Dispatcher { contract_address: token };
+            token_contract.transfer(receiver, capped);
 
             // Emit event.
             self
@@ -1152,28 +1205,39 @@ mod MarketManager {
                 0
             };
 
-            // Transfer tokens to receiver.
             if amount_collected > 0 {
+                // Transfer tokens to receiver.
                 token_contract.transfer(receiver, amount_collected);
-            }
 
-            // Emit event.
-            self.emit(Event::Sweep(Sweep { receiver, token, amount: amount_collected }));
+                // Emit event.
+                self.emit(Event::Sweep(Sweep { receiver, token, amount: amount_collected }));
+            }
 
             // Return amount collected.
             amount_collected
         }
 
-        // Transfer ownership of the contract.
+        // Request transfer ownership of the contract.
+        // Part 1 of 2 step process to transfer ownership.
         //
         // # Arguments
         // * `new_owner` - New owner of the contract
-        fn set_owner(ref self: ContractState, new_owner: ContractAddress) {
+        fn transfer_owner(ref self: ContractState, new_owner: ContractAddress) {
             self.assert_only_owner();
             let old_owner = self.owner.read();
-            self.owner.write(new_owner);
+            assert(new_owner != old_owner, 'SameOwner');
+            self.queued_owner.write(new_owner);
+        }
 
-            self.emit(Event::ChangeOwner(ChangeOwner { old: old_owner, new: new_owner }));
+        // Called by new owner to accept ownership of the contract.
+        // Part 2 of 2 step process to transfer ownership.
+        fn accept_owner(ref self: ContractState) {
+            let queued_owner = self.queued_owner.read();
+            assert(get_caller_address() == queued_owner, 'OnlyNewOwner');
+            let old_owner = self.owner.read();
+            self.owner.write(queued_owner);
+            self.queued_owner.write(ContractAddressZeroable::zero());
+            self.emit(Event::ChangeOwner(ChangeOwner { old: old_owner, new: queued_owner }));
         }
 
         // Set flash loan fee.
@@ -1211,6 +1275,7 @@ mod MarketManager {
 
         // Upgrade contract class.
         // Callable by owner only.
+        // TODO: add timelock
         //
         // # Arguments
         // # `new_class_hash` - New class hash of the contract
