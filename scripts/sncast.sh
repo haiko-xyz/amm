@@ -6,13 +6,6 @@ export STARKNET_KEYSTORE=~/.starkli-wallets/deployer/testnet_deployer_keystore.j
 export STARKNET_ACCOUNT=~/.starkli-wallets/deployer/testnet_deployer_account_starkli.json
 export PRAGMA_ORACLE=0x620a609f88f612eb5773a6f4084f7b33be06a6fed7943445aebce80d6a146ba
 
-# Deployments
-# Staging (1 Nov 2023)
-export MARKET_MANAGER_CLASS_HASH=0x701dc7c897cbf4073f9c97a63fa1465dd32291d0c74849833bc427bb2a3799
-export MARKET_MANAGER=0x48c1140f9e9599bdc24d98f1895d913d841aedc30a8fec93f0efd90a2b6b7b9
-export QUOTER_CLASS_HASH=0x114eb9aa0df8795895c709c28bc466ef727fd015c3a4d7c46b1412b1f79f7bd
-export QUOTER=0x06f3afe508abfb5a7829409739c5f3a86f8b7f97d5b4f63dea272d78b842642f
-
 # Declare contract classes
 # MarketManager
 sncast --url $STARKNET_RPC --keystore $STARKNET_KEYSTORE --account $STARKNET_ACCOUNT declare --contract-name MarketManager
@@ -22,3 +15,17 @@ sncast --url $STARKNET_RPC --keystore $STARKNET_KEYSTORE --account $STARKNET_ACC
 # Deploy contracts
 # MarketManager
 sncast --url $STARKNET_RPC --keystore $STARKNET_KEYSTORE --account $STARKNET_ACCOUNT deploy --class-hash $MARKET_MANAGER_CLASS_HASH --constructor-calldata $OWNER
+
+
+# Deployments
+# Staging (9 Nov 2023)
+export MARKET_MANAGER_CLASS_HASH=0x64247169ce4f624d0e8724a10a49e66e52a3eb74ec252b7a34b005fa6a70255
+export MARKET_MANAGER=0x4f1d5c71f89ec0d4adc267682fce3280acdc2e5f6854632784372ba34f1dd83
+export QUOTER_CLASS_HASH=0x114eb9aa0df8795895c709c28bc466ef727fd015c3a4d7c46b1412b1f79f7bd
+export QUOTER=0x3fbb51266a94cd9127f325bc5a14ca03f2dce283adf2057ffe31c0adcb54055
+
+# # Staging (1 Nov 2023)
+# export MARKET_MANAGER_CLASS_HASH=0x5883a896c950ce3530ad973fe8b4b05181fc0ead7fb255ec12858b407b48c3d
+# export MARKET_MANAGER=0x48c1140f9e9599bdc24d98f1895d913d841aedc30a8fec93f0efd90a2b6b7b9
+# export QUOTER_CLASS_HASH=0x114eb9aa0df8795895c709c28bc466ef727fd015c3a4d7c46b1412b1f79f7bd
+# export QUOTER=0x06f3afe508abfb5a7829409739c5f3a86f8b7f97d5b4f63dea272d78b842642f
