@@ -20,8 +20,6 @@ use amm::contracts::market_manager::MarketManager::InternalTrait;
 use amm::types::core::{MarketState, PartialFillInfo};
 use amm::types::i256::I256Trait;
 
-use debug::PrintTrait;
-
 // Iteratively execute swap up to next initialised limit price.
 //
 // # Arguments
@@ -203,12 +201,6 @@ fn swap_iter(
 
         // Handle partial fill by returning info.
         if curr_limit == next_limit {
-            'amount_in_iter'.print();
-            amount_in_iter.print();
-            'fee_iter'.print();
-            fee_iter.print();
-            'protocol_fees'.print();
-            protocol_fees.print();
             return Option::Some(
                 PartialFillInfo {
                     limit: curr_limit,
@@ -251,8 +243,6 @@ fn compute_swap_amounts(
 
     // Calculate amounts in and out.
     let liquidity_i256 = I256Trait::new(liquidity, false);
-    'amount_rem'.print();
-    amount_rem.print();
     let mut amount_in = if is_buy {
         liquidity_math::liquidity_to_quote(curr_sqrt_price, target_sqrt_price, liquidity_i256, true)
     } else {
