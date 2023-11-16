@@ -13,7 +13,6 @@ use debug::PrintTrait;
 #[test]
 #[available_gas(2000000000)]
 fn test_compute_swap_amounts_buy_exact_input_reaches_price_target() {
-    let width = 1;
     let curr_sqrt_price = encode_sqrt_price(1, 1);
     let target_sqrt_price = encode_sqrt_price(101, 100);
     let liquidity = to_e28(2);
@@ -21,7 +20,7 @@ fn test_compute_swap_amounts_buy_exact_input_reaches_price_target() {
     let fee_rate = 6; // 0.06%
 
     let (amount_in, amount_out, fees, next_sqrt_price) = compute_swap_amounts(
-        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, true, width
+        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, true
     );
     let next_sqrt_price_full_amount = next_sqrt_price_input(
         curr_sqrt_price, liquidity, amount_rem, true
@@ -39,7 +38,6 @@ fn test_compute_swap_amounts_buy_exact_input_reaches_price_target() {
 #[test]
 #[available_gas(2000000000)]
 fn test_compute_swap_amounts_buy_exact_output_reaches_price_target() {
-    let width = 1;
     let curr_sqrt_price = encode_sqrt_price(1, 1);
     let target_sqrt_price = encode_sqrt_price(101, 100);
     let liquidity = to_e28(2);
@@ -47,7 +45,7 @@ fn test_compute_swap_amounts_buy_exact_output_reaches_price_target() {
     let fee_rate = 6; // 0.06%
 
     let (amount_in, amount_out, fees, next_sqrt_price) = compute_swap_amounts(
-        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, false, width
+        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, false
     );
     let next_sqrt_price_full_amount = next_sqrt_price_output(
         curr_sqrt_price, liquidity, amount_rem, true
@@ -65,7 +63,6 @@ fn test_compute_swap_amounts_buy_exact_output_reaches_price_target() {
 #[test]
 #[available_gas(2000000000)]
 fn test_compute_swap_amounts_buy_exact_input_filled_max() {
-    let width = 1;
     let curr_sqrt_price = encode_sqrt_price(1, 1);
     let target_sqrt_price = encode_sqrt_price(1000, 100);
     let liquidity = to_e28(2);
@@ -73,7 +70,7 @@ fn test_compute_swap_amounts_buy_exact_input_filled_max() {
     let fee_rate = 6; // 0.06%
 
     let (amount_in, amount_out, fees, next_sqrt_price) = compute_swap_amounts(
-        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, true, width
+        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, true
     );
     let net_amount_rem = gross_to_net(amount_rem, fee_rate);
     let next_sqrt_price_full_amount = next_sqrt_price_input(
@@ -92,7 +89,6 @@ fn test_compute_swap_amounts_buy_exact_input_filled_max() {
 #[test]
 #[available_gas(2000000000)]
 fn test_compute_swap_amounts_buy_exact_output_filled_max() {
-    let width = 1;
     let curr_sqrt_price = encode_sqrt_price(1, 1);
     let target_sqrt_price = encode_sqrt_price(10000, 100);
     let liquidity = to_e28(2);
@@ -100,7 +96,7 @@ fn test_compute_swap_amounts_buy_exact_output_filled_max() {
     let fee_rate = 6; // 0.06%
 
     let (amount_in, amount_out, fees, next_sqrt_price) = compute_swap_amounts(
-        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, false, width
+        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, false
     );
     let next_sqrt_price_full_amount = next_sqrt_price_output(
         curr_sqrt_price, liquidity, amount_rem, true
@@ -118,7 +114,6 @@ fn test_compute_swap_amounts_buy_exact_output_filled_max() {
 #[test]
 #[available_gas(2000000000)]
 fn test_compute_swap_amounts_sell_exact_input_reached_price_target() {
-    let width = 1;
     let curr_sqrt_price = 15000000000000000000000000000;
     let target_sqrt_price = to_e28(1);
     let liquidity = to_e28(2);
@@ -126,7 +121,7 @@ fn test_compute_swap_amounts_sell_exact_input_reached_price_target() {
     let fee_rate = 6; // 0.06%
 
     let (amount_in, amount_out, fees, next_sqrt_price) = compute_swap_amounts(
-        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, true, width
+        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, true
     );
     assert(amount_in == 6666666666666666666666666667, 'comp_swap sell/in/cap in');
     assert(amount_out == 10000000000000000000000000000, 'comp_swap sell/in/cap out');
@@ -137,7 +132,6 @@ fn test_compute_swap_amounts_sell_exact_input_reached_price_target() {
 #[test]
 #[available_gas(2000000000)]
 fn test_compute_swap_amounts_sell_exact_output_reached_price_target() {
-    let width = 1;
     let curr_sqrt_price = to_e28(12) / 10;
     let target_sqrt_price = to_e28(1);
     let liquidity = to_e28(2);
@@ -145,7 +139,7 @@ fn test_compute_swap_amounts_sell_exact_output_reached_price_target() {
     let fee_rate = 6; // 0.06%
 
     let (amount_in, amount_out, fees, next_sqrt_price) = compute_swap_amounts(
-        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, false, width
+        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, false
     );
     assert(amount_in == 3333333333333333333333333334, 'comp_swap sell/out/cap in');
     assert(amount_out == 4000000000000000000000000000, 'comp_swap sell/out/cap out');
@@ -156,7 +150,6 @@ fn test_compute_swap_amounts_sell_exact_output_reached_price_target() {
 #[test]
 #[available_gas(2000000000)]
 fn test_compute_swap_amounts_sell_exact_input_filled_max() {
-    let width = 1;
     let curr_sqrt_price = encode_sqrt_price(1000, 100);
     let target_sqrt_price = encode_sqrt_price(1, 1);
     let liquidity = to_e28(2);
@@ -164,7 +157,7 @@ fn test_compute_swap_amounts_sell_exact_input_filled_max() {
     let fee_rate = 6; // 0.06%
 
     let (amount_in, amount_out, fees, next_sqrt_price) = compute_swap_amounts(
-        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, true, width
+        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, true
     );
     assert(amount_in == 9994000000000000000000000000, 'comp_swap sell/in/full in');
     assert(amount_out == 38733579431920680121737214444, 'comp_swap sell/in/full out');
@@ -175,7 +168,6 @@ fn test_compute_swap_amounts_sell_exact_input_filled_max() {
 #[test]
 #[available_gas(2000000000)]
 fn test_compute_swap_amounts_sell_exact_output_filled_max() {
-    let width = 1;
     let curr_sqrt_price = to_e28(3);
     let target_sqrt_price = to_e28(1);
     let liquidity = to_e28(2);
@@ -183,7 +175,7 @@ fn test_compute_swap_amounts_sell_exact_output_filled_max() {
     let fee_rate = 6; // 0.06%
 
     let (amount_in, amount_out, fees, next_sqrt_price) = compute_swap_amounts(
-        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, false, width
+        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, false
     );
     assert(amount_in == 1333333333333333333333333334, 'comp_swap sell/out/full in');
     assert(amount_out == 10000000000000000000000000000, 'comp_swap sell/out/full out');
@@ -194,7 +186,6 @@ fn test_compute_swap_amounts_sell_exact_output_filled_max() {
 #[test]
 #[available_gas(2000000000)]
 fn test_compute_swap_amounts_buy_exact_output_intermediate_insufficient_liquidity() {
-    let width = 1;
     let curr_sqrt_price = 2560000000000000000000000000000;
     let target_sqrt_price = 2816000000000000000000000000000;
     let liquidity = 1024;
@@ -202,7 +193,7 @@ fn test_compute_swap_amounts_buy_exact_output_intermediate_insufficient_liquidit
     let fee_rate = 30; // 0.3%
 
     let (amount_in, amount_out, fees, next_sqrt_price) = compute_swap_amounts(
-        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, false, width
+        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, false
     );
 
     assert(amount_in == 26215, 'comp_swap buy/out/iil in');
@@ -214,7 +205,6 @@ fn test_compute_swap_amounts_buy_exact_output_intermediate_insufficient_liquidit
 #[test]
 #[available_gas(2000000000)]
 fn test_compute_swap_amounts_sell_exact_output_intermediate_insufficient_liquidity() {
-    let width = 1;
     let curr_sqrt_price = 2560000000000000000000000000000;
     let target_sqrt_price = 2304000000000000000000000000000;
     let liquidity = 1024;
@@ -222,7 +212,7 @@ fn test_compute_swap_amounts_sell_exact_output_intermediate_insufficient_liquidi
     let fee_rate = 30; // 0.3%
 
     let (amount_in, amount_out, fees, next_sqrt_price) = compute_swap_amounts(
-        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, false, width
+        curr_sqrt_price, target_sqrt_price, liquidity, amount_rem, fee_rate, false
     );
 
     assert(amount_in == 1, 'comp_swap sell/out/iil in');
