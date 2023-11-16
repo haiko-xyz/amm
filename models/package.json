@@ -1,15 +1,11 @@
 {
   "name": "models",
   "module": "index.ts",
-  "type": "module",
   "devDependencies": {
     "bun-types": "latest"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
-  "dependencies": {
-    "@types/seedrandom": "^3.0.8",
-    "seedrandom": "^3.0.5"
-  }
+  "type": "module"
 }
