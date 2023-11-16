@@ -1,4 +1,5 @@
 // Core lib imports.
+use cmp::{min, max};
 use core::traits::TryInto;
 use traits::Into;
 use option::OptionTrait;
@@ -20,6 +21,8 @@ use amm::libraries::math::{liquidity_math, price_math, fee_math, math};
 use amm::libraries::constants::{ONE, MAX_UNSCALED, MAX, HALF, MAX_NUM_LIMITS};
 use amm::types::i256::{I256Trait, i256, I256Zeroable};
 use amm::interfaces::IMarketManager::IMarketManager;
+
+use debug::PrintTrait;
 
 ////////////////////////////////
 // FUNCTIONS
@@ -83,15 +86,13 @@ fn update_liquidity(
         market_state.base_fee_factor,
         market_state.quote_fee_factor,
     );
-    // Asserts added here for debugging u256 overflow issues - can likely remove later.
-    assert(base_fee_factor >= position.base_fee_factor_last, 'UpdateLiqBaseFees');
-    let base_fees = math::mul_div(
-        (base_fee_factor - position.base_fee_factor_last), position.liquidity, ONE, false
-    );
-    assert(quote_fee_factor >= position.quote_fee_factor_last, 'UpdateLiqQuoteFees');
-    let quote_fees = math::mul_div(
-        (quote_fee_factor - position.quote_fee_factor_last), position.liquidity, ONE, false
-    );
+    
+    let base_fee_factor_diff = max(base_fee_factor, position.base_fee_factor_last)
+        - min(base_fee_factor, position.base_fee_factor_last);
+    let quote_fee_factor_diff = max(quote_fee_factor, position.quote_fee_factor_last)
+        - min(quote_fee_factor, position.quote_fee_factor_last);
+    let base_fees = math::mul_div(base_fee_factor_diff, position.liquidity, ONE, false);
+    let quote_fees = math::mul_div(quote_fee_factor_diff, position.liquidity, ONE, false);
 
     // Update liquidity position.
     if liquidity_delta.sign {
@@ -179,7 +180,6 @@ fn update_limit(
     if (liquidity_before == 0) != (limit_info.liquidity == 0) {
         tree::flip(ref self, market_id, width, limit);
     }
-
     // When liquidity at limit is first initialised, fee factor is set to either 0 or global fees:
     //   * Case 1: limit <= curr_limit -> fee factor = market fee factor
     //   * Case 2: limit > curr_limit -> fee factor = 0
@@ -187,6 +187,17 @@ fn update_limit(
         limit_info.base_fee_factor = *market_state.base_fee_factor;
         limit_info.quote_fee_factor = *market_state.quote_fee_factor;
     }
+    // if liquidity_before == 0 {
+    //     if limit <= *market_state.curr_limit {
+    //         'reached 1'.print();
+    //         limit_info.base_fee_factor = *market_state.base_fee_factor;
+    //         limit_info.quote_fee_factor = *market_state.quote_fee_factor;
+    //     } else {
+    //         'reached 2'.print();
+    //         limit_info.base_fee_factor = 0;
+    //         limit_info.quote_fee_factor = 0;
+    //     }
+    // }
 
     // Return limit info
     limit_info
