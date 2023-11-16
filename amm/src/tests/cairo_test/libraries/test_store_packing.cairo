@@ -101,7 +101,6 @@ fn test_store_packing_limit_info() {
         liquidity_delta: I256Trait::new(888887777777777666, true),
         quote_fee_factor: 7123981237891236712313,
         base_fee_factor: 3650171973094710571238267576572937,
-        initialised: true,
         nonce: 500,
     };
 
@@ -114,7 +113,6 @@ fn test_store_packing_limit_info() {
         unpacked.quote_fee_factor == limit_info.quote_fee_factor, 'Limit info: quote fee factor'
     );
     assert(unpacked.base_fee_factor == limit_info.base_fee_factor, 'Limit info: base fee factor');
-    assert(unpacked.initialised == limit_info.initialised, 'Limit info: initialised');
     assert(unpacked.nonce == limit_info.nonce, 'Limit info: nonce');
 }
 

@@ -333,61 +333,73 @@ const testPartiallyFilledAskCorrectlyUnfills = () => {
 const testLimitOrdersMiscActions = () => {
   Decimal.set({ precision: PRECISION, rounding: ROUNDING })
 
+  // Define sqrt prices.
+  const sqrtPriceN1000 = limitToSqrtPrice(OFFSET - 1000, 1)
+  const sqrtPriceN999 = limitToSqrtPrice(OFFSET - 999, 1)
+  const sqrtPriceN900 = limitToSqrtPrice(OFFSET - 900, 1)
+  const sqrtPriceN899 = limitToSqrtPrice(OFFSET - 899, 1)
+  const sqrtPrice900 = limitToSqrtPrice(OFFSET + 900, 1)
+  const sqrtPrice901 = limitToSqrtPrice(OFFSET + 901, 1)
+  const sqrtPrice1000 = limitToSqrtPrice(OFFSET + 1000, 1)
+  const sqrtPrice1001 = limitToSqrtPrice(OFFSET + 1001, 1)
+
   // Swap 1: sell to fill both bid orders at -900 and partially fill one at -1000.
   // Swap leg 1a: swap from -900 to -899
   const {
     amountIn: amountIn1a,
     amountOut: amountOut1a,
     fee: fee1a,
-  } = computeSwapAmount(
-    limitToSqrtPrice(OFFSET - 899, 1),
-    limitToSqrtPrice(OFFSET - 900, 1),
-    "150000",
-    "1",
-    0.003,
-    true
-  )
+  } = computeSwapAmount(sqrtPriceN899, sqrtPriceN900, "150000", "1", 0.003, true)
   const grossAmountIn1a = new Decimal(amountIn1a).add(fee1a)
   const protocolFee1a = calcFee(fee1a, 0.002)
   const grossAmountInLessPFee1a = grossAmountIn1a.sub(protocolFee1a)
 
   // Swap leg 1b: swap from -999 to -1000
-  const netAmount = new Decimal(1).sub(grossAmountIn1a).mul(1 - 0.003)
-  const nextSqrtPrice1b = nextSqrtPriceAmountIn(limitToSqrtPrice(OFFSET - 999, 1), "200000", netAmount, false)
-
+  const netAmount1b = new Decimal(1).sub(grossAmountIn1a).mul(1 - 0.003)
+  const nextSqrtPrice1b = nextSqrtPriceAmountIn(limitToSqrtPrice(OFFSET - 999, 1), "200000", netAmount1b, false)
   const {
     amountIn: amountIn1b,
     amountOut: amountOut1b,
     fee: fee1b,
-  } = computeSwapAmount(
-    limitToSqrtPrice(OFFSET - 999, 1),
-    nextSqrtPrice1b,
-    "200000",
-    new Decimal(1).sub(grossAmountIn1a),
-    0.003,
-    true
-  )
-
-  console.log({ amountIn1b, amountOut1b, fee1b })
-
+  } = computeSwapAmount(sqrtPriceN999, nextSqrtPrice1b, "200000", new Decimal(1).sub(grossAmountIn1a), 0.003, true)
   const protocolFee1b = calcFee(fee1b, 0.002)
   const grossAmountIn1b = new Decimal(amountIn1b).add(fee1b)
   const grossAmountInLessPFee1b = grossAmountIn1b.sub(protocolFee1b)
 
+  // Calculate aggregate swap 1 amounts.
   const grossAmountIn1 = new Decimal(grossAmountIn1a).add(grossAmountIn1b)
   const amountOut1 = new Decimal(amountOut1a).add(amountOut1b)
   const fee1 = new Decimal(fee1a).add(fee1b)
+
   const baseFeeFactor = new Decimal(fee1a)
     .sub(protocolFee1a)
     .div(150000)
     .add(new Decimal(fee1b).sub(protocolFee1b).div(200000))
+  const baseFeeFactorN900 = new Decimal(fee1a).sub(protocolFee1a).div(150000)
+  const baseFeeFactorN1000 = new Decimal(fee1b).sub(protocolFee1b).div(200000)
+  console.log({
+    baseFeeFactorN900: baseFeeFactorN900.mul(1e28).toFixed(0, 1),
+    baseFeeFactorN1000: baseFeeFactorN1000.mul(1e28).toFixed(0, 1),
+  })
+  const batchNeg1000Quote = liquidityToQuote(sqrtPriceN1000, sqrtPriceN999, "200000").sub(amountOut1b)
 
-  const batchNeg1000Quote = liquidityToQuote(
-    limitToSqrtPrice(OFFSET - 1000, 1),
-    limitToSqrtPrice(OFFSET - 999, 1),
-    "200000"
-  ).sub(amountOut1b)
+  // Calculate reserves and LP balances
+  const bidAliceN900QuoteAmt = liquidityToQuote(sqrtPriceN900, sqrtPriceN899, "50000")
+  const bidBobN900QuoteAmt = liquidityToQuote(sqrtPriceN900, sqrtPriceN899, "100000")
+  const bidAliceN1000QuoteAmt = liquidityToQuote(sqrtPriceN1000, sqrtPriceN999, "200000")
+  const askAlice900BaseAmt = liquidityToBase(sqrtPrice900, sqrtPrice901, "150000")
+  const askBob900BaseAmt = liquidityToBase(sqrtPrice900, sqrtPrice901, "100000")
+  const askAlice1000BaseAmt = liquidityToBase(sqrtPrice1000, sqrtPrice1001, "200000")
+  const baseReserves = askAlice900BaseAmt
+    .add(askBob900BaseAmt)
+    .add(askAlice1000BaseAmt)
+    .add(new Decimal(grossAmountInLessPFee1a).mul(2).div(3))
+    .add(protocolFee1b)
+    .add(protocolFee1a)
+    .add(new Decimal(grossAmountInLessPFee1b))
+  const aliceQuoteSpent = bidAliceN900QuoteAmt.add(bidAliceN1000QuoteAmt)
 
+  console.log("Swap 1: Sell")
   console.log({
     amountIn: new Decimal(grossAmountIn1).mul(1e28).toFixed(0, 1),
     amountOut: new Decimal(amountOut1).mul(1e28).toFixed(0, 1),
@@ -398,6 +410,65 @@ const testLimitOrdersMiscActions = () => {
     batchNeg900Base: grossAmountInLessPFee1a.mul(1e28).mul(2).div(3).toFixed(0, 1),
     batchNeg1000Quote: batchNeg1000Quote.mul(1e28).toFixed(0, 1),
     batchNeg1000Base: grossAmountInLessPFee1b.mul(1e28).toFixed(0, 1),
+    baseReseves: baseReserves.mul(1e28).toFixed(0, 1),
+    quoteReseves: batchNeg1000Quote.mul(1e28).toFixed(0, 1),
+    aliceQuoteSpent: aliceQuoteSpent.mul(1e28).toFixed(0, 1),
+    bobQuoteSpent: bidBobN900QuoteAmt.mul(1e28).toFixed(0, 1),
+  })
+
+  // Swap 2: Buy to unfill last bid order and partially fill 2 ask orders.
+  // Swap leg 2a: unfill swap back to -999
+  const {
+    amountIn: amountIn2a,
+    amountOut: amountOut2a,
+    fee: fee2a,
+  } = computeSwapAmount(nextSqrtPrice1b, sqrtPriceN999, "200000", 1, 0.003, true)
+  const protocolFee2a = calcFee(fee2a, 0.002)
+  const grossAmountIn2a = new Decimal(amountIn2a).add(fee2a)
+  const grossAmountInLessPFee2a = grossAmountIn2a.sub(protocolFee2a)
+
+  // Swap leg 2b: partially fill 2 ask orders at 900
+  const netAmount2a = new Decimal(1).sub(grossAmountIn2a).mul(1 - 0.003)
+  const nextSqrtPrice2b = nextSqrtPriceAmountIn(sqrtPrice900, "250000", netAmount2a, true)
+  const {
+    amountIn: amountIn2b,
+    amountOut: amountOut2b,
+    fee: fee2b,
+  } = computeSwapAmount(sqrtPrice900, nextSqrtPrice2b, "250000", new Decimal(1).sub(grossAmountIn2a), 0.003, true)
+  const protocolFee2b = calcFee(fee2b, 0.002)
+  const grossAmountIn2b = new Decimal(amountIn2b).add(fee2b)
+  const grossAmountInLessPFee2b = grossAmountIn2b.sub(protocolFee2b)
+
+  // Calculate aggregate swap 2 amounts.
+  const grossAmountIn2 = new Decimal(grossAmountIn2a).add(grossAmountIn2b)
+  const amountOut2 = new Decimal(amountOut2a).add(amountOut2b)
+  const fee2 = new Decimal(fee2a).add(fee2b)
+
+  const askBob1000BaseAmt = liquidityToBase(sqrtPrice1000, sqrtPrice1001, "200000")
+  const quoteFeeFactor = new Decimal(fee2a)
+    .sub(protocolFee2a)
+    .div(200000)
+    .add(new Decimal(fee2b).sub(protocolFee2b).div(250000))
+  const quoteFeeFactorN899 = new Decimal(fee2a).sub(protocolFee2a).div(200000)
+  const quoteFeeFactorN999 = new Decimal(fee2b).sub(protocolFee2b).div(250000)
+  console.log({
+    quoteFeeFactorN899: quoteFeeFactorN899.mul(1e28).toFixed(0, 1),
+    quoteFeeFactorN999: quoteFeeFactorN999.mul(1e28).toFixed(0, 1),
+  })
+
+  console.log("Swap 2: Buy")
+  console.log({
+    amountIn: new Decimal(grossAmountIn2).mul(1e28).toFixed(0, 1),
+    amountOut: new Decimal(amountOut2).mul(1e28).toFixed(0, 1),
+    fee: new Decimal(fee2).mul(1e28).toFixed(0, 1),
+    bobCollect900BaseAmt: askBob900BaseAmt.sub(new Decimal(amountOut2b).mul(2).div(5)).mul(1e28).toFixed(0, 1),
+    bobCollect900QuoteAmt: grossAmountInLessPFee2b.mul(2).div(5).mul(1e28).toFixed(0, 1),
+    askBob1000BaseAmt: askBob1000BaseAmt.mul(1e28).toFixed(0, 1),
+    nextSqrtPrice2b: nextSqrtPrice2b.mul(1e28).toFixed(0, 1),
+    baseFeeFactor: baseFeeFactor.mul(1e28).toFixed(0, 1),
+    quoteFeeFactor: quoteFeeFactor.mul(1e28).toFixed(0, 1),
+    batch900BaseAmt: askAlice900BaseAmt.sub(new Decimal(amountOut2b).mul(3).div(5)).mul(1e28).toFixed(0, 1),
+    batch1000QuoteAmt: grossAmountInLessPFee2b.mul(3).div(5).mul(1e28).toFixed(0, 1),
   })
 }
 

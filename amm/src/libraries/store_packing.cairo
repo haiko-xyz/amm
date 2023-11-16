@@ -22,7 +22,6 @@ const TWO_POW_13: felt252 = 0x2000;
 const TWO_POW_14: felt252 = 0x4000;
 const TWO_POW_16: felt252 = 0x10000;
 const TWO_POW_17: felt252 = 0x20000;
-const TWO_POW_18: felt252 = 0x40000;
 const TWO_POW_32: felt252 = 0x100000000;
 const TWO_POW_44: felt252 = 0x100000000000;
 const TWO_POW_48: felt252 = 0x1000000000000;
@@ -136,8 +135,7 @@ impl LimitInfoStorePacking of StorePacking<LimitInfo, PackedLimitInfo> {
         slab4 += (value.base_fee_factor % TWO_POW_4.into()) * TWO_POW_8.into();
         slab4 += (value.quote_fee_factor % TWO_POW_4.into()) * TWO_POW_12.into();
         slab4 += bool_to_u256(value.liquidity_delta.sign) * TWO_POW_16.into();
-        slab4 += bool_to_u256(value.initialised) * TWO_POW_17.into();
-        slab4 += value.nonce.into() * TWO_POW_18.into();
+        slab4 += value.nonce.into() * TWO_POW_17.into();
 
         PackedLimitInfo { slab0, slab1, slab2, slab3, slab4: slab4.try_into().unwrap(), }
     }
@@ -152,15 +150,13 @@ impl LimitInfoStorePacking of StorePacking<LimitInfo, PackedLimitInfo> {
         let quote_fee_factor: u256 = value.slab3.into() * TWO_POW_4.into()
             + ((value.slab4.into() / TWO_POW_12.into()) & MASK_4.into());
         let sign: bool = ((value.slab4.into() / TWO_POW_16.into()) & MASK_1) == 1;
-        let initialised: bool = ((value.slab4.into() / TWO_POW_17.into()) & MASK_1) == 1;
-        let nonce: u128 = ((value.slab4.into() / TWO_POW_18.into()) & MASK_128).try_into().unwrap();
+        let nonce: u128 = ((value.slab4.into() / TWO_POW_17.into()) & MASK_128).try_into().unwrap();
 
         LimitInfo {
             liquidity,
             liquidity_delta: I256Trait::new(abs_liquidity_delta, sign),
             base_fee_factor,
             quote_fee_factor,
-            initialised,
             nonce,
         }
     }

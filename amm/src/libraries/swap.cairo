@@ -113,10 +113,11 @@ fn swap_iter(
     swap_fees += fee_iter - protocol_fee_iter;
 
     // Update fee factor.
-    if market_state.liquidity != 0 {
+    if market_state.liquidity != 0 && fee_iter != 0 {
         let fee_factor = math::mul_div(
             fee_iter - protocol_fee_iter, ONE, market_state.liquidity, false
         );
+        assert(fee_factor != 0, 'FeeFactorUnderflow');
         if is_buy {
             market_state.quote_fee_factor += fee_factor;
         } else {
