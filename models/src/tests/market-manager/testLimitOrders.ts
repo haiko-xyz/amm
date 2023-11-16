@@ -1,29 +1,19 @@
 import Decimal from "decimal.js"
 import { OFFSET } from "../../constants"
-import { MarketManager } from "../../contracts/marketManager"
 import { computeSwapAmount, nextSqrtPriceAmountIn } from "../../libraries/swap"
 import { limitToSqrtPrice } from "../../math/priceMath"
 import { calcFee, netToGross } from "../../math/feeMath"
 import { PRECISION, ROUNDING } from "../../config"
-import { liquidityToBase, liquidityToQuote } from "../../math/liquidityMath"
-
-const before = () => {
-  const width = 1
-  const currLimit = OFFSET - 0
-  const swapFeeRate = 0.003
-  const protocolShare = 0.002
-  const marketManager = new MarketManager(width, currLimit, swapFeeRate, protocolShare)
-  return marketManager
-}
+import { liquidityToAmounts, liquidityToBase, liquidityToQuote } from "../../math/liquidityMath"
 
 const testCreateMultipleBidOrders = () => {
-  const marketManager = before()
-
   // Create first limit order.
-  const { baseAmount: baseAmount1, quoteAmount: quoteAmount1 } = marketManager.modifyPosition(
-    OFFSET - 1000,
-    OFFSET - 999,
-    "1"
+  const { baseAmount: baseAmount1, quoteAmount: quoteAmount1 } = liquidityToAmounts(
+    "1",
+    limitToSqrtPrice(OFFSET - 0, 1),
+    limitToSqrtPrice(OFFSET - 1000, 1),
+    limitToSqrtPrice(OFFSET - 999, 1),
+    1
   )
   console.log({
     baseAmount: new Decimal(baseAmount1).mul(1e18).toFixed(0, 1),
@@ -31,24 +21,27 @@ const testCreateMultipleBidOrders = () => {
   })
 
   // Create second limit order.
-  const { baseAmount: baseAmount2, quoteAmount: quoteAmount2 } = marketManager.modifyPosition(
-    OFFSET - 1000,
-    OFFSET - 999,
-    "2"
+  const { baseAmount: baseAmount2, quoteAmount: quoteAmount2 } = liquidityToAmounts(
+    "2",
+    limitToSqrtPrice(OFFSET - 0, 1),
+    limitToSqrtPrice(OFFSET - 1000, 1),
+    limitToSqrtPrice(OFFSET - 999, 1),
+    1
   )
   console.log({
     baseAmount: new Decimal(baseAmount2).mul(1e28).toFixed(0, 1),
     quoteAmount: new Decimal(quoteAmount2).mul(1e28).toFixed(0, 1),
   })
 }
-const testCreateMultipleAskOrders = () => {
-  const marketManager = before()
 
+const testCreateMultipleAskOrders = () => {
   // Create first limit order.
-  const { baseAmount: baseAmount1, quoteAmount: quoteAmount1 } = marketManager.modifyPosition(
-    OFFSET + 1000,
-    OFFSET + 1001,
-    "1"
+  const { baseAmount: baseAmount1, quoteAmount: quoteAmount1 } = liquidityToAmounts(
+    "1",
+    limitToSqrtPrice(OFFSET - 0, 1),
+    limitToSqrtPrice(OFFSET + 1000, 1),
+    limitToSqrtPrice(OFFSET + 1001, 1),
+    1
   )
   console.log({
     baseAmount: new Decimal(baseAmount1).mul(1e28).toFixed(0, 1),
@@ -56,10 +49,12 @@ const testCreateMultipleAskOrders = () => {
   })
 
   // Create second limit order.
-  const { baseAmount: baseAmount2, quoteAmount: quoteAmount2 } = marketManager.modifyPosition(
-    OFFSET + 1000,
-    OFFSET + 1001,
-    "2"
+  const { baseAmount: baseAmount2, quoteAmount: quoteAmount2 } = liquidityToAmounts(
+    "2",
+    limitToSqrtPrice(OFFSET - 0, 1),
+    limitToSqrtPrice(OFFSET + 1000, 1),
+    limitToSqrtPrice(OFFSET + 1001, 1),
+    1
   )
   console.log({
     baseAmount: new Decimal(baseAmount2).mul(1e28).toFixed(0, 1),
@@ -472,8 +467,8 @@ const testLimitOrdersMiscActions = () => {
   })
 }
 
-// testCreateMultipleBidOrders()
-// testCreateMultipleAskOrders()
+testCreateMultipleBidOrders()
+testCreateMultipleAskOrders()
 // testSwapFullyFillsBidLimitOrders()
 // testSwapFullyFillsAskLimitOrders()
 // testCreateAndCollectUnfilledBidOrder()
@@ -484,4 +479,4 @@ const testLimitOrdersMiscActions = () => {
 // testCreateAndCollectPartiallyFilledAskOrder()
 // testPartiallyFilledBidCorrectlyUnfills()
 // testPartiallyFilledAskCorrectlyUnfills()
-testLimitOrdersMiscActions()
+// testLimitOrdersMiscActions()

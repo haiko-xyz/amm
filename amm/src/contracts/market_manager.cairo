@@ -431,11 +431,7 @@ mod MarketManager {
         // # Returns
         // * `liquidity` - equivalent liquidity
         fn amount_to_liquidity(
-            self: @ContractState,
-            market_id: felt252,
-            is_bid: bool,
-            limit: u32,
-            amount: u256,
+            self: @ContractState, market_id: felt252, is_bid: bool, limit: u32, amount: u256,
         ) -> u256 {
             let market_info = self.market_info.read(market_id);
             if is_bid {

@@ -83,11 +83,7 @@ trait IMarketManager<TContractState> {
     ) -> (u256, u256);
 
     fn amount_to_liquidity(
-        self: @TContractState,
-        market_id: felt252,
-        is_bid: bool,
-        limit: u32,
-        amount: u256,
+        self: @TContractState, market_id: felt252, is_bid: bool, limit: u32, amount: u256,
     ) -> u256;
 
     fn ERC721_position_info(self: @TContractState, token_id: felt252) -> PositionInfo;

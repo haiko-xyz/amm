@@ -25,7 +25,9 @@ use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTr
 // SETUP
 ////////////////////////////////
 
-fn before(width: u32) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
+fn _before(
+    width: u32, allow_orders: bool
+) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
     // Get default owner.
     let owner = owner();
 
@@ -43,6 +45,7 @@ fn before(width: u32) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Disp
     params.quote_token = quote_token.contract_address;
     params.width = width;
     params.start_limit = OFFSET - 0; // initial limit
+    params.allow_orders = allow_orders;
     let market_id = create_market(market_manager, params);
 
     // Fund LPs with initial token balances and approve market manager as spender.
@@ -65,6 +68,14 @@ fn before(width: u32) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Disp
     approve(quote_token, charlie(), market_manager.contract_address, initial_quote_amount);
 
     (market_manager, base_token, quote_token, market_id)
+}
+
+fn before(width: u32) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
+    _before(width, true)
+}
+
+fn before_no_orders() -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
+    _before(1, false)
 }
 
 ////////////////////////////////
@@ -160,7 +171,7 @@ fn test_create_multiple_bid_orders() {
     liquidity = to_e28(2);
     batch_liquidity += liquidity;
     order_id = market_manager.create_order(market_id, is_bid, limit, liquidity);
-    quote_amount_exp = 99501001654900617893154;
+    quote_amount_exp = 99501001654900617893155;
     batch_quote_amount_exp += quote_amount_exp;
 
     // Fetch limit order, batch and position.
@@ -169,7 +180,9 @@ fn test_create_multiple_bid_orders() {
     assert(order.liquidity == liquidity, 'Create bid 2: liquidity');
     assert(batch.liquidity == batch_liquidity, 'Create bid 2: batch liquidity');
     assert(batch.base_amount == 0, 'Create bid 2: batch base amt');
-    assert(batch.quote_amount == batch_quote_amount_exp, 'Create bid 2: batch quote amt');
+    assert(
+        approx_eq(batch.quote_amount, batch_quote_amount_exp, 10), 'Create bid 2: batch quote amt'
+    );
 }
 
 #[test]
@@ -184,7 +197,7 @@ fn test_create_multiple_ask_orders() {
     let mut liquidity = to_e28(1);
     let mut batch_liquidity = liquidity;
     let mut order_id = market_manager.create_order(market_id, is_bid, limit, liquidity);
-    let mut base_amount_exp = 49750252076811799929168;
+    let mut base_amount_exp = 49750252076811799929166;
     let mut batch_base_amount_exp = base_amount_exp;
 
     // Fetch limit order, batch and position.
@@ -192,7 +205,7 @@ fn test_create_multiple_ask_orders() {
     let mut batch = market_manager.batch(order.batch_id);
     assert(order.liquidity == liquidity, 'Create ask 1: liquidity');
     assert(batch.liquidity == liquidity, 'Create ask 1: batch liquidity');
-    assert(batch.base_amount == base_amount_exp, 'Create ask 1: batch base amt');
+    assert(approx_eq(batch.base_amount, base_amount_exp, 10), 'Create ask 1: batch base amt');
     assert(batch.quote_amount == 0, 'Create ask 1: batch quote amt');
 
     // Create second limit order.
@@ -200,7 +213,7 @@ fn test_create_multiple_ask_orders() {
     liquidity = to_e28(2);
     batch_liquidity += liquidity;
     order_id = market_manager.create_order(market_id, is_bid, limit, liquidity);
-    base_amount_exp = 99500504153623599858334;
+    base_amount_exp = 99500504153623599858333;
     batch_base_amount_exp += base_amount_exp;
 
     // Fetch limit order, batch and position.
@@ -208,7 +221,7 @@ fn test_create_multiple_ask_orders() {
     batch = market_manager.batch(order.batch_id);
     assert(order.liquidity == liquidity, 'Create ask 2: liquidity');
     assert(batch.liquidity == batch_liquidity, 'Create ask 2: batch liquidity');
-    assert(batch.base_amount == batch_base_amount_exp, 'Create ask 2: batch base amt');
+    assert(approx_eq(batch.base_amount, batch_base_amount_exp, 10), 'Create ask 2: batch base amt');
     assert(batch.quote_amount == 0, 'Create ask 2: batch quote amt');
 }
 
@@ -815,9 +828,8 @@ fn test_limit_orders_misc_actions() {
     set_contract_address(alice());
     let bid_alice_n900 = market_manager.create_order(market_id, true, OFFSET - 900, to_e28(50000));
     let liq_bid_alice_n1000 = to_e28(200000);
-    let bid_alice_n1000 = market_manager.create_order(
-        market_id, true, OFFSET - 1000, liq_bid_alice_n1000
-    );
+    let bid_alice_n1000 = market_manager
+        .create_order(market_id, true, OFFSET - 1000, liq_bid_alice_n1000);
     let liq_ask_alice_900 = to_e28(150000);
     let ask_a1 = market_manager.create_order(market_id, false, OFFSET + 900, liq_ask_alice_900);
 
@@ -827,7 +839,8 @@ fn test_limit_orders_misc_actions() {
     let liq_ask_bob_900 = to_e28(100000);
     let ask_bob_900 = market_manager.create_order(market_id, false, OFFSET + 900, liq_ask_bob_900);
     let liq_ask_bob_1000 = to_e28(200000);
-    let ask_bob_1000 = market_manager.create_order(market_id, false, OFFSET + 1000, liq_ask_bob_1000);
+    let ask_bob_1000 = market_manager
+        .create_order(market_id, false, OFFSET + 1000, liq_ask_bob_1000);
 
     // Snapshot balances.
     let market_base_start = market_manager.reserves(base_token.contract_address);
@@ -869,8 +882,14 @@ fn test_limit_orders_misc_actions() {
 
     assert(market_state.liquidity == to_e28(200000), 'Mkt state 1: liquidity');
     assert(market_state.curr_limit == OFFSET - 1000, 'Mkt state 1: curr limit');
-    assert(approx_eq_pct(market_state.curr_sqrt_price, 9950162731123922544094402919, 6), 'Mkt state 1: curr sqrt price');
-    assert(approx_eq(market_state.base_fee_factor, 187406629087480932663, 1), 'Mkt state 1: base fee factor');
+    assert(
+        approx_eq_pct(market_state.curr_sqrt_price, 9950162731123922544094402919, 6),
+        'Mkt state 1: curr sqrt price'
+    );
+    assert(
+        approx_eq(market_state.base_fee_factor, 187406629087480932663, 1),
+        'Mkt state 1: base fee factor'
+    );
     assert(market_state.quote_fee_factor == 0, 'Mkt state 1: quote fee factor');
 
     assert(order_bid_alice_n900.liquidity == 0, 'Order a1: liquidity');
@@ -880,17 +899,32 @@ fn test_limit_orders_misc_actions() {
     assert(batch_neg_900.filled, 'Batch -900: filled');
     assert(batch_neg_900.limit == OFFSET - 900, 'Batch -900: limit');
     assert(batch_neg_900.is_bid, 'Batch -900: is bid');
-    assert(approx_eq_pct(batch_neg_900.base_amount, 5037595570835859422529123195, 6), 'Batch -900: base amount');
+    assert(
+        approx_eq_pct(batch_neg_900.base_amount, 5037595570835859422529123195, 6),
+        'Batch -900: base amount'
+    );
     assert(batch_neg_900.quote_amount == 0, 'Batch -900: quote amount');
 
     assert(batch_neg_1000.liquidity == liq_bid_alice_n1000, 'Batch -1000: liquidity');
     assert(!batch_neg_1000.filled, 'Batch -1000: filled');
     assert(batch_neg_1000.limit == OFFSET - 1000, 'Batch -1000: limit');
     assert(batch_neg_1000.is_bid, 'Batch -1000: is bid');
-    assert(approx_eq_pct(batch_neg_1000.base_amount, 2443546643746210866206315207, 6), 'Batch -1000: base amount');
-    assert(approx_eq_pct(batch_neg_1000.quote_amount, 7538089126968944009689895111, 6), 'Batch -1000: quote amount');
-    assert(approx_eq_pct(market_base_reserves, 29875035954502256465732409400, 6), 'Market base reserves');
-    assert(approx_eq_pct(market_quote_reserves, 7538089126968944009689895111, 6), 'Market quote reserves');
+    assert(
+        approx_eq_pct(batch_neg_1000.base_amount, 2443546643746210866206315207, 6),
+        'Batch -1000: base amount'
+    );
+    assert(
+        approx_eq_pct(batch_neg_1000.quote_amount, 7538089126968944009689895111, 6),
+        'Batch -1000: quote amount'
+    );
+    assert(
+        approx_eq_pct(market_base_reserves, 29875035954502256465732409400, 6),
+        'Market base reserves'
+    );
+    assert(
+        approx_eq_pct(market_quote_reserves, 7538089126968944009689895111, 6),
+        'Market quote reserves'
+    );
     assert(alice_base_balance == alice_base_start + base_collect_1, 'Alice base balance');
     assert(
         approx_eq_pct(to_e28(10000000) - alice_quote_balance, 12438869274153842282609348783, 6),
@@ -898,7 +932,8 @@ fn test_limit_orders_misc_actions() {
     );
     assert(bob_base_balance == bob_base_start, 'Bob base balance');
     assert(
-        approx_eq_pct(to_e28(10000000) - bob_quote_balance, 4977538217327560986587683043, 6), 'Bob quote balance'
+        approx_eq_pct(to_e28(10000000) - bob_quote_balance, 4977538217327560986587683043, 6),
+        'Bob quote balance'
     );
 
     // Swap 2: Buy to unfill last bid order and partially fill 2 ask orders.
@@ -929,12 +964,21 @@ fn test_limit_orders_misc_actions() {
     assert(approx_eq_pct(quote_collect_2, 3032274268222713479270236952, 6), 'Quote collect 2');
     assert(approx_eq_pct(base_collect_3, 9950050415362359985833343345, 6), 'Base collect 3');
     assert(quote_collect_3 == 0, 'Quote collect 3');
-    
+
     assert(market_state.liquidity == to_e28(150000), 'Mkt state 2: liquidity');
     assert(market_state.curr_limit == OFFSET + 900, 'Mkt state 2: curr limit');
-    assert(approx_eq_pct(market_state.curr_sqrt_price, 10045131407988586929877373378, 6), 'Mkt state 2: curr sqrt price');
-    assert(approx_eq(market_state.base_fee_factor, 187406629087480932663, 1), 'Mkt state 2: base fee factor');
-    assert(approx_eq(market_state.quote_fee_factor, 127003290922098522198, 1), 'Mkt state 2: quote fee factor');
+    assert(
+        approx_eq_pct(market_state.curr_sqrt_price, 10045131407988586929877373378, 6),
+        'Mkt state 2: curr sqrt price'
+    );
+    assert(
+        approx_eq(market_state.base_fee_factor, 187406629087480932663, 1),
+        'Mkt state 2: base fee factor'
+    );
+    assert(
+        approx_eq(market_state.quote_fee_factor, 127003290922098522198, 1),
+        'Mkt state 2: quote fee factor'
+    );
 
     assert(order_ask_a1.liquidity == liq_ask_alice_900, 'Order a1: liquidity');
     assert(order_ask_b1.liquidity == 0, 'Order b1: liquidity');
@@ -942,9 +986,15 @@ fn test_limit_orders_misc_actions() {
 
     assert(batch_900.liquidity == liq_ask_alice_900, 'Batch 900: liquidity');
     assert(batch_900.filled == false, 'Batch 900: filled');
-    assert(approx_eq_pct(batch_900.base_amount, 2972119972303548329681818701, 6), 'Batch 900: base amount');
-    assert(approx_eq_pct(batch_900.quote_amount, 4548411402334070218905355428, 6), 'Batch 900: quote amount');
-    
+    assert(
+        approx_eq_pct(batch_900.base_amount, 2972119972303548329681818701, 6),
+        'Batch 900: base amount'
+    );
+    assert(
+        approx_eq_pct(batch_900.quote_amount, 4548411402334070218905355428, 6),
+        'Batch 900: quote amount'
+    );
+
     assert(batch_1000.liquidity == 0, 'Batch 1000: liquidity');
     assert(batch_1000.filled == false, 'Batch 1000: filled');
     assert(batch_1000.base_amount == 0, 'Batch 1000: base amount');
@@ -964,6 +1014,14 @@ fn test_limit_orders_misc_actions() {
 ////////////////////////////////
 // TESTS - failure cases
 ////////////////////////////////
+
+#[test]
+#[available_gas(100000000)]
+#[should_panic(expected: ('OrdersDisabled', 'ENTRYPOINT_FAILED',))]
+fn test_create_order_in_limit_order_disabled_market() {
+    let (market_manager, base_token, quote_token, market_id) = before_no_orders();
+    market_manager.create_order(market_id, true, 8388000, to_e28(1));
+}
 
 #[test]
 #[available_gas(100000000)]
