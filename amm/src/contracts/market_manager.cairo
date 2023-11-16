@@ -401,7 +401,7 @@ mod MarketManager {
         // # Returns
         // * `base_amount` - amount of base tokens to transfer
         // * `quote_amount` - amount of quote tokens to transfer
-        fn modify_position_amounts(
+        fn liquidity_to_amounts(
             self: @ContractState,
             market_id: felt252,
             lower_limit: u32,
@@ -418,6 +418,39 @@ mod MarketManager {
                 market_info.width,
             );
             (base_amount.val, quote_amount.val)
+        }
+
+        // Convert desired token amount to liquidity.
+        //
+        // # Arguments
+        // * `market_id` - market id
+        // * `is_buy` - whether order is a bid or ask
+        // * `limit` - limit at which order is placed
+        // * `amount` - amount of tokens to convert
+        //
+        // # Returns
+        // * `liquidity` - equivalent liquidity
+        fn amount_to_liquidity(
+            self: @ContractState,
+            market_id: felt252,
+            is_bid: bool,
+            limit: u32,
+            amount: u256,
+        ) -> u256 {
+            let market_info = self.market_info.read(market_id);
+            if is_bid {
+                liquidity_math::quote_to_liquidity(
+                    price_math::limit_to_sqrt_price(limit, market_info.width),
+                    price_math::limit_to_sqrt_price(limit + market_info.width, market_info.width),
+                    amount,
+                )
+            } else {
+                liquidity_math::base_to_liquidity(
+                    price_math::limit_to_sqrt_price(limit, market_info.width),
+                    price_math::limit_to_sqrt_price(limit + market_info.width, market_info.width),
+                    amount,
+                )
+            }
         }
 
         // Information corresponding to ERC721 position token.
