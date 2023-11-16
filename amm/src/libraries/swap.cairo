@@ -311,7 +311,6 @@ fn compute_swap_amounts(
                 }
                     .val
             };
-            
     }
 
     // Calculate fees. 

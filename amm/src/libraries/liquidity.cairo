@@ -86,7 +86,7 @@ fn update_liquidity(
         market_state.base_fee_factor,
         market_state.quote_fee_factor,
     );
-    
+
     let base_fee_factor_diff = max(base_fee_factor, position.base_fee_factor_last)
         - min(base_fee_factor, position.base_fee_factor_last);
     let quote_fee_factor_diff = max(quote_fee_factor, position.quote_fee_factor_last)
