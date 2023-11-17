@@ -1,10 +1,10 @@
-# Missing tests
+# WIP
 
-This following tests are currently missing from the Sphinx test suite. They are WIP and will be completed prior to the audit.
+This following test cases are currently missing. They are WIP and we aim to complete them prior to audit. The to dos below will likely be completed in parallel with or following the audit.
 
 Existing tests
 
-- Swap / modify position operations: canonical results
+- Swap / modify position operations: canonical model results
 - Check existing tests for missing cases (fail cases, check vs Uni code base)
 - Add fuzzing and invariant tests
 - Add tests for event emission
