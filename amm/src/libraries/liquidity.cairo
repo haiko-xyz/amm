@@ -187,17 +187,6 @@ fn update_limit(
         limit_info.base_fee_factor = *market_state.base_fee_factor;
         limit_info.quote_fee_factor = *market_state.quote_fee_factor;
     }
-    // if liquidity_before == 0 {
-    //     if limit <= *market_state.curr_limit {
-    //         'reached 1'.print();
-    //         limit_info.base_fee_factor = *market_state.base_fee_factor;
-    //         limit_info.quote_fee_factor = *market_state.quote_fee_factor;
-    //     } else {
-    //         'reached 2'.print();
-    //         limit_info.base_fee_factor = 0;
-    //         limit_info.quote_fee_factor = 0;
-    //     }
-    // }
 
     // Return limit info
     limit_info
