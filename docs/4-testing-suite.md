@@ -17,6 +17,14 @@ When writing new test cases, it is recommended to use these libraries to ensure 
 - `params` ([`common`](../amm/src/tests/common/params.cairo)) contains default parameters for each function call as well as helper functions for compiling calldata
 - `utils` ([`common`](../amm/src/tests/common/utils.cairo)) contains utility functions for testing
 
+## Models
+
+Sphinx's execution logic is relatively complex. To help with testing, we rely on a set of [models](../models) to replicate the computations under each test case. The models produce a set of canonical results that can be compared to test outputs.
+
+The models are written in Typescript and run on `decimal.js`, a high precision math library. They are designed to be as simple as possible to minimise the risk of bugs, although of course they are not guaranteed to be bug free.
+
+Crucially, conceptual errors in the contracts will not be caught as they will make their way into both the contracts and the models. To mitigate this, we also write invariant tests to check for internal consistency in the contract logic itself.
+
 ## Running tests
 
 ### `cairo-test`
