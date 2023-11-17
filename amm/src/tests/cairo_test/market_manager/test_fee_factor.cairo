@@ -72,7 +72,8 @@ fn test_reinitialise_fee_factor() {
     // Create position
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let mut liquidity = I256Trait::new(100000000, false);
+    let liq_abs = 100000;
+    let mut liquidity = I256Trait::new(liq_abs, false);
     let mut params = modify_position_params(
         alice(), market_id, lower_limit, upper_limit, liquidity
     );
@@ -97,13 +98,13 @@ fn test_reinitialise_fee_factor() {
     print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
 
     // Remove position.
-    liquidity = I256Trait::new(100000000, true);
+    liquidity = I256Trait::new(liq_abs, true);
     params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
     print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
 
     // Adding liquidity to same limits should re-initialise fee factors.
-    liquidity = I256Trait::new(100000000, false);
+    liquidity = I256Trait::new(liq_abs, false);
     params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
     print_fee_factors(market_manager, market_id, lower_limit, upper_limit);

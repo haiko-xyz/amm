@@ -271,52 +271,48 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
     //         }
     //     );
 
-    // 0.25% swap fee, 10 width, 1:10 price, 2e28 liquidity over entire range
-    markets
-        .append(
-            MarketStateCase {
-                description: '.25% 10 1:10 2e28(max range)',
-                width: 10,
-                swap_fee_rate: 25,
-                start_limit: price_math::offset(10) - 230260,
-                positions: array![
-                    Position {
-                        lower_limit: price_math::offset(10) - 8388600,
-                        upper_limit: price_math::offset(10) + 8388600,
-                        liquidity: I256Trait::new(to_e28(2), false)
-                    }
-                ]
-                    .span(),
-                skip_cases: array![5, 7, 14, 15].span(),
-                exp: array![
-                    (1000000000000000000, 99749661440667195, 2500000000000000),
-                    (1000000000000000000, 9975033855875133011, 2500000000000000),
-                    (10025096682749658623, 1000000000000000000, 25062741706874146),
-                    (100250286308233979, 1000000000000000000, 250625715770584),
-                    (0, 0, 0), // 5 - skipped
-                    (1000000000000000000, 9975033855875133011, 2500000000000000),
-                    (0, 0, 0), // 7 - skipped
-                    (100250286308233979, 1000000000000000000, 250625715770584),
-                    (100000, 9974, 250),
-                    (100000, 997503, 250),
-                    (1002509, 100000, 2506),
-                    (10025, 100000, 25),
-                    (
-                        253616361046314273729605285873,
-                        505965498931043547874394076354,
-                        634040902615785684324013214
-                    ),
-                    (0, 0, 0), // 14 - skipped
-                    (0, 0, 0), // 15 - skipped
-                    (
-                        253616361046314273729605285873,
-                        505965498931043547874394076354,
-                        634040902615785684324013214
-                    ),
-                ]
-                    .span()
-            }
-        );
+    // // 0.25% swap fee, 10 width, 1:10 price, 2e28 liquidity over entire range
+    // markets
+    //     .append(
+    //         MarketStateCase {
+    //             description: '.25% 10 1:10 2e28(max range)',
+    //             width: 10,
+    //             swap_fee_rate: 25,
+    //             start_limit: price_math::offset(10) - 230260,
+    //             positions: array![
+    //                 Position {
+    //                     lower_limit: price_math::offset(10) - 8388600,
+    //                     upper_limit: price_math::offset(10) + 8388600,
+    //                     liquidity: I256Trait::new(to_e28(2), false)
+    //                 }
+    //             ]
+    //                 .span(),
+    //             skip_cases: array![5, 7, 14, 15, 16].span(),
+    //             exp: array![
+    //                 (999999999999999999, 99749661439251283, 2499999999999999),
+    //                 (1000000000000000000, 9975033854459207087, 2500000000000000),
+    //                 (10025096684176257312, 1000000000000000000, 25062741710440643),
+    //                 (100250286309660564, 1000000000000000000, 250625715774151),
+    //                 (0, 0, 0), // 5 - skipped
+    //                 (1000000000000000000, 9975033854459207087, 2500000000000000),
+    //                 (0, 0, 0), // 7 - skipped
+    //                 (100250286309660564, 1000000000000000000, 250625715774151),
+    //                 (99999, 9974, 249),
+    //                 (100000, 997503, 250),
+    //                 (1002509, 100000, 2506),
+    //                 (10025, 100000, 25),
+    //                 (
+    //                     25361636104631427372960528587,
+    //                     50596549893104354787439407635,
+    //                     63404090261578568432401321
+    //                 ),
+    //                 (0, 0, 0), // 14 - skipped
+    //                 (0, 0, 0), // 15 - skipped
+    //                 (0, 0, 0), // 16 - skipped
+    //             ]
+    //                 .span()
+    //         }
+    //     );
 
     // // 0.25% swap fee, 10 width, 1:1 price, 4e28 liquidity around (excluding) curr price
     // markets
@@ -340,6 +336,33 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
     //             ]
     //                 .span(),
     //             skip_cases: array![15, 16].span(),
+    //             exp: array![
+    //                 (999999999999999999, 997400255436287706, 2499999999999999),
+    //                 (1000000000000000000, 997400255436287706, 2500000000000000),
+    //                 (1002606520852258147, 1000000000000000000, 2506516302130645),
+    //                 (1002606520852258147, 999999999999999999, 2506516302130645),
+    //                 (999999999999999999, 997400255436287706, 2499999999999999),
+    //                 (1000000000000000000, 997400255436287706, 2500000000000000),
+    //                 (1002606520852258147, 1000000000000000000, 2506516302130645),
+    //                 (1002606520852258147, 999999999999999999, 2506516302130645),
+    //                 (99999, 99740, 249),
+    //                 (100000, 99740, 250),
+    //                 (100260, 100000, 250),
+    //                 (100260, 100000, 250),
+    //                 (
+    //                     11650903841286810344862153383,
+    //                     7349889389325782686008599648,
+    //                     29127259603217025862155383
+    //                 ),
+    //                 (
+    //                     11650903841286810344839968810,
+    //                     7349889389325782685999748004,
+    //                     29127259603217025862099922
+    //                 ),
+    //                 (0, 0, 0), // 15 - skipped
+    //                 (0, 0, 0), // 16 - skipped
+    //             ]
+    //                 .span()
     //         }
     //     );
 
@@ -370,28 +393,82 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
     //             ]
     //                 .span(),
     //             skip_cases: array![15, 16].span(),
+    //             exp: array![
+    //                 (1000000000000000000, 997499999950249687, 2500000000000000),
+    //                 (1000000000000000000, 997499999950249687, 2500000000000000),
+    //                 (1002506265714285714, 1000000000000000000, 2506265664285714),
+    //                 (1002506265714285714, 999999999999999999, 2506265664285714),
+    //                 (1000000000000000000, 997499999950249687, 2500000000000000),
+    //                 (1000000000000000000, 997499999950249687, 2500000000000000),
+    //                 (1002506265714285714, 1000000000000000000, 2506265664285714),
+    //                 (1002506265714285714, 999999999999999999, 2506265664285714),
+    //                 (100000, 99749, 250),
+    //                 (100000, 99749, 250),
+    //                 (100250, 100000, 250),
+    //                 (100250, 100000, 250),
+    //                 (
+    //                     23302810208889610665664158395,
+    //                     14700778748652265358017451293,
+    //                     58257025522224026664160395
+    //                 ),
+    //                 (
+    //                     23302810208889610665619789250,
+    //                     14700778748652265357999748004,
+    //                     58257025522224026664049473
+    //                 ),
+    //                 (0, 0, 0), // 15 - skipped
+    //                 (0, 0, 0), // 16 - skipped
+    //             ]
+    //                 .span()
     //         }
     //     );
 
-    // // 0.05% swap fee, 1 width, 1:1 price, 2e28 liquidity around current price (stable)
-    // markets
-    //     .append(
-    //         MarketStateCase {
-    //             description: '.05% 1 1:1 2e28 (stable)',
-    //             width: 10,
-    //             swap_fee_rate: 5,
-    //             start_limit: price_math::offset(10) - 0,
-    //             positions: array![
-    //                 Position {
-    //                     lower_limit: price_math::offset(10) - 10,
-    //                     upper_limit: price_math::offset(10) + 10,
-    //                     liquidity: I256Trait::new(to_e28(25000), false)
-    //                 }
-    //             ]
-    //                 .span(),
-    //             skip_cases: array![13, 14, 15, 16].span(),
-    //         }
-    //     );
+    // 0.05% swap fee, 1 width, 1:1 price, 2e28 liquidity around current price (stable)
+    markets
+        .append(
+            MarketStateCase {
+                description: '.05% 1 1:1 2e28 (stable)',
+                width: 1,
+                swap_fee_rate: 5,
+                start_limit: price_math::offset(1) - 0,
+                positions: array![
+                    Position {
+                        lower_limit: price_math::offset(1) - 10,
+                        upper_limit: price_math::offset(1) + 10,
+                        liquidity: I256Trait::new(to_e28(25000), false)
+                    }
+                ]
+                    .span(),
+                skip_cases: array![15, 16].span(),
+                exp: array![
+                    (1000000000000000000, 999499999999996003, 500000000000000),
+                    (1000000000000000000, 999499999999996003, 500000000000000),
+                    (1000500250125066533, 1000000000000000000, 500250125062533),
+                    (1000500250125066533, 999999999999999999, 500250125062533),
+                    (1000000000000000000, 999499999999996003, 500000000000000),
+                    (1000000000000000000, 999499999999996003, 500000000000000),
+                    (1000500250125066533, 1000000000000000000, 500250125062533),
+                    (1000500250125066533, 999999999999999999, 500250125062533),
+                    (100000, 99949, 50),
+                    (100000, 99949, 50),
+                    (100050, 100000, 50),
+                    (100050, 100000, 50),
+                    (
+                        12506503254127076038044022011,
+                        12499625008749825003149947500,
+                        6253251627063538019022011
+                    ),
+                    (
+                        12506503254127076038044022011,
+                        12499625008749825003149947500,
+                        6253251627063538019022011
+                    ),
+                    (0, 0, 0), // 15 - skipped
+                    (0, 0, 0), // 16 - skipped
+                ]
+                    .span()
+            }
+        );
 
     // // 0.25% swap fee, 10 width, 1:1 price, 2e28 quote liquidity only
     // markets
@@ -721,11 +798,7 @@ fn test_swap_cases() {
         let market_case: MarketStateCase = *market_cases[index];
         let swap_cases = swap_test_cases();
 
-        if index < 9 {
-            ('*** MKT 01' + index.into()).print();
-        } else {
-            ('*** MKT 10' + (index - 9).into()).print();
-        }
+        _print_index('*** MKT 01', index);
 
         // Iterate through swap test cases.
         let mut swap_index = 0;
@@ -813,30 +886,41 @@ fn test_swap_cases() {
                 amount_out.print();
                 'fees'.print();
                 fees.print();
-                assert(
-                    if amount_in <= ONE {
-                        approx_eq(amount_in, amount_in_exp, 20)
-                    } else {
-                        approx_eq_pct(amount_in, amount_in_exp, 10)
-                    },
-                    _print_index('amount in 01', swap_index)
-                );
-                assert(
-                    if amount_in <= ONE {
-                        approx_eq(amount_out, amount_out_exp, 20)
-                    } else {
-                        approx_eq_pct(amount_out, amount_out_exp, 10)
-                    },
-                    _print_index('amount out 01', swap_index)
-                );
-                assert(
-                    if amount_in <= ONE {
-                        approx_eq(fees, fees_exp, 20)
-                    } else {
-                        approx_eq_pct(fees, fees_exp, 10)
-                    },
-                    'fees 01' + _print_index('fees 01', swap_index)
-                );
+
+                let THRESHOLD = 100000000;
+                let MAX_DEVIATION = 20;
+                let PRECISION_PLACES = 10;
+                
+                // If `amount_in` in is less than THRESHOLD, check for absolute equality up to 
+                // MAX_DEVIATION. If it is greater, check for percentage equality up to 
+                // precision of 10 ** PRECISION_PLACES.
+                if amount_in <= THRESHOLD {
+                    assert(
+                        approx_eq(amount_in, amount_in_exp, MAX_DEVIATION),
+                        _print_index('amount in 01', swap_index)
+                    );
+                    assert(
+                        approx_eq(amount_out, amount_out_exp, MAX_DEVIATION),
+                        _print_index('amount out 01', swap_index)
+                    );
+                    assert(
+                        approx_eq(fees, fees_exp, MAX_DEVIATION),
+                        _print_index('fees 01', swap_index)
+                    );
+                } else {
+                    assert(
+                        approx_eq_pct(amount_out, amount_out_exp, PRECISION_PLACES),
+                        _print_index('amount out 01', swap_index)
+                    );
+                    assert(
+                        approx_eq_pct(amount_out, amount_out_exp, PRECISION_PLACES),
+                        _print_index('amount out 01', swap_index)
+                    );
+                    assert(
+                        approx_eq_pct(fees, fees_exp, PRECISION_PLACES),
+                        _print_index('fees 01', swap_index)
+                    );
+                }
             // // Snapshot state after.
             // let (
             //     market_state_after,

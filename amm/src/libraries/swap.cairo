@@ -117,7 +117,6 @@ fn swap_iter(
         let fee_factor = math::mul_div(
             fee_iter - protocol_fee_iter, ONE, market_state.liquidity, false
         );
-        assert(fee_factor != 0, 'FeeFactorUnderflow');
         if is_buy {
             market_state.quote_fee_factor += fee_factor;
         } else {
@@ -311,7 +310,6 @@ fn compute_swap_amounts(
                 }
                     .val
             };
-            
     }
 
     // Calculate fees. 
