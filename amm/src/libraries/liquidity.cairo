@@ -22,8 +22,6 @@ use amm::libraries::constants::{ONE, MAX_UNSCALED, MAX, HALF, MAX_NUM_LIMITS};
 use amm::types::i256::{I256Trait, i256, I256Zeroable};
 use amm::interfaces::IMarketManager::IMarketManager;
 
-use debug::PrintTrait;
-
 ////////////////////////////////
 // FUNCTIONS
 ////////////////////////////////
