@@ -45,7 +45,7 @@ export const computeSwapAmount = (
   exactInput: boolean
 ) => {
   Decimal.set({ precision: PRECISION, rounding: ROUNDING })
-  const isBuy = targetSqrtPrice > currSqrtPrice
+  const isBuy = new Decimal(targetSqrtPrice).gt(currSqrtPrice)
   let amountIn: Decimal.Value = "0"
   let amountOut: Decimal.Value = "0"
   let nextSqrtPrice: Decimal.Value = "0"

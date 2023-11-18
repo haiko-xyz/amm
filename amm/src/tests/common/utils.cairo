@@ -40,6 +40,10 @@ fn approx_eq(x: u256, y: u256, threshold: u256) -> bool {
 }
 
 fn approx_eq_pct(x: u256, y: u256, precision: u256) -> bool {
+    // Handle x == y == 0
+    if x == y {
+        return true;
+    }
     if x > y {
         (math::mul_div(x, ONE, y, false) - ONE) / math::pow(10, 28 - precision) == 0
     } else {

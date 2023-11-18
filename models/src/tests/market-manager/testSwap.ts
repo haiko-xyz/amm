@@ -1,10 +1,9 @@
 import Decimal from "decimal.js"
 import { PRECISION, ROUNDING } from "../../config"
 import { computeSwapAmount, nextSqrtPriceAmountIn, nextSqrtPriceAmountOut } from "../../libraries/swap"
-import { limitToSqrtPrice, offset, shiftLimit } from "../../math/priceMath"
-import { MAX, MAX_WHOLE, OFFSET } from "../../constants"
-import { calcFee } from "../../math/feeMath"
-import { liquidityToBase } from "../../math/liquidityMath"
+import { limitToSqrtPrice, shiftLimit } from "../../math/priceMath"
+import { maxLiquidityPerLimit } from "../../libraries/liquidity"
+import { OFFSET } from "../../constants"
 
 type SwapCase = {
   isBuy: boolean
@@ -170,8 +169,7 @@ const testMarketCaseSimple = () => {
         ? nextSqrtPriceAmountIn(limitToSqrtPrice(startLimit, width), startLiquidity, netAmount, isBuy)
         : nextSqrtPriceAmountOut(limitToSqrtPrice(startLimit, width), startLiquidity, amount, isBuy)
       const currSqrtPrice = limitToSqrtPrice(startLimit, width)
-      // console.log({ nextSqrtPrice, currSqrtPrice, startLiquidity, netAmount })
-      const cappedNextSqrtPrice = thresholdSqrtPrice
+      let cappedNextSqrtPrice = thresholdSqrtPrice
         ? isBuy
           ? Decimal.min(nextSqrtPrice, thresholdSqrtPrice)
           : Decimal.max(nextSqrtPrice, thresholdSqrtPrice)
@@ -200,7 +198,7 @@ const testMarketCaseSimple = () => {
         console.log(`Market ${marketCounter}: Case ${swapCounter}`)
       }
       console.log({
-        amountIn: new Decimal(grossAmountIn).mul(1e18).toFixed(0, 1),
+        amountIn: new Decimal(grossAmountIn).mul(1e18).toFixed(0, 0),
         amountOut: new Decimal(amountOut).mul(1e18).toFixed(0, 1),
         fee: new Decimal(fee).mul(1e18).toFixed(0, 1),
       })
@@ -211,34 +209,34 @@ const testMarketCaseSimple = () => {
 }
 
 const marketCasesComplex = [
-  // {
-  //   swapFeeRate: 0.0025,
-  //   width: 10,
-  //   startLimit: shiftLimit(0, 10),
-  //   startLiquidity: "0",
-  //   liquidityMapBuy: {
-  //     "10": "20000000000",
-  //     "8388600": "0",
-  //   },
-  //   liquidityMapSell: {
-  //     "-10": "20000000000",
-  //     "-8388600": "0",
-  //   },
-  // },
-  // {
-  //   swapFeeRate: 0.0025,
-  //   width: 10,
-  //   startLimit: shiftLimit(0, 10),
-  //   startLiquidity: "20000000000",
-  //   liquidityMapBuy: {
-  //     "10": "40000000000",
-  //     "8388600": "0",
-  //   },
-  //   liquidityMapSell: {
-  //     "-10": "40000000000",
-  //     "-8388600": "0",
-  //   },
-  // },
+  {
+    swapFeeRate: 0.0025,
+    width: 10,
+    startLimit: shiftLimit(0, 10),
+    startLiquidity: "0",
+    liquidityMapBuy: {
+      "10": "20000000000",
+      "8388600": "0",
+    },
+    liquidityMapSell: {
+      "-10": "20000000000",
+      "-8388600": "0",
+    },
+  },
+  {
+    swapFeeRate: 0.0025,
+    width: 10,
+    startLimit: shiftLimit(0, 10),
+    startLiquidity: "20000000000",
+    liquidityMapBuy: {
+      "10": "40000000000",
+      "8388600": "0",
+    },
+    liquidityMapSell: {
+      "-10": "40000000000",
+      "-8388600": "0",
+    },
+  },
   {
     swapFeeRate: 0.0005,
     width: 1,
@@ -251,12 +249,74 @@ const marketCasesComplex = [
       "-10": "0",
     },
   },
+  {
+    swapFeeRate: 0.0025,
+    width: 10,
+    startLimit: shiftLimit(10, 10), // set above 0 to set startLiquidity at 0
+    startLiquidity: "0",
+    liquidityMapBuy: {
+      "8388600": "0",
+    },
+    liquidityMapSell: {
+      "0": "200000000000",
+      "-20000": "0",
+    },
+  },
+  {
+    swapFeeRate: 0.0025,
+    width: 10,
+    startLimit: shiftLimit(-10, 10), // set below 0 to set startLiquidity at 0
+    startLiquidity: "0",
+    liquidityMapBuy: {
+      "0": "200000000000",
+      "20000": "0",
+    },
+    liquidityMapSell: {
+      "-8388600": "0",
+    },
+  },
+  {
+    swapFeeRate: 0.0025,
+    width: 10,
+    startLimit: shiftLimit(8388500, 10),
+    startLiquidity: "20000000000",
+    liquidityMapBuy: {
+      "8388600": "0",
+    },
+    liquidityMapSell: {
+      "-8388600": "0",
+    },
+  },
+  {
+    swapFeeRate: 0.0025,
+    width: 10,
+    startLimit: shiftLimit(-8388500, 10),
+    startLiquidity: "20000000000",
+    liquidityMapBuy: {
+      "8388600": "0",
+    },
+    liquidityMapSell: {
+      "-8388600": "0",
+    },
+  },
+  {
+    swapFeeRate: 0.0025,
+    width: 10,
+    startLimit: shiftLimit(0, 10),
+    startLiquidity: maxLiquidityPerLimit(10).mul(1e10).toFixed(),
+    liquidityMapBuy: {
+      "8388600": "0",
+    },
+    liquidityMapSell: {
+      "-8388600": "0",
+    },
+  },
 ]
 
 const testMarketCaseComplex = () => {
   Decimal.set({ precision: PRECISION, rounding: ROUNDING })
 
-  let marketCounter = 1
+  let marketCounter = 7
   for (const {
     swapFeeRate,
     width,
@@ -330,22 +390,22 @@ const testMarketCaseComplex = () => {
 
         iter += 1
       }
-
       if (
         (thresholdSqrtPrice &&
           (isBuy
             ? new Decimal(thresholdSqrtPrice).lt(currSqrtPrice)
-            : new Decimal(thresholdSqrtPrice).gt(currSqrtPrice))) ||
-        String(amountIn).startsWith("-")
+            : new Decimal(thresholdSqrtPrice).gte(currSqrtPrice))) ||
+        String(amountIn).startsWith("-") ||
+        (new Decimal(amountIn).eq(0) && new Decimal(amountOut).eq(0))
       ) {
         console.log(`Market ${marketCounter}: Case ${swapCounter} (skipped)`)
       } else {
         console.log(`Market ${marketCounter}: Case ${swapCounter}`)
       }
       console.log({
-        amountIn: new Decimal(amountIn).mul(1e18).toFixed(0, 1),
+        amountIn: new Decimal(amountIn).mul(1e18).toFixed(0, 0),
         amountOut: new Decimal(amountOut).mul(1e18).toFixed(0, 1),
-        fee: new Decimal(fee).mul(1e18).toFixed(0, 1),
+        fee: new Decimal(fee).mul(1e18).toFixed(0, 0),
       })
       swapCounter += 1
     }
