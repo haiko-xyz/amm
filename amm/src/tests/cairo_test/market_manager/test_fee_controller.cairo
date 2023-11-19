@@ -26,7 +26,9 @@ use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTr
 // SETUP
 ////////////////////////////////
 
-fn before() -> (
+fn before(
+    swap_fee: u16
+) -> (
     IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252, IFeeControllerDispatcher
 ) {
     // Get default owner.
@@ -39,11 +41,11 @@ fn before() -> (
     let (treasury, base_token_params, quote_token_params) = default_token_params();
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
-    
-    // Deploy fee controller.
-    let fee_controller = deploy_fee_controller();
 
-     // Create market.
+    // Deploy fee controller.
+    let fee_controller = deploy_fee_controller(swap_fee);
+
+    // Create market.
     let mut params = default_market_params();
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
@@ -70,7 +72,8 @@ fn before() -> (
 #[test]
 #[available_gas(15000000000)]
 fn test_fee_controller() {
-    let (market_manager, base_token, quote_token, market_id, fee_controller) = before();
+    let fee_rate = 30;
+    let (market_manager, base_token, quote_token, market_id, fee_controller) = before(fee_rate);
 
     // Create position.
     let lower_limit = OFFSET - 1000;
@@ -81,17 +84,31 @@ fn test_fee_controller() {
 
     // Execute swap.    
     let mut params = swap_params(
-        alice(),
-        market_id,
-        true,
-        true,
-        to_e18(1),
-        Option::None(()),
-        Option::None(()),
+        alice(), market_id, true, true, to_e18(1), Option::None(()), Option::None(()),
     );
+    let (amount_in, amount_out, fees) = swap(market_manager, params);
 
     // Check fees.
-    let (amount_in, amount_out, fees) = swap(market_manager, params);
     assert(fees == 3000000000000000, 'Fee controller fees');
-    
+}
+
+#[test]
+#[should_panic(expected: ('SwapFeeRateOverflow', 'ENTRYPOINT_FAILED',))]
+#[available_gas(15000000000)]
+fn test_fee_controller_fee_rate_overflow() {
+    let fee_rate = 10001;
+    let (market_manager, base_token, quote_token, market_id, fee_controller) = before(fee_rate);
+
+    // Create position.
+    let lower_limit = OFFSET - 1000;
+    let upper_limit = OFFSET + 1000;
+    let liquidity = I256Trait::new(to_e18(1000000), false);
+    let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
+    modify_position(market_manager, params);
+
+    // Execute swap.    
+    let mut params = swap_params(
+        alice(), market_id, true, true, to_e18(1), Option::None(()), Option::None(()),
+    );
+    swap(market_manager, params);
 }

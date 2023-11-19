@@ -524,7 +524,7 @@ mod MarketManager {
             assert(base_token.is_non_zero() && quote_token.is_non_zero(), 'TokensNull');
             assert(width != 0, 'WidthZero');
             assert(width <= MAX_WIDTH, 'WidthOverflow');
-            assert(swap_fee_rate <= fee_math::MAX_FEE_RATE, 'SwapFeeOverflow');
+            assert(swap_fee_rate <= fee_math::MAX_FEE_RATE, 'SwapFeeRateOverflow');
             assert(protocol_share <= fee_math::MAX_FEE_RATE, 'ProtocolShareOverflow');
             assert(start_limit < MAX_LIMIT_SHIFTED, 'StartLimitOverflow');
 
@@ -1551,8 +1551,10 @@ mod MarketManager {
             let fee_rate = if market_info.fee_controller.is_zero() {
                 market_info.swap_fee_rate
             } else {
-                IFeeControllerDispatcher { contract_address: market_info.fee_controller }
-                    .swap_fee_rate()
+                let rate = IFeeControllerDispatcher { contract_address: market_info.fee_controller }
+                    .swap_fee_rate();
+                assert(rate <= fee_math::MAX_FEE_RATE, 'SwapFeeRateOverflow');
+                rate
             };
 
             // Initialise trackers for swap state.

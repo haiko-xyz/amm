@@ -9,8 +9,9 @@ use amm::interfaces::IFeeController::{
     IFeeController, IFeeControllerDispatcher, IFeeControllerDispatcherTrait
 };
 
-fn deploy_fee_controller() -> IFeeControllerDispatcher {
+fn deploy_fee_controller(swap_fee: u16) -> IFeeControllerDispatcher {
     let mut constructor_calldata = ArrayTrait::<felt252>::new();
+    swap_fee.serialize(ref constructor_calldata);
     let (deployed_address, _) = deploy_syscall(
         FeeController::TEST_CLASS_HASH.try_into().unwrap(), 0, constructor_calldata.span(), false
     )
