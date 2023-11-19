@@ -6,8 +6,6 @@ use amm::libraries::math::math;
 use amm::libraries::constants::MAX_FEE_RATE;
 use amm::types::core::{LimitInfo, MarketState};
 
-use debug::PrintTrait;
-
 ////////////////////////////////
 // FUNCTIONS
 ////////////////////////////////
