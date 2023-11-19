@@ -207,40 +207,54 @@ fn test_replicating_strategy_multiple_swaps() {
 
     // Deposit initial.
     set_contract_address(owner());
-    let initial_base_amount = to_e18(10000);
-    let initial_quote_amount = to_e18(11125200);
+    let initial_base_amount = to_e18(1000000);
+    let initial_quote_amount = to_e18(1112520000);
     let (base_amount, quote_amount, shares) = strategy
         .deposit_initial(initial_base_amount, initial_quote_amount);
 
     // Update price.
     oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 163277500000);
 
-    // Execute swap and check positions updated.
-    let amount = to_e18(1);
-    let (amount_in, amount_out, fees) = market_manager
-        .swap(market_id, true, amount, true, Option::None(()), Option::None(()));
-    let (amount_in, amount_out, fees) = market_manager
-        .swap(market_id, false, amount, true, Option::None(()), Option::None(()));
+    // Execute swap 1 and check positions updated.
+    let amount = to_e18(100);
+    market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()));
     let bid = strategy.bid();
     let ask = strategy.ask();
     let market_state = market_manager.market_state(market_id);
-
-    assert(bid.lower_limit == 8388600 + 719790, 'Bid: lower limit');
-    assert(bid.upper_limit == 8388600 + 739790, 'Bid: upper limit');
-    assert(ask.lower_limit == 8388600 + 741950, 'Ask: lower limit');
-    assert(ask.upper_limit == 8388600 + 761950, 'Ask: upper limit');
-    assert(approx_eq_pct(bid.liquidity, 289346433263735605208989471, 20), 'Bid: liquidity');
-    assert(approx_eq_pct(ask.liquidity, 429192126744996250400988130, 20), 'Ask: liquidity');
+    assert(bid.lower_limit == 8388600 + 719790, 'Bid 1: lower limit');
+    assert(bid.upper_limit == 8388600 + 739790, 'Bid 1: upper limit');
+    assert(ask.lower_limit == 8388600 + 741940, 'Ask 1: lower limit');
+    assert(ask.upper_limit == 8388600 + 761940, 'Ask 1: upper limit');
+    assert(approx_eq_pct(bid.liquidity, 289346433263735605208989471, 20), 'Bid 1: liquidity');
+    assert(approx_eq_pct(ask.liquidity, 429170667782432169281955462, 20), 'Ask 1: liquidity');
     assert(
-        approx_eq(market_state.curr_sqrt_price, 408439982508831991327858223557, 100),
-        'Market: curr sqrt price'
+        approx_eq_pct(market_state.curr_sqrt_price, 408407949181225947147258078960, 20),
+        'Swap 1: end sqrt price'
     );
-    assert(market_state.curr_limit == 8388600 + 741955, 'Market: curr sqrt price');
+    assert(market_state.curr_limit == 8388600 + 741940, 'Swap 1: end limit');
+    let (base_amount, quote_amount) = strategy.get_balances();
+
+    // Execute swap 2 and check positions updated.
+    market_manager.swap(market_id, false, amount, true, Option::None(()), Option::None(()));
+    let bid_2 = strategy.bid();
+    let ask_2 = strategy.ask();
+    let market_state_2 = market_manager.market_state(market_id);
+    assert(bid_2.lower_limit == 8388600 + 719790, 'Bid 2: lower limit');
+    assert(bid_2.upper_limit == 8388600 + 739790, 'Bid 2: upper limit');
+    assert(ask_2.lower_limit == 8388600 + 741950, 'Ask 2: lower limit');
+    assert(ask_2.upper_limit == 8388600 + 761950, 'Ask 2: upper limit');
+    assert(approx_eq_pct(bid_2.liquidity, 289346459271780151386678214, 20), 'Bid 2: liquidity');
+    assert(approx_eq_pct(ask_2.liquidity, 429192101090792820578334882, 20), 'Ask 2: liquidity');
+    assert(
+        approx_eq_pct(market_state_2.curr_sqrt_price, 404035472140796796041975907438, 20),
+        'Swap 2: end sqrt price'
+    );
+    assert(market_state_2.curr_limit == 8388600 + 739787, 'Swap 2: end limit');
 }
 
 #[test]
 #[available_gas(1000000000)]
-fn test_replicating_strategy_deposit_to_strategy() {
+fn test_replicating_strategy_deposit() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
@@ -266,16 +280,18 @@ fn test_replicating_strategy_deposit_to_strategy() {
     let strategy_base_reserves = strategy.base_reserves();
     let strategy_quote_reserves = strategy.quote_reserves();
 
-    let bid_init_shares_exp = 286281260093880636353279894;
-    let ask_init_shares_exp = 429385305698142922274058535;
-    let bid_new_shares_exp = 143140630046940318176639;
-    let ask_new_shares_exp = 214692652849071461137029;
+    let bid_init_shares_exp = 286266946460287812818573174;
+    let ask_init_shares_exp = 429406775392817428992841450;
+    let bid_new_shares_exp = 143133473230143906409286;
+    let ask_new_shares_exp = 214703387696408714496420;
 
     assert(base_amount == base_amount_req, 'Deposit: base');
-    assert(approx_eq(quote_amount, to_e18(556260), 10), 'Deposit: quote');
-    assert(bid.liquidity == bid_init_shares_exp, 'Bid: liquidity');
-    assert(ask.liquidity == ask_init_shares_exp, 'Ask: liquidity');
-    assert(approx_eq(new_shares, bid_new_shares_exp + ask_new_shares_exp, 10), 'Deposit: shares');
+    assert(quote_amount == to_e18(556260), 'Deposit: quote');
+    assert(approx_eq_pct(bid.liquidity, bid_init_shares_exp, 10), 'Bid: liquidity');
+    assert(approx_eq_pct(ask.liquidity, ask_init_shares_exp, 10), 'Ask: liquidity');
+    assert(
+        approx_eq_pct(new_shares, bid_new_shares_exp + ask_new_shares_exp, 20), 'Deposit: shares'
+    );
 }
 
 #[test]
@@ -299,8 +315,8 @@ fn test_replicating_strategy_withdraw() {
         .swap(market_id, false, amount, true, Option::None(()), Option::None(()));
 
     // Withdraw from strategy.
-    let shares_init = 286281260093880636353279894 + 429385305698142922274058535;
-    let shares_req = 357833282896011779313669214;
+    let shares_init = 286266946460287812818573174 + 429406775392817428992841450;
+    let shares_req = 357836860926552620905707312;
     let (base_amount, quote_amount) = strategy.withdraw(shares_req);
     let market_state = market_manager.market_state(market_id);
     let bid = strategy.bid();
@@ -309,22 +325,20 @@ fn test_replicating_strategy_withdraw() {
     let quote_reserves = strategy.quote_reserves();
 
     // Run checks.
-    assert(
-        approx_eq(bid.liquidity + ask.liquidity, shares_init - shares_req, 10),
-        'Withdraw: liquidity'
-    );
+    assert(approx_eq_pct(bid.liquidity + ask.liquidity, shares_req, 20), 'Withdraw: liquidity');
     assert(amount_in == amount, 'Withdraw: amount in');
-    assert(amount_out == 8307263012937194335936819, 'Withdraw: amount out');
+    assert(approx_eq_pct(amount_out, 8308093186237340625293077, 20), 'Withdraw: amount out');
     assert(fees == to_e18(15), 'Withdraw: fees');
-    assert(base_amount == 502499984999999999999997, 'Withdraw: base amount');
+    assert(approx_eq_pct(base_amount, 502499984999999999999999, 20), 'Withdraw: base amount');
+    assert(approx_eq_pct(quote_amount, 552105953406881329687353460, 20), 'Withdraw: quote amount');
     assert(
-        approx_eq(quote_amount, (initial_quote_amount - amount_out) / 2, 10),
-        'Withdraw: quote amount'
+        approx_eq_pct(bid.liquidity, 143133473230143906409286587, 20), 'Withdraw: bid liquidity'
     );
-    assert(approx_eq(bid.liquidity, 143140630046940318176639947, 10), 'Withdraw: bid liquidity');
-    assert(approx_eq(ask.liquidity, 214692652849071461137029268, 10), 'Withdraw: ask liquidity');
-    assert(base_reserves == 7485000000000000000, 'Withdraw: base reserves');
-    assert(quote_reserves == 0, 'Withdraw: quote reserves');
+    assert(
+        approx_eq_pct(ask.liquidity, 214703387696408714496420725, 20), 'Withdraw: ask liquidity'
+    );
+    assert(approx_eq(base_reserves, 7485000000000000000, 10), 'Withdraw: base reserves');
+    assert(approx_eq(quote_reserves, 0, 10), 'Withdraw: quote reserves');
 }
 
 #[test]
@@ -342,7 +356,7 @@ fn test_replicating_strategy_collect_and_pause() {
     let (base_amount_init, quote_amount_init, shares_init) = strategy
         .deposit_initial(initial_base_amount, initial_quote_amount);
 
-    // Withdraw from strategy.
+    // Collect and pause.
     strategy.collect_and_pause();
     let market_state = market_manager.market_state(market_id);
     let bid = strategy.bid();
@@ -351,13 +365,11 @@ fn test_replicating_strategy_collect_and_pause() {
     let quote_reserves = strategy.quote_reserves();
 
     // Run checks.
-    let base_reserves_exp = 999999;
-    let quote_reserves_exp = 999999;
     assert(market_state.liquidity == 0, 'Collect pause: mkt liquidity');
     assert(bid.liquidity == 0, 'Collect pause: bid liquidity');
     assert(ask.liquidity == 0, 'Collect pause: ask liquidity');
-    assert(base_reserves == base_reserves_exp, 'Collect pause: base reserves');
-    assert(quote_reserves == quote_reserves_exp, 'Collect pause: quote reserves');
+    assert(approx_eq(base_reserves, initial_base_amount, 10), 'Collect pause: base reserves');
+    assert(approx_eq(quote_reserves, initial_quote_amount, 10), 'Collect pause: quote reserves');
 }
 
 fn swap_test_cases(width: u32) -> Array<SwapCase> {

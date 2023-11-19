@@ -68,8 +68,6 @@ mod ManualStrategy {
     use openzeppelin::token::erc20::erc20::ERC20;
     use openzeppelin::token::erc20::interface::{ERC20ABI, IERC20Dispatcher, IERC20DispatcherTrait};
 
-    use debug::PrintTrait;
-
     #[storage]
     struct Storage {
         // Immutables
