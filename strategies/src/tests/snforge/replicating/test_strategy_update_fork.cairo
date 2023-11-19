@@ -47,22 +47,24 @@ fn test_strategy_update_using_forked_state() {
     let market_id: felt252 = 0x7a16b2fd8115d0916af5c17250ff5d0c09f988952146bea315e90875619fb4;
 
     // start_prank(strategy_addr, market_manager_addr);
-    let strategy = ILegacyStrategyDispatcher{ contract_address: strategy_addr };
+    let strategy = ILegacyStrategyDispatcher { contract_address: strategy_addr };
     // strategy.update_positions();
     // stop_prank(strategy_addr);
 
     start_prank(market_manager_addr, strategy_addr);
 
-    let market_manager = IMarketManagerDispatcher{ contract_address: market_manager_addr };
+    let market_manager = IMarketManagerDispatcher { contract_address: market_manager_addr };
     // Remove existing positions.
     let bid = strategy.bid();
     let ask = strategy.ask();
-    market_manager.modify_position(
-        market_id, bid.lower_limit, bid.upper_limit, I256Trait::new(bid.liquidity, true)
-    );
-    market_manager.modify_position(
-        market_id, ask.lower_limit, ask.upper_limit, I256Trait::new(ask.liquidity, true)
-    );
+    market_manager
+        .modify_position(
+            market_id, bid.lower_limit, bid.upper_limit, I256Trait::new(bid.liquidity, true)
+        );
+    market_manager
+        .modify_position(
+            market_id, ask.lower_limit, ask.upper_limit, I256Trait::new(ask.liquidity, true)
+        );
     'removed existing positions'.print();
 
     // Add new positions.
@@ -74,9 +76,8 @@ fn test_strategy_update_using_forked_state() {
     let position_id = id::position_id(
         market_id, strategy_addr.into(), bid_lower_limit, bid_upper_limit
     );
-    let position = ILegacyMarketManagerDispatcher{ 
-        contract_address: market_manager_addr
-    }.position(position_id);
+    let position = ILegacyMarketManagerDispatcher { contract_address: market_manager_addr }
+        .position(position_id);
     let market_state = market_manager.market_state(market_id);
 
     let lower_limit_info = market_manager.limit_info(market_id, bid_lower_limit);
@@ -105,9 +106,8 @@ fn test_strategy_update_using_forked_state() {
     } else {
         'init upper bff at 0'.print();
     }
-    
+
     'added new positions'.print();
 
     stop_prank(market_manager_addr);
-
 }

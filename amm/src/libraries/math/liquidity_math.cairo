@@ -23,7 +23,6 @@ fn add_delta(ref amount: u256, delta: i256) {
         amount += delta.val;
     }
 }
-
 // Calculate the amount of quote tokens received for a given liquidity delta and price range.
 // 
 // # Arguments
