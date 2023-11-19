@@ -30,9 +30,9 @@ fn before(
     swap_fee: u16
 ) -> (
     IMarketManagerDispatcher,
-    ERC20ABIDispatcher, 
-    ERC20ABIDispatcher, 
-    felt252, 
+    ERC20ABIDispatcher,
+    ERC20ABIDispatcher,
+    felt252,
     IFeeControllerDispatcher
 ) {
     // Get default owner.

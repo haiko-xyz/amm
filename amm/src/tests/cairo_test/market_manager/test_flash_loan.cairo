@@ -33,7 +33,11 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 fn before(
     return_funds: bool
 ) -> (
-    IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252, ILoanReceiverDispatcher
+    IMarketManagerDispatcher,
+    ERC20ABIDispatcher,
+    ERC20ABIDispatcher,
+    felt252,
+    ILoanReceiverDispatcher
 ) {
     // Get default owner.
     let owner = owner();

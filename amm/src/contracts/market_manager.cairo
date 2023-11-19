@@ -39,7 +39,8 @@ mod MarketManager {
 
     // External imports.
     use openzeppelin::token::erc20::interface::{
-        IERC20Dispatcher, IERC20DispatcherTrait, IERC20MetadataDispatcher, IERC20MetadataDispatcherTrait
+        IERC20Dispatcher, IERC20DispatcherTrait, IERC20MetadataDispatcher,
+        IERC20MetadataDispatcherTrait
     };
     use openzeppelin::token::erc721::erc721::ERC721Component;
     use openzeppelin::token::erc721::interface::{IERC721Dispatcher, IERC721DispatcherTrait};
@@ -95,7 +96,6 @@ mod MarketManager {
         limit_tree_l1: LegacyMap::<(felt252, u32), u256>,
         // Indexed by (market_id: felt252, seg_index_l2: u32)
         limit_tree_l2: LegacyMap::<(felt252, u32), u256>,
-
         #[substorage(v0)]
         erc721: ERC721Component::Storage,
         #[substorage(v0)]
@@ -123,7 +123,6 @@ mod MarketManager {
         ChangeOwner: ChangeOwner,
         ChangeFlashLoanFee: ChangeFlashLoanFee,
         ChangeProtocolShare: ChangeProtocolShare,
-
         #[flat]
         ERC721Event: ERC721Component::Event,
         #[flat]
@@ -1080,8 +1079,7 @@ mod MarketManager {
             // Verify caller.
             let caller = get_caller_address();
             assert(
-                self.erc721._is_approved_or_owner(caller, position_id.into()),
-                'NotApprovedOrOwner'
+                self.erc721._is_approved_or_owner(caller, position_id.into()), 'NotApprovedOrOwner'
             );
 
             // Check position is empty.

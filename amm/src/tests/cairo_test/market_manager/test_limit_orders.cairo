@@ -70,9 +70,9 @@ fn _before(
     (market_manager, base_token, quote_token, market_id)
 }
 
-fn before(width: u32) -> (
-    IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252
-) {
+fn before(
+    width: u32
+) -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252) {
     _before(width, true)
 }
 

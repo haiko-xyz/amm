@@ -148,7 +148,6 @@ mod ReplicatingStrategy {
         quote_reserves: u256,
         bid: PositionInfo, // liquidity = 0 if no bid position set
         ask: PositionInfo, // liquidity = 0 if no ask position set
-        
         #[substorage(v0)]
         erc20: ERC20Component::Storage
     }

@@ -82,7 +82,9 @@ fn _before(
     (market_manager, base_token, quote_token, market_id)
 }
 
-fn before(width: u32) -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252) {
+fn before(
+    width: u32
+) -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252) {
     _before(width, true, true, true)
 }
 
@@ -96,7 +98,9 @@ fn before_linear() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDis
     _before(1, false, true, true)
 }
 
-fn before_no_orders() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252) {
+fn before_no_orders() -> (
+    IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252
+) {
     _before(1, true, false, true)
 }
 

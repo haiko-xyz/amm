@@ -26,8 +26,8 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 
 fn before() -> (
     IMarketManagerDispatcher,
-    ERC20ABIDispatcher, 
-    ERC20ABIDispatcher, 
+    ERC20ABIDispatcher,
+    ERC20ABIDispatcher,
     ERC20ABIDispatcher,
     felt252,
     felt252,
