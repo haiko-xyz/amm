@@ -151,13 +151,7 @@ const testLiquidityToAmounts = () => {
   Decimal.set({ precision: PRECISION, rounding: ROUNDING })
 
   for (const { liquidity, currSqrtPrice, lowerSqrtPrice, upperSqrtPrice, width } of liquidityToAmountsCases()) {
-    const { baseAmount, quoteAmount } = liquidityToAmounts(
-      liquidity,
-      currSqrtPrice,
-      lowerSqrtPrice,
-      upperSqrtPrice,
-      width
-    )
+    const { baseAmount, quoteAmount } = liquidityToAmounts(liquidity, currSqrtPrice, lowerSqrtPrice, upperSqrtPrice)
     console.log({
       baseAmount: new Decimal(baseAmount).toFixed(28, 0),
       quoteAmount: new Decimal(quoteAmount).toFixed(28, 0),

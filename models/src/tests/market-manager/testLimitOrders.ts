@@ -12,8 +12,7 @@ const testCreateMultipleBidOrders = () => {
     "1",
     limitToSqrtPrice(OFFSET - 0, 1),
     limitToSqrtPrice(OFFSET - 1000, 1),
-    limitToSqrtPrice(OFFSET - 999, 1),
-    1
+    limitToSqrtPrice(OFFSET - 999, 1)
   )
   console.log({
     baseAmount: new Decimal(baseAmount1).mul(1e18).toFixed(0, 1),
@@ -25,8 +24,7 @@ const testCreateMultipleBidOrders = () => {
     "2",
     limitToSqrtPrice(OFFSET - 0, 1),
     limitToSqrtPrice(OFFSET - 1000, 1),
-    limitToSqrtPrice(OFFSET - 999, 1),
-    1
+    limitToSqrtPrice(OFFSET - 999, 1)
   )
   console.log({
     baseAmount: new Decimal(baseAmount2).mul(1e28).toFixed(0, 1),
@@ -40,8 +38,7 @@ const testCreateMultipleAskOrders = () => {
     "1",
     limitToSqrtPrice(OFFSET - 0, 1),
     limitToSqrtPrice(OFFSET + 1000, 1),
-    limitToSqrtPrice(OFFSET + 1001, 1),
-    1
+    limitToSqrtPrice(OFFSET + 1001, 1)
   )
   console.log({
     baseAmount: new Decimal(baseAmount1).mul(1e28).toFixed(0, 1),
@@ -53,8 +50,7 @@ const testCreateMultipleAskOrders = () => {
     "2",
     limitToSqrtPrice(OFFSET - 0, 1),
     limitToSqrtPrice(OFFSET + 1000, 1),
-    limitToSqrtPrice(OFFSET + 1001, 1),
-    1
+    limitToSqrtPrice(OFFSET + 1001, 1)
   )
   console.log({
     baseAmount: new Decimal(baseAmount2).mul(1e28).toFixed(0, 1),
