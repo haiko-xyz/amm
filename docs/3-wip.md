@@ -2,13 +2,6 @@
 
 This following test cases are currently missing. They are WIP and we aim to complete them prior to audit. The to dos below will likely be completed in parallel with or following the audit.
 
-Existing tests
-
-- Swap / modify position operations: canonical model results
-- Check existing tests for missing cases (fail cases, check vs Uni code base)
-- Add fuzzing and invariant tests
-- Add tests for event emission
-
 New tests
 
 - Tests for minting and burning liquidity position NFTs
@@ -17,10 +10,12 @@ New tests
 - Tests for setting owner
 - Tests for setting flash loan fee
 - Tests for protocol fees
-- Tests for dynamic fees
+- Add fuzzing and invariant tests
+- Add tests for event emission
 
 Other to dos
 
+- Add timelock to upgrade function
 - Review access controls, timelock, and other security features
 - Review gas usage
 - Review flash loan attack vectors
