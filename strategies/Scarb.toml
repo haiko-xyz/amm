@@ -1,10 +1,10 @@
 [package]
 name = "strategies"
-cairo-version = "2.3.0"
+cairo-version = "2.3.1"
 version.workspace = true
 
 [dependencies]
-starknet = "2.3.0"
+starknet = "2.3.1"
 amm = { path = "../amm" }
 
 [lib]
@@ -13,10 +13,10 @@ amm = { path = "../amm" }
 sierra = true
 casm = true
 allowed-libfuncs-list.name = "experimental"
-build-external-contracts = [
-  'amm::contracts::market_manager::MarketManager',
-  'openzeppelin::token::erc20::erc20::ERC20',
-]
+# build-external-contracts = [
+#   'amm::contracts::market_manager::MarketManager',
+#   'openzeppelin::token::erc20::erc20::ERC20',
+# ]
 
 [cairo]
 sierra-replace-ids = true

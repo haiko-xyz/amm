@@ -17,7 +17,7 @@ use amm::tests::common::contracts::tree_contract::{
 };
 
 // External imports.
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
 // SETUP
@@ -25,8 +25,8 @@ use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTr
 
 fn before() -> (
     IMarketManagerDispatcher,
-    IERC20Dispatcher,
-    IERC20Dispatcher,
+    ERC20ABIDispatcher,
+    ERC20ABIDispatcher,
     felt252,
     ITestTreeContractDispatcher
 ) {

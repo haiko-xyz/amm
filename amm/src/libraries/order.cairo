@@ -6,7 +6,9 @@ use starknet::get_caller_address;
 use amm::libraries::id;
 use amm::libraries::math::{math, price_math, fee_math, liquidity_math};
 use amm::libraries::constants::{ONE, MAX};
-use amm::contracts::market_manager::MarketManager::{ContractState, InternalTrait};
+use amm::contracts::market_manager::MarketManager::{
+    ContractState, MarketManagerInternalTrait
+};
 use amm::contracts::market_manager::MarketManager::{
     orders::InternalContractMemberStateTrait as OrderStateTrait,
     limit_info::InternalContractMemberStateTrait as LimitInfoStateTrait,
@@ -18,7 +20,7 @@ use amm::types::core::{OrderBatch, LimitInfo};
 use amm::types::i256::{i256, I256Trait};
 
 // External imports.
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 // Fully fill orders at the given limits.
 // Calling `swap` returns an array of limits that were fully filled. This function iterates through

@@ -16,13 +16,13 @@ use amm::tests::cairo_test::helpers::token::deploy_token;
 use amm::tests::common::params::{owner, default_token_params, default_market_params};
 
 // External imports.
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
 // SETUP
 ////////////////////////////////
 
-fn before() -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher) {
+fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher) {
     // Deploy market manager.
     let owner = owner();
     set_contract_address(owner);

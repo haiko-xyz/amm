@@ -19,7 +19,7 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::{to_e28, approx_eq, approx_eq_pct};
 
 // External imports.
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
 // SETUP
@@ -27,7 +27,7 @@ use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTr
 
 fn _before(
     width: u32, allow_orders: bool
-) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
+) -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252) {
     // Get default owner.
     let owner = owner();
 
@@ -70,11 +70,15 @@ fn _before(
     (market_manager, base_token, quote_token, market_id)
 }
 
-fn before(width: u32) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
+fn before(width: u32) -> (
+    IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252
+) {
     _before(width, true)
 }
 
-fn before_no_orders() -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
+fn before_no_orders() -> (
+    IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252
+) {
     _before(1, false)
 }
 

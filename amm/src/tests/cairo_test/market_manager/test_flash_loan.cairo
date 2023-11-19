@@ -24,7 +24,7 @@ use amm::tests::common::contracts::flash_loan_receiver;
 use amm::tests::common::utils::{to_e28, to_e18};
 
 // External imports.
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
 // SETUP
@@ -33,7 +33,7 @@ use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTr
 fn before(
     return_funds: bool
 ) -> (
-    IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252, ILoanReceiverDispatcher
+    IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252, ILoanReceiverDispatcher
 ) {
     // Get default owner.
     let owner = owner();

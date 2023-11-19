@@ -12,12 +12,12 @@ dependencies = [
 [[package]]
 name = "openzeppelin"
 version = "0.8.0-beta.0"
-source = "git+https://github.com/OpenZeppelin/cairo-contracts.git?tag=v0.8.0-beta.0#4c95981a7178e43730f152c85a92336dc6a22d62"
+source = "git+https://github.com/OpenZeppelin/cairo-contracts.git?branch=main#f3e2a5f0547a429c716f32471b06df729cbdfb9f"
 
 [[package]]
 name = "snforge_std"
 version = "0.1.0"
-source = "git+https://github.com/foundry-rs/starknet-foundry.git?tag=v0.9.1#da085bd11e1b151d0592f43917136560d9b70d37"
+source = "git+https://github.com/foundry-rs/starknet-foundry.git?tag=v0.10.2#9c04e095cc7e23b0d6223e5ef5b51bbeec1cf6b2"
 
 [[package]]
 name = "sphinx"

@@ -14,14 +14,13 @@ use amm::contracts::market_manager::MarketManager;
 use amm::libraries::math::price_math;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::types::i256::i256;
-use amm::tests::cairo_test::helpers::{market_manager, token};
 use amm::tests::common::params::{
     CreateMarketParams, ModifyPositionParams, SwapParams, SwapMultipleParams
 };
 
 // External imports.
 use snforge_std::{declare, ContractClassTrait, start_prank, stop_prank};
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 fn deploy_market_manager(owner: ContractAddress,) -> IMarketManagerDispatcher {
     let contract = declare('MarketManager');

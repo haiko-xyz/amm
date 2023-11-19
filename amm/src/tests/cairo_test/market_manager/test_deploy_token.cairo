@@ -4,8 +4,7 @@ use amm::tests::common::params::{token_params, treasury, ERC20ConstructorParams}
 use amm::tests::common::utils::to_e28;
 
 // External imports.
-use openzeppelin::token::erc20::interface::{IERC20, IERC20Dispatcher, IERC20DispatcherTrait};
-
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
 // TESTS

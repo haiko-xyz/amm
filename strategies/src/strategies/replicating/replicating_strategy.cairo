@@ -88,7 +88,6 @@ trait IReplicatingStrategy<TContractState> {
 #[starknet::contract]
 mod ReplicatingStrategy {
     // Core lib imports.
-    use array::SpanTrait;
     use zeroable::Zeroable;
     use integer::BoundedU256;
     use cmp::{min, max};
@@ -118,8 +117,16 @@ mod ReplicatingStrategy {
     };
 
     // External imports.
-    use openzeppelin::token::erc20::erc20::ERC20;
-    use openzeppelin::token::erc20::interface::{ERC20ABI, IERC20Dispatcher, IERC20DispatcherTrait};
+    use openzeppelin::token::erc20::erc20::ERC20Component;
+    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+
+    component!(path: ERC20Component, storage: erc20, event: ERC20Event);
+
+    #[abi(embed_v0)]
+    impl ERC20Impl = ERC20Component::ERC20Impl<ContractState>;
+    #[abi(embed_v0)]
+    impl ERC20MetadataImpl = ERC20Component::ERC20MetadataImpl<ContractState>;
+    impl ERC20InternalImpl = ERC20Component::InternalImpl<ContractState>;
 
     #[storage]
     struct Storage {
@@ -141,6 +148,9 @@ mod ReplicatingStrategy {
         quote_reserves: u256,
         bid: PositionInfo, // liquidity = 0 if no bid position set
         ask: PositionInfo, // liquidity = 0 if no ask position set
+        
+        #[substorage(v0)]
+        erc20: ERC20Component::Storage
     }
 
     ////////////////////////////////
@@ -158,6 +168,8 @@ mod ReplicatingStrategy {
         ChangeOwner: ChangeOwner,
         Pause: Pause,
         Unpause: Unpause,
+        #[flat]
+        ERC20Event: ERC20Component::Event
     }
 
     #[derive(Drop, starknet::Event)]
@@ -244,14 +256,12 @@ mod ReplicatingStrategy {
 
         // Get strategy name
         fn strategy_name(self: @ContractState) -> felt252 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::name(@unsafe_state)
+            self.erc20.name()
         }
 
         // Get strategy symbol
         fn strategy_symbol(self: @ContractState) -> felt252 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::symbol(@unsafe_state)
+            self.erc20.symbol()
         }
 
         // Get list of positions currently placed by strategy.
@@ -509,9 +519,7 @@ mod ReplicatingStrategy {
         ) {
             self.assert_only_owner();
             assert(!self.is_initialised.read(), 'Initialised');
-
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::InternalImpl::initializer(ref unsafe_state, name, symbol);
+            self.erc20.initializer(name, symbol);
 
             let market_manager_contr = IMarketManagerDispatcher {
                 contract_address: market_manager
@@ -551,9 +559,7 @@ mod ReplicatingStrategy {
             ref self: ContractState, base_amount: u256, quote_amount: u256
         ) -> (u256, u256, u256) {
             // Run checks
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            let total_supply = ERC20::IERC20::total_supply(@unsafe_state);
-            assert(total_supply == 0, 'UseDeposit');
+            assert(self.erc20.total_supply() == 0, 'UseDeposit');
             assert(base_amount != 0 && quote_amount != 0, 'AmountZero');
             assert(!self.is_paused.read(), 'Paused');
             assert(self.is_initialised.read(), 'NotInitialised');
@@ -602,8 +608,7 @@ mod ReplicatingStrategy {
 
             // Mint liquidity
             let liquidity = bid.liquidity + ask.liquidity;
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::InternalImpl::_mint(ref unsafe_state, caller, liquidity);
+            self.erc20._mint(caller, liquidity);
 
             assert(base_amount >= base_leftover, 'BaseLeftover');
             assert(quote_amount >= quote_leftover, 'QuoteLeftover');
@@ -628,8 +633,7 @@ mod ReplicatingStrategy {
             ref self: ContractState, base_amount: u256, quote_amount: u256
         ) -> (u256, u256, u256) {
             // Run checks.
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            let total_supply = ERC20::IERC20::total_supply(@unsafe_state);
+            let total_supply = self.erc20.total_supply();
             assert(total_supply != 0, 'UseDepositInitial');
             assert(base_amount != 0 || quote_amount != 0, 'AmountZero');
             assert(!self.is_paused.read(), 'Paused');
@@ -671,7 +675,7 @@ mod ReplicatingStrategy {
             self.quote_reserves.write(quote_reserves);
 
             // Mint liquidity.
-            ERC20::InternalImpl::_mint(ref unsafe_state, caller, shares);
+            self.erc20._mint(caller, shares);
 
             // Emit event.
             self
@@ -696,13 +700,12 @@ mod ReplicatingStrategy {
         // * `quote_amount` - quote asset withdrawn
         fn withdraw(ref self: ContractState, shares: u256) -> (u256, u256) {
             // Run checks
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            let total_supply = ERC20::IERC20::total_supply(@unsafe_state);
+            let total_supply = self.erc20.total_supply();
             assert(total_supply != 0, 'NoSupply');
             assert(shares != 0, 'SharesZero');
             assert(shares <= total_supply, 'SharesOverflow');
             let caller = get_caller_address();
-            let caller_balance = ERC20::IERC20::balance_of(@unsafe_state, caller);
+            let caller_balance = self.erc20.balance_of(caller);
             assert(caller_balance >= shares, 'InsufficientShares');
 
             // Fetch current market state
@@ -750,7 +753,7 @@ mod ReplicatingStrategy {
             quote_reserves += quote_fees_excess;
 
             // Burn shares.
-            ERC20::InternalImpl::_burn(ref unsafe_state, caller, shares);
+            self.erc20._burn(caller, shares);
 
             // Transfer tokens to caller.
             let contract = get_contract_address();
@@ -905,79 +908,6 @@ mod ReplicatingStrategy {
         fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
             self.assert_only_owner();
             replace_class_syscall(new_class_hash);
-        }
-    }
-
-    #[external(v0)]
-    impl ERC20Impl of ERC20ABI<ContractState> {
-        ////////////////////////////////
-        // VIEW FUNCTIONS
-        ////////////////////////////////
-
-        fn name(self: @ContractState) -> felt252 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::name(@unsafe_state)
-        }
-
-        fn symbol(self: @ContractState) -> felt252 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::symbol(@unsafe_state)
-        }
-
-        fn decimals(self: @ContractState) -> u8 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::decimals(@unsafe_state)
-        }
-
-        fn total_supply(self: @ContractState) -> u256 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::total_supply(@unsafe_state)
-        }
-
-        fn balance_of(self: @ContractState, account: ContractAddress) -> u256 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::balance_of(@unsafe_state, account)
-        }
-
-        fn allowance(
-            self: @ContractState, owner: ContractAddress, spender: ContractAddress
-        ) -> u256 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::allowance(@unsafe_state, owner, spender)
-        }
-
-        fn transfer(ref self: ContractState, recipient: ContractAddress, amount: u256) -> bool {
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::transfer(ref unsafe_state, recipient, amount)
-        }
-
-        fn transfer_from(
-            ref self: ContractState,
-            sender: ContractAddress,
-            recipient: ContractAddress,
-            amount: u256
-        ) -> bool {
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::transfer_from(ref unsafe_state, sender, recipient, amount)
-        }
-
-        fn approve(ref self: ContractState, spender: ContractAddress, amount: u256) -> bool {
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::approve(ref unsafe_state, spender, amount)
-        }
-
-        fn increase_allowance(
-            ref self: ContractState, spender: ContractAddress, added_value: u256
-        ) -> bool {
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::increase_allowance(ref unsafe_state, spender, added_value)
-        }
-
-        fn decrease_allowance(
-            ref self: ContractState, spender: ContractAddress, subtracted_value: u256
-        ) -> bool {
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::decrease_allowance(ref unsafe_state, spender, subtracted_value)
         }
     }
 

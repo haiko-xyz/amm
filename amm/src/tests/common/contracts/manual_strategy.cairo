@@ -65,7 +65,6 @@ mod ManualStrategy {
     use amm::types::i256::{I256Trait, i256};
 
     // External imports.
-    use openzeppelin::token::erc20::erc20::ERC20;
     use openzeppelin::token::erc20::interface::{ERC20ABI, IERC20Dispatcher, IERC20DispatcherTrait};
 
     #[storage]
@@ -139,14 +138,12 @@ mod ManualStrategy {
 
         // Get strategy name
         fn strategy_name(self: @ContractState) -> felt252 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::name(@unsafe_state)
+            self.name.read()
         }
 
         // Get strategy symbol
         fn strategy_symbol(self: @ContractState) -> felt252 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::symbol(@unsafe_state)
+            self.symbol.read()
         }
 
         // Get placed positions.

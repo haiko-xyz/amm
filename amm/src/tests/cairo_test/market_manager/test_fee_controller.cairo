@@ -20,7 +20,7 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::{to_e18, to_e28};
 
 // External imports.
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
 // SETUP
@@ -29,7 +29,11 @@ use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTr
 fn before(
     swap_fee: u16
 ) -> (
-    IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252, IFeeControllerDispatcher
+    IMarketManagerDispatcher,
+    ERC20ABIDispatcher, 
+    ERC20ABIDispatcher, 
+    felt252, 
+    IFeeControllerDispatcher
 ) {
     // Get default owner.
     let owner = owner();

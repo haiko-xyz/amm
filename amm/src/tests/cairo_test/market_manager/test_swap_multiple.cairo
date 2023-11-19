@@ -18,7 +18,7 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::{to_e28, to_e18, approx_eq_pct};
 
 // External imports.
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
 // SETUP
@@ -26,9 +26,9 @@ use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTr
 
 fn before() -> (
     IMarketManagerDispatcher,
-    IERC20Dispatcher, 
-    IERC20Dispatcher, 
-    IERC20Dispatcher,
+    ERC20ABIDispatcher, 
+    ERC20ABIDispatcher, 
+    ERC20ABIDispatcher,
     felt252,
     felt252,
 ) {

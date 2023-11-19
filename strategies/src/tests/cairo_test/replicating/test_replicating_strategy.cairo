@@ -34,7 +34,7 @@ use strategies::tests::cairo_test::replicating::helpers::{
 };
 
 // External imports.
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 use debug::PrintTrait;
 
@@ -56,8 +56,8 @@ struct SwapCase {
 
 fn before() -> (
     IMarketManagerDispatcher,
-    IERC20Dispatcher,
-    IERC20Dispatcher,
+    ERC20ABIDispatcher,
+    ERC20ABIDispatcher,
     felt252,
     IMockPragmaOracleDispatcher,
     IReplicatingStrategyDispatcher,
@@ -151,7 +151,7 @@ fn test_replicating_strategy_deposit_initial() {
     assert(approx_eq(base_amount, initial_base_amount, 10), 'Deposit initial: base');
     assert(approx_eq(quote_amount, initial_quote_amount, 10), 'Deposit initial: quote');
     assert(approx_eq_pct(shares, shares_exp, 20), 'Deposit initial: shares');
-    let strategy_token = IERC20Dispatcher { contract_address: strategy.contract_address };
+    let strategy_token = ERC20ABIDispatcher { contract_address: strategy.contract_address };
     assert(
         approx_eq_pct(strategy_token.balance_of(owner()), shares_exp, 20),
         'Deposit initial: balance'
@@ -584,8 +584,8 @@ fn test_replicating_strategy_swap_cases() {
 fn _snapshot_state(
     market_manager: IMarketManagerDispatcher,
     market_id: felt252,
-    base_token: IERC20Dispatcher,
-    quote_token: IERC20Dispatcher,
+    base_token: ERC20ABIDispatcher,
+    quote_token: ERC20ABIDispatcher,
 ) -> (MarketState, u256, u256, u256, u32, u256) {
     let market_state = market_manager.market_state(market_id);
     let base_balance = base_token.balance_of(market_manager.contract_address);

@@ -13,7 +13,7 @@ use amm::contracts::market_manager::MarketManager::{
     market_state::InternalContractMemberStateTrait as MarketStateTrait,
     limit_info::InternalContractMemberStateTrait as LimitInfoTrait,
 };
-use amm::contracts::market_manager::MarketManager::InternalTrait;
+use amm::contracts::market_manager::MarketManager::MarketManagerInternalTrait;
 use amm::libraries::tree;
 use amm::libraries::id;
 use amm::types::core::{LimitInfo, MarketState, MarketInfo, Position};

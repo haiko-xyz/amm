@@ -13,13 +13,13 @@ use array::ArrayTrait;
 
 // Local imports.
 use amm::tests::common::params::{ERC20ConstructorParams, token_params, treasury};
+use amm::contracts::erc20::ERC20;
 
 // External imports.
-use openzeppelin::token::erc20::erc20::ERC20;
-use openzeppelin::token::erc20::interface::{IERC20, IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 
-fn deploy_token(params: ERC20ConstructorParams) -> IERC20Dispatcher {
+fn deploy_token(params: ERC20ConstructorParams) -> ERC20ABIDispatcher {
     set_contract_address(treasury());
     let mut constructor_calldata = ArrayTrait::<felt252>::new();
     params.name_.serialize(ref constructor_calldata);
@@ -32,16 +32,16 @@ fn deploy_token(params: ERC20ConstructorParams) -> IERC20Dispatcher {
     )
         .unwrap();
 
-    IERC20Dispatcher { contract_address: deployed_address }
+    ERC20ABIDispatcher { contract_address: deployed_address }
 }
 
-fn fund(token: IERC20Dispatcher, user: ContractAddress, amount: u256) {
+fn fund(token: ERC20ABIDispatcher, user: ContractAddress, amount: u256) {
     set_contract_address(treasury());
     token.transfer(user, amount);
 }
 
 fn approve(
-    token: IERC20Dispatcher, owner: ContractAddress, spender: ContractAddress, amount: u256
+    token: ERC20ABIDispatcher, owner: ContractAddress, spender: ContractAddress, amount: u256
 ) {
     set_contract_address(owner);
     token.approve(spender, amount);

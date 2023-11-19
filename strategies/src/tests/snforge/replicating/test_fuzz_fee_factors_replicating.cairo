@@ -28,7 +28,7 @@ use strategies::tests::snforge::replicating::helpers::{
 
 // External imports.
 use snforge_std::{start_prank, stop_prank, PrintTrait};
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
 // TYPES

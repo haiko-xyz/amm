@@ -24,7 +24,7 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::{to_e18, to_e28, encode_sqrt_price, approx_eq, approx_eq_pct};
 
 // External imports.
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
 // TYPES
@@ -61,7 +61,7 @@ struct SwapCase {
 // SETUP
 ////////////////////////////////
 
-fn before() -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher) {
+fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher) {
     // Get default owner.
     let owner = owner();
 
@@ -1098,8 +1098,8 @@ fn test_swap_cases() {
 fn _snapshot_state(
     market_manager: IMarketManagerDispatcher,
     market_id: felt252,
-    base_token: IERC20Dispatcher,
-    quote_token: IERC20Dispatcher,
+    base_token: ERC20ABIDispatcher,
+    quote_token: ERC20ABIDispatcher,
 ) -> (MarketState, u256, u256, u256, u32, u256) {
     let market_state = market_manager.market_state(market_id);
     let base_balance = base_token.balance_of(market_manager.contract_address);
