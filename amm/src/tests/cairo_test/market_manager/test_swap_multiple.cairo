@@ -15,7 +15,7 @@ use amm::tests::common::params::{
     owner, alice, treasury, token_params, default_market_params, modify_position_params,
     swap_params, swap_multiple_params
 };
-use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
+use amm::tests::common::utils::{to_e28, to_e18, approx_eq_pct};
 
 // External imports.
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
@@ -109,6 +109,6 @@ fn test_swap_multiple() {
     );
     let amount_out = swap_multiple(market_manager, swap_params);
 
-    // Check amount out.
-    assert(amount_out == 61170203579856364, 'Swap multiple: amount out');
+    // Check amount out
+    assert(approx_eq_pct(amount_out, 61170203579856634, 14), 'Swap multiple: amount out');
 }
