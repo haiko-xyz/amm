@@ -28,7 +28,7 @@ mod MarketManager {
     use amm::interfaces::IFeeController::{IFeeControllerDispatcher, IFeeControllerDispatcherTrait};
     use amm::interfaces::ILoanReceiver::{ILoanReceiverDispatcher, ILoanReceiverDispatcherTrait};
     use amm::types::core::{
-        MarketInfo, MarketState, OrderBatch, Position, LimitInfo, LimitOrder, PositionInfo,
+        MarketInfo, MarketState, OrderBatch, Position, LimitInfo, LimitOrder, ERC721PositionInfo,
         SwapParams
     };
     use amm::types::i256::{i256, I256Zeroable, I256Trait};
@@ -464,14 +464,14 @@ mod MarketManager {
         // * `liquidity` - liquidity of position
         // * `base_amount` - amount of base tokens inside position
         // * `quote_amount` - amount of quote tokens inside position
-        fn ERC721_position_info(self: @ContractState, token_id: felt252) -> PositionInfo {
+        fn ERC721_position_info(self: @ContractState, token_id: felt252) -> ERC721PositionInfo {
             let position = self.positions.read(token_id);
             let market_info = self.market_info.read(position.market_id);
             let (base_amount, quote_amount) = liquidity_helpers::amounts_inside_position(
                 self, position.market_id, token_id, position.lower_limit, position.upper_limit
             );
 
-            PositionInfo {
+            ERC721PositionInfo {
                 base_token: market_info.base_token,
                 quote_token: market_info.quote_token,
                 width: market_info.width,

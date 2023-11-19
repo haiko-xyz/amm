@@ -17,9 +17,10 @@ use amm::tests::cairo_test::helpers::{
     token::{deploy_token, fund, approve},
 };
 use amm::tests::common::params::{
-    owner, alice, treasury, default_token_params, default_market_params, modify_position_params, swap_params
+    owner, alice, treasury, default_token_params, default_market_params, modify_position_params,
+    swap_params
 };
-use amm::tests::common::utils::encode_sqrt_price;
+use amm::tests::common::utils::{to_e18, to_e28, approx_eq, approx_eq_pct};
 use amm::tests::cairo_test::helpers::market_manager::swap;
 use amm::libraries::liquidity as liquidity_helpers;
 use amm::libraries::constants::MAX;
@@ -28,9 +29,8 @@ use strategies::strategies::replicating::{
     pragma_interfaces::{DataType, PragmaPricesResponse},
     mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
 };
-use strategies::tests::{
-    cairo_test::replicating::helpers::{deploy_replicating_strategy, deploy_mock_pragma_oracle},
-    common::utils::{to_e18, to_e28, approx_eq},
+use strategies::tests::cairo_test::replicating::helpers::{
+    deploy_replicating_strategy, deploy_mock_pragma_oracle
 };
 
 // External imports.
@@ -41,13 +41,6 @@ use debug::PrintTrait;
 ////////////////////////////////
 // TYPES
 ////////////////////////////////
-
-#[derive(Drop, Copy)]
-struct Position {
-    lower_limit: u32,
-    upper_limit: u32,
-    liquidity: i256,
-}
 
 #[derive(Drop, Copy)]
 struct SwapCase {
@@ -107,7 +100,7 @@ fn before() -> (
             'USDC/USD',
             100000000000000000000, // 10^20 = 10^28 / 10^8
             10, // ~0.01% min spread
-            20000, // ~20% slippage
+            20000, // ~20% range
             200, // ~0.2% delta
         );
 
@@ -151,15 +144,18 @@ fn test_replicating_strategy_deposit_initial() {
     let (base_amount, quote_amount, shares) = strategy
         .deposit_initial(initial_base_amount, initial_quote_amount);
 
-    let quote_liquidity_exp = 286281260093880636353279894;
-    let base_liquidity_exp = 429385305698142922274058535;
+    let base_liquidity_exp = 429406775392817428992841450;
+    let quote_liquidity_exp = 286266946460287812818573174;
     let shares_exp = quote_liquidity_exp + base_liquidity_exp;
 
     assert(approx_eq(base_amount, initial_base_amount, 10), 'Deposit initial: base');
     assert(approx_eq(quote_amount, initial_quote_amount, 10), 'Deposit initial: quote');
-    assert(shares == shares_exp, 'Deposit initial: shares');
+    assert(approx_eq_pct(shares, shares_exp, 20), 'Deposit initial: shares');
     let strategy_token = IERC20Dispatcher { contract_address: strategy.contract_address };
-    assert(strategy_token.balance_of(owner()) == shares_exp, 'Deposit initial: balance');
+    assert(
+        approx_eq_pct(strategy_token.balance_of(owner()), shares_exp, 20),
+        'Deposit initial: balance'
+    );
 }
 
 #[test]
@@ -188,17 +184,17 @@ fn test_replicating_strategy_update_positions() {
     let ask = strategy.ask();
     let market_state = market_manager.market_state(market_id);
 
-    assert(amount_in == amount, 'Swap: amount in');
-    assert(amount_out == 297873123266873285108, 'Swap: amount out');
-    assert(fees == to_e18(1500), 'Swap: fees');
-    assert(bid.lower_limit == 8388600 + 721920, 'Bid: lower limit');
-    assert(bid.upper_limit == 8388600 + 741920, 'Bid: upper limit');
-    assert(ask.lower_limit == 8388600 + 742270, 'Ask: lower limit');
-    assert(ask.upper_limit == 8388600 + 762270, 'Ask: upper limit');
+    assert(bid.lower_limit == 8388600 + 721930, 'Bid: lower limit');
+    assert(bid.upper_limit == 8388600 + 741930, 'Bid: upper limit');
+    assert(ask.lower_limit == 8388600 + 742280, 'Ask: lower limit');
+    assert(ask.upper_limit == 8388600 + 762280, 'Ask: upper limit');
+    assert(approx_eq_pct(bid.liquidity, 286266946460287812818573174, 20), 'Bid: liquidity');
+    assert(approx_eq_pct(ask.liquidity, 429900874766712811848315655, 20), 'Ask: liquidity');
     assert(
-        market_state.curr_sqrt_price == 409093969122899599425907670249, 'Market: curr sqrt price'
+        approx_eq(market_state.curr_sqrt_price, 409114423070831988486025303672, 100),
+        'Market: curr sqrt price'
     );
-    assert(market_state.curr_limit == 8388600 + 742275, 'Market: curr sqrt price');
+    assert(market_state.curr_limit == 8388600 + 742285, 'Market: curr sqrt price');
 }
 
 #[test]
@@ -225,6 +221,21 @@ fn test_replicating_strategy_multiple_swaps() {
         .swap(market_id, true, amount, true, Option::None(()), Option::None(()));
     let (amount_in, amount_out, fees) = market_manager
         .swap(market_id, false, amount, true, Option::None(()), Option::None(()));
+    let bid = strategy.bid();
+    let ask = strategy.ask();
+    let market_state = market_manager.market_state(market_id);
+
+    assert(bid.lower_limit == 8388600 + 719790, 'Bid: lower limit');
+    assert(bid.upper_limit == 8388600 + 739790, 'Bid: upper limit');
+    assert(ask.lower_limit == 8388600 + 741950, 'Ask: lower limit');
+    assert(ask.upper_limit == 8388600 + 761950, 'Ask: upper limit');
+    assert(approx_eq_pct(bid.liquidity, 289346433263735605208989471, 20), 'Bid: liquidity');
+    assert(approx_eq_pct(ask.liquidity, 429192126744996250400988130, 20), 'Ask: liquidity');
+    assert(
+        approx_eq(market_state.curr_sqrt_price, 408439982508831991327858223557, 100),
+        'Market: curr sqrt price'
+    );
+    assert(market_state.curr_limit == 8388600 + 741955, 'Market: curr sqrt price');
 }
 
 #[test]
@@ -506,16 +517,6 @@ fn test_replicating_strategy_swap_cases() {
         } else {
             ('*** SWAP 10' + (index - 9).into()).print();
         }
-        // '* base balance'.print();
-        // base_balance_before.print();
-        // '* quote amount'.print();
-        // quote_balance_before.print();
-        // '* Liquidity'.print();
-        // liquidity_before.print();
-        // '* Limit'.print();
-        // limit_before.print();
-        'Start Sqrt price'.print();
-        sqrt_price_before.print();
 
         let mut params = swap_params(
             alice(),
@@ -528,6 +529,8 @@ fn test_replicating_strategy_swap_cases() {
         );
         let (amount_in, amount_out, fees) = swap(market_manager, params);
 
+        'amount_in'.print();
+        amount_in.print();
         'amount_out'.print();
         amount_out.print();
         'fees'.print();

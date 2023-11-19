@@ -2,7 +2,7 @@ use starknet::ContractAddress;
 use starknet::class_hash::ClassHash;
 
 use amm::types::core::{
-    MarketInfo, MarketState, OrderBatch, Position, LimitInfo, LimitOrder, PositionInfo
+    MarketInfo, MarketState, OrderBatch, Position, LimitInfo, LimitOrder, ERC721PositionInfo
 };
 use amm::types::i256::i256;
 
@@ -86,7 +86,7 @@ trait IMarketManager<TContractState> {
         self: @TContractState, market_id: felt252, is_bid: bool, limit: u32, amount: u256,
     ) -> u256;
 
-    fn ERC721_position_info(self: @TContractState, token_id: felt252) -> PositionInfo;
+    fn ERC721_position_info(self: @TContractState, token_id: felt252) -> ERC721PositionInfo;
 
     ////////////////////////////////
     // EXTERNAL
