@@ -1,6 +1,6 @@
 use cmp::{min, max};
 
-use amm::libraries::math::price_math::limit_to_sqrt_price;
+use amm::libraries::math::price_math::{limit_to_sqrt_price, max_limit};
 use amm::libraries::math::liquidity_math::{
     liquidity_to_base, liquidity_to_quote, base_to_liquidity, quote_to_liquidity
 };
@@ -22,6 +22,11 @@ fn test_liquidity_to_base_invariants(liquidity: u128, width: u16, rand1: u32, ra
 
     let lower_limit = min(rand1, rand2) / 256;
     let upper_limit = max(rand1, rand2) / 256;
+
+    if lower_limit > max_limit(width.into()) || upper_limit > max_limit(width.into()) {
+        return;
+    }
+
     let lower_sqrt_price = limit_to_sqrt_price(lower_limit, width.into());
     let upper_sqrt_price = limit_to_sqrt_price(upper_limit, width.into());
     let liquidity_i256 = I256Trait::new(liquidity.into(), false);
@@ -52,6 +57,11 @@ fn test_liquidity_to_quote_invariants(liquidity: u128, width: u16, rand1: u32, r
 
     let lower_limit = min(rand1, rand2) / 256;
     let upper_limit = max(rand1, rand2) / 256;
+
+    if lower_limit > max_limit(width.into()) || upper_limit > max_limit(width.into()) {
+        return;
+    }
+
     let lower_sqrt_price = limit_to_sqrt_price(lower_limit, width.into());
     let upper_sqrt_price = limit_to_sqrt_price(upper_limit, width.into());
     let liquidity_i256 = I256Trait::new(liquidity.into(), false);

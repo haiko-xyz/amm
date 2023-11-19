@@ -17,7 +17,7 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::{to_e18, to_e28, encode_sqrt_price};
 
 // External imports.
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
 // TYPES
@@ -35,7 +35,9 @@ struct SwapCase {
 // SETUP
 ////////////////////////////////
 
-fn before() -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, IQuoterDispatcher) {
+fn before() -> (
+    IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, IQuoterDispatcher
+) {
     // Get default owner.
     let owner = owner();
 

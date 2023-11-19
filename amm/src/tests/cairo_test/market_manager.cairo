@@ -9,3 +9,5 @@ mod test_upgrade_market_manager;
 mod test_id;
 mod test_fee_factor;
 mod test_flash_loan;
+mod test_strategy;
+mod test_fee_controller;

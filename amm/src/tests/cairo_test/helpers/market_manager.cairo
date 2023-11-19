@@ -20,7 +20,7 @@ use amm::tests::common::params::{
 };
 
 // External imports.
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 fn deploy_market_manager(owner: ContractAddress,) -> IMarketManagerDispatcher {
     let mut constructor_calldata = ArrayTrait::<felt252>::new();

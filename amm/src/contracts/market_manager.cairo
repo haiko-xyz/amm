@@ -28,7 +28,7 @@ mod MarketManager {
     use amm::interfaces::IFeeController::{IFeeControllerDispatcher, IFeeControllerDispatcherTrait};
     use amm::interfaces::ILoanReceiver::{ILoanReceiverDispatcher, ILoanReceiverDispatcherTrait};
     use amm::types::core::{
-        MarketInfo, MarketState, OrderBatch, Position, LimitInfo, LimitOrder, PositionInfo,
+        MarketInfo, MarketState, OrderBatch, Position, LimitInfo, LimitOrder, ERC721PositionInfo,
         SwapParams
     };
     use amm::types::i256::{i256, I256Zeroable, I256Trait};
@@ -38,9 +38,24 @@ mod MarketManager {
     };
 
     // External imports.
-    use openzeppelin::token::erc721::erc721::ERC721;
-    use openzeppelin::token::erc721::interface::IERC721;
-    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use openzeppelin::token::erc20::interface::{
+        IERC20Dispatcher, IERC20DispatcherTrait, IERC20MetadataDispatcher,
+        IERC20MetadataDispatcherTrait
+    };
+    use openzeppelin::token::erc721::erc721::ERC721Component;
+    use openzeppelin::token::erc721::interface::{IERC721Dispatcher, IERC721DispatcherTrait};
+    use openzeppelin::introspection::src5::SRC5Component;
+
+    component!(path: ERC721Component, storage: erc721, event: ERC721Event);
+    component!(path: SRC5Component, storage: src5, event: SRC5Event);
+
+    #[abi(embed_v0)]
+    impl ERC721Impl = ERC721Component::ERC721Impl<ContractState>;
+    #[abi(embed_v0)]
+    impl ERC721MetadataImpl = ERC721Component::ERC721MetadataImpl<ContractState>;
+    impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
+    #[abi(embed_v0)]
+    impl SRC5Impl = SRC5Component::SRC5Impl<ContractState>;
 
     ////////////////////////////////
     // STORAGE
@@ -81,6 +96,10 @@ mod MarketManager {
         limit_tree_l1: LegacyMap::<(felt252, u32), u256>,
         // Indexed by (market_id: felt252, seg_index_l2: u32)
         limit_tree_l2: LegacyMap::<(felt252, u32), u256>,
+        #[substorage(v0)]
+        erc721: ERC721Component::Storage,
+        #[substorage(v0)]
+        src5: SRC5Component::Storage,
     }
 
     ////////////////////////////////
@@ -104,6 +123,10 @@ mod MarketManager {
         ChangeOwner: ChangeOwner,
         ChangeFlashLoanFee: ChangeFlashLoanFee,
         ChangeProtocolShare: ChangeProtocolShare,
+        #[flat]
+        ERC721Event: ERC721Component::Event,
+        #[flat]
+        SRC5Event: SRC5Component::Event,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -240,11 +263,7 @@ mod MarketManager {
     fn constructor(ref self: ContractState, owner: ContractAddress) {
         self.owner.write(owner);
         self.swap_id.write(1);
-
-        let mut unsafe_state = ERC721::unsafe_new_contract_state();
-        ERC721::InternalImpl::initializer(
-            ref unsafe_state, 'Sphinx Liquidity Positions', 'SPHINX-LP'
-        );
+        self.erc721.initializer('Sphinx Liquidity Positions', 'SPHINX-LP');
 
         self
             .emit(
@@ -464,14 +483,14 @@ mod MarketManager {
         // * `liquidity` - liquidity of position
         // * `base_amount` - amount of base tokens inside position
         // * `quote_amount` - amount of quote tokens inside position
-        fn ERC721_position_info(self: @ContractState, token_id: felt252) -> PositionInfo {
+        fn ERC721_position_info(self: @ContractState, token_id: felt252) -> ERC721PositionInfo {
             let position = self.positions.read(token_id);
             let market_info = self.market_info.read(position.market_id);
             let (base_amount, quote_amount) = liquidity_helpers::amounts_inside_position(
                 self, position.market_id, token_id, position.lower_limit, position.upper_limit
             );
 
-            PositionInfo {
+            ERC721PositionInfo {
                 base_token: market_info.base_token,
                 quote_token: market_info.quote_token,
                 width: market_info.width,
@@ -524,13 +543,13 @@ mod MarketManager {
             assert(base_token.is_non_zero() && quote_token.is_non_zero(), 'TokensNull');
             assert(width != 0, 'WidthZero');
             assert(width <= MAX_WIDTH, 'WidthOverflow');
-            assert(swap_fee_rate <= fee_math::MAX_FEE_RATE, 'SwapFeeOverflow');
+            assert(swap_fee_rate <= fee_math::MAX_FEE_RATE, 'SwapFeeRateOverflow');
             assert(protocol_share <= fee_math::MAX_FEE_RATE, 'ProtocolShareOverflow');
             assert(start_limit < MAX_LIMIT_SHIFTED, 'StartLimitOverflow');
 
             // Check tokens exist and whitelisted.
-            IERC20Dispatcher { contract_address: base_token }.name();
-            IERC20Dispatcher { contract_address: quote_token }.name();
+            IERC20MetadataDispatcher { contract_address: base_token }.name();
+            IERC20MetadataDispatcher { contract_address: quote_token }.name();
             assert(self.whitelist.read(base_token), 'BaseWhitelist');
             assert(self.whitelist.read(quote_token), 'QuoteWhitelist');
 
@@ -1049,8 +1068,7 @@ mod MarketManager {
             assert(position_info.base_token.is_non_zero(), 'PositionNull');
 
             // Mint ERC721 token.
-            let mut unsafe_state = ERC721::unsafe_new_contract_state();
-            ERC721::InternalImpl::_mint(ref unsafe_state, caller, position_id.into());
+            self.erc721._mint(caller, position_id.into());
         }
 
         // Burn ERC721 to unlock capital from open liquidity positions.
@@ -1060,12 +1078,8 @@ mod MarketManager {
         fn burn(ref self: ContractState, position_id: felt252) {
             // Verify caller.
             let caller = get_caller_address();
-            let mut unsafe_state = ERC721::unsafe_new_contract_state();
             assert(
-                ERC721::InternalImpl::_is_approved_or_owner(
-                    @unsafe_state, caller, position_id.into()
-                ),
-                'NotApprovedNorOwner'
+                self.erc721._is_approved_or_owner(caller, position_id.into()), 'NotApprovedOrOwner'
             );
 
             // Check position is empty.
@@ -1078,7 +1092,7 @@ mod MarketManager {
             );
 
             // Burn ERC721 token.
-            ERC721::InternalImpl::_burn(ref unsafe_state, position_id.into());
+            self.erc721._burn(position_id.into());
         }
 
         // Whitelists a token for market creation.
@@ -1285,63 +1299,8 @@ mod MarketManager {
         }
     }
 
-    #[external(v0)]
-    impl ERC721Impl of IERC721<ContractState> {
-        fn balance_of(self: @ContractState, account: ContractAddress) -> u256 {
-            let unsafe_state = ERC721::unsafe_new_contract_state();
-            ERC721::ERC721Impl::balance_of(@unsafe_state, account)
-        }
-
-        fn owner_of(self: @ContractState, token_id: u256) -> ContractAddress {
-            let unsafe_state = ERC721::unsafe_new_contract_state();
-            ERC721::ERC721Impl::owner_of(@unsafe_state, token_id)
-        }
-
-        fn transfer_from(
-            ref self: ContractState, from: ContractAddress, to: ContractAddress, token_id: u256
-        ) {
-            let mut unsafe_state = ERC721::unsafe_new_contract_state();
-            ERC721::ERC721Impl::transfer_from(ref unsafe_state, from, to, token_id)
-        }
-
-        fn safe_transfer_from(
-            ref self: ContractState,
-            from: ContractAddress,
-            to: ContractAddress,
-            token_id: u256,
-            data: Span<felt252>
-        ) {
-            let mut unsafe_state = ERC721::unsafe_new_contract_state();
-            ERC721::ERC721Impl::safe_transfer_from(ref unsafe_state, from, to, token_id, data)
-        }
-
-        fn approve(ref self: ContractState, to: ContractAddress, token_id: u256) {
-            let mut unsafe_state = ERC721::unsafe_new_contract_state();
-            ERC721::ERC721Impl::approve(ref unsafe_state, to, token_id)
-        }
-
-        fn set_approval_for_all(
-            ref self: ContractState, operator: ContractAddress, approved: bool
-        ) {
-            let mut unsafe_state = ERC721::unsafe_new_contract_state();
-            ERC721::ERC721Impl::set_approval_for_all(ref unsafe_state, operator, approved)
-        }
-
-        fn get_approved(self: @ContractState, token_id: u256) -> ContractAddress {
-            let unsafe_state = ERC721::unsafe_new_contract_state();
-            ERC721::ERC721Impl::get_approved(@unsafe_state, token_id)
-        }
-
-        fn is_approved_for_all(
-            self: @ContractState, owner: ContractAddress, operator: ContractAddress
-        ) -> bool {
-            let unsafe_state = ERC721::unsafe_new_contract_state();
-            ERC721::ERC721Impl::is_approved_for_all(@unsafe_state, owner, operator)
-        }
-    }
-
     #[generate_trait]
-    impl InternalImpl of InternalTrait {
+    impl MarketManagerInternalImpl of MarketManagerInternalTrait {
         // Internal function to modify liquidity from a position.
         // Called by `modify_position`, `create_order`, `collect_order` and `fill_limits`.
         //
@@ -1551,8 +1510,10 @@ mod MarketManager {
             let fee_rate = if market_info.fee_controller.is_zero() {
                 market_info.swap_fee_rate
             } else {
-                IFeeControllerDispatcher { contract_address: market_info.fee_controller }
-                    .swap_fee_rate()
+                let rate = IFeeControllerDispatcher { contract_address: market_info.fee_controller }
+                    .swap_fee_rate();
+                assert(rate <= fee_math::MAX_FEE_RATE, 'SwapFeeRateOverflow');
+                rate
             };
 
             // Initialise trackers for swap state.

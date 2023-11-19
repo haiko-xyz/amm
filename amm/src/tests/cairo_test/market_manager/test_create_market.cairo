@@ -12,13 +12,13 @@ use amm::tests::cairo_test::helpers::token::deploy_token;
 use amm::tests::common::params::{owner, default_token_params, default_market_params};
 
 // External imports.
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
 // SETUP
 ////////////////////////////////
 
-fn before() -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher) {
+fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher) {
     // Get default owner.
     let owner = owner();
 
@@ -242,7 +242,7 @@ fn test_create_market_width_overflow() {
 
 #[test]
 #[available_gas(2000000000)]
-#[should_panic(expected: ('SwapFeeOverflow', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('SwapFeeRateOverflow', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_fee_rate_overflow() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();

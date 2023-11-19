@@ -23,7 +23,7 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::to_e28;
 
 // External imports.
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
 // SETUP
@@ -44,7 +44,7 @@ struct TestCase {
 
 fn _before(
     width: u32, is_concentrated: bool, allow_orders: bool, allow_positions: bool
-) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
+) -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252) {
     // Get default owner.
     let owner = owner();
 
@@ -82,21 +82,25 @@ fn _before(
     (market_manager, base_token, quote_token, market_id)
 }
 
-fn before(width: u32) -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
+fn before(
+    width: u32
+) -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252) {
     _before(width, true, true, true)
 }
 
 fn before_strategy_only() -> (
-    IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252
+    IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252
 ) {
     _before(1, true, true, false)
 }
 
-fn before_linear() -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
+fn before_linear() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252) {
     _before(1, false, true, true)
 }
 
-fn before_no_orders() -> (IMarketManagerDispatcher, IERC20Dispatcher, IERC20Dispatcher, felt252) {
+fn before_no_orders() -> (
+    IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252
+) {
     _before(1, true, false, true)
 }
 
@@ -814,8 +818,8 @@ fn test_modify_position_concentrated_in_linear_market() {
 fn _modify_position_and_run_checks(
     market_manager: IMarketManagerDispatcher,
     market_id: felt252,
-    base_token: IERC20Dispatcher,
-    quote_token: IERC20Dispatcher,
+    base_token: ERC20ABIDispatcher,
+    quote_token: ERC20ABIDispatcher,
     lower_limit: u32,
     upper_limit: u32,
     liquidity: i256,
@@ -867,8 +871,8 @@ fn _modify_position_and_run_checks(
 fn _snapshot_state(
     market_manager: IMarketManagerDispatcher,
     market_id: felt252,
-    base_token: IERC20Dispatcher,
-    quote_token: IERC20Dispatcher,
+    base_token: ERC20ABIDispatcher,
+    quote_token: ERC20ABIDispatcher,
     lower_limit: u32,
     upper_limit: u32
 ) -> (u256, u256, LimitInfo, LimitInfo) {

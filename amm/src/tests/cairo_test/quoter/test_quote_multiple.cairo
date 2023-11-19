@@ -19,7 +19,7 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
 
 // External imports.
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
 // SETUP
@@ -27,9 +27,9 @@ use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTr
 
 fn before() -> (
     IMarketManagerDispatcher,
-    IERC20Dispatcher,
-    IERC20Dispatcher,
-    IERC20Dispatcher,
+    ERC20ABIDispatcher,
+    ERC20ABIDispatcher,
+    ERC20ABIDispatcher,
     IQuoterDispatcher
 ) {
     // Get default owner.

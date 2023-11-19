@@ -13,7 +13,7 @@ use amm::contracts::market_manager::MarketManager::{
     market_state::InternalContractMemberStateTrait as MarketStateTrait,
     limit_info::InternalContractMemberStateTrait as LimitInfoTrait,
 };
-use amm::contracts::market_manager::MarketManager::InternalTrait;
+use amm::contracts::market_manager::MarketManager::MarketManagerInternalTrait;
 use amm::libraries::tree;
 use amm::libraries::id;
 use amm::types::core::{LimitInfo, MarketState, MarketInfo, Position};
@@ -21,8 +21,6 @@ use amm::libraries::math::{liquidity_math, price_math, fee_math, math};
 use amm::libraries::constants::{ONE, MAX_UNSCALED, MAX, HALF, MAX_NUM_LIMITS};
 use amm::types::i256::{I256Trait, i256, I256Zeroable};
 use amm::interfaces::IMarketManager::IMarketManager;
-
-use debug::PrintTrait;
 
 ////////////////////////////////
 // FUNCTIONS
@@ -187,17 +185,6 @@ fn update_limit(
         limit_info.base_fee_factor = *market_state.base_fee_factor;
         limit_info.quote_fee_factor = *market_state.quote_fee_factor;
     }
-    // if liquidity_before == 0 {
-    //     if limit <= *market_state.curr_limit {
-    //         'reached 1'.print();
-    //         limit_info.base_fee_factor = *market_state.base_fee_factor;
-    //         limit_info.quote_fee_factor = *market_state.quote_fee_factor;
-    //     } else {
-    //         'reached 2'.print();
-    //         limit_info.base_fee_factor = 0;
-    //         limit_info.quote_fee_factor = 0;
-    //     }
-    // }
 
     // Return limit info
     limit_info

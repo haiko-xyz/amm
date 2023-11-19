@@ -19,9 +19,6 @@ mod UpgradedMarketManager {
         OrderBatchStorePacking, PositionStorePacking, LimitOrderStorePacking
     };
 
-    // External imports.
-    use openzeppelin::token::erc721::erc721::ERC721;
-
     ////////////////////////////////
     // STORAGE
     ////////////////////////////////
@@ -68,11 +65,6 @@ mod UpgradedMarketManager {
     fn constructor(ref self: ContractState, owner: ContractAddress) {
         self.owner.write(owner);
         self.multi_swap_id.write(1);
-
-        let mut unsafe_state = ERC721::unsafe_new_contract_state();
-        ERC721::InternalImpl::initializer(
-            ref unsafe_state, 'Sphinx Liquidity Positions', 'SPHINX-LP'
-        );
     }
 
     #[generate_trait]

@@ -147,6 +147,18 @@ struct SwapParams {
     deadline: Option<u64>,
 }
 
+// Strategy position info.
+//
+// * `lower_limit` - lower limit of position
+// * `upper_limit` - upper limit of position
+// * `liquidity` - liquidity of position
+#[derive(Copy, Drop, Serde, starknet::Store, Default, PartialEq)]
+struct PositionInfo {
+    lower_limit: u32,
+    upper_limit: u32,
+    liquidity: u256,
+}
+
 // Position info returned for ERC721.
 //
 // * `base_token` - base token address
@@ -159,7 +171,7 @@ struct SwapParams {
 // * `base_amount` - amount of base tokens inside position
 // * `quote_amount` - amount of quote tokens inside position
 #[derive(Copy, Drop, Serde)]
-struct PositionInfo {
+struct ERC721PositionInfo {
     base_token: ContractAddress,
     quote_token: ContractAddress,
     width: u32,

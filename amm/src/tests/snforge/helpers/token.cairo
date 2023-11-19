@@ -16,32 +16,30 @@ use amm::tests::common::params::{ERC20ConstructorParams, token_params, treasury}
 
 // External imports.
 use snforge_std::{declare, ContractClass, ContractClassTrait, start_prank, stop_prank};
-use openzeppelin::token::erc20::erc20::ERC20;
-use openzeppelin::token::erc20::interface::{IERC20, IERC20Dispatcher, IERC20DispatcherTrait};
-
+use openzeppelin::token::erc20::interface::{IERC20, ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 fn declare_token() -> ContractClass {
     declare('ERC20')
 }
 
-fn deploy_token(class: ContractClass, params: ERC20ConstructorParams) -> IERC20Dispatcher {
+fn deploy_token(class: ContractClass, params: ERC20ConstructorParams) -> ERC20ABIDispatcher {
     let mut constructor_calldata = ArrayTrait::<felt252>::new();
     params.name_.serialize(ref constructor_calldata);
     params.symbol_.serialize(ref constructor_calldata);
     params.initial_supply.serialize(ref constructor_calldata);
     params.recipient.serialize(ref constructor_calldata);
     let contract_address = class.deploy(@constructor_calldata).unwrap();
-    IERC20Dispatcher { contract_address }
+    ERC20ABIDispatcher { contract_address }
 }
 
-fn fund(token: IERC20Dispatcher, user: ContractAddress, amount: u256) {
+fn fund(token: ERC20ABIDispatcher, user: ContractAddress, amount: u256) {
     start_prank(token.contract_address, treasury());
     token.transfer(user, amount);
     stop_prank(token.contract_address);
 }
 
 fn approve(
-    token: IERC20Dispatcher, owner: ContractAddress, spender: ContractAddress, amount: u256
+    token: ERC20ABIDispatcher, owner: ContractAddress, spender: ContractAddress, amount: u256
 ) {
     start_prank(token.contract_address, owner);
     token.approve(spender, amount);

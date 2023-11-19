@@ -19,7 +19,7 @@ use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
 
 // External imports.
 use snforge_std::{start_prank, PrintTrait};
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
 // TYPES
@@ -53,7 +53,7 @@ struct PositionState {
 // SETUP
 ////////////////////////////////
 
-fn before() -> (IMarketManagerDispatcher, felt252, IERC20Dispatcher, IERC20Dispatcher) {
+fn before() -> (IMarketManagerDispatcher, felt252, ERC20ABIDispatcher, ERC20ABIDispatcher) {
     // Deploy market manager.
     let market_manager = deploy_market_manager(owner());
 

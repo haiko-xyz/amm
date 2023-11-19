@@ -22,8 +22,7 @@ const printPositionAmounts = (cases: Array<TestCase>) => {
       liquidity,
       currSqrtPrice,
       limitToSqrtPrice(shiftLimit(lowerLimit, width), width),
-      limitToSqrtPrice(shiftLimit(upperLimit, width), width),
-      width
+      limitToSqrtPrice(shiftLimit(upperLimit, width), width)
     )
 
     console.log({

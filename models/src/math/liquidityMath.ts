@@ -65,8 +65,7 @@ export const liquidityToAmounts = (
   liquidityDelta: Decimal.Value,
   currSqrtPrice: Decimal.Value,
   lowerSqrtPrice: Decimal.Value,
-  upperSqrtPrice: Decimal.Value,
-  width: Decimal.Value
+  upperSqrtPrice: Decimal.Value
 ): TokenAmounts => {
   Decimal.set({ precision: PRECISION, rounding: ROUNDING })
   let upperSqrtPriceDec = new Decimal(upperSqrtPrice)

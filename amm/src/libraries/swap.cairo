@@ -16,7 +16,7 @@ use amm::contracts::market_manager::MarketManager::{
     batches::InternalContractMemberStateTrait as BatchStateTrait,
     positions::InternalContractMemberStateTrait as PositionStateTrait,
 };
-use amm::contracts::market_manager::MarketManager::InternalTrait;
+use amm::contracts::market_manager::MarketManager::MarketManagerInternalTrait;
 use amm::types::core::{MarketState, PartialFillInfo};
 use amm::types::i256::I256Trait;
 

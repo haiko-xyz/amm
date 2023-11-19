@@ -2,6 +2,9 @@
 use starknet::ContractAddress;
 use starknet::class_hash::ClassHash;
 
+// Local imports.
+use amm::types::core::PositionInfo;
+
 ////////////////////////////////
 // TYPES
 ////////////////////////////////
@@ -10,10 +13,10 @@ use starknet::class_hash::ClassHash;
 struct StrategyParams {
     // default spread between reference price and bid/ask price (TODO: replace with volatility)
     min_spread: u32,
-    // slippage parameter (width, in limits, of bid and ask liquidity positions)
-    slippage: u32,
-    // delta parameter (additional single-sided spread based on portfolio imbalance)
-    delta: u32,
+    // range parameter (width, in limits, of bid and ask liquidity positions)
+    range: u32,
+    // max_delta parameter (max additional single-sided spread based on portfolio imbalance)
+    max_delta: u32,
 }
 
 #[derive(Drop, Copy, Serde, starknet::Store)]
@@ -22,19 +25,6 @@ struct OracleParams {
     base_currency_id: felt252,
     // Pragma quote currency id
     quote_currency_id: felt252,
-}
-
-#[derive(Drop, Copy, Serde, starknet::Store)]
-struct PositionInfo {
-    lower_limit: u32,
-    upper_limit: u32,
-    liquidity: u256,
-}
-
-impl DefaultPositionInfo of Default<PositionInfo> {
-    fn default() -> PositionInfo {
-        PositionInfo { lower_limit: 0, upper_limit: 0, liquidity: 0, }
-    }
 }
 
 ////////////////////////////////
@@ -52,7 +42,7 @@ trait IReplicatingStrategy<TContractState> {
     fn quote_reserves(self: @TContractState) -> u256;
     fn get_oracle_price(self: @TContractState) -> u128;
     fn get_balances(self: @TContractState) -> (u256, u256);
-    fn get_bid_ask(self: @TContractState) -> (u32, u32);
+    fn get_bid_ask(self: @TContractState) -> (u32, u32, u32, u32);
 
     fn initialise(
         ref self: TContractState,
@@ -65,8 +55,8 @@ trait IReplicatingStrategy<TContractState> {
         quote_currency_id: felt252,
         scaling_factor: u256,
         min_spread: u32,
-        slippage: u32,
-        delta: u32,
+        range: u32,
+        max_delta: u32,
     );
     fn deposit_initial(
         ref self: TContractState, base_amount: u256, quote_amount: u256
@@ -76,7 +66,9 @@ trait IReplicatingStrategy<TContractState> {
     ) -> (u256, u256, u256);
     fn withdraw(ref self: TContractState, shares: u256) -> (u256, u256);
     fn collect_and_pause(ref self: TContractState);
-    fn change_strategy_params(ref self: TContractState, min_spread: u32, slippage: u32, delta: u32);
+    fn change_strategy_params(
+        ref self: TContractState, min_spread: u32, range: u32, max_delta: u32
+    );
     fn change_oracle(
         ref self: TContractState,
         oracle: ContractAddress,
@@ -96,7 +88,6 @@ trait IReplicatingStrategy<TContractState> {
 #[starknet::contract]
 mod ReplicatingStrategy {
     // Core lib imports.
-    use array::SpanTrait;
     use zeroable::Zeroable;
     use integer::BoundedU256;
     use cmp::{min, max};
@@ -108,10 +99,10 @@ mod ReplicatingStrategy {
 
     // Local imports.
     use super::IReplicatingStrategy;
-    use super::{PositionInfo, StrategyParams, OracleParams};
+    use super::{StrategyParams, OracleParams};
     use amm::contracts::market_manager::MarketManager;
     use amm::contracts::market_manager::MarketManager::ContractState as MMContractState;
-    use amm::types::core::{MarketState, SwapParams};
+    use amm::types::core::{MarketState, SwapParams, PositionInfo};
     use amm::libraries::math::{math, price_math, liquidity_math, fee_math};
     use amm::libraries::id;
     use amm::libraries::liquidity as liquidity_helpers;
@@ -119,23 +110,31 @@ mod ReplicatingStrategy {
     use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
     use amm::interfaces::IStrategy::IStrategy;
     use amm::types::i256::{I256Trait, i256};
+    use strategies::strategies::replicating::spread_math;
     use strategies::strategies::replicating::pragma_interfaces::{
         IOracleABIDispatcher, IOracleABIDispatcherTrait, AggregationMode, DataType, SimpleDataType,
         PragmaPricesResponse
     };
 
     // External imports.
-    use openzeppelin::token::erc20::erc20::ERC20;
-    use openzeppelin::token::erc20::interface::{ERC20ABI, IERC20Dispatcher, IERC20DispatcherTrait};
+    use openzeppelin::token::erc20::erc20::ERC20Component;
+    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+
+    component!(path: ERC20Component, storage: erc20, event: ERC20Event);
+
+    #[abi(embed_v0)]
+    impl ERC20Impl = ERC20Component::ERC20Impl<ContractState>;
+    #[abi(embed_v0)]
+    impl ERC20MetadataImpl = ERC20Component::ERC20MetadataImpl<ContractState>;
+    impl ERC20InternalImpl = ERC20Component::InternalImpl<ContractState>;
 
     #[storage]
     struct Storage {
         // Immutables
         owner: ContractAddress,
-        market_manager: ContractAddress,
+        market_manager: IMarketManagerDispatcher,
         market_id: felt252,
         is_initialised: bool,
-
         // Oracle info
         oracle: ContractAddress,
         oracle_params: OracleParams,
@@ -144,12 +143,13 @@ mod ReplicatingStrategy {
         strategy_params: StrategyParams,
         // whether pool is paused
         is_paused: bool,
-
         // Strategy state
         base_reserves: u256,
         quote_reserves: u256,
         bid: PositionInfo, // liquidity = 0 if no bid position set
         ask: PositionInfo, // liquidity = 0 if no ask position set
+        #[substorage(v0)]
+        erc20: ERC20Component::Storage
     }
 
     ////////////////////////////////
@@ -167,6 +167,8 @@ mod ReplicatingStrategy {
         ChangeOwner: ChangeOwner,
         Pause: Pause,
         Unpause: Unpause,
+        #[flat]
+        ERC20Event: ERC20Component::Event
     }
 
     #[derive(Drop, starknet::Event)]
@@ -196,8 +198,8 @@ mod ReplicatingStrategy {
     #[derive(Drop, starknet::Event)]
     struct ChangeParams {
         min_spread: u32,
-        slippage: u32,
-        delta: u32,
+        range: u32,
+        max_delta: u32,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -243,7 +245,7 @@ mod ReplicatingStrategy {
     impl Strategy of IStrategy<ContractState> {
         // Get market manager contract address
         fn market_manager(self: @ContractState) -> ContractAddress {
-            self.market_manager.read()
+            self.market_manager.read().contract_address
         }
 
         // Get market id
@@ -253,20 +255,96 @@ mod ReplicatingStrategy {
 
         // Get strategy name
         fn strategy_name(self: @ContractState) -> felt252 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::name(@unsafe_state)
+            self.erc20.name()
         }
 
         // Get strategy symbol
         fn strategy_symbol(self: @ContractState) -> felt252 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::symbol(@unsafe_state)
+            self.erc20.symbol()
+        }
+
+        // Get list of positions currently placed by strategy.
+        //
+        // # Returns
+        // * `positions` - list of positions
+        fn placed_positions(self: @ContractState) -> Span<PositionInfo> {
+            let bid = self.bid.read();
+            let ask = self.ask.read();
+            let mut positions: Array<PositionInfo> = array![bid, ask];
+            positions.span()
+        }
+
+        // Get list of positions queued to be placed by strategy on next update.
+        // 
+        // # Returns
+        // * `positions` - list of positions
+        fn queued_positions(self: @ContractState) -> Span<PositionInfo> {
+            // Fetch market info.
+            let market_manager = self.market_manager.read();
+            let market_id = self.market_id.read();
+            let market_info = market_manager.market_info(market_id);
+
+            // Fetch strategy state.
+            let strategy_params = self.strategy_params.read();
+            let base_reserves = self.base_reserves.read();
+            let quote_reserves = self.quote_reserves.read();
+            let bid = self.bid.read();
+            let ask = self.ask.read();
+
+            // Fetch amounts in existing position.
+            let contract: felt252 = get_contract_address().into();
+            let bid_pos_id = id::position_id(market_id, contract, bid.lower_limit, bid.upper_limit);
+            let ask_pos_id = id::position_id(market_id, contract, ask.lower_limit, ask.upper_limit);
+            let (bid_base, bid_quote) = market_manager
+                .amounts_inside_position(market_id, bid_pos_id, bid.lower_limit, bid.upper_limit);
+            let (ask_base, ask_quote) = market_manager
+                .amounts_inside_position(market_id, ask_pos_id, ask.lower_limit, ask.upper_limit);
+
+            // Fetch new optimal bid and ask positions.
+            let (next_bid_lower, next_bid_upper, next_ask_lower, next_ask_upper) = self
+                .get_bid_ask();
+
+            // Calculate amount of new liquidity to add.
+            let base_amount = base_reserves + bid_base + ask_base;
+            let base_liquidity = if base_amount == 0 || next_ask_lower
+                + strategy_params.range > price_math::max_limit(market_info.width) {
+                0
+            } else {
+                liquidity_math::base_to_liquidity(
+                    price_math::limit_to_sqrt_price(next_ask_lower, market_info.width),
+                    price_math::limit_to_sqrt_price(next_ask_upper, market_info.width),
+                    base_amount
+                )
+            };
+            let quote_amount = quote_reserves + bid_quote + ask_quote;
+            let quote_liquidity = if next_bid_upper < strategy_params.range || quote_amount == 0 {
+                0
+            } else {
+                liquidity_math::quote_to_liquidity(
+                    price_math::limit_to_sqrt_price(next_bid_lower, market_info.width),
+                    price_math::limit_to_sqrt_price(next_bid_upper, market_info.width),
+                    quote_amount
+                )
+            };
+
+            // Return new positions.
+            let next_bid = PositionInfo {
+                lower_limit: next_bid_lower,
+                upper_limit: next_bid_upper,
+                liquidity: quote_liquidity,
+            };
+            let next_ask = PositionInfo {
+                lower_limit: next_ask_lower, upper_limit: next_ask_upper, liquidity: base_liquidity,
+            };
+            let mut positions: Array<PositionInfo> = array![next_bid, next_ask];
+            positions.span()
         }
 
         // Updates positions. Called by MarketManager upon swap.
         fn update_positions(ref self: ContractState, params: SwapParams) {
             // Run checks
-            assert(get_caller_address() == self.market_manager.read(), 'OnlyMarketManager');
+            let market_manager = self.market_manager.read();
+            assert(get_caller_address() == market_manager.contract_address, 'OnlyMarketManager');
             assert(self.is_initialised.read(), 'NotInitialised');
             if self.is_paused.read() {
                 return ();
@@ -349,19 +427,16 @@ mod ReplicatingStrategy {
 
             // Fetch position info from market manager.
             let market_id = self.market_id.read();
-            let market_manager_addr = self.market_manager.read();
-            let market_manager = IMarketManagerDispatcher { contract_address: market_manager_addr };
+            let market_manager = self.market_manager.read();
             let contract: felt252 = get_contract_address().into();
             let bid_pos_id = id::position_id(market_id, contract, bid.lower_limit, bid.upper_limit);
             let ask_pos_id = id::position_id(market_id, contract, ask.lower_limit, ask.upper_limit);
 
             // Calculate base and quote amounts inside strategy, either in reserves or in positions.
-            let (bid_base, bid_quote) = market_manager.amounts_inside_position(
-                market_id, bid_pos_id, bid.lower_limit, bid.upper_limit,
-            );
-            let (ask_base, ask_quote) = market_manager.amounts_inside_position(
-                market_id, ask_pos_id, ask.lower_limit, ask.upper_limit,
-            );
+            let (bid_base, bid_quote) = market_manager
+                .amounts_inside_position(market_id, bid_pos_id, bid.lower_limit, bid.upper_limit,);
+            let (ask_base, ask_quote) = market_manager
+                .amounts_inside_position(market_id, ask_pos_id, ask.lower_limit, ask.upper_limit,);
 
             // Return total amounts.
             let base_amount = base_reserves + bid_base + ask_base;
@@ -373,74 +448,43 @@ mod ReplicatingStrategy {
         // Calculate new optimal positions.
         // 
         // Given reference price R: 
-        // - Bid range position will be placed from R - S - Db to B - Db
-        // - Ask range position will be placed from R + S + Da to B + Da
+        // - Bid range position will be placed from P - R - Db to B - Db
+        // - Ask range position will be placed from P + R + Da to B + Da
         // where: 
-        //   S is the slippage parameter (controls how volume affects price)
-    //   D is the delta parameter (controls how portfolio imbalance affects price)
+        //   P is the 
+        //   R is the range parameter (controls how volume affects price)
+        //   D is the max_delta parameter (controls how portfolio imbalance affects price)
         //
         // # Returns
-        // * `bid` - new bid limit
-        // * `ask` - new ask limit
-        fn get_bid_ask(self: @ContractState) -> (u32, u32) {
+        // * `bid_lower` - new bid lower limit
+        // * `bid_upper` - new bid upper limit
+        // * `ask_lower` - new ask lower limit
+        // * `ask_upper` - new ask upper limit
+        fn get_bid_ask(self: @ContractState) -> (u32, u32, u32, u32) {
             // Fetch strategy and market info.
             let strategy_params = self.strategy_params.read();
-            let market_manager = IMarketManagerDispatcher {
-                contract_address: self.market_manager.read()
-            };
+            let market_manager = self.market_manager.read();
             let market_id = self.market_id.read();
-            let market_info = market_manager.market_info(market_id);
+            let width = market_manager.width(market_id);
             let curr_limit = market_manager.curr_limit(market_id);
 
             // Calculate new optimal price.
             let price: u256 = self.get_oracle_price().into() * self.scaling_factor.read();
-            let limit = price_math::price_to_limit(price, market_info.width, false);
+            let limit = price_math::price_to_limit(price, width, false);
 
-            // Calculate portfolio imbalance and delta.
+            // Calculate new bid and ask limits.
             let (base_amount, quote_amount) = self.get_balances();
-            let quote_amount_i256 = I256Trait::new(quote_amount, false);
-            let base_amount_in_quote_i256 = I256Trait::new(
-                math::mul_div(base_amount, price, ONE, false), false
+            let (bid_delta, ask_delta) = spread_math::delta_spread(
+                strategy_params.max_delta, base_amount, quote_amount, price
             );
-            let delta_is_bid = base_amount_in_quote_i256 < quote_amount_i256;
-            let imbalance_pct = math::mul_div(
-                (base_amount_in_quote_i256 - quote_amount_i256).val,
-                10000,
-                (base_amount_in_quote_i256 + quote_amount_i256).val,
-                false
-            );
-            let delta: u32 = math::mul_div(
-                strategy_params.delta.into(), imbalance_pct, 10000, false
-            )
-                .try_into()
-                .unwrap();
-
-            // Calculate optimal bid and ask limits.
-            let bid_spread = strategy_params.min_spread + if delta_is_bid {
-                delta
-            } else {
-                0
-            };
-            let ask_spread = strategy_params.min_spread + if delta_is_bid {
-                0
-            } else {
-                delta
-            };
-            let raw_bid_limit = if bid_spread > limit || curr_limit < market_info.width {
-                0
-            } else {
-                min(limit - bid_spread, curr_limit - market_info.width)
-            };
-            let raw_ask_limit = min(
-                max(limit + market_info.width + ask_spread, curr_limit + market_info.width),
-                price_math::max_limit(market_info.width)
+            let (bid_upper, ask_lower) = spread_math::calc_bid_ask(
+                curr_limit, limit, bid_delta, ask_delta, strategy_params.min_spread, width
             );
 
-            // At this point, bid and ask limits may not respect market width.
-            let bid_limit = raw_bid_limit / market_info.width * market_info.width;
-            let ask_limit = raw_ask_limit / market_info.width * market_info.width;
-
-            (bid_limit, ask_limit)
+            // Return new bid and ask limits.
+            let bid_lower = bid_upper - strategy_params.range;
+            let ask_upper = ask_lower + strategy_params.range;
+            (bid_lower, bid_upper, ask_lower, ask_upper)
         }
 
 
@@ -456,8 +500,8 @@ mod ReplicatingStrategy {
         // * `quote_currency_id` - quote currency id for oracle
         // * `scaling_factor` - conversion factor to convert oracle price to 28 decimals
         // * `min_spread` - minimum spread to between reference price and bid/ask price
-        // * `slippage` - slippage parameter (width, in limits, of bid and ask liquidity positions)
-        // * `delta` - delta parameter (additional single-sided spread based on portfolio imbalance)
+        // * `range` - range parameter (width, in limits, of bid and ask liquidity positions)
+        // * `max_delta` - max_delta parameter (additional single-sided spread based on portfolio imbalance)
         fn initialise(
             ref self: ContractState,
             name: felt252,
@@ -469,28 +513,26 @@ mod ReplicatingStrategy {
             quote_currency_id: felt252,
             scaling_factor: u256,
             min_spread: u32,
-            slippage: u32,
-            delta: u32,
+            range: u32,
+            max_delta: u32,
         ) {
             self.assert_only_owner();
             assert(!self.is_initialised.read(), 'Initialised');
+            self.erc20.initializer(name, symbol);
 
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::InternalImpl::initializer(ref unsafe_state, name, symbol);
-
-            self.market_manager.write(market_manager);
+            let market_manager_contr = IMarketManagerDispatcher {
+                contract_address: market_manager
+            };
+            self.market_manager.write(market_manager_contr);
             self.market_id.write(market_id);
             self.oracle.write(oracle);
             self.oracle_params.write(OracleParams { base_currency_id, quote_currency_id });
             self.scaling_factor.write(scaling_factor);
 
-            let market_manager_contract = IMarketManagerDispatcher {
-                contract_address: market_manager
-            };
-            let width = market_manager_contract.market_info(market_id).width;
-            assert(min_spread % width == 0 && slippage % width == 0, 'NotMultipleOfWidth');
-            assert(slippage > 0, 'SlippageZero');
-            self.strategy_params.write(StrategyParams { min_spread, slippage, delta });
+            let width = market_manager_contr.market_info(market_id).width;
+            assert(min_spread % width == 0 && range % width == 0, 'NotMultipleOfWidth');
+            assert(range > 0, 'rangeZero');
+            self.strategy_params.write(StrategyParams { min_spread, range, max_delta });
 
             self.is_initialised.write(true);
             self
@@ -499,7 +541,7 @@ mod ReplicatingStrategy {
                         ChangeOracle { oracle, base_currency_id, quote_currency_id }
                     )
                 );
-            self.emit(Event::ChangeParams(ChangeParams { min_spread, slippage, delta }));
+            self.emit(Event::ChangeParams(ChangeParams { min_spread, range, max_delta }));
         }
 
         // Deposit initial liquidity to strategy and place first positions.
@@ -516,18 +558,14 @@ mod ReplicatingStrategy {
             ref self: ContractState, base_amount: u256, quote_amount: u256
         ) -> (u256, u256, u256) {
             // Run checks
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            let total_supply = ERC20::IERC20::total_supply(@unsafe_state);
-            assert(total_supply == 0, 'UseDeposit');
+            assert(self.erc20.total_supply() == 0, 'UseDeposit');
             assert(base_amount != 0 && quote_amount != 0, 'AmountZero');
             assert(!self.is_paused.read(), 'Paused');
             assert(self.is_initialised.read(), 'NotInitialised');
 
             // Initialise state
             let market_id = self.market_id.read();
-            let market_manager = IMarketManagerDispatcher {
-                contract_address: self.market_manager.read()
-            };
+            let market_manager = self.market_manager.read();
             let market_info = market_manager.market_info(market_id);
             let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
             let quote_token = IERC20Dispatcher { contract_address: market_info.quote_token };
@@ -569,8 +607,7 @@ mod ReplicatingStrategy {
 
             // Mint liquidity
             let liquidity = bid.liquidity + ask.liquidity;
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::InternalImpl::_mint(ref unsafe_state, caller, liquidity);
+            self.erc20._mint(caller, liquidity);
 
             assert(base_amount >= base_leftover, 'BaseLeftover');
             assert(quote_amount >= quote_leftover, 'QuoteLeftover');
@@ -595,15 +632,13 @@ mod ReplicatingStrategy {
             ref self: ContractState, base_amount: u256, quote_amount: u256
         ) -> (u256, u256, u256) {
             // Run checks.
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            let total_supply = ERC20::IERC20::total_supply(@unsafe_state);
+            let total_supply = self.erc20.total_supply();
             assert(total_supply != 0, 'UseDepositInitial');
             assert(base_amount != 0 || quote_amount != 0, 'AmountZero');
             assert(!self.is_paused.read(), 'Paused');
 
             // Fetch market info and strategy state.
-            let market_manager_addr = self.market_manager.read();
-            let market_manager = IMarketManagerDispatcher { contract_address: market_manager_addr };
+            let market_manager = self.market_manager.read();
             let market_info = market_manager.market_info(self.market_id.read());
             let mut base_reserves = self.base_reserves.read();
             let mut quote_reserves = self.quote_reserves.read();
@@ -611,12 +646,10 @@ mod ReplicatingStrategy {
 
             // Calculate shares to mint.
             let base_deposit = min(
-                base_amount,
-                math::mul_div(quote_amount, base_balance, quote_balance, false)
+                base_amount, math::mul_div(quote_amount, base_balance, quote_balance, false)
             );
             let quote_deposit = min(
-                quote_amount,
-                math::mul_div(base_amount, quote_balance, base_balance, false)
+                quote_amount, math::mul_div(base_amount, quote_balance, base_balance, false)
             );
             let shares = math::mul_div(total_supply, base_deposit, base_balance, false);
 
@@ -641,7 +674,7 @@ mod ReplicatingStrategy {
             self.quote_reserves.write(quote_reserves);
 
             // Mint liquidity.
-            ERC20::InternalImpl::_mint(ref unsafe_state, caller, shares);
+            self.erc20._mint(caller, shares);
 
             // Emit event.
             self
@@ -666,20 +699,17 @@ mod ReplicatingStrategy {
         // * `quote_amount` - quote asset withdrawn
         fn withdraw(ref self: ContractState, shares: u256) -> (u256, u256) {
             // Run checks
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            let total_supply = ERC20::IERC20::total_supply(@unsafe_state);
+            let total_supply = self.erc20.total_supply();
             assert(total_supply != 0, 'NoSupply');
             assert(shares != 0, 'SharesZero');
             assert(shares <= total_supply, 'SharesOverflow');
             let caller = get_caller_address();
-            let caller_balance = ERC20::IERC20::balance_of(@unsafe_state, caller);
+            let caller_balance = self.erc20.balance_of(caller);
             assert(caller_balance >= shares, 'InsufficientShares');
 
             // Fetch current market state
             let market_id = self.market_id.read();
-            let market_manager = IMarketManagerDispatcher {
-                contract_address: self.market_manager.read()
-            };
+            let market_manager = self.market_manager.read();
             let market_state = market_manager.market_state(market_id);
             let market_info = market_manager.market_info(market_id);
             let mut base_reserves = self.base_reserves.read();
@@ -722,7 +752,7 @@ mod ReplicatingStrategy {
             quote_reserves += quote_fees_excess;
 
             // Burn shares.
-            ERC20::InternalImpl::_burn(ref unsafe_state, caller, shares);
+            self.erc20._burn(caller, shares);
 
             // Transfer tokens to caller.
             let contract = get_contract_address();
@@ -761,9 +791,7 @@ mod ReplicatingStrategy {
             self.assert_only_owner();
             assert(self.is_initialised.read(), 'NotInitialised');
 
-            let market_manager = IMarketManagerDispatcher {
-                contract_address: self.market_manager.read()
-            };
+            let market_manager = self.market_manager.read();
             let market_id = self.market_id.read();
             let mut base_reserves = self.base_reserves.read();
             let mut quote_reserves = self.quote_reserves.read();
@@ -809,19 +837,17 @@ mod ReplicatingStrategy {
         //
         // # Arguments
         // * `min_spread` - minimum spread between reference price and bid/ask price
-        // * `slippage` - slippage parameter (width, in limits, of bid and ask liquidity positions)
-        // * `delta` - delta parameter (additional single-sided spread based on portfolio imbalance)
+        // * `range` - range parameter (width, in limits, of bid and ask liquidity positions)
+        // * `max_delta` - max_delta parameter (additional single-sided spread based on portfolio imbalance)
         fn change_strategy_params(
-            ref self: ContractState, min_spread: u32, slippage: u32, delta: u32,
+            ref self: ContractState, min_spread: u32, range: u32, max_delta: u32,
         ) {
             self.assert_only_owner();
-            let market_manager_contract = IMarketManagerDispatcher {
-                contract_address: self.market_manager.read()
-            };
-            let width = market_manager_contract.market_info(self.market_id.read()).width;
-            assert(min_spread % width == 0 && slippage % width == 0, 'NotMultipleOfWidth');
-            assert(slippage > 0, 'SlippageZero');
-            self.strategy_params.write(StrategyParams { min_spread, slippage, delta });
+            let market_manager = self.market_manager.read();
+            let width = market_manager.market_info(self.market_id.read()).width;
+            assert(min_spread % width == 0 && range % width == 0, 'NotMultipleOfWidth');
+            assert(range > 0, 'rangeZero');
+            self.strategy_params.write(StrategyParams { min_spread, range, max_delta });
         }
 
         // Change the oracle feed contract and / or pair id.
@@ -884,79 +910,6 @@ mod ReplicatingStrategy {
         }
     }
 
-    #[external(v0)]
-    impl ERC20Impl of ERC20ABI<ContractState> {
-        ////////////////////////////////
-        // VIEW FUNCTIONS
-        ////////////////////////////////
-
-        fn name(self: @ContractState) -> felt252 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::name(@unsafe_state)
-        }
-
-        fn symbol(self: @ContractState) -> felt252 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::symbol(@unsafe_state)
-        }
-
-        fn decimals(self: @ContractState) -> u8 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::decimals(@unsafe_state)
-        }
-
-        fn total_supply(self: @ContractState) -> u256 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::total_supply(@unsafe_state)
-        }
-
-        fn balance_of(self: @ContractState, account: ContractAddress) -> u256 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::balance_of(@unsafe_state, account)
-        }
-
-        fn allowance(
-            self: @ContractState, owner: ContractAddress, spender: ContractAddress
-        ) -> u256 {
-            let unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::allowance(@unsafe_state, owner, spender)
-        }
-
-        fn transfer(ref self: ContractState, recipient: ContractAddress, amount: u256) -> bool {
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::transfer(ref unsafe_state, recipient, amount)
-        }
-
-        fn transfer_from(
-            ref self: ContractState,
-            sender: ContractAddress,
-            recipient: ContractAddress,
-            amount: u256
-        ) -> bool {
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::transfer_from(ref unsafe_state, sender, recipient, amount)
-        }
-
-        fn approve(ref self: ContractState, spender: ContractAddress, amount: u256) -> bool {
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::IERC20::approve(ref unsafe_state, spender, amount)
-        }
-
-        fn increase_allowance(
-            ref self: ContractState, spender: ContractAddress, added_value: u256
-        ) -> bool {
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::increase_allowance(ref unsafe_state, spender, added_value)
-        }
-
-        fn decrease_allowance(
-            ref self: ContractState, spender: ContractAddress, subtracted_value: u256
-        ) -> bool {
-            let mut unsafe_state = ERC20::unsafe_new_contract_state();
-            ERC20::decrease_allowance(ref unsafe_state, spender, subtracted_value)
-        }
-    }
-
     ////////////////////////////////
     // INTERNAL FUNCTIONS
     ////////////////////////////////
@@ -970,25 +923,25 @@ mod ReplicatingStrategy {
         // * `ask` - new optimal ask position
         fn _update_positions(ref self: ContractState) -> (PositionInfo, PositionInfo) {
             // Fetch current market state
-            let market_manager_addr = self.market_manager.read();
-            let market_manager = IMarketManagerDispatcher { contract_address: market_manager_addr };
+            let market_manager = self.market_manager.read();
             let market_id = self.market_id.read();
-            let market_info = market_manager.market_info(market_id);
-            let curr_limit = market_manager.curr_limit(market_id);
 
-            // Fetch strategy state
-            let strategy_params = self.strategy_params.read();
+            // Fetch strategy state.
             let mut base_reserves = self.base_reserves.read();
             let mut quote_reserves = self.quote_reserves.read();
             let mut bid = self.bid.read();
             let mut ask = self.ask.read();
 
-            // Fetch new optimal bid and ask positions.
-            let (next_bid_limit, next_ask_limit) = self.get_bid_ask();
+            // Fetch new bid and ask positions.
+            let queued_positions = self.queued_positions();
+            let next_bid = *queued_positions.at(0);
+            let next_ask = *queued_positions.at(1);
+            let update_bid: bool = next_bid != bid;
+            let update_ask: bool = next_ask != ask;
 
             // Update positions.
             // If old positions exist at different price ranges, first remove them.
-            if bid.liquidity != 0 && next_bid_limit != bid.upper_limit {
+            if bid.liquidity != 0 && update_bid {
                 let (base_amount, quote_amount, _, _) = market_manager
                     .modify_position(
                         market_id,
@@ -998,9 +951,9 @@ mod ReplicatingStrategy {
                     );
                 base_reserves += base_amount.val;
                 quote_reserves += quote_amount.val;
-                bid.liquidity = 0;
+                bid.liquidity = Default::default();
             }
-            if ask.liquidity != 0 && next_ask_limit != ask.lower_limit {
+            if ask.liquidity != 0 && update_ask {
                 let (base_amount, quote_amount, _, _) = market_manager
                     .modify_position(
                         market_id,
@@ -1010,52 +963,31 @@ mod ReplicatingStrategy {
                     );
                 base_reserves += base_amount.val;
                 quote_reserves += quote_amount.val;
-                ask.liquidity = 0;
+                ask.liquidity = Default::default();
             }
 
-            // Calculate amount of new liquidity to add.
-            if next_bid_limit < strategy_params.slippage {
-                bid = Default::default();
-            } else if quote_reserves != 0 {
-                let lower_limit = next_bid_limit - strategy_params.slippage;
-                let liquidity_delta = liquidity_math::quote_to_liquidity(
-                    price_math::limit_to_sqrt_price(lower_limit, market_info.width),
-                    price_math::limit_to_sqrt_price(next_bid_limit, market_info.width),
-                    quote_reserves
-                );
+            // Place new positions.
+            if next_bid.liquidity != 0 {
                 let (_, quote_amount, _, _) = market_manager
                     .modify_position(
                         market_id,
-                        lower_limit,
-                        next_bid_limit,
-                        I256Trait::new(liquidity_delta, false)
+                        next_bid.lower_limit,
+                        next_bid.upper_limit,
+                        I256Trait::new(next_bid.liquidity, false)
                     );
                 quote_reserves -= quote_amount.val;
-                bid.lower_limit = lower_limit;
-                bid.upper_limit = next_bid_limit;
-                bid.liquidity += liquidity_delta;
+                bid = next_bid;
             };
-            if next_ask_limit
-                + strategy_params.slippage > price_math::max_limit(market_info.width) {
-                bid = Default::default();
-            } else if base_reserves != 0 {
-                let upper_limit = next_ask_limit + strategy_params.slippage;
-                let liquidity_delta = liquidity_math::base_to_liquidity(
-                    price_math::limit_to_sqrt_price(next_ask_limit, market_info.width),
-                    price_math::limit_to_sqrt_price(upper_limit, market_info.width),
-                    base_reserves
-                );
+            if next_ask.liquidity != 0 {
                 let (base_amount, _, _, _) = market_manager
                     .modify_position(
                         market_id,
-                        next_ask_limit,
-                        upper_limit,
-                        I256Trait::new(liquidity_delta, false)
+                        next_ask.lower_limit,
+                        next_ask.upper_limit,
+                        I256Trait::new(next_ask.liquidity, false)
                     );
                 base_reserves -= base_amount.val;
-                ask.lower_limit = next_ask_limit;
-                ask.upper_limit = upper_limit;
-                ask.liquidity += liquidity_delta;
+                ask = next_ask;
             }
 
             // Commit state updates
@@ -1063,18 +995,19 @@ mod ReplicatingStrategy {
             self.quote_reserves.write(quote_reserves);
             self.bid.write(bid);
             self.ask.write(ask);
-            
-            if next_bid_limit != bid.upper_limit || next_ask_limit != ask.lower_limit {
+
+            // Emit event if positions have changed.
+            if update_bid || update_ask {
                 self
                     .emit(
                         Event::UpdatePositions(
                             UpdatePositions {
-                                bid_lower_limit: bid.lower_limit,
-                                bid_upper_limit: bid.upper_limit,
-                                bid_liquidity: bid.liquidity,
-                                ask_lower_limit: ask.lower_limit,
-                                ask_upper_limit: ask.upper_limit,
-                                ask_liquidity: ask.liquidity,
+                                bid_lower_limit: next_bid.lower_limit,
+                                bid_upper_limit: next_bid.upper_limit,
+                                bid_liquidity: next_bid.liquidity,
+                                ask_lower_limit: next_ask.lower_limit,
+                                ask_upper_limit: next_ask.upper_limit,
+                                ask_liquidity: next_ask.liquidity,
                             }
                         )
                     );
