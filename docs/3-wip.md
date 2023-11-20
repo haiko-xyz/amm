@@ -4,21 +4,16 @@ This following test cases are currently missing. They are WIP and we aim to comp
 
 New tests
 
-- Tests for minting and burning liquidity position NFTs
-- Tests for sweep
-- Tests for collecting protocol fees
 - Tests for setting owner
-- Tests for setting flash loan fee
-- Tests for protocol fees
-- Add fuzzing and invariant tests
+- Fuzz tests for quote and quote_multiple
+- Invariant tests for limit orders
 - Add tests for event emission
 
 Other to dos
 
+- Benchmark gas usage
 - Add timelock to upgrade function
 - Review access controls, timelock, and other security features
-- Review gas usage
 - Review flash loan attack vectors
 - Review reentrancy attack vectors
 - Build Forta detection bots
-- Upgrade to components for ERC20 and ERC721 once OZ contracts released
