@@ -11,3 +11,4 @@ mod test_fee_factor;
 mod test_flash_loan;
 mod test_strategy;
 mod test_fee_controller;
+mod test_ownable;

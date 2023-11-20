@@ -1,3 +1,4 @@
+use amm::interfaces::IMarketManager::IMarketManagerSafeDispatcherTrait;
 // Core lib imports.
 use core::serde::Serde;
 use core::traits::Into;
@@ -12,7 +13,7 @@ use starknet::testing::{set_caller_address, set_contract_address, set_block_time
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
 use amm::libraries::math::price_math;
-use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
+use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait, IMarketManagerSafeDispatcher};
 use amm::types::i256::i256;
 use amm::tests::common::params::{
     CreateMarketParams, ModifyPositionParams, SwapParams, SwapMultipleParams
@@ -92,4 +93,13 @@ fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleP
         );
     stop_prank(market_manager.contract_address);
     amount_out
+}
+
+
+fn quote(market_manager: IMarketManagerDispatcher, params: SwapParams) -> felt252 {
+    let mut mm = IMarketManagerSafeDispatcher { contract_address: market_manager.contract_address };
+    match mm.quote(params.market_id, params.is_buy, params.amount, params.exact_input, params.threshold_sqrt_price){
+        Result::Ok(_) => panic_with_felt252('shouldve panicked'),
+        Result::Err(panic_data) => *panic_data.at(0),
+    }
 }
