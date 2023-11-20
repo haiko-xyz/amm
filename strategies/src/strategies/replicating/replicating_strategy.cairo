@@ -274,7 +274,8 @@ mod ReplicatingStrategy {
             positions.span()
         }
 
-        // Get list of positions queued to be placed by strategy on next update.
+        // Get list of positions queued to be placed by strategy on next `swap` update. If no updates
+        // are queued, the returned list will match the list returned by `placed_positions`.
         // 
         // # Returns
         // * `positions` - list of positions
@@ -340,7 +341,8 @@ mod ReplicatingStrategy {
             positions.span()
         }
 
-        // Updates positions. Called by MarketManager upon swap.
+        // Called by `MarketManager` before swap to replace `placed_positions` with `queued_positions`.
+        // If the two lists are equal, no positions will be updated.
         fn update_positions(ref self: ContractState, params: SwapParams) {
             // Run checks
             let market_manager = self.market_manager.read();
@@ -353,6 +355,7 @@ mod ReplicatingStrategy {
             let (bid, ask) = self._update_positions();
         }
 
+        // Called by `MarketManager` after swap to execute any cleanup operations.
         fn cleanup(ref self: ContractState) {
             return ();
         }
