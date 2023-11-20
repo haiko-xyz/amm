@@ -97,7 +97,7 @@ fn test_fee_controller() {
 }
 
 #[test]
-#[should_panic(expected: ('SwapFeeRateOverflow', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('FeeRateOverflow', 'ENTRYPOINT_FAILED',))]
 #[available_gas(15000000000)]
 fn test_fee_controller_fee_rate_overflow() {
     let fee_rate = 10001;

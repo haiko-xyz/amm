@@ -26,7 +26,7 @@ use amm::tests::common::utils::to_e28;
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
-// SETUP
+// TYPES
 ////////////////////////////////
 
 #[derive(Drop, Copy)]

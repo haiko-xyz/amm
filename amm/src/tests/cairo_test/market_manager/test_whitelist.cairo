@@ -1,0 +1,103 @@
+// Core lib imports.
+use starknet::contract_address_const;
+use starknet::testing::set_contract_address;
+
+// Local imports.
+use amm::contracts::market_manager::MarketManager;
+use amm::libraries::math::price_math;
+use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_WIDTH};
+use amm::interfaces::IMarketManager::IMarketManager;
+use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
+use amm::tests::cairo_test::helpers::market_manager::{deploy_market_manager, create_market};
+use amm::tests::cairo_test::helpers::token::deploy_token;
+use amm::tests::common::params::{owner, alice, default_token_params, default_market_params};
+
+// External imports.
+use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
+
+////////////////////////////////
+// SETUP
+////////////////////////////////
+
+fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher) {
+    // Get default owner.
+    let owner = owner();
+
+    // Deploy market manager.
+    let market_manager = deploy_market_manager(owner);
+
+    // Deploy tokens.
+    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let base_token = deploy_token(base_token_params);
+    let quote_token = deploy_token(quote_token_params);
+
+    (market_manager, base_token, quote_token)
+}
+
+////////////////////////////////
+// TESTS
+////////////////////////////////
+
+#[test]
+#[available_gas(40000000)]
+fn test_create_market_whitelisted_works() {
+    // Deploy market manager and tokens.
+    let (market_manager, base_token, quote_token) = before();
+
+    // Create market.
+    let mut params = default_market_params();
+    params.base_token = base_token.contract_address;
+    params.quote_token = quote_token.contract_address;
+    create_market(market_manager, params);
+}
+
+#[test]
+#[available_gas(2000000000)]
+#[should_panic(expected: ('Whitelist', 'ENTRYPOINT_FAILED',))]
+fn test_create_market_not_whitelisted() {
+    // Deploy market manager and tokens.
+    let (market_manager, base_token, quote_token) = before();
+
+    // Create market.
+    market_manager
+        .create_market(
+            base_token.contract_address,
+            quote_token.contract_address,
+            1,
+            contract_address_const::<0x0>(),
+            10,
+            contract_address_const::<0x0>(),
+            0,
+            OFFSET + 0,
+            true,
+            true,
+            true,
+        );
+}
+
+#[test]
+#[available_gas(2000000000)]
+#[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
+fn test_whitelist_not_owner() {
+    // Deploy market manager and tokens.
+    let (market_manager, base_token, quote_token) = before();
+
+    set_contract_address(alice());
+    market_manager.whitelist(base_token.contract_address);
+}
+
+#[test]
+#[available_gas(2000000000)]
+#[should_panic(expected: ('AlreadyWhitelisted', 'ENTRYPOINT_FAILED',))]
+fn test_whitelist_twice() {
+    // Deploy market manager and tokens.
+    let (market_manager, base_token, quote_token) = before();
+
+    // Create market (whitelist both tokens).
+    let mut params = default_market_params();
+    params.base_token = base_token.contract_address;
+    params.quote_token = quote_token.contract_address;
+    create_market(market_manager, params);
+
+    market_manager.whitelist(base_token.contract_address);
+}
