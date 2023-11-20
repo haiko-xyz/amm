@@ -1427,24 +1427,26 @@ mod MarketManager {
                 }
             }
 
-            // Emit event.
-            self
-                .emit(
-                    Event::ModifyPosition(
-                        ModifyPosition {
-                            caller: owner.try_into().unwrap(),
-                            market_id,
-                            lower_limit,
-                            upper_limit,
-                            liquidity_delta,
-                            base_amount,
-                            quote_amount,
-                            base_fees,
-                            quote_fees,
-                            is_limit_order,
-                        }
-                    )
-                );
+            // Emit event if position was modified or fees collected.
+            if base_amount.val > 0 || quote_amount.val > 0 || base_fees > 0 || quote_fees > 0 {
+                self
+                    .emit(
+                        Event::ModifyPosition(
+                            ModifyPosition {
+                                caller: owner.try_into().unwrap(),
+                                market_id,
+                                lower_limit,
+                                upper_limit,
+                                liquidity_delta,
+                                base_amount,
+                                quote_amount,
+                                base_fees,
+                                quote_fees,
+                                is_limit_order,
+                            }
+                        )
+                    ); 
+            }
 
             // Return amounts.
             (base_amount, quote_amount, base_fees, quote_fees)
