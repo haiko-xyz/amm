@@ -55,6 +55,11 @@ fn before() -> (IMarketManagerDispatcher, felt252, ERC20ABIDispatcher, ERC20ABID
 // TESTS
 ////////////////////////////////
 
+// Tests for following cases:
+//  1. Creating a position - should fire `ModifyPosition`
+//  2. Collecting non-zero fees - should fire `ModifyPosition`
+//  3. Collecting zero fees - should not fire an event
+//  4. Removing liquidity - should fire `ModifyPosition`
 #[test]
 fn test_modify_position_events() {
     let (market_manager, market_id, base_token, quote_token) = before();
