@@ -19,12 +19,13 @@ use amm::tests::common::params::{
 };
 
 // External imports.
-use snforge_std::{declare, ContractClassTrait, start_prank, stop_prank};
+use snforge_std::{declare, ContractClass, ContractClassTrait, start_prank, stop_prank};
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
-fn deploy_market_manager(owner: ContractAddress,) -> IMarketManagerDispatcher {
-    let contract = declare('MarketManager');
-    let contract_address = contract.deploy(@array![owner.into()]).unwrap();
+fn deploy_market_manager(
+    class: ContractClass, owner: ContractAddress,
+) -> IMarketManagerDispatcher {
+    let contract_address = class.deploy(@array![owner.into()]).unwrap();
     IMarketManagerDispatcher { contract_address }
 }
 
