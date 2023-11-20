@@ -1445,7 +1445,7 @@ mod MarketManager {
                                 is_limit_order,
                             }
                         )
-                    ); 
+                    );
             }
 
             // Return amounts.
