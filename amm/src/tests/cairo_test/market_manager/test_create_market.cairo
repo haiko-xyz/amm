@@ -242,7 +242,7 @@ fn test_create_market_width_overflow() {
 
 #[test]
 #[available_gas(2000000000)]
-#[should_panic(expected: ('SwapFeeRateOverflow', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('FeeRateOverflow', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_fee_rate_overflow() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();

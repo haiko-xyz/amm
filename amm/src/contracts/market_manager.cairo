@@ -483,6 +483,8 @@ mod MarketManager {
         // * `liquidity` - liquidity of position
         // * `base_amount` - amount of base tokens inside position
         // * `quote_amount` - amount of quote tokens inside position
+        // * `lower_limit` - lower limit of position
+        // * `upper_limit` - upper limit of position
         fn ERC721_position_info(self: @ContractState, token_id: felt252) -> ERC721PositionInfo {
             let position = self.positions.read(token_id);
             let market_info = self.market_info.read(position.market_id);
@@ -500,6 +502,8 @@ mod MarketManager {
                 liquidity: position.liquidity,
                 base_amount,
                 quote_amount,
+                lower_limit: position.lower_limit,
+                upper_limit: position.upper_limit,
             }
         }
 
@@ -543,15 +547,16 @@ mod MarketManager {
             assert(base_token.is_non_zero() && quote_token.is_non_zero(), 'TokensNull');
             assert(width != 0, 'WidthZero');
             assert(width <= MAX_WIDTH, 'WidthOverflow');
-            assert(swap_fee_rate <= fee_math::MAX_FEE_RATE, 'SwapFeeRateOverflow');
+            assert(swap_fee_rate <= fee_math::MAX_FEE_RATE, 'FeeRateOverflow');
             assert(protocol_share <= fee_math::MAX_FEE_RATE, 'ProtocolShareOverflow');
             assert(start_limit < MAX_LIMIT_SHIFTED, 'StartLimitOverflow');
 
             // Check tokens exist and whitelisted.
             IERC20MetadataDispatcher { contract_address: base_token }.name();
             IERC20MetadataDispatcher { contract_address: quote_token }.name();
-            assert(self.whitelist.read(base_token), 'BaseWhitelist');
-            assert(self.whitelist.read(quote_token), 'QuoteWhitelist');
+            assert(
+                self.whitelist.read(base_token) && self.whitelist.read(quote_token), 'Whitelist'
+            );
 
             // Check market does not already exist.
             // A market is uniquely identified by the base and quote token, market width, swap fee,
@@ -1055,17 +1060,14 @@ mod MarketManager {
         // # Arguments
         // * `position_id` - id of position mint
         fn mint(ref self: ContractState, position_id: felt252) {
-            // Validate caller and inputs.
             let position = self.positions.read(position_id);
+
+            // Check caller is owner.
             let caller = get_caller_address();
             let expected_position_id = id::position_id(
                 position.market_id, caller.into(), position.lower_limit, position.upper_limit
             );
-            assert(position_id == expected_position_id, 'OnlyOwner');
-
-            // Check position exists.
-            let position_info = self.ERC721_position_info(position_id);
-            assert(position_info.base_token.is_non_zero(), 'PositionNull');
+            assert(position_id == expected_position_id, 'NotOwnerOrNull');
 
             // Mint ERC721 token.
             self.erc721._mint(caller, position_id.into());
@@ -1088,7 +1090,7 @@ mod MarketManager {
                 position_info.liquidity == 0
                     && position_info.base_amount == 0
                     && position_info.quote_amount == 0,
-                'PositionNotEmpty'
+                'NotCleared'
             );
 
             // Burn ERC721 token.
@@ -1512,7 +1514,7 @@ mod MarketManager {
             } else {
                 let rate = IFeeControllerDispatcher { contract_address: market_info.fee_controller }
                     .swap_fee_rate();
-                assert(rate <= fee_math::MAX_FEE_RATE, 'SwapFeeRateOverflow');
+                assert(rate <= fee_math::MAX_FEE_RATE, 'FeeRateOverflow');
                 rate
             };
 
