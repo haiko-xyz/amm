@@ -150,10 +150,7 @@ fn default_market_params() -> CreateMarketParams {
 }
 
 fn default_transfer_owner_params() -> TransferOwnerParams {
-    TransferOwnerParams {
-        owner: owner(),
-        new_owner: alice()
-    }
+    TransferOwnerParams { owner: owner(), new_owner: alice() }
 }
 
 fn fee_controller_params(

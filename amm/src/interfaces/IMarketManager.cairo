@@ -59,7 +59,7 @@ trait IMarketManager<TContractState> {
 
     // Get market state (mutable).
     fn market_state(self: @TContractState, market_id: felt252) -> MarketState;
-    
+
     // Get limit order batch info.
     fn batch(self: @TContractState, batch_id: felt252) -> OrderBatch;
 

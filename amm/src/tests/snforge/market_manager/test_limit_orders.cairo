@@ -65,92 +65,91 @@ fn test_order_events() {
     start_prank(market_manager.contract_address, alice());
 
     let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
+// // Creating a position should fire an event.
+// let curr_limit = OFFSET;
+// let width = 1;
+// let lower_limit = OFFSET - 1000;
+// let upper_limit = OFFSET + 1000;
+// let mut liquidity_delta = I256Trait::new(to_e18(10000), false);
+// let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
+//     .modify_position(market_id, lower_limit, upper_limit, liquidity_delta);
 
-    // // Creating a position should fire an event.
-    // let curr_limit = OFFSET;
-    // let width = 1;
-    // let lower_limit = OFFSET - 1000;
-    // let upper_limit = OFFSET + 1000;
-    // let mut liquidity_delta = I256Trait::new(to_e18(10000), false);
-    // let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
-    //     .modify_position(market_id, lower_limit, upper_limit, liquidity_delta);
+// let mut events_exp = array![
+//     (
+//         market_manager.contract_address,
+//         MarketManager::Event::ModifyPosition(
+//             MarketManager::ModifyPosition {
+//                 caller: alice(),
+//                 market_id,
+//                 lower_limit,
+//                 upper_limit,
+//                 liquidity_delta,
+//                 base_amount,
+//                 quote_amount,
+//                 base_fees,
+//                 quote_fees,
+//                 is_limit_order: false,
+//             }
+//         )
+//     )
+// ];
 
-    // let mut events_exp = array![
-    //     (
-    //         market_manager.contract_address,
-    //         MarketManager::Event::ModifyPosition(
-    //             MarketManager::ModifyPosition {
-    //                 caller: alice(),
-    //                 market_id,
-    //                 lower_limit,
-    //                 upper_limit,
-    //                 liquidity_delta,
-    //                 base_amount,
-    //                 quote_amount,
-    //                 base_fees,
-    //                 quote_fees,
-    //                 is_limit_order: false,
-    //             }
-    //         )
-    //     )
-    // ];
+// // Swap so position has some fees.
+// market_manager.swap(market_id, true, to_e18(1), true, Option::None(()), Option::None(()));
 
-    // // Swap so position has some fees.
-    // market_manager.swap(market_id, true, to_e18(1), true, Option::None(()), Option::None(()));
+// // Collect fees should fire an event.
+// liquidity_delta = I256Trait::new(0, false);
+// let (base_amount_2, quote_amount_2, base_fees_2, quote_fees_2) = market_manager
+//     .modify_position(market_id, lower_limit, upper_limit, liquidity_delta);
+// events_exp
+//     .append(
+//         (
+//             market_manager.contract_address,
+//             MarketManager::Event::ModifyPosition(
+//                 MarketManager::ModifyPosition {
+//                     caller: alice(),
+//                     market_id,
+//                     lower_limit,
+//                     upper_limit,
+//                     liquidity_delta,
+//                     base_amount: base_amount_2,
+//                     quote_amount: quote_amount_2,
+//                     base_fees: base_fees_2,
+//                     quote_fees: quote_fees_2,
+//                     is_limit_order: false,
+//                 }
+//             )
+//         )
+//     );
 
-    // // Collect fees should fire an event.
-    // liquidity_delta = I256Trait::new(0, false);
-    // let (base_amount_2, quote_amount_2, base_fees_2, quote_fees_2) = market_manager
-    //     .modify_position(market_id, lower_limit, upper_limit, liquidity_delta);
-    // events_exp
-    //     .append(
-    //         (
-    //             market_manager.contract_address,
-    //             MarketManager::Event::ModifyPosition(
-    //                 MarketManager::ModifyPosition {
-    //                     caller: alice(),
-    //                     market_id,
-    //                     lower_limit,
-    //                     upper_limit,
-    //                     liquidity_delta,
-    //                     base_amount: base_amount_2,
-    //                     quote_amount: quote_amount_2,
-    //                     base_fees: base_fees_2,
-    //                     quote_fees: quote_fees_2,
-    //                     is_limit_order: false,
-    //                 }
-    //             )
-    //         )
-    //     );
+// // Collecting again should not fire an event.
+// market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity_delta);
 
-    // // Collecting again should not fire an event.
-    // market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity_delta);
+// // Removing liquidity should fire an event.
+// liquidity_delta = I256Trait::new(to_e18(10000), true);
+// let (base_amount_3, quote_amount_3, base_fees_3, quote_fees_3) = market_manager
+//     .modify_position(market_id, lower_limit, upper_limit, liquidity_delta);
+// events_exp
+//     .append(
+//         (
+//             market_manager.contract_address,
+//             MarketManager::Event::ModifyPosition(
+//                 MarketManager::ModifyPosition {
+//                     caller: alice(),
+//                     market_id,
+//                     lower_limit,
+//                     upper_limit,
+//                     liquidity_delta,
+//                     base_amount: base_amount_3,
+//                     quote_amount: quote_amount_3,
+//                     base_fees: base_fees_3,
+//                     quote_fees: quote_fees_3,
+//                     is_limit_order: false,
+//                 }
+//             )
+//         )
+//     );
 
-    // // Removing liquidity should fire an event.
-    // liquidity_delta = I256Trait::new(to_e18(10000), true);
-    // let (base_amount_3, quote_amount_3, base_fees_3, quote_fees_3) = market_manager
-    //     .modify_position(market_id, lower_limit, upper_limit, liquidity_delta);
-    // events_exp
-    //     .append(
-    //         (
-    //             market_manager.contract_address,
-    //             MarketManager::Event::ModifyPosition(
-    //                 MarketManager::ModifyPosition {
-    //                     caller: alice(),
-    //                     market_id,
-    //                     lower_limit,
-    //                     upper_limit,
-    //                     liquidity_delta,
-    //                     base_amount: base_amount_3,
-    //                     quote_amount: quote_amount_3,
-    //                     base_fees: base_fees_3,
-    //                     quote_fees: quote_fees_3,
-    //                     is_limit_order: false,
-    //                 }
-    //             )
-    //         )
-    //     );
-
-    // // Check all events correctly fired.
-    // spy.assert_emitted(@events_exp);
+// // Check all events correctly fired.
+// spy.assert_emitted(@events_exp);
 }
