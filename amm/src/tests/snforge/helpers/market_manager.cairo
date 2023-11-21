@@ -5,7 +5,6 @@ use core::result::ResultTrait;
 use array::ArrayTrait;
 use option::OptionTrait;
 use traits::TryInto;
-use starknet::deploy_syscall;
 use starknet::ContractAddress;
 use starknet::testing::{set_caller_address, set_contract_address, set_block_timestamp};
 
@@ -79,6 +78,7 @@ fn swap(market_manager: IMarketManagerDispatcher, params: SwapParams) -> (u256, 
             params.amount,
             params.exact_input,
             params.threshold_sqrt_price,
+            params.threshold_amount,
             params.deadline,
         );
     stop_prank(market_manager.contract_address);
@@ -89,8 +89,14 @@ fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleP
     start_prank(market_manager.contract_address, params.owner);
     let amount_out = market_manager
         .swap_multiple(
-            params.in_token, params.out_token, params.amount, params.route, params.deadline,
+            params.in_token,
+            params.out_token,
+            params.amount,
+            params.route,
+            params.threshold_amount,
+            params.deadline,
         );
     stop_prank(market_manager.contract_address);
     amount_out
 }
+

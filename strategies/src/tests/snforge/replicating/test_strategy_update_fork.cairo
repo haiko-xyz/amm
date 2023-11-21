@@ -35,6 +35,7 @@ trait ILegacyMarketManager<TContractState> {
     fn position(self: @TContractState, position_id: felt252) -> Position;
 }
 
+// Caution: This test is currently depreciated and unused.
 #[test]
 #[fork("TESTNET")]
 fn test_strategy_update_using_forked_state() {

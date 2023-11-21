@@ -11,13 +11,15 @@ export PRAGMA_ORACLE=0x620a609f88f612eb5773a6f4084f7b33be06a6fed7943445aebce80d6
 sncast --url $STARKNET_RPC --keystore $STARKNET_KEYSTORE --account $STARKNET_ACCOUNT declare --contract-name MarketManager
 # Quoter
 sncast --url $STARKNET_RPC --keystore $STARKNET_KEYSTORE --account $STARKNET_ACCOUNT declare --contract-name Quoter
-
-# Deploy contracts
-# MarketManager
-sncast --url $STARKNET_RPC --keystore $STARKNET_KEYSTORE --account $STARKNET_ACCOUNT deploy --class-hash $MARKET_MANAGER_CLASS_HASH --constructor-calldata $OWNER
+# Strategy
+sncast --url $STARKNET_RPC --keystore $STARKNET_KEYSTORE --account $STARKNET_ACCOUNT declare --contract-name ReplicatingStrategy
 
 
 # Deployments
+# Staging (21 Nov 2023)
+export MARKET_MANAGER_CLASS_HASH=0x43380a1b26ea59bf3b45a842eeca915f7556d2076218cdf194c6f12e79780de
+
+
 # Staging (9 Nov 2023)
 export MARKET_MANAGER_CLASS_HASH=0x64247169ce4f624d0e8724a10a49e66e52a3eb74ec252b7a34b005fa6a70255
 export MARKET_MANAGER=0x4f1d5c71f89ec0d4adc267682fce3280acdc2e5f6854632784372ba34f1dd83

@@ -450,9 +450,27 @@ fn test_collect_fees() {
     let mut is_buy = true;
     let exact_input = true;
     let mut amount = to_e28(1);
-    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id,
+            is_buy,
+            amount,
+            exact_input,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
     is_buy = false;
-    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id,
+            is_buy,
+            amount,
+            exact_input,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
 
     // Poke position to collect fees.
     let (base_amount, quote_amount, _, _) = market_manager
@@ -492,9 +510,27 @@ fn test_collect_fees_multiple_lps() {
     let mut is_buy = true;
     let exact_input = true;
     let mut amount = to_e28(1);
-    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id,
+            is_buy,
+            amount,
+            exact_input,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
     is_buy = false;
-    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id,
+            is_buy,
+            amount,
+            exact_input,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
 
     // Alice collects fees.
     set_contract_address(alice());
@@ -530,7 +566,16 @@ fn test_collect_fees_intermediate_withdrawal() {
     let mut is_buy = true;
     let exact_input = true;
     let mut amount = to_e28(1);
-    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id,
+            is_buy,
+            amount,
+            exact_input,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
 
     // Alice collects fees.
     set_contract_address(alice());
@@ -539,7 +584,16 @@ fn test_collect_fees_intermediate_withdrawal() {
 
     // Execute swap 2.
     is_buy = false;
-    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id,
+            is_buy,
+            amount,
+            exact_input,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
 
     // Alice and Bob both collect fees.
     let (base_amount_a2, quote_amount_a2, _, _) = market_manager
@@ -575,9 +629,27 @@ fn test_modify_position_accumulates_protocol_fees() {
     let mut is_buy = true;
     let mut amount = to_e28(1);
     let exact_input = true;
-    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id,
+            is_buy,
+            amount,
+            exact_input,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
     is_buy = false;
-    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id,
+            is_buy,
+            amount,
+            exact_input,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
 
     // Check protocol fees
     let base_protocol_fees = market_manager.protocol_fees(market_manager.base_token(market_id));
@@ -604,9 +676,27 @@ fn test_modify_position_zero_protocol_fees() {
     let mut is_buy = true;
     let mut amount = to_e28(1);
     let exact_input = true;
-    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id,
+            is_buy,
+            amount,
+            exact_input,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
     is_buy = false;
-    market_manager.swap(market_id, is_buy, amount, exact_input, Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id,
+            is_buy,
+            amount,
+            exact_input,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
 
     // Check protocol fees
     let base_protocol_fees = market_manager.protocol_fees(market_manager.base_token(market_id));

@@ -256,7 +256,15 @@ fn test_swap_fully_fills_bid_limit_orders() {
 
     // Swap sell.
     let (amount_in, amount_out, fees) = market_manager
-        .swap(market_id, !is_bid, to_e28(10), true, Option::None(()), Option::None(()));
+        .swap(
+            market_id,
+            !is_bid,
+            to_e28(10),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
 
     // Fetch limit order, batch and position.
     let order_1 = market_manager.order(order_id_1);
@@ -306,7 +314,15 @@ fn test_swap_fully_fills_ask_limit_orders() {
 
     // Swap buy.
     let (amount_in, amount_out, fees) = market_manager
-        .swap(market_id, !is_bid, to_e28(10), true, Option::None(()), Option::None(()));
+        .swap(
+            market_id,
+            !is_bid,
+            to_e28(10),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
 
     // Fetch limit order, batch and position.
     let order_1 = market_manager.order(order_id_1);
@@ -428,7 +444,15 @@ fn test_create_and_collect_fully_filled_bid_order() {
 
     // Swap sell.
     let (amount_in, amount_out, fees) = market_manager
-        .swap(market_id, !is_bid, to_e28(10), true, Option::None(()), Option::None(()));
+        .swap(
+            market_id,
+            !is_bid,
+            to_e28(10),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
 
     // Collect limit order.
     set_contract_address(alice());
@@ -493,7 +517,15 @@ fn test_create_and_collect_fully_filled_ask_order() {
 
     // Swap buy.
     let (amount_in, amount_out, fees) = market_manager
-        .swap(market_id, !is_bid, to_e28(10), true, Option::None(()), Option::None(()));
+        .swap(
+            market_id,
+            !is_bid,
+            to_e28(10),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
 
     // Collect limit order.
     set_contract_address(alice());
@@ -556,7 +588,15 @@ fn test_create_and_collect_partially_filled_bid_order() {
 
     // Swap sell (partially filled against limit orders).
     let (amount_in, amount_out, fees) = market_manager
-        .swap(market_id, !is_bid, to_e28(6), true, Option::None(()), Option::None(()));
+        .swap(
+            market_id,
+            !is_bid,
+            to_e28(6),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
 
     // Collect limit order.
     set_contract_address(bob());
@@ -622,7 +662,15 @@ fn test_create_and_collect_partially_filled_ask_order() {
 
     // Swap buy (partially filled against limit orders).
     let (amount_in, amount_out, fees) = market_manager
-        .swap(market_id, !is_bid, to_e28(6), true, Option::None(()), Option::None(()));
+        .swap(
+            market_id,
+            !is_bid,
+            to_e28(6),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
 
     // Collect limit order.
     set_contract_address(bob());
@@ -677,13 +725,23 @@ fn test_partially_filled_bid_correctly_unfills() {
 
     // Swap sell (partial fill).
     let (amount_in_sell, amount_out_sell, fees_sell) = market_manager
-        .swap(market_id, !is_bid, to_e28(6), true, Option::None(()), Option::None(()));
+        .swap(
+            market_id,
+            !is_bid,
+            to_e28(6),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
     let base_amount_sell_exp = 59999640000000000000000000000; // earned incl. fees
     let quote_amount_sell_exp = 59225141250892396752743163954; // filled
 
     // Swap buy (unfill).
     let (amount_in_buy, amount_out_buy, fees_buy) = market_manager
-        .swap(market_id, is_bid, to_e28(4), true, Option::None(()), Option::None(()));
+        .swap(
+            market_id, is_bid, to_e28(4), true, Option::None(()), Option::None(()), Option::None(())
+        );
     let base_amount_buy_exp = 40280607892236366896912492338; // repaid
     let quote_amount_buy_exp = 39999759999999999999999999999; // unfilled (incl. fees)
 
@@ -729,13 +787,23 @@ fn test_partially_filled_ask_correctly_unfills() {
 
     // Swap buy (partial fill).
     let (amount_in_sell, amount_out_sell, fees_sell) = market_manager
-        .swap(market_id, !is_bid, to_e28(6), true, Option::None(()), Option::None(()));
+        .swap(
+            market_id,
+            !is_bid,
+            to_e28(6),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
     let base_amount_sell_exp = 59224549006577382715178407569; // filled
     let quote_amount_sell_exp = 59999640000000000000000000000; // earned incl. fees
 
     // Swap sell (unfill).
     let (amount_in_buy, amount_out_buy, fees_buy) = market_manager
-        .swap(market_id, is_bid, to_e28(4), true, Option::None(()), Option::None(()));
+        .swap(
+            market_id, is_bid, to_e28(4), true, Option::None(()), Option::None(()), Option::None(())
+        );
     let base_amount_buy_exp = 39999760000000000000000000000; // unfilled (incl. fees)
     let quote_amount_buy_exp = 40281010696178757375689329400; // repaid
 
@@ -777,7 +845,16 @@ fn test_fill_bid_advances_batch_nonce() {
     let nonce_before = market_manager.limit_info(market_id, limit).nonce;
 
     // Swap sell.
-    market_manager.swap(market_id, !is_bid, to_e28(6), true, Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id,
+            !is_bid,
+            to_e28(6),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
 
     // Create second (ask) limit order.
     set_contract_address(bob());
@@ -806,7 +883,16 @@ fn test_fill_ask_advances_batch_nonce() {
     let nonce_before = market_manager.limit_info(market_id, limit).nonce;
 
     // Swap sell.
-    market_manager.swap(market_id, !is_bid, to_e28(6), true, Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id,
+            !is_bid,
+            to_e28(6),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
 
     // Create second (ask) limit order.
     set_contract_address(bob());
@@ -859,7 +945,9 @@ fn test_limit_orders_misc_actions() {
     // Swap 1: Sell to fill both bid orders at -900 and partially fill one at -1000.
     set_contract_address(charlie());
     let (amount_in_1, amount_out_1, fees_1) = market_manager
-        .swap(market_id, false, to_e28(1), true, Option::None(()), Option::None(()));
+        .swap(
+            market_id, false, to_e28(1), true, Option::None(()), Option::None(()), Option::None(())
+        );
 
     // Collect one of the filled orders.
     set_contract_address(alice());
@@ -944,7 +1032,9 @@ fn test_limit_orders_misc_actions() {
 
     // Swap 2: Buy to unfill last bid order and partially fill 2 ask orders.
     let (amount_in_2, amount_out_2, fees_2) = market_manager
-        .swap(market_id, true, to_e28(1), true, Option::None(()), Option::None(()));
+        .swap(
+            market_id, true, to_e28(1), true, Option::None(()), Option::None(()), Option::None(())
+        );
 
     // Collect a partially filled ask order at 900.
     let (base_collect_2, quote_collect_2) = market_manager.collect_order(market_id, ask_bob_900);

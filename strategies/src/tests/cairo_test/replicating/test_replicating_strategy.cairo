@@ -179,7 +179,7 @@ fn test_replicating_strategy_update_positions() {
     // Execute swap and check positions updated.
     let amount = to_e18(500000);
     let (amount_in, amount_out, fees) = market_manager
-        .swap(market_id, true, amount, true, Option::None(()), Option::None(()));
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
     let bid = strategy.bid();
     let ask = strategy.ask();
     let market_state = market_manager.market_state(market_id);
@@ -217,7 +217,8 @@ fn test_replicating_strategy_multiple_swaps() {
 
     // Execute swap 1 and check positions updated.
     let amount = to_e18(100);
-    market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()));
+    market_manager
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
     let bid = strategy.bid();
     let ask = strategy.ask();
     let market_state = market_manager.market_state(market_id);
@@ -235,7 +236,8 @@ fn test_replicating_strategy_multiple_swaps() {
     let (base_amount, quote_amount) = strategy.get_balances();
 
     // Execute swap 2 and check positions updated.
-    market_manager.swap(market_id, false, amount, true, Option::None(()), Option::None(()));
+    market_manager
+        .swap(market_id, false, amount, true, Option::None(()), Option::None(()), Option::None(()));
     let bid_2 = strategy.bid();
     let ask_2 = strategy.ask();
     let market_state_2 = market_manager.market_state(market_id);
@@ -312,7 +314,7 @@ fn test_replicating_strategy_withdraw() {
     // Execute swap sell.
     let amount = to_e18(5000);
     let (amount_in, amount_out, fees) = market_manager
-        .swap(market_id, false, amount, true, Option::None(()), Option::None(()));
+        .swap(market_id, false, amount, true, Option::None(()), Option::None(()), Option::None(()));
 
     // Withdraw from strategy.
     let shares_init = 286266946460287812818573174 + 429406775392817428992841450;
@@ -537,6 +539,7 @@ fn test_replicating_strategy_swap_cases() {
             swap_case.exact_input,
             swap_case.amount,
             swap_case.threshold_sqrt_price,
+            Option::None(()),
             Option::None(()),
         );
         let (amount_in, amount_out, fees) = swap(market_manager, params);

@@ -278,7 +278,14 @@ fn test_invariants_set1(
             let fee_factors_start = _snapshot_fee_factors(market_manager, market_id);
 
             let mut params = swap_params(
-                alice(), market_id, is_buy, true, amount.into(), Option::None(()), Option::None(())
+                alice(),
+                market_id,
+                is_buy,
+                true,
+                amount.into(),
+                Option::None(()),
+                Option::None(()),
+                Option::None(())
             );
             let (amount_in, amount_out, fees) = swap(market_manager, params);
             if is_buy {
@@ -516,7 +523,14 @@ fn test_invariants_set3(
 
             // Swap in
             let mut params = swap_params(
-                alice(), market_id, is_buy, true, amount.into(), Option::None(()), Option::None(())
+                alice(),
+                market_id,
+                is_buy,
+                true,
+                amount.into(),
+                Option::None(()),
+                Option::None(()),
+                Option::None(())
             );
             let (amount_in, amount_out, fees) = swap(market_manager, params);
             // Swap back out.

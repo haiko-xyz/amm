@@ -124,7 +124,8 @@ fn test_quote_multiple() {
         btc.contract_address,
         to_e18(1),
         array![eth_usdc_market_id, btc_usdc_market_id].span(),
-        Option::None(())
+        Option::None(()),
+        Option::None(()),
     );
     let amount_out = swap_multiple(market_manager, swap_params);
 

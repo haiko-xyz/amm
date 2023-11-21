@@ -11,6 +11,7 @@ mod test_fee_factor;
 mod test_flash_loan;
 mod test_strategy;
 mod test_fee_controller;
+mod test_ownable;
 mod test_erc721_positions;
 mod test_whitelist;
 mod test_concentrated_market;

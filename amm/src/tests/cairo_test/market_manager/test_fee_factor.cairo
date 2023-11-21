@@ -86,7 +86,14 @@ fn test_reinitialise_fee_factor() {
     let exact_input = true;
     let amount = 100000;
     let mut swap_params = swap_params(
-        alice(), market_id, is_buy, exact_input, amount, Option::None(()), Option::None(()),
+        alice(),
+        market_id,
+        is_buy,
+        exact_input,
+        amount,
+        Option::None(()),
+        Option::None(()),
+        Option::None(()),
     );
     let (amount_in, amount_out, fee) = swap(market_manager, swap_params);
 
@@ -94,7 +101,14 @@ fn test_reinitialise_fee_factor() {
     is_buy = true;
     swap_params =
         swap_params(
-            alice(), market_id, is_buy, exact_input, amount, Option::None(()), Option::None(()),
+            alice(),
+            market_id,
+            is_buy,
+            exact_input,
+            amount,
+            Option::None(()),
+            Option::None(()),
+            Option::None(()),
         );
     swap(market_manager, swap_params);
     print_fee_factors(market_manager, market_id, lower_limit, upper_limit);

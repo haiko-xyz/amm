@@ -88,7 +88,14 @@ fn test_fee_controller() {
 
     // Execute swap.    
     let mut params = swap_params(
-        alice(), market_id, true, true, to_e18(1), Option::None(()), Option::None(()),
+        alice(),
+        market_id,
+        true,
+        true,
+        to_e18(1),
+        Option::None(()),
+        Option::None(()),
+        Option::None(()),
     );
     let (amount_in, amount_out, fees) = swap(market_manager, params);
 
@@ -112,7 +119,14 @@ fn test_fee_controller_fee_rate_overflow() {
 
     // Execute swap.    
     let mut params = swap_params(
-        alice(), market_id, true, true, to_e18(1), Option::None(()), Option::None(()),
+        alice(),
+        market_id,
+        true,
+        true,
+        to_e18(1),
+        Option::None(()),
+        Option::None(()),
+        Option::None(()),
     );
     swap(market_manager, params);
 }

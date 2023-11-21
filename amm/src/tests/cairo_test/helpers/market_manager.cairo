@@ -16,7 +16,7 @@ use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDi
 use amm::types::i256::i256;
 use amm::tests::cairo_test::helpers::{market_manager, token};
 use amm::tests::common::params::{
-    CreateMarketParams, ModifyPositionParams, SwapParams, SwapMultipleParams
+    CreateMarketParams, ModifyPositionParams, SwapParams, SwapMultipleParams, TransferOwnerParams
 };
 
 // External imports.
@@ -78,6 +78,7 @@ fn swap(market_manager: IMarketManagerDispatcher, params: SwapParams) -> (u256, 
             params.amount,
             params.exact_input,
             params.threshold_sqrt_price,
+            params.threshold_amount,
             params.deadline,
         )
 }
@@ -86,6 +87,21 @@ fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleP
     set_contract_address(params.owner);
     market_manager
         .swap_multiple(
-            params.in_token, params.out_token, params.amount, params.route, params.deadline,
+            params.in_token,
+            params.out_token,
+            params.amount,
+            params.route,
+            params.threshold_amount,
+            params.deadline,
         )
+}
+
+fn transfer_owner(market_manager: IMarketManagerDispatcher, params: TransferOwnerParams) -> () {
+    set_contract_address(params.owner);
+    market_manager.transfer_owner(params.new_owner);
+}
+
+fn accept_owner(market_manager: IMarketManagerDispatcher, new_owner: ContractAddress) -> () {
+    set_contract_address(new_owner);
+    market_manager.accept_owner();
 }

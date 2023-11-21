@@ -65,8 +65,8 @@ struct PositionState {
 fn before() -> (
     IMarketManagerDispatcher,
     felt252,
-    IERC20Dispatcher,
-    IERC20Dispatcher,
+    ERC20ABIDispatcher,
+    ERC20ABIDispatcher,
     IMockPragmaOracleDispatcher,
     IReplicatingStrategyDispatcher,
 ) {
@@ -143,8 +143,7 @@ fn before() -> (
 // TESTS
 ////////////////////////////////
 
-// Caution: make sure to comment out `update_positions` in `replicating_strategy` 
-// before running this test.
+// Caution: This test is currently depreciated and unused.
 #[test]
 fn test_fee_factor_invariants_replicating(
     pos1_limit1: u16,

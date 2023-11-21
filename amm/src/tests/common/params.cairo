@@ -64,6 +64,7 @@ struct SwapParams {
     amount: u256,
     exact_input: bool,
     threshold_sqrt_price: Option<u256>,
+    threshold_amount: Option<u256>,
     deadline: Option<u64>
 }
 
@@ -74,7 +75,14 @@ struct SwapMultipleParams {
     out_token: ContractAddress,
     amount: u256,
     route: Span<felt252>,
+    threshold_amount: Option<u256>,
     deadline: Option<u64>,
+}
+
+#[derive(Drop, Copy)]
+struct TransferOwnerParams {
+    owner: ContractAddress,
+    new_owner: ContractAddress
 }
 
 ////////////////////////////////
@@ -143,6 +151,10 @@ fn default_market_params() -> CreateMarketParams {
     }
 }
 
+fn default_transfer_owner_params() -> TransferOwnerParams {
+    TransferOwnerParams { owner: owner(), new_owner: alice() }
+}
+
 fn fee_controller_params(
     market_manager: ContractAddress, swap_fee_rate: u16,
 ) -> FeeControllerParams {
@@ -166,9 +178,19 @@ fn swap_params(
     exact_input: bool,
     amount: u256,
     threshold_sqrt_price: Option<u256>,
+    threshold_amount: Option<u256>,
     deadline: Option<u64>
 ) -> SwapParams {
-    SwapParams { owner, market_id, is_buy, exact_input, amount, threshold_sqrt_price, deadline }
+    SwapParams {
+        owner,
+        market_id,
+        is_buy,
+        exact_input,
+        amount,
+        threshold_sqrt_price,
+        threshold_amount,
+        deadline
+    }
 }
 
 fn swap_multiple_params(
@@ -177,7 +199,8 @@ fn swap_multiple_params(
     out_token: ContractAddress,
     amount: u256,
     route: Span<felt252>,
+    threshold_amount: Option<u256>,
     deadline: Option<u64>,
 ) -> SwapMultipleParams {
-    SwapMultipleParams { owner, in_token, out_token, amount, route, deadline }
+    SwapMultipleParams { owner, in_token, out_token, amount, route, threshold_amount, deadline }
 }

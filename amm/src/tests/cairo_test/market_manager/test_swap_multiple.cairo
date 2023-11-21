@@ -112,7 +112,8 @@ fn test_swap_multiple() {
         btc.contract_address,
         to_e18(1),
         array![eth_usdc_id, btc_usdc_id].span(),
-        Option::None(())
+        Option::None(()),
+        Option::None(()),
     );
     let amount_out = swap_multiple(market_manager, swap_params);
 
@@ -134,7 +135,8 @@ fn test_swap_multiple_invalid_path() {
         btc.contract_address,
         to_e18(1),
         array![btc_usdc_id, eth_usdc_id].span(),
-        Option::None(())
+        Option::None(()),
+        Option::None(()),
     );
     let amount_out = swap_multiple(market_manager, swap_params);
 }

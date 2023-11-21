@@ -33,6 +33,8 @@ trait IStrategy<TContractState> {
   fn market_id(self: @TContractState) -> felt252;
   fn strategy_name(self: @TContractState) -> felt252;
   fn strategy_symbol(self: @TContractState) -> felt252;
+  fn placed_positions(self: @TContractState) -> Span<PositionInfo>;
+  fn queued_positions(self: @TContractState) -> Span<PositionInfo>;
   // External
   fn update_positions(ref self: TContractState, params: SwapParams);
   fn cleanup(ref self: TContractState);
@@ -102,6 +104,7 @@ fn swap(
   amount: u256,
   exact_input: bool,
   threshold_sqrt_price: Option<u256>,
+  threshold_amount: Option<u256>,
   deadline: Option<u64>,
 ) -> (u256, u256, u256);
 ```
@@ -132,6 +135,7 @@ fn swap_multiple(
   is_buy: bool,
   amount: u256,
   route: Span<felt252>,
+  threshold_amount: Option<u256>,
   deadline: Option<u64>,
 ) -> u256;
 ```
