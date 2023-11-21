@@ -63,14 +63,6 @@ fn before() -> (
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
 
-    // Fund LP with initial token balances and approve market manager as spender.
-    let initial_base_amount = to_e28(5000000000000000000000000000000000000000000);
-    let initial_quote_amount = to_e28(100000000000000000000000000000000000000000000);
-    fund(base_token, alice(), initial_base_amount);
-    fund(quote_token, alice(), initial_quote_amount);
-    approve(base_token, alice(), market_manager.contract_address, initial_base_amount);
-    approve(quote_token, alice(), market_manager.contract_address, initial_quote_amount);
-
     // Create the market.
     let mut params = default_market_params();
     params.base_token = base_token.contract_address;
@@ -81,8 +73,25 @@ fn before() -> (
     // Deploy quoter.
     let quoter = deploy_quoter(owner(), market_manager.contract_address);
 
-    // Deploy strategy.
+    // Deploy and initialise strategy.
     let strategy = deploy_manual_strategy(owner());
+    strategy.initialise('Manual Strategy', 'MANU', market_manager.contract_address, market_id);
+
+    // Fund LP with initial token balances and approve market manager as spender.
+    let initial_base_amount = to_e28(5000000000000000000000000);
+    let initial_quote_amount = to_e28(10000000000000000000000000000);
+    fund(base_token, alice(), initial_base_amount);
+    fund(quote_token, alice(), initial_quote_amount);
+    fund(base_token, owner(), initial_base_amount);
+    fund(quote_token, owner(), initial_quote_amount);
+    approve(base_token, alice(), market_manager.contract_address, initial_base_amount);
+    approve(quote_token, alice(), market_manager.contract_address, initial_quote_amount);
+    approve(base_token, owner(), strategy.contract_address, initial_base_amount);
+    approve(quote_token, owner(), strategy.contract_address, initial_quote_amount);
+
+    // Deposit to strategy.
+    set_contract_address(owner());
+    strategy.deposit(to_e18(10000000), to_e18(11250000000000));
 
     (market_manager, base_token, quote_token, market_id, quoter, strategy)
 }
@@ -167,13 +176,6 @@ fn swap_test_cases() -> Array<SwapCase> {
 #[available_gas(15000000000)]
 fn test_quote_cases() {
     let (market_manager, base_token, quote_token, market_id, quoter, strategy) = before();
-
-    // Mint positions.
-    set_contract_address(alice());
-    let mut params = modify_position_params(
-        alice(), market_id, OFFSET + 749000, OFFSET + 750000, I256Trait::new(to_e18(100000), false),
-    );
-    modify_position(market_manager, params);
 
     // Iterate through swap test cases.
     set_contract_address(alice());
