@@ -65,8 +65,8 @@ struct PositionState {
 fn before() -> (
     IMarketManagerDispatcher,
     felt252,
-    IERC20Dispatcher,
-    IERC20Dispatcher,
+    ERC20ABIDispatcher,
+    ERC20ABIDispatcher,
     IMockPragmaOracleDispatcher,
     IReplicatingStrategyDispatcher,
 ) {
