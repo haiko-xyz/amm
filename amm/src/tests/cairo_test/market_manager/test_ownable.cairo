@@ -6,9 +6,7 @@ use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDi
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, transfer_owner, accept_owner
 };
-use amm::tests::common::params::{
-    owner, default_transfer_owner_params, alice, bob
-};
+use amm::tests::common::params::{owner, default_transfer_owner_params, alice, bob};
 
 
 ////////////////////////////////
@@ -45,7 +43,9 @@ fn test_transfer_then_update_owner_before_accepting() {
     transfer_owner_params.new_owner = bob(); // new owner changed
     transfer_owner(market_manager, transfer_owner_params); // transfer ownership to another address
 
-    assert(market_manager.owner() != transfer_owner_params.new_owner, 'Owner not transferred check 1');
+    assert(
+        market_manager.owner() != transfer_owner_params.new_owner, 'Owner not transferred check 1'
+    );
     assert(market_manager.owner() == transfer_owner_params.owner, 'Owner transfer check 2');
 
     accept_owner(market_manager, transfer_owner_params.new_owner);
