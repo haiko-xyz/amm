@@ -16,7 +16,7 @@ use amm::interfaces::IStrategy::{IStrategyDispatcher, IStrategyDispatcherTrait};
 use amm::types::i256::{i256, I256Trait};
 use amm::tests::cairo_test::helpers::{
     market_manager::{deploy_market_manager, create_market, modify_position},
-    token::{deploy_token, fund, approve},
+    token::{deploy_token, fund, approve}, strategy::deploy_manual_strategy,
 };
 use amm::tests::common::params::{
     owner, alice, treasury, default_token_params, default_market_params
@@ -51,13 +51,7 @@ fn before() -> (
     let quote_token = deploy_token(quote_token_params);
 
     // Deploy strategy.
-    let mut constructor_calldata = ArrayTrait::<felt252>::new();
-    owner.serialize(ref constructor_calldata);
-    let (strategy_addr, _) = deploy_syscall(
-        ManualStrategy::TEST_CLASS_HASH.try_into().unwrap(), 0, constructor_calldata.span(), false
-    )
-        .unwrap();
-    let strategy = IManualStrategyDispatcher { contract_address: strategy_addr };
+    let strategy = deploy_manual_strategy(owner());
 
     // Create market.
     let mut params = default_market_params();
