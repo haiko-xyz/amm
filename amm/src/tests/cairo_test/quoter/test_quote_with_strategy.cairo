@@ -67,7 +67,7 @@ fn before() -> (
     let mut params = default_market_params();
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
-    params.start_limit = OFFSET;
+    params.start_limit = OFFSET + 737780;
     let market_id = create_market(market_manager, params);
 
     // Deploy quoter.
@@ -118,7 +118,7 @@ fn swap_test_cases() -> Array<SwapCase> {
                 is_buy: true,
                 exact_input: true,
                 amount: to_e18(1),
-                threshold_sqrt_price: Option::None(()),
+                threshold_sqrt_price: Option::Some(to_e28(48)),
                 bid_lower: OFFSET - 1000,
                 bid_upper: OFFSET - 900,
                 ask_lower: OFFSET + 900,
@@ -131,7 +131,7 @@ fn swap_test_cases() -> Array<SwapCase> {
                 is_buy: false,
                 exact_input: false,
                 amount: to_e18(1),
-                threshold_sqrt_price: Option::None(()),
+                threshold_sqrt_price: Option::Some(to_e28(36)),
                 bid_lower: OFFSET - 500,
                 bid_upper: OFFSET,
                 ask_lower: OFFSET + 10,
@@ -144,7 +144,7 @@ fn swap_test_cases() -> Array<SwapCase> {
                 is_buy: true,
                 exact_input: false,
                 amount: to_e18(1),
-                threshold_sqrt_price: Option::None(()),
+                threshold_sqrt_price: Option::Some(to_e28(41)),
                 bid_lower: OFFSET - MIN_LIMIT,
                 bid_upper: OFFSET - 1,
                 ask_lower: OFFSET + 1,
