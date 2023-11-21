@@ -1,19 +1,9 @@
 // use core::debug::PrintTrait;
-use snforge_std::forge_print::PrintTrait;
-use core::option::OptionTrait;
-use core::clone::Clone;
-use core::traits::Into;
-use core::traits::SubEq;
-use core::traits::TryInto;
-use core::serde::Serde;
-use core::array::ArrayTrait;
-use core::array::SpanTrait;
-use core::traits::AddEq;
 // Core lib imports.
 use cmp::{min, max};
 
 // Local imports.
-use amm::libraries::constants::{OFFSET, MIN_SQRT_PRICE, MAX_SQRT_PRICE, MAX, MAX_NUM_LIMITS};
+use amm::libraries::constants::{OFFSET, MIN_LIMIT, MAX_LIMIT, MIN_SQRT_PRICE, MAX_SQRT_PRICE, MAX};
 use amm::libraries::math::fee_math;
 use amm::types::i256::I256Trait;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
@@ -28,7 +18,7 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
 
 // External imports.
-use snforge_std::{start_prank};
+use snforge_std::{start_prank, PrintTrait};
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
@@ -62,8 +52,6 @@ fn before() -> (IMarketManagerDispatcher, felt252, ERC20ABIDispatcher, ERC20ABID
 
     let market_id = create_market(market_manager, params);
 
-
-
     (market_manager, market_id, base_token, quote_token)
 }
 
@@ -75,10 +63,16 @@ fn test_quote_fuzz(
     swap4_amount: u256,
     swap5_amount: u256,
     price_fuzzer: u256
-    ) {
+) {
     let (market_manager, market_id, base_token, quote_token) = before();
     
-    let position_params = modify_position_params(alice(), market_id, OFFSET, MAX_NUM_LIMITS, I256Trait::new(100, false));
+    let position_params = modify_position_params(
+        alice(), 
+        market_id, 
+        OFFSET - MIN_LIMIT, 
+        OFFSET + MAX_LIMIT, 
+        I256Trait::new(to_e18(100000), false)
+    );
     modify_position(market_manager, position_params);
 
     //initialise swap params
@@ -108,36 +102,38 @@ fn test_quote_fuzz(
     ].span();
 
     let mut j = 0;
-    // loop {
-    //     if j >= swap_params.len(){
-    //         break;
-    //     }
+    loop {
+        if j >= swap_params.len(){
+            break;
+        }
 
         let (is_buy, exact_input, amount) = *swap_params.at(0);
         if amount != 0 {
             let mut current_price = market_manager.market_state(market_id).curr_sqrt_price;
             
-            if is_buy {
-                current_price = min(current_price + (price_fuzzer % current_price), MAX_SQRT_PRICE - 1);
+            let threshold_sqrt_price = if is_buy {
+                min(current_price + (price_fuzzer % current_price), MAX_SQRT_PRICE - 1)
             } else {
-                current_price = max(current_price - (price_fuzzer % current_price), MIN_SQRT_PRICE + 1 );
-            }
+                max(current_price - (price_fuzzer % current_price), MIN_SQRT_PRICE + 1 )
+            };
 
-            let mut params = swap_params(alice(), market_id, is_buy, exact_input, amount, Option::Some((current_price)), Option::None(()));
+            let mut params = swap_params(
+                alice(), 
+                market_id, 
+                is_buy, 
+                exact_input, 
+                amount, 
+                Option::Some(threshold_sqrt_price), 
+                Option::None(())
+            );
             let mut quote = quote(market_manager, params);
             
-            let (_, amount_out, _) = swap(market_manager, params);
-            let z: Option<felt252> = amount_out.try_into();
-
-            // if z.is_none(){
-            //     continue;
-            // }
-
+            let (amount_in, amount_out, _) = swap(market_manager, params);
+            let quote_exp = if exact_input { amount_out } else { amount_in };
+            quote_exp.print();
             quote.print();
-            '========'.print();
-            z.unwrap().print();
-            assert(quote == z.unwrap(), 'quote value not equal');    
+            assert(quote.into() == quote_exp, 'quote value not equal');    
         }
-    // }
-
+        j += 1;
+    }
 }

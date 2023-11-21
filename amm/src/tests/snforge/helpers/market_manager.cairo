@@ -1,4 +1,3 @@
-use amm::interfaces::IMarketManager::IMarketManagerSafeDispatcherTrait;
 // Core lib imports.
 use core::serde::Serde;
 use core::traits::Into;
@@ -7,6 +6,7 @@ use array::ArrayTrait;
 use option::OptionTrait;
 use traits::TryInto;
 use starknet::deploy_syscall;
+use starknet::syscalls::call_contract_syscall;
 use starknet::ContractAddress;
 use starknet::testing::{set_caller_address, set_contract_address, set_block_timestamp};
 
@@ -95,11 +95,39 @@ fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleP
     amount_out
 }
 
-
+// TODO: deploy quoter and call it, rather than inserting quoter code directly.
 fn quote(market_manager: IMarketManagerDispatcher, params: SwapParams) -> felt252 {
-    let mut mm = IMarketManagerSafeDispatcher { contract_address: market_manager.contract_address };
-    match mm.quote(params.market_id, params.is_buy, params.amount, params.exact_input, params.threshold_sqrt_price){
-        Result::Ok(_) => panic_with_felt252('shouldve panicked'),
-        Result::Err(panic_data) => *panic_data.at(0),
+    let mut calldata = array![];
+    calldata.append(params.market_id);
+    calldata.append(params.is_buy.into());
+    calldata.append(params.amount.low.into());
+    calldata.append(params.amount.high.into());
+    calldata.append(params.exact_input.into());
+    match params.threshold_sqrt_price {
+        Option::Some(threshold_sqrt_price) => {
+            calldata.append(0);
+            calldata.append(threshold_sqrt_price.low.into());
+            calldata.append(threshold_sqrt_price.high.into());
+        },
+        Option::None => calldata.append(1),
+    };
+
+    // Call `quote` in market manager.
+    let res = call_contract_syscall(
+        address: market_manager.contract_address,
+        entry_point_selector: selector!("quote"),
+        calldata: calldata.span(),
+    );
+
+    // Extract quote from error message.
+    match res {
+        Result::Ok(_) => {
+            assert(false, 'QuoteResultOk');
+            return 0;
+        },
+        Result::Err(error) => {
+            let quote = *error.at(0);
+            return quote.into();
+        },
     }
 }
