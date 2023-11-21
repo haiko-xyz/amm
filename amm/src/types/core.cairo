@@ -170,6 +170,8 @@ struct PositionInfo {
 // * `liquidity` - liquidity of position
 // * `base_amount` - amount of base tokens inside position
 // * `quote_amount` - amount of quote tokens inside position
+// * `lower_limit` - lower limit of position
+// * `upper_limit` - upper limit of position
 #[derive(Copy, Drop, Serde)]
 struct ERC721PositionInfo {
     base_token: ContractAddress,
@@ -181,6 +183,8 @@ struct ERC721PositionInfo {
     liquidity: u256,
     base_amount: u256,
     quote_amount: u256,
+    lower_limit: u32,
+    upper_limit: u32,
 }
 
 ////////////////////////////////
