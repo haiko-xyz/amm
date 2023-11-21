@@ -859,7 +859,6 @@ mod MarketManager {
             (base_amount, quote_amount)
         }
 
-
         // Swap tokens through a market.
         //
         // # Arguments
@@ -1055,7 +1054,7 @@ mod MarketManager {
             self.emit(Event::FlashLoan(FlashLoan { borrower, token, amount }));
         }
 
-        // Mint ERC721 to represent capital locked in open liquidity positions.
+        // Mint ERC721 to represent an open liquidity position.
         //
         // # Arguments
         // * `position_id` - id of position mint
@@ -1097,7 +1096,7 @@ mod MarketManager {
             self.erc721._burn(position_id.into());
         }
 
-        // Whitelists a token for market creation.
+        // Whitelist a token for market creation.
         // Callable by owner only.
         //
         // # Arguments
@@ -1118,7 +1117,7 @@ mod MarketManager {
             self.emit(Event::Whitelist(Whitelist { token }));
         }
 
-        // Upgrades Linear Market to Concentrated Market by enabling concentrated liquidity positions.
+        // Upgrade Linear Market to Concentrated Market by enabling concentrated liquidity positions.
         // Callable by owner only.
         //
         // # Arguments
@@ -1269,7 +1268,7 @@ mod MarketManager {
             self.emit(Event::ChangeFlashLoanFee(ChangeFlashLoanFee { token, fee }));
         }
 
-        // Set fee parameters for a given market.
+        // Set protocol share for a given market.
         // Callable by owner only.
         // 
         // # Arguments
@@ -1294,7 +1293,7 @@ mod MarketManager {
         // TODO: add timelock
         //
         // # Arguments
-        // # `new_class_hash` - New class hash of the contract
+        // * `new_class_hash` - new class hash of contract
         fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
             self.assert_only_owner();
             replace_class_syscall(new_class_hash);
