@@ -98,7 +98,10 @@ fn test_modify_position_events() {
     ];
 
     // Swap so position has some fees.
-    market_manager.swap(market_id, true, to_e18(1), true, Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id, true, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
+        );
 
     // Collect fees should fire an event.
     liquidity_delta = I256Trait::new(0, false);

@@ -995,6 +995,7 @@ fn test_swap_cases() {
                     swap_case.amount,
                     swap_case.threshold_sqrt_price,
                     Option::None(()),
+                    Option::None(()),
                 );
                 let (amount_in, amount_out, fees) = swap(market_manager, params);
 

@@ -4,10 +4,9 @@ This following test cases are currently missing. They are WIP and we aim to comp
 
 New tests
 
-- Tests for setting owner
-- Fuzz tests for quote and quote_multiple
 - Invariant tests for limit orders
-- Add tests for event emission
+- Tests for event emission
+- Amount threshold tests for `swap` and `swap_multiple`
 
 Other to dos
 

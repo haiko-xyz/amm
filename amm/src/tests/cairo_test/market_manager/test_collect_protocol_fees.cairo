@@ -75,7 +75,10 @@ fn test_collect_protocol_fees() {
     market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
 
     // Execute swap.
-    market_manager.swap(market_id, true, to_e18(1), true, Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id, true, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
+        );
 
     // Collect protocol fees.
     set_contract_address(owner());
@@ -103,7 +106,10 @@ fn test_collect_protocol_fees_all_fees() {
     market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
 
     // Execute swap.
-    market_manager.swap(market_id, true, to_e18(1), true, Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id, true, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
+        );
 
     // Collect protocol fees.
     set_contract_address(owner());
@@ -125,7 +131,10 @@ fn test_collect_protocol_fees_request_zero_amount() {
     market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
 
     // Execute swap.
-    market_manager.swap(market_id, true, to_e18(1), true, Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id, true, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
+        );
 
     // Collect protocol fees.
     set_contract_address(owner());

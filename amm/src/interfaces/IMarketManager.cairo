@@ -215,6 +215,7 @@ trait IMarketManager<TContractState> {
     // * `amount` - amount of tokens to swap
     // * `exact_input` - true if `amount` is exact input, false if exact output
     // * `threshold_sqrt_price` - maximum sqrt price to swap at for buys, minimum for sells
+    // * `threshold_amount` - minimum amount out for exact input, or max amount in for exact output
     // * `deadline` - deadline for swap to be executed by
     //
     // # Returns
@@ -228,6 +229,7 @@ trait IMarketManager<TContractState> {
         amount: u256,
         exact_input: bool,
         threshold_sqrt_price: Option<u256>,
+        threshold_amount: Option<u256>,
         deadline: Option<u64>,
     ) -> (u256, u256, u256);
 
@@ -238,6 +240,7 @@ trait IMarketManager<TContractState> {
     // * `out_token` - out token address
     // * `amount` - amount of tokens to swap in
     // * `route` - list of market ids defining the route to swap through
+    // * `threshold_amount` - minimum amount out
     // * `deadline` - deadline for swap to be executed by
     //
     // # Returns
@@ -248,6 +251,7 @@ trait IMarketManager<TContractState> {
         out_token: ContractAddress,
         amount: u256,
         route: Span<felt252>,
+        threshold_amount: Option<u256>,
         deadline: Option<u64>,
     ) -> u256;
 

@@ -207,7 +207,8 @@ fn test_quote_fuzz(
                 exact_input,
                 amount_u256,
                 Option::Some(threshold_sqrt_price),
-                Option::None(())
+                Option::None(()),
+                Option::None(()),
             );
             let (amount_in, amount_out, _) = swap(market_manager, params);
 

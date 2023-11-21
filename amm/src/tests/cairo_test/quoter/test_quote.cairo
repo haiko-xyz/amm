@@ -168,6 +168,7 @@ fn test_quote_cases() {
             swap_case.amount,
             swap_case.threshold_sqrt_price,
             Option::None(()),
+            Option::None(()),
         );
         let (amount_in, amount_out, _) = swap(market_manager, params);
         let amount = if swap_case.exact_input {

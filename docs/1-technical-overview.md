@@ -104,6 +104,7 @@ fn swap(
   amount: u256,
   exact_input: bool,
   threshold_sqrt_price: Option<u256>,
+  threshold_amount: Option<u256>,
   deadline: Option<u64>,
 ) -> (u256, u256, u256);
 ```
@@ -134,6 +135,7 @@ fn swap_multiple(
   is_buy: bool,
   amount: u256,
   route: Span<felt252>,
+  threshold_amount: Option<u256>,
   deadline: Option<u64>,
 ) -> u256;
 ```

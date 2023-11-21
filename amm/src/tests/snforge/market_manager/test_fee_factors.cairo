@@ -210,7 +210,14 @@ fn test_fee_factor_invariants(
         let is_buy = amount % 2 == 0;
         if amount != 0 {
             let mut params = swap_params(
-                alice(), market_id, is_buy, true, amount.into(), Option::None(()), Option::None(())
+                alice(),
+                market_id,
+                is_buy,
+                true,
+                amount.into(),
+                Option::None(()),
+                Option::None(()),
+                Option::None(())
             );
             swap(market_manager, params);
 
@@ -309,7 +316,14 @@ fn test_fee_factor_invariants(
             let amount = *swap_amounts.at(m);
             let is_buy = amount % 2 == 0;
             let mut params = swap_params(
-                alice(), market_id, is_buy, true, amount.into(), Option::None(()), Option::None(())
+                alice(),
+                market_id,
+                is_buy,
+                true,
+                amount.into(),
+                Option::None(()),
+                Option::None(()),
+                Option::None(())
             );
         }
 

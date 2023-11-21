@@ -867,6 +867,7 @@ mod MarketManager {
         // * `amount` - amount of tokens to swap
         // * `exact_input` - true if `amount` is exact input, false if exact output
         // * `threshold_sqrt_price` - maximum sqrt price to swap at for buys, minimum for sells
+        // * `threshold_amount` - minimum amount out for exact input, or max amount in for exact output
         // * `deadline` - deadline for swap to be executed by
         //
         // # Returns
@@ -880,6 +881,7 @@ mod MarketManager {
             amount: u256,
             exact_input: bool,
             threshold_sqrt_price: Option<u256>,
+            threshold_amount: Option<u256>,
             deadline: Option<u64>,
         ) -> (u256, u256, u256) {
             // Assign and update swap id.
@@ -894,6 +896,7 @@ mod MarketManager {
                     amount,
                     exact_input,
                     threshold_sqrt_price,
+                    threshold_amount,
                     swap_id,
                     deadline,
                     false
@@ -907,6 +910,7 @@ mod MarketManager {
         // * `out_token` - out token address
         // * `amount` - amount of tokens to swap in
         // * `route` - list of market ids defining the route to swap through
+        // * `threshold_amount` - minimum amount out
         // * `deadline` - deadline for swap to be executed by
         //
         // # Returns
@@ -917,11 +921,17 @@ mod MarketManager {
             out_token: ContractAddress,
             amount: u256,
             route: Span<felt252>,
+            threshold_amount: Option<u256>,
             deadline: Option<u64>,
         ) -> u256 {
             // Execute swap.
             let amount_out = self
                 ._swap_multiple(in_token, out_token, amount, route, deadline, false);
+
+            // Check amount against threshold.
+            if threshold_amount.is_some() {
+                assert(amount_out >= threshold_amount.unwrap(), 'ThresholdAmount');
+            }
 
             // Increment swap id.
             let swap_id = self.swap_id.read();
@@ -972,7 +982,8 @@ mod MarketManager {
                     amount,
                     exact_input,
                     threshold_sqrt_price,
-                    1,
+                    Option::None(()),
+                    1, // mock swap id - unused
                     Option::None(()),
                     true,
                 );
@@ -1460,6 +1471,7 @@ mod MarketManager {
         // * `amount` - amount of tokens to swap in
         // * `exact_input` - true if `amount` is exact input, otherwise exact output
         // * `threshold_sqrt_price` - maximum sqrt price to swap at for buys, minimum for sells
+        // * `threshold_amount` - minimum amount out for exact input, or max amount in for exact output
         // * `swap_id` - unique swap id
         // * `deadline` - deadline for swap to be executed by
         // * `quote_mode` - if true, does not try to transfer token balances
@@ -1475,6 +1487,7 @@ mod MarketManager {
             amount: u256,
             exact_input: bool,
             threshold_sqrt_price: Option<u256>,
+            threshold_amount: Option<u256>,
             swap_id: u128,
             deadline: Option<u64>,
             quote_mode: bool,
@@ -1559,6 +1572,19 @@ mod MarketManager {
             } else {
                 amount - amount_rem
             };
+
+            // Check swap amount against amount threshold.
+            if threshold_amount.is_some() {
+                let threshold_amount_val = threshold_amount.unwrap();
+                assert(
+                    if exact_input {
+                        amount_out >= threshold_amount_val
+                    } else {
+                        amount_in <= threshold_amount_val
+                    },
+                    'ThresholdAmount'
+                );
+            }
 
             // Return amounts if quote mode.
             if quote_mode {
@@ -1659,6 +1685,7 @@ mod MarketManager {
         // * `out_token` - out token address
         // * `amount` - amount of tokens to swap in
         // * `route` - list of market ids defining the route to swap through
+        // * `threshold_amount` - minimum amount out for exact input, or max amount in for exact output
         // * `deadline` - deadline for swap to be executed by
         // * `quote_mode` - if true, does not try to transfer token balances
         //
@@ -1705,6 +1732,7 @@ mod MarketManager {
                         is_buy_iter,
                         amount_out,
                         true,
+                        Option::None(()),
                         Option::None(()),
                         swap_id,
                         deadline,

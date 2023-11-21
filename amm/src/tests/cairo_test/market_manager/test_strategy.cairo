@@ -114,7 +114,7 @@ fn test_strategy() {
     set_contract_address(alice());
     let amount = to_e18(10);
     let (amount_in, amount_out, fees) = market_manager
-        .swap(market_id, true, amount, true, Option::None(()), Option::None(()));
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
 
     // Check swap amounts and position.
     let placed_positions = IStrategyDispatcher { contract_address: strategy.contract_address }
