@@ -5,7 +5,6 @@ use core::result::ResultTrait;
 use array::ArrayTrait;
 use option::OptionTrait;
 use traits::TryInto;
-use starknet::deploy_syscall;
 use starknet::ContractAddress;
 use starknet::testing::{set_caller_address, set_contract_address, set_block_timestamp};
 
@@ -94,3 +93,4 @@ fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleP
     stop_prank(market_manager.contract_address);
     amount_out
 }
+

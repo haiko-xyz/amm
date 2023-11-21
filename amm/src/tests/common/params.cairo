@@ -77,6 +77,12 @@ struct SwapMultipleParams {
     deadline: Option<u64>,
 }
 
+#[derive(Drop, Copy)]
+struct TransferOwnerParams {
+    owner: ContractAddress,
+    new_owner: ContractAddress
+}
+
 ////////////////////////////////
 // CONSTANTS
 ////////////////////////////////
@@ -140,6 +146,13 @@ fn default_market_params() -> CreateMarketParams {
         allow_positions: true,
         allow_orders: true,
         is_concentrated: true,
+    }
+}
+
+fn default_transfer_owner_params() -> TransferOwnerParams {
+    TransferOwnerParams {
+        owner: owner(),
+        new_owner: alice()
     }
 }
 

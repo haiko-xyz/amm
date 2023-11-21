@@ -3,7 +3,6 @@ use core::traits::AddEq;
 use core::serde::Serde;
 use starknet::ContractAddress;
 use starknet::contract_address_const;
-use starknet::deploy_syscall;
 use starknet::testing::{set_caller_address, set_contract_address, set_block_timestamp};
 use core::starknet::SyscallResultTrait;
 use core::result::ResultTrait;
