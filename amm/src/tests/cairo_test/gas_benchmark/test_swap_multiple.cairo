@@ -1,3 +1,8 @@
+use core::box::BoxTrait;
+use core::traits::Into;
+use core::array::ArrayTrait;
+use core::option::OptionTrait;
+use core::traits::TryInto;
 // Core lib imports.
 use starknet::testing::set_contract_address;
 use integer::BoundedU256;
@@ -24,13 +29,10 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 // SETUP
 ////////////////////////////////
 
-fn before() -> (
+fn before(number_of_markets: u256) -> (
     IMarketManagerDispatcher,
-    ERC20ABIDispatcher,
-    ERC20ABIDispatcher,
-    ERC20ABIDispatcher,
-    felt252,
-    felt252,
+    Array<ERC20ABIDispatcher>,
+    Array<felt252>
 ) {
     // Get default owner.
     let owner = owner();
@@ -40,39 +42,53 @@ fn before() -> (
 
     // Deploy tokens.
     let max = BoundedU256::max();
-    let eth_params = token_params('Ethereum', 'ETH', max, treasury());
-    let btc_params = token_params('Bitcoin', 'BTC', max, treasury());
-    let usdc_params = token_params('USDC', 'USDC', max, treasury());
-    let eth = deploy_token(eth_params);
-    let btc = deploy_token(btc_params);
-    let usdc = deploy_token(usdc_params);
 
-    // Fund LP with initial token balances and approve market manager as spender.
-    let initial_eth = max;
-    let initial_btc = max;
-    let initial_usdc = max;
-    fund(eth, alice(), initial_eth);
-    fund(btc, alice(), initial_btc);
-    fund(usdc, alice(), initial_usdc);
-    approve(eth, alice(), market_manager.contract_address, initial_eth);
-    approve(btc, alice(), market_manager.contract_address, initial_btc);
-    approve(usdc, alice(), market_manager.contract_address, initial_usdc);
+    let mut tokens = ArrayTrait::<ERC20ABIDispatcher>::new();
+    let mut market_ids = ArrayTrait::<felt252>::new();
+    let mut index = 0;
+    loop {
+        if index == number_of_markets{
+            break();
+        }
 
-    // Create ETH/USDC market.
-    let mut eth_usdc_market_params = default_market_params();
-    eth_usdc_market_params.base_token = eth.contract_address;
-    eth_usdc_market_params.quote_token = usdc.contract_address;
-    eth_usdc_market_params.start_limit = OFFSET + 737780;
-    let eth_usdc_market_id = create_market(market_manager, eth_usdc_market_params);
+        if index == 0 { 
+            let token_params = token_params('Ethereum', 'ETH', max, treasury());
+            let token = deploy_token(token_params);
+            let initial_fund = max;
+            fund(token, alice(), initial_fund);
+            approve(token, alice(), market_manager.contract_address, initial_fund);
+            tokens.append(token);
+        }
+        let token_params = token_params(index.try_into().unwrap(), index.try_into().unwrap(), max, treasury());
+        let token = deploy_token(token_params);
+        let initial_fund = max;
+        fund(token, alice(), initial_fund);
+        approve(token, alice(), market_manager.contract_address, initial_fund);
+        tokens.append(token);
 
-    // Create BTC/USDC market.
-    let mut btc_usdc_market_params = default_market_params();
-    btc_usdc_market_params.base_token = btc.contract_address;
-    btc_usdc_market_params.quote_token = usdc.contract_address;
-    btc_usdc_market_params.start_limit = OFFSET + 1016590;
-    let btc_usdc_market_id = create_market(market_manager, btc_usdc_market_params);
+        // Create market.
+        let mut market_params = default_market_params();
+        market_params.base_token = *tokens.at(tokens.len() - 2).contract_address;
+        market_params.quote_token = *tokens.at(tokens.len() - 1).contract_address;
+        market_params.start_limit = OFFSET + 737780;
+        let market_id = create_market(market_manager, market_params);
 
-    (market_manager, eth, btc, usdc, eth_usdc_market_id, btc_usdc_market_id)
+        market_ids.append(market_id);
+
+        // Add liquidity positions.
+        set_contract_address(alice());
+        let mut position_params = modify_position_params(
+            alice(),
+            market_id,
+            OFFSET + 730000,
+            OFFSET + 740000,
+            I256Trait::new(to_e28(20000000), false)
+        );
+        modify_position(market_manager, position_params);
+        index += 1;
+    };
+
+    (market_manager, tokens, market_ids)
 }
 
 ////////////////////////////////
@@ -82,43 +98,49 @@ fn before() -> (
 #[test]
 #[available_gas(15000000000)]
 fn test_swap_multiple_two_markets() {
-    let (market_manager, eth, btc, usdc, eth_usdc_id, btc_usdc_id) = before();
+    let (market_manager, tokens, market_ids) = before(2);
 
-    // Add liquidity positions.
-    set_contract_address(alice());
-    let mut eth_usdc_position_params = modify_position_params(
-        alice(),
-        eth_usdc_id,
-        OFFSET + 730000,
-        OFFSET + 740000,
-        I256Trait::new(to_e28(20000000), false)
-    );
-    modify_position(market_manager, eth_usdc_position_params);
-
-    let mut btc_usdc_position_params = modify_position_params(
-        alice(),
-        btc_usdc_id,
-        OFFSET + 1010000,
-        OFFSET + 1020000,
-        I256Trait::new(to_e28(1000000), false)
-    );
-    modify_position(market_manager, btc_usdc_position_params);
 
     // Swap ETH for BTC.
     set_contract_address(alice());
     let mut swap_params = swap_multiple_params(
         alice(),
-        eth.contract_address,
-        btc.contract_address,
+        *tokens.at(0).contract_address,
+        *tokens.at(tokens.len() - 1).contract_address,
         to_e18(1),
-        array![eth_usdc_id, btc_usdc_id].span(),
+        market_ids.span(),
         Option::None(())
     );
 
     let gas_before = testing::get_available_gas();
     gas::withdraw_gas().unwrap();
     swap_multiple(market_manager, swap_params);
-    'swap_multiple gas used'.print();
+    'swap_multiple with 2 gas used'.print();
     (gas_before - testing::get_available_gas()).print(); 
     // should be around 59689424
+}
+
+#[test]
+#[available_gas(15000000000)]
+fn test_swap_multiple_ten_markets() {
+    let (market_manager, tokens, market_ids) = before(10);
+
+
+    // Swap ETH for BTC.
+    set_contract_address(alice());
+    let mut swap_params = swap_multiple_params(
+        alice(),
+        *tokens.at(0).contract_address,
+        *tokens.at(tokens.len() - 1).contract_address,
+        to_e18(1),
+        market_ids.span(),
+        Option::None(())
+    );
+
+    let gas_before = testing::get_available_gas();
+    gas::withdraw_gas().unwrap();
+    swap_multiple(market_manager, swap_params);
+    'swap_multiple with 10 gas used'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // should be around 326121372
 }
