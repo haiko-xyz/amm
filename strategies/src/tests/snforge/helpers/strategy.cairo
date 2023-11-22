@@ -7,7 +7,7 @@ use strategies::strategies::test::manual_strategy::{
 };
 
 // External imports.
-use snforge_std::{declare, ContractClassTrait, start_prank, stop_prank};
+use snforge_std::{declare, ContractClassTrait, start_prank, stop_prank, CheatTarget};
 
 fn deploy_strategy(owner: ContractAddress) -> IManualStrategyDispatcher {
     let contract = declare('ManualStrategy');
@@ -23,7 +23,7 @@ fn initialise_strategy(
     market_manager: ContractAddress,
     market_id: felt252
 ) {
-    start_prank(strategy.contract_address, owner);
+    start_prank(CheatTarget::One(strategy.contract_address), owner);
     strategy.initialise(name, symbol, market_manager, market_id,);
-    stop_prank(strategy.contract_address);
+    stop_prank(CheatTarget::One(strategy.contract_address));
 }

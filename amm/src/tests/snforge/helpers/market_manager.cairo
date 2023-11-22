@@ -18,7 +18,7 @@ use amm::tests::common::params::{
 };
 
 // External imports.
-use snforge_std::{declare, ContractClass, ContractClassTrait, start_prank, stop_prank};
+use snforge_std::{declare, ContractClass, ContractClassTrait, start_prank, stop_prank, CheatTarget};
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 fn deploy_market_manager(
@@ -29,7 +29,7 @@ fn deploy_market_manager(
 }
 
 fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketParams) -> felt252 {
-    start_prank(market_manager.contract_address, params.owner);
+    start_prank(CheatTarget::One(market_manager.contract_address), params.owner);
     let base_whitelisted = market_manager.is_whitelisted(params.base_token);
     let quote_whitelisted = market_manager.is_whitelisted(params.quote_token);
     if !base_whitelisted {
@@ -52,25 +52,25 @@ fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketP
             params.allow_orders,
             params.is_concentrated
         );
-    stop_prank(market_manager.contract_address);
+    stop_prank(CheatTarget::One(market_manager.contract_address));
     market_id
 }
 
 fn modify_position(
     market_manager: IMarketManagerDispatcher, params: ModifyPositionParams,
 ) -> (i256, i256, u256, u256) {
-    start_prank(market_manager.contract_address, params.owner);
+    start_prank(CheatTarget::One(market_manager.contract_address), params.owner);
     let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
         .modify_position(
             params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
         );
-    stop_prank(market_manager.contract_address);
+    stop_prank(CheatTarget::One(market_manager.contract_address));
 
     (base_amount, quote_amount, base_fees, quote_fees)
 }
 
 fn swap(market_manager: IMarketManagerDispatcher, params: SwapParams) -> (u256, u256, u256) {
-    start_prank(market_manager.contract_address, params.owner);
+    start_prank(CheatTarget::One(market_manager.contract_address), params.owner);
     let (amount_in, amount_out, fees) = market_manager
         .swap(
             params.market_id,
@@ -81,12 +81,12 @@ fn swap(market_manager: IMarketManagerDispatcher, params: SwapParams) -> (u256, 
             params.threshold_amount,
             params.deadline,
         );
-    stop_prank(market_manager.contract_address);
+    stop_prank(CheatTarget::One(market_manager.contract_address));
     (amount_in, amount_out, fees)
 }
 
 fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleParams) -> u256 {
-    start_prank(market_manager.contract_address, params.owner);
+    start_prank(CheatTarget::One(market_manager.contract_address), params.owner);
     let amount_out = market_manager
         .swap_multiple(
             params.in_token,
@@ -96,7 +96,7 @@ fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleP
             params.threshold_amount,
             params.deadline,
         );
-    stop_prank(market_manager.contract_address);
+    stop_prank(CheatTarget::One(market_manager.contract_address));
     amount_out
 }
 

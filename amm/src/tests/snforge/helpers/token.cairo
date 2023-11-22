@@ -14,7 +14,7 @@ use array::ArrayTrait;
 use amm::tests::common::params::{ERC20ConstructorParams, token_params, treasury};
 
 // External imports.
-use snforge_std::{declare, ContractClass, ContractClassTrait, start_prank, stop_prank};
+use snforge_std::{declare, ContractClass, ContractClassTrait, start_prank, stop_prank, CheatTarget};
 use openzeppelin::token::erc20::interface::{IERC20, ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 fn declare_token() -> ContractClass {
@@ -32,15 +32,15 @@ fn deploy_token(class: ContractClass, params: ERC20ConstructorParams) -> ERC20AB
 }
 
 fn fund(token: ERC20ABIDispatcher, user: ContractAddress, amount: u256) {
-    start_prank(token.contract_address, treasury());
+    start_prank(CheatTarget::One(token.contract_address), treasury());
     token.transfer(user, amount);
-    stop_prank(token.contract_address);
+    stop_prank(CheatTarget::One(token.contract_address));
 }
 
 fn approve(
     token: ERC20ABIDispatcher, owner: ContractAddress, spender: ContractAddress, amount: u256
 ) {
-    start_prank(token.contract_address, owner);
+    start_prank(CheatTarget::One(token.contract_address), owner);
     token.approve(spender, amount);
-    stop_prank(token.contract_address);
+    stop_prank(CheatTarget::One(token.contract_address));
 }
