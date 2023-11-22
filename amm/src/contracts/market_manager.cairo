@@ -543,6 +543,8 @@ mod MarketManager {
             allow_orders: bool,
             is_concentrated: bool,
         ) -> felt252 {
+            self.assert_only_owner();
+
             // Validate inputs.
             assert(base_token.is_non_zero() && quote_token.is_non_zero(), 'TokensNull');
             assert(width != 0, 'WidthZero');
@@ -782,9 +784,12 @@ mod MarketManager {
             // Calculate withdraw amounts. User's share of batch is calculated based on
             // the liquidity of their order relative to the total liquidity of the batch.
             // If we are collecting from the batch and it has not yet been filled, we need to 
-            // first remove our share of batch liquidity from the pool.
+            // first remove our share of batch liquidity from the pool. However, if the batch
+            // has accrued fees (e.g. through partial fills), it will also withdraw all fees
+            // from the position. To discourage this, fees are forfeited and not paid out to
+            // the user if they collect from an unfilled batch.
             let (base_amount, quote_amount) = if !batch.filled {
-                let (base_amount, quote_amount, _, _) = self
+                let (base_amount, quote_amount, base_fees, quote_fees) = self
                     ._modify_position(
                         order.batch_id,
                         market_id,
@@ -793,7 +798,7 @@ mod MarketManager {
                         I256Trait::new(order.liquidity, true),
                         true
                     );
-                (base_amount.val, quote_amount.val)
+                (base_amount.val - base_fees, quote_amount.val - quote_fees)
             } else {
                 let base_amount = math::mul_div(
                     batch.base_amount, order.liquidity, batch.liquidity, false

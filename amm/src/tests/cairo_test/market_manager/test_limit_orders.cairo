@@ -575,7 +575,7 @@ fn test_create_and_collect_partially_filled_bid_order() {
     let quote_amount_exp = 24875250413725154473288768153;
     let amount_filled_exp = 19741713750297465584247721318;
     let amount_unfilled_exp = 5133536663427688889041046835; // diff of above
-    let amount_earned_exp = 19999880000000000000000000000;
+    let amount_earned_exp = 19940000000000000000000000000;
 
     // Create second limit order.
     set_contract_address(alice());
@@ -584,7 +584,7 @@ fn test_create_and_collect_partially_filled_bid_order() {
     let quote_amount_exp_2 = 49750500827450308946577536307;
     let amount_filled_exp_2 = 39483427500594931168495442636;
     let amount_unfilled_exp_2 = 10267073326855377778082093671; // diff of above
-    let amount_earned_exp_2 = 39999760000000000000000000000;
+    let amount_earned_exp_2 = 40059640000000000000000000000;
 
     // Swap sell (partially filled against limit orders).
     let (amount_in, amount_out, fees) = market_manager
@@ -649,7 +649,7 @@ fn test_create_and_collect_partially_filled_ask_order() {
     let base_amount_exp = 24875126038405899964583358364;
     let amount_filled_exp = 19741516335525794238392802523;
     let amount_unfilled_exp = 5133609702880105726190555841;
-    let amount_earned_exp = 19999879999999999999999999999;
+    let amount_earned_exp = 19940000000000000000000000000;
 
     // Create second limit order.
     set_contract_address(alice());
@@ -658,7 +658,7 @@ fn test_create_and_collect_partially_filled_ask_order() {
     let base_amount_exp_2 = 49750252076811799929166716728;
     let amount_filled_exp_2 = 39483032671051588476785605046;
     let amount_unfilled_exp_2 = 10267219405760211452381111682;
-    let amount_earned_exp_2 = 39999759999999999999999999999;
+    let amount_earned_exp_2 = 40059640000000000000000000000;
 
     // Swap buy (partially filled against limit orders).
     let (amount_in, amount_out, fees) = market_manager
@@ -1057,7 +1057,7 @@ fn test_limit_orders_misc_actions() {
     assert(approx_eq_pct(amount_out_2, 9926480658583945067498180903, 22), 'Amount out 2');
     assert(approx_eq_pct(fees_2, 29999999999999999999999999, 22), 'Fees 2');
     assert(approx_eq_pct(base_collect_2, 1981413314869032219787879134, 22), 'Base collect 2');
-    assert(approx_eq_pct(quote_collect_2, 3032274268222713479270236952, 22), 'Quote collect 2');
+    assert(approx_eq_pct(quote_collect_2, 3023195584591552888149755139, 22), 'Quote collect 2');
     assert(approx_eq_pct(base_collect_3, 9950050415362359985833343345, 22), 'Base collect 3');
     assert(quote_collect_3 == 0, 'Quote collect 3');
 
@@ -1087,13 +1087,13 @@ fn test_limit_orders_misc_actions() {
         'Batch 900: base amount'
     );
     assert(
-        approx_eq_pct(batch_900.quote_amount, 4548411402334070218905355428, 22),
+        approx_eq_pct(batch_900.quote_amount, 4557490085965230810025837240, 22),
         'Batch 900: quote amount'
     );
 
     assert(batch_1000.liquidity == 0, 'Batch 1000: liquidity');
     assert(batch_1000.filled == false, 'Batch 1000: filled');
-    assert(batch_1000.base_amount == 0, 'Batch 1000: base amount');
+    assert(approx_eq(batch_1000.base_amount, 0, 10), 'Batch 1000: base amount');
     assert(batch_1000.quote_amount == 0, 'Batch 1000: quote amount');
 
     // Create a new orders at -900 and 900.
