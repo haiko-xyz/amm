@@ -10,6 +10,7 @@ New tests
 
 Other to dos
 
+- Add whitelist process for market creation to prevent ddos
 - Benchmark gas usage
 - Add timelock to upgrade function
 - Review access controls, timelock, and other security features

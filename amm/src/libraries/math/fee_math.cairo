@@ -1,5 +1,8 @@
 // Core lib imports.
 use traits::Into;
+use amm::types::core::Position;
+use amm::types::i256::I256Trait;
+use amm::libraries::constants::ONE;
 
 // Local imports.
 use amm::libraries::math::math;
@@ -71,14 +74,18 @@ fn gross_to_net(gross_amount: u256, fee_rate: u16) -> u256 {
 // * `upper_limit_info` - upper limit info struct
 // * `lower_limit` - lower limit
 // * `upper_limit` - upper limit
+// * `position` - liquidity position
 // * `curr_limit` - current limit
 // * `global_base_fee_factor` - global base fees per unit liquidity
 // * `global_quote_fee_factor` - global quote fees per unit liquidity
 //
 // # Returns
-// * `base_fee_factor` - base fees per unit liquidity accrued inside position
-// * `quote_fee_factor` - quote fees per unit liquidity accrued inside position
+// * `base_fees` - base fees accrued inside position
+// * `quote_fees` - quote fees accrued inside position
+// * `base_fee_factor` - new position base fee factor after update
+// * `quote_fee_factor` - new position quote fee factor after update
 fn get_fee_inside(
+    position: Position,
     lower_limit_info: LimitInfo,
     upper_limit_info: LimitInfo,
     lower_limit: u32,
@@ -86,9 +93,8 @@ fn get_fee_inside(
     curr_limit: u32,
     base_fee_factor: u256,
     quote_fee_factor: u256,
-) -> (u256, u256) {
-    // Includes various asserts for u256_overflow debugging purposes - can likely remove later.
-
+) -> (u256, u256, u256, u256) {
+    // Note: includes various asserts for u256_overflow debugging purposes - can likely remove later.
     // Calculate fees accrued below current limit.
     let base_fees_below = if curr_limit >= lower_limit {
         lower_limit_info.base_fee_factor
@@ -117,11 +123,20 @@ fn get_fee_inside(
         quote_fee_factor - upper_limit_info.quote_fee_factor
     };
 
-    // Return fees accrued inside position.
+    // Calculate fee factors inside position.
     assert(base_fee_factor >= base_fees_below + base_fees_above, 'GetFeeInsideBaseInside');
     assert(quote_fee_factor >= quote_fees_below + quote_fees_above, 'GetFeeInsideQuoteInside');
-    (
-        base_fee_factor - base_fees_below - base_fees_above,
-        quote_fee_factor - quote_fees_below - quote_fees_above,
-    )
+    let base_fee_factor_inside = base_fee_factor - base_fees_below - base_fees_above;
+    let quote_fee_factor_inside = quote_fee_factor - quote_fees_below - quote_fees_above;
+
+    // Calculate accrued fees.
+    let base_diff = I256Trait::new(base_fee_factor_inside, false)
+        - I256Trait::new(position.base_fee_factor_last, false);
+    let quote_diff = I256Trait::new(quote_fee_factor_inside, false)
+        - I256Trait::new(position.quote_fee_factor_last, false);
+    let base_fees = math::mul_div(base_diff.val, position.liquidity, ONE, false);
+    let quote_fees = math::mul_div(quote_diff.val, position.liquidity, ONE, false);
+
+    // Return accrued fes and fee factors.
+    (base_fees, quote_fees, base_fee_factor_inside, quote_fee_factor_inside)
 }

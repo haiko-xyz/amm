@@ -1,10 +1,12 @@
+// Core lib imports.
 use integer::BoundedU256;
 
+// Local imports.
 use amm::libraries::math::fee_math::{
     calc_fee, gross_to_net, net_to_gross, net_to_fee, get_fee_inside
 };
 use amm::tests::common::utils::approx_eq;
-use amm::types::core::LimitInfo;
+use amm::types::core::{LimitInfo, Position};
 use amm::types::i256::I256Zeroable;
 
 ////////////////////////////////
@@ -205,28 +207,28 @@ fn test_get_fee_inside_cases() {
     let mut upper_limit_info = empty_limit_info();
 
     // Position is below current price
-    let (mut base_factor, mut quote_factor) = get_fee_inside(
-        lower_limit_info, upper_limit_info, 0, 10, 15, 100, 200
+    let (_, _, mut base_factor, mut quote_factor) = get_fee_inside(
+        empty_position(), lower_limit_info, upper_limit_info, 0, 10, 15, 100, 200
     );
     assert(base_factor == 0 && quote_factor == 0, 'gfi(0,10,15,100,200)');
 
     // Position is above current price
-    let (base_factor, quote_factor) = get_fee_inside(
-        lower_limit_info, upper_limit_info, 5, 10, 0, 100, 200
+    let (_, _, base_factor, quote_factor) = get_fee_inside(
+        empty_position(), lower_limit_info, upper_limit_info, 5, 10, 0, 100, 200
     );
     assert(base_factor == 0 && quote_factor == 0, 'gfi(5,10,0,100,200)');
 
     // Position wraps current price, no fees accrued outside
-    let (base_factor, quote_factor) = get_fee_inside(
-        lower_limit_info, upper_limit_info, 0, 10, 5, 100, 200
+    let (_, _, base_factor, quote_factor) = get_fee_inside(
+        empty_position(), lower_limit_info, upper_limit_info, 0, 10, 5, 100, 200
     );
     assert(base_factor == 100 && quote_factor == 200, 'gfi(0,10,5,100,200)');
 
     // Position wraps current price, fees accrued above
     upper_limit_info.base_fee_factor = 25;
     upper_limit_info.quote_fee_factor = 50;
-    let (base_factor, quote_factor) = get_fee_inside(
-        lower_limit_info, upper_limit_info, 0, 10, 5, 100, 200
+    let (_, _, base_factor, quote_factor) = get_fee_inside(
+        empty_position(), lower_limit_info, upper_limit_info, 0, 10, 5, 100, 200
     );
     assert(base_factor == 75 && quote_factor == 150, 'gfi(0,10,5,100-25,200-50)');
 
@@ -235,16 +237,16 @@ fn test_get_fee_inside_cases() {
     upper_limit_info.quote_fee_factor = 0;
     lower_limit_info.base_fee_factor = 12;
     lower_limit_info.quote_fee_factor = 24;
-    let (base_factor, quote_factor) = get_fee_inside(
-        lower_limit_info, upper_limit_info, 0, 10, 5, 100, 200
+    let (_, _, base_factor, quote_factor) = get_fee_inside(
+        empty_position(), lower_limit_info, upper_limit_info, 0, 10, 5, 100, 200
     );
     assert(base_factor == 88 && quote_factor == 176, 'gfi(0,10,5,100-12,200-24)');
 
     // Position wraps current price, fees accrued above and below
     upper_limit_info.base_fee_factor = 25;
     upper_limit_info.quote_fee_factor = 50;
-    let (base_factor, quote_factor) = get_fee_inside(
-        lower_limit_info, upper_limit_info, 0, 10, 5, 100, 200
+    let (_, _, base_factor, quote_factor) = get_fee_inside(
+        empty_position(), lower_limit_info, upper_limit_info, 0, 10, 5, 100, 200
     );
     assert(base_factor == 63 && quote_factor == 126, 'gfi(0,10,5,100-12-25,200-24-50)');
 }
@@ -260,5 +262,16 @@ fn empty_limit_info() -> LimitInfo {
         quote_fee_factor: 0,
         base_fee_factor: 0,
         nonce: 0,
+    }
+}
+
+fn empty_position() -> Position {
+    Position {
+        market_id: 0,
+        lower_limit: 0,
+        upper_limit: 0,
+        liquidity: 0,
+        base_fee_factor_last: 0,
+        quote_fee_factor_last: 0,
     }
 }

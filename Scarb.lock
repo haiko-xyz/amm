@@ -17,7 +17,7 @@ source = "git+https://github.com/OpenZeppelin/cairo-contracts.git?branch=main#f3
 [[package]]
 name = "snforge_std"
 version = "0.1.0"
-source = "git+https://github.com/foundry-rs/starknet-foundry.git?tag=v0.10.2#9c04e095cc7e23b0d6223e5ef5b51bbeec1cf6b2"
+source = "git+https://github.com/foundry-rs/starknet-foundry.git?tag=v0.11.0#5465c41541c44a7804d16318fab45a2f0ccec9e7"
 
 [[package]]
 name = "sphinx"
@@ -32,4 +32,6 @@ name = "strategies"
 version = "0.1.0"
 dependencies = [
  "amm",
+ "openzeppelin",
+ "snforge_std",
 ]

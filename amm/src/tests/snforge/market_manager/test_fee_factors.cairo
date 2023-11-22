@@ -368,7 +368,8 @@ fn snapshot_all(
         let upper_limit_info = market_manager.limit_info(market_id, upper_limit);
 
         // Fetch fee factors.
-        let (base_fee_factor, quote_fee_factor) = fee_math::get_fee_inside(
+        let (_, _, base_fee_factor, quote_fee_factor) = fee_math::get_fee_inside(
+            position,
             lower_limit_info,
             upper_limit_info,
             lower_limit,
@@ -428,7 +429,8 @@ fn snapshot_single(
     let upper_limit_info = market_manager.limit_info(market_id, upper_limit);
 
     // Fetch fee factors.
-    let (base_fee_factor, quote_fee_factor) = fee_math::get_fee_inside(
+    let (_, _, base_fee_factor, quote_fee_factor) = fee_math::get_fee_inside(
+        position,
         lower_limit_info,
         upper_limit_info,
         lower_limit,

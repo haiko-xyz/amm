@@ -30,7 +30,7 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
 
 // External imports.
-use snforge_std::{start_prank, stop_prank, PrintTrait, declare};
+use snforge_std::{start_prank, stop_prank, PrintTrait, declare, CheatTarget};
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
@@ -97,10 +97,10 @@ fn before() -> (
     approve(quote_token, owner(), strategy.contract_address, quote_amount);
 
     // Set strategy positions and deposit.
-    start_prank(strategy.contract_address, owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.set_positions(OFFSET - MIN_LIMIT, OFFSET - 1, OFFSET + 1, OFFSET + MAX_LIMIT);
     strategy.deposit(to_e18(100000000), to_e18(1125000000000));
-    stop_prank(strategy.contract_address);
+    stop_prank(CheatTarget::One(strategy.contract_address));
 
     (market_manager, market_id, base_token, quote_token, quoter, strategy)
 }
@@ -169,8 +169,8 @@ fn test_quote_fuzz(
             // `snforge` prank. Calling `swap` with a different caller will fail because when
             // re-entering `MarketManager` to update positions, it continues to treat the caller
             // as the non-strategy LP.
-            start_prank(strategy.contract_address, market_manager.contract_address);
-            start_prank(market_manager.contract_address, strategy.contract_address);
+            start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+            start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
 
             // Fetch quote without using quoter (for the same reasons outlined above).
             let mut calldata = array![

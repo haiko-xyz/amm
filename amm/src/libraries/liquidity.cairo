@@ -75,7 +75,8 @@ fn update_liquidity(
     }
 
     // Get fee factors and calculate accrued fees.
-    let (base_fee_factor, quote_fee_factor) = fee_math::get_fee_inside(
+    let (base_fees, quote_fees, base_fee_factor, quote_fee_factor) = fee_math::get_fee_inside(
+        position,
         lower_limit_info,
         upper_limit_info,
         lower_limit,
@@ -84,13 +85,6 @@ fn update_liquidity(
         market_state.base_fee_factor,
         market_state.quote_fee_factor,
     );
-
-    let base_fee_factor_diff = max(base_fee_factor, position.base_fee_factor_last)
-        - min(base_fee_factor, position.base_fee_factor_last);
-    let quote_fee_factor_diff = max(quote_fee_factor, position.quote_fee_factor_last)
-        - min(quote_fee_factor, position.quote_fee_factor_last);
-    let base_fees = math::mul_div(base_fee_factor_diff, position.liquidity, ONE, false);
-    let quote_fees = math::mul_div(quote_fee_factor_diff, position.liquidity, ONE, false);
 
     // Update liquidity position.
     if liquidity_delta.sign {
@@ -216,7 +210,8 @@ fn amounts_inside_position(
     let upper_limit_info = self.limit_info.read((market_id, upper_limit));
 
     // Get fee factors and calculate accrued fees.
-    let (base_fee_factor, quote_fee_factor) = fee_math::get_fee_inside(
+    let (base_fees, quote_fees, _, _) = fee_math::get_fee_inside(
+        position,
         lower_limit_info,
         upper_limit_info,
         position.lower_limit,
@@ -224,17 +219,6 @@ fn amounts_inside_position(
         market_state.curr_limit,
         market_state.base_fee_factor,
         market_state.quote_fee_factor,
-    );
-
-    // Calculate fees accrued since last update.
-    // Includes various asserts for debugging u256_overflow errors - can be removed later.
-    assert(base_fee_factor >= position.base_fee_factor_last, 'AmtsInsideBaseFeeFactor');
-    let base_fees = math::mul_div(
-        (base_fee_factor - position.base_fee_factor_last), position.liquidity.into(), ONE, false
-    );
-    assert(quote_fee_factor >= position.quote_fee_factor_last, 'AmtsInsideQuoteFeeFactor');
-    let quote_fees = math::mul_div(
-        (quote_fee_factor - position.quote_fee_factor_last), position.liquidity.into(), ONE, false
     );
 
     // Calculate amounts inside position.

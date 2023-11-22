@@ -61,15 +61,12 @@ fn fill_limits(
                     true
                 );
 
-            // Update batch info.
+            // Update batch info. If partial fills and unfills occured prior to the batch being fully
+            // filled, the batch could have accrued swap fees in the opposite asset. Therefore, they
+            // should be paid out to limit order placers. 
             batch.filled = true;
-            if batch.is_bid {
-                batch.quote_amount = 0;
-                batch.base_amount = base_amount.val;
-            } else {
-                batch.base_amount = 0;
-                batch.quote_amount = quote_amount.val;
-            }
+            batch.base_amount = base_amount.val;
+            batch.quote_amount = quote_amount.val;
             self.batches.write(batch_id, batch);
 
             // Update limit info. Limit info is changed by `modify_position` so must be refetched here.

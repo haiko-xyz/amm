@@ -14,7 +14,9 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
 
 // External imports.
-use snforge_std::{start_prank, declare, PrintTrait, spy_events, SpyOn, EventSpy, EventAssertions};
+use snforge_std::{
+    start_prank, declare, PrintTrait, spy_events, SpyOn, EventSpy, EventAssertions, CheatTarget
+};
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
@@ -64,7 +66,7 @@ fn before() -> (IMarketManagerDispatcher, felt252, ERC20ABIDispatcher, ERC20ABID
 fn test_modify_position_events() {
     let (market_manager, market_id, base_token, quote_token) = before();
 
-    start_prank(market_manager.contract_address, alice());
+    start_prank(CheatTarget::One(market_manager.contract_address), alice());
 
     let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
 
