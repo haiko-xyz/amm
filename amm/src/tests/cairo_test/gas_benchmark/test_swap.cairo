@@ -11,12 +11,12 @@ use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::types::i256::{i256, I256Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
-    deploy_market_manager, create_market, modify_position
+    deploy_market_manager, create_market, modify_position, swap
 };
 use amm::tests::cairo_test::helpers::token::{deploy_token, fund, approve};
 use amm::tests::common::utils::approx_eq;
 use amm::tests::common::params::{
-    owner, alice, bob, treasury, default_token_params, default_market_params, modify_position_params
+    owner, alice, bob, treasury, default_token_params, default_market_params, modify_position_params, swap_params
 };
 use amm::tests::common::utils::to_e28;
 
@@ -46,13 +46,8 @@ fn _before(
     // Get default owner.
     let owner = owner();
 
-    let gas_before = testing::get_available_gas();
-    gas::withdraw_gas().unwrap();
     // Deploy market manager.
     let market_manager = deploy_market_manager(owner);
-    'deploying market_manager gas'.print();
-    (gas_before - testing::get_available_gas()).print();
-    // should be around 679300
 
     // Deploy tokens.
     let (treasury, base_token_params, quote_token_params) = default_token_params();
@@ -82,6 +77,19 @@ fn _before(
     approve(base_token, bob(), market_manager.contract_address, initial_base_amount);
     approve(quote_token, bob(), market_manager.contract_address, initial_quote_amount);
 
+    // Create position
+    let mut lower_limit = OFFSET - 229760;
+    let mut upper_limit = OFFSET - 0;
+    let mut liquidity = I256Trait::new(10000, false);
+    let mut base_exp = I256Trait::new(21544, false);
+    let mut quote_exp = I256Trait::new(0, false);
+
+    let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
+    
+    let (base_amount, quote_amount, base_fees, quote_fees) = modify_position(
+        market_manager, params
+    );
+
     (market_manager, base_token, quote_token, market_id)
 }
 
@@ -97,24 +105,20 @@ fn before(
 
 #[test]
 #[available_gas(1000000000)]
-fn test_modify_position_above_curr_price_cases() {
+fn test_single_swap() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
-    // Create position
-    let mut lower_limit = OFFSET - 229760;
-    let mut upper_limit = OFFSET - 0;
-    let mut liquidity = I256Trait::new(10000, false);
-    let mut base_exp = I256Trait::new(21544, false);
-    let mut quote_exp = I256Trait::new(0, false);
-
-    let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
-    
+    let mut is_buy = false;
+    let exact_input = true;
+    let amount = 100000;
+    let mut swap_params = swap_params(
+        alice(), market_id, is_buy, exact_input, amount, Option::None(()), Option::None(()),
+    );
     let gas_before = testing::get_available_gas();
     gas::withdraw_gas().unwrap();
-    let (base_amount, quote_amount, base_fees, quote_fees) = modify_position(
-        market_manager, params
-    );
-    'modify_position gas used'.print();
+    swap(market_manager, swap_params);
+
+    'single swap gas used'.print();
     (gas_before - testing::get_available_gas()).print(); 
-    // should be around 12927728
+    // should be around 19978204
 }

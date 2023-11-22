@@ -46,13 +46,8 @@ fn _before(
     // Get default owner.
     let owner = owner();
 
-    let gas_before = testing::get_available_gas();
-    gas::withdraw_gas().unwrap();
     // Deploy market manager.
     let market_manager = deploy_market_manager(owner);
-    'deploying market_manager gas'.print();
-    (gas_before - testing::get_available_gas()).print();
-    // should be around 679300
 
     // Deploy tokens.
     let (treasury, base_token_params, quote_token_params) = default_token_params();
@@ -97,24 +92,42 @@ fn before(
 
 #[test]
 #[available_gas(1000000000)]
-fn test_modify_position_above_curr_price_cases() {
+fn test_create_order() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
-    // Create position
-    let mut lower_limit = OFFSET - 229760;
-    let mut upper_limit = OFFSET - 0;
-    let mut liquidity = I256Trait::new(10000, false);
-    let mut base_exp = I256Trait::new(21544, false);
-    let mut quote_exp = I256Trait::new(0, false);
+    // Create limit order.
+    set_contract_address(alice());
+    let liquidity = to_e28(1);
+    let limit = OFFSET - 1000;
+    let is_bid = false;
 
-    let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
-    
     let gas_before = testing::get_available_gas();
     gas::withdraw_gas().unwrap();
-    let (base_amount, quote_amount, base_fees, quote_fees) = modify_position(
-        market_manager, params
-    );
-    'modify_position gas used'.print();
+    let _ = market_manager.create_order(market_id, is_bid, limit, liquidity);
+
+    'create_order gas used'.print();
     (gas_before - testing::get_available_gas()).print(); 
-    // should be around 12927728
+    // should be around 14386022
+}
+
+#[test]
+#[available_gas(1000000000)]
+fn test_collect_order() {
+    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+
+    // Create limit order.
+    set_contract_address(alice());
+    let liquidity = to_e28(1);
+    let limit = OFFSET - 1000;
+    let is_bid = false;
+
+    let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity);
+
+    let gas_before = testing::get_available_gas();
+    gas::withdraw_gas().unwrap();
+    market_manager.collect_order(market_id, order_id);
+
+    'collect_order gas used'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // should be around 14413738
 }
