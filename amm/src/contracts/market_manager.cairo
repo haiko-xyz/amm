@@ -781,18 +781,10 @@ mod MarketManager {
 
             // Calculate withdraw amounts. User's share of batch is calculated based on
             // the liquidity of their order relative to the total liquidity of the batch.
-            let base_amount = math::mul_div(
-                batch.base_amount, order.liquidity, batch.liquidity, false
-            );
-            let quote_amount = math::mul_div(
-                batch.quote_amount, order.liquidity, batch.liquidity, false
-            );
-
-            // Update order and batch.
             // If we are collecting from the batch and it has not yet been filled, we need to 
-            // remove our share of batch liquidity from the pool.
-            if !batch.filled {
-                self
+            // first remove our share of batch liquidity from the pool.
+            let (base_amount, quote_amount) = if !batch.filled {
+                let (base_amount, quote_amount, _, _) = self
                     ._modify_position(
                         order.batch_id,
                         market_id,
@@ -801,7 +793,16 @@ mod MarketManager {
                         I256Trait::new(order.liquidity, true),
                         true
                     );
-            }
+                (base_amount.val, quote_amount.val)
+            } else {
+                let base_amount = math::mul_div(
+                    batch.base_amount, order.liquidity, batch.liquidity, false
+                );
+                let quote_amount = math::mul_div(
+                    batch.quote_amount, order.liquidity, batch.liquidity, false
+                );
+                (base_amount, quote_amount)
+            };
 
             // Update order and batch.
             batch.liquidity -= order.liquidity;
@@ -1438,7 +1439,7 @@ mod MarketManager {
             }
 
             // Emit event if position was modified or fees collected.
-            if base_amount.val > 0 || quote_amount.val > 0 || base_fees > 0 || quote_fees > 0 {
+            if base_amount.val != 0 || quote_amount.val != 0 || base_fees != 0 || quote_fees != 0 {
                 self
                     .emit(
                         Event::ModifyPosition(

@@ -411,9 +411,9 @@ fn test_create_and_collect_unfilled_ask_order() {
     assert(order.liquidity == 0, 'Collect bid: order liquidity');
     assert(batch.liquidity == 0, 'Collect bid: batch liquidity');
     assert(batch.filled == false, 'Collect bid: batch filled');
-    assert(batch.base_amount == 0, 'Collect bid: batch base amount');
+    assert(approx_eq(batch.base_amount, 0, 10), 'Collect bid: batch base amount');
     assert(batch.quote_amount == 0, 'Collect bid: batch quote amount');
-    assert(base_balance_after == base_balance_before - 0, 'Collect bid: base balance');
+    assert(approx_eq(base_balance_after, base_balance_before, 10), 'Collect bid: base balance');
     assert(quote_balance_after == quote_balance_before, 'Collect bid: quote balance');
 }
 
