@@ -17,7 +17,9 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
 
 // External imports.
-use snforge_std::{start_prank, declare, PrintTrait, spy_events, SpyOn, EventSpy, EventAssertions};
+use snforge_std::{
+    start_prank, declare, PrintTrait, spy_events, SpyOn, EventSpy, EventAssertions, CheatTarget
+};
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
@@ -68,7 +70,7 @@ fn before() -> (IMarketManagerDispatcher, felt252, ERC20ABIDispatcher, ERC20ABID
 fn test_collect_unfilled_order_events() {
     let (market_manager, market_id, base_token, quote_token) = before();
 
-    start_prank(market_manager.contract_address, alice());
+    start_prank(CheatTarget::One(market_manager.contract_address), alice());
 
     let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
 
@@ -109,7 +111,7 @@ fn test_collect_unfilled_order_events() {
                     market_manager.contract_address,
                     MarketManager::Event::ModifyPosition(
                         MarketManager::ModifyPosition {
-                            caller: alice(),
+                            caller: order.batch_id.try_into().unwrap(),
                             market_id,
                             lower_limit: limit,
                             upper_limit: limit + width,
@@ -132,24 +134,9 @@ fn test_collect_unfilled_order_events() {
             @array![
                 (
                     market_manager.contract_address,
-                    MarketManager::Event::CollectOrder(
-                        MarketManager::CollectOrder {
-                            caller: alice(),
-                            market_id,
-                            order_id,
-                            limit,
-                            batch_id: order.batch_id,
-                            is_bid,
-                            base_amount: 0,
-                            quote_amount: amount.val,
-                        }
-                    )
-                ),
-                (
-                    market_manager.contract_address,
                     MarketManager::Event::ModifyPosition(
                         MarketManager::ModifyPosition {
-                            caller: alice(),
+                            caller: order.batch_id.try_into().unwrap(),
                             market_id,
                             lower_limit: limit,
                             upper_limit: limit + width,
@@ -161,7 +148,22 @@ fn test_collect_unfilled_order_events() {
                             is_limit_order: true,
                         }
                     )
-                )
+                ),
+                (
+                    market_manager.contract_address,
+                    MarketManager::Event::CollectOrder(
+                        MarketManager::CollectOrder {
+                            caller: alice(),
+                            market_id,
+                            order_id,
+                            limit,
+                            batch_id: order.batch_id,
+                            is_bid,
+                            base_amount: 0,
+                            quote_amount: quote_amount,
+                        }
+                    )
+                ),
             ]
         );
 }
@@ -170,7 +172,7 @@ fn test_collect_unfilled_order_events() {
 fn test_collect_partially_filled_order_events() {
     let (market_manager, market_id, base_token, quote_token) = before();
 
-    start_prank(market_manager.contract_address, alice());
+    start_prank(CheatTarget::One(market_manager.contract_address), alice());
 
     let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
 
@@ -317,7 +319,7 @@ fn test_collect_partially_filled_order_events() {
 fn test_collect_fully_filled_order_events() {
     let (market_manager, market_id, base_token, quote_token) = before();
 
-    start_prank(market_manager.contract_address, alice());
+    start_prank(CheatTarget::One(market_manager.contract_address), alice());
 
     let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
 
