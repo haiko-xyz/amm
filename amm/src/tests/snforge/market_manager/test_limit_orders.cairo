@@ -153,3 +153,288 @@ fn test_order_events() {
 // // Check all events correctly fired.
 // spy.assert_emitted(@events_exp);
 }
+
+#[test]
+fn test_collect_partially_filled_order_events() {
+    let (market_manager, market_id, base_token, quote_token) = before();
+
+    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+
+    let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
+
+    // Creating an order should fire an event.
+    let curr_limit = OFFSET;
+    let width = 1;
+    let is_bid = true;
+    let limit = OFFSET - 1000;
+    let liquidity_delta = to_e28(10000);
+    let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity_delta);
+    let order = market_manager.order(order_id);
+
+    let amount = liquidity_math::liquidity_to_quote(
+        price_math::limit_to_sqrt_price(limit, width),
+        price_math::limit_to_sqrt_price(limit + width, width),
+        I256Trait::new(liquidity_delta, false),
+        true
+    );
+
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    market_manager.contract_address,
+                    MarketManager::Event::ModifyPosition(
+                        MarketManager::ModifyPosition {
+                            caller: order.batch_id.try_into().unwrap(),
+                            market_id,
+                            lower_limit: limit,
+                            upper_limit: limit + width,
+                            liquidity_delta: I256Trait::new(liquidity_delta, false),
+                            base_amount: I256Trait::new(0, false),
+                            quote_amount: amount,
+                            base_fees: 0,
+                            quote_fees: 0,
+                            is_limit_order: true,
+                        }
+                    )
+                ),
+                (
+                    market_manager.contract_address,
+                    MarketManager::Event::CreateOrder(
+                        MarketManager::CreateOrder {
+                            caller: alice(),
+                            market_id,
+                            order_id,
+                            limit,
+                            batch_id: order.batch_id,
+                            is_bid,
+                            amount: amount.val,
+                        }
+                    )
+                ),
+            ]
+        );
+
+    // Partially filling order should emit `Swap`.
+    let is_buy = false;
+    let (amount_in, amount_out, fees) = market_manager
+        .swap(
+            market_id, is_buy, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
+        );
+    let market_state = market_manager.market_state(market_id);
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    market_manager.contract_address,
+                    MarketManager::Event::Swap(
+                        MarketManager::Swap {
+                            caller: alice(),
+                            market_id,
+                            is_buy,
+                            exact_input: true,
+                            amount_in,
+                            amount_out,
+                            fees,
+                            end_limit: market_state.curr_limit,
+                            end_sqrt_price: market_state.curr_sqrt_price,
+                            market_liquidity: market_state.liquidity,
+                            swap_id: 1,
+                        }
+                    )
+                )
+            ]
+        );
+
+    // Collect order should fire both `ModifyPosition` and `CollectOrder` events.
+    let position = market_manager.position(market_id, order.batch_id, limit, limit + width);
+    let lower_limit_info = market_manager.limit_info(market_id, limit);
+    let upper_limit_info = market_manager.limit_info(market_id, limit + width);
+
+    let (base_fees, quote_fees, _, _) = fee_math::get_fee_inside(
+        position,
+        lower_limit_info,
+        upper_limit_info,
+        limit,
+        limit + width,
+        market_state.curr_limit,
+        market_state.base_fee_factor,
+        market_state.quote_fee_factor,
+    );
+    let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    market_manager.contract_address,
+                    MarketManager::Event::ModifyPosition(
+                        MarketManager::ModifyPosition {
+                            caller: order.batch_id.try_into().unwrap(),
+                            market_id,
+                            lower_limit: limit,
+                            upper_limit: limit + width,
+                            liquidity_delta: I256Trait::new(liquidity_delta, true),
+                            // base amount is different because fees are forfeited for partial fills
+                            base_amount: I256Trait::new(999993999999996772, true),
+                            quote_amount: I256Trait::new(quote_amount, true),
+                            base_fees,
+                            quote_fees,
+                            is_limit_order: true,
+                        }
+                    )
+                ),
+                (
+                    market_manager.contract_address,
+                    MarketManager::Event::CollectOrder(
+                        MarketManager::CollectOrder {
+                            caller: alice(),
+                            market_id,
+                            order_id,
+                            limit,
+                            batch_id: order.batch_id,
+                            is_bid,
+                            base_amount,
+                            quote_amount,
+                        }
+                    )
+                )
+            ]
+        );
+}
+
+#[test]
+fn test_collect_fully_filled_order_events() {
+    let (market_manager, market_id, base_token, quote_token) = before();
+
+    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+
+    let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
+
+    // Creating an order should fire an event.
+    let curr_limit = OFFSET;
+    let width = 1;
+    let is_bid = true;
+    let limit = OFFSET - 1000;
+    let liquidity_delta = to_e18(10000);
+    let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity_delta);
+    let order = market_manager.order(order_id);
+
+    let amount = liquidity_math::liquidity_to_quote(
+        price_math::limit_to_sqrt_price(limit, width),
+        price_math::limit_to_sqrt_price(limit + width, width),
+        I256Trait::new(liquidity_delta, false),
+        true
+    );
+
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    market_manager.contract_address,
+                    MarketManager::Event::ModifyPosition(
+                        MarketManager::ModifyPosition {
+                            caller: order.batch_id.try_into().unwrap(),
+                            market_id,
+                            lower_limit: limit,
+                            upper_limit: limit + width,
+                            liquidity_delta: I256Trait::new(liquidity_delta, false),
+                            base_amount: I256Trait::new(0, false),
+                            quote_amount: amount,
+                            base_fees: 0,
+                            quote_fees: 0,
+                            is_limit_order: true,
+                        }
+                    )
+                ),
+                (
+                    market_manager.contract_address,
+                    MarketManager::Event::CreateOrder(
+                        MarketManager::CreateOrder {
+                            caller: alice(),
+                            market_id,
+                            order_id,
+                            limit,
+                            batch_id: order.batch_id,
+                            is_bid,
+                            amount: amount.val,
+                        }
+                    )
+                ),
+            ]
+        );
+
+    // Fully filling order should emit `Swap` and `ModifyPosition`.
+    let is_buy = false;
+    let (amount_in, amount_out, fees) = market_manager
+        .swap(
+            market_id, is_buy, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
+        );
+
+    let market_state = market_manager.market_state(market_id);
+    let protocol_fees = fee_math::calc_fee(fees, market_state.protocol_share);
+    let base_amount_exp = 50401149858254832;
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    market_manager.contract_address,
+                    MarketManager::Event::ModifyPosition(
+                        MarketManager::ModifyPosition {
+                            caller: order.batch_id.try_into().unwrap(),
+                            market_id,
+                            lower_limit: limit,
+                            upper_limit: limit + width,
+                            liquidity_delta: I256Trait::new(liquidity_delta, true),
+                            base_amount: I256Trait::new(base_amount_exp, true),
+                            quote_amount: I256Trait::new(0, true),
+                            base_fees: fees - protocol_fees,
+                            quote_fees: 0,
+                            is_limit_order: true,
+                        }
+                    )
+                ),
+                (
+                    market_manager.contract_address,
+                    MarketManager::Event::Swap(
+                        MarketManager::Swap {
+                            caller: alice(),
+                            market_id,
+                            is_buy,
+                            exact_input: true,
+                            amount_in,
+                            amount_out,
+                            fees,
+                            end_limit: market_state.curr_limit,
+                            end_sqrt_price: market_state.curr_sqrt_price,
+                            market_liquidity: market_state.liquidity,
+                            swap_id: 1,
+                        }
+                    )
+                )
+            ]
+        );
+
+    // Collect order should fire `CollectOrder` only.
+    let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    market_manager.contract_address,
+                    MarketManager::Event::CollectOrder(
+                        MarketManager::CollectOrder {
+                            caller: alice(),
+                            market_id,
+                            order_id,
+                            limit,
+                            batch_id: order.batch_id,
+                            is_bid,
+                            base_amount,
+                            quote_amount,
+                        }
+                    )
+                )
+            ]
+        );
+}
+

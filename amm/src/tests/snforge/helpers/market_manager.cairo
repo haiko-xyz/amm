@@ -10,15 +10,17 @@ use starknet::testing::{set_caller_address, set_contract_address, set_block_time
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
+use amm::libraries::id;
 use amm::libraries::math::price_math;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
+use amm::types::core::MarketInfo;
 use amm::types::i256::i256;
 use amm::tests::common::params::{
     CreateMarketParams, ModifyPositionParams, SwapParams, SwapMultipleParams
 };
 
 // External imports.
-use snforge_std::{declare, ContractClass, ContractClassTrait, start_prank, stop_prank};
+use snforge_std::{declare, ContractClass, ContractClassTrait, start_prank, stop_prank, CheatTarget};
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 fn deploy_market_manager(
@@ -29,14 +31,21 @@ fn deploy_market_manager(
 }
 
 fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketParams) -> felt252 {
-    start_prank(market_manager.contract_address, params.owner);
-    let base_whitelisted = market_manager.is_whitelisted(params.base_token);
-    let quote_whitelisted = market_manager.is_whitelisted(params.quote_token);
-    if !base_whitelisted {
-        market_manager.whitelist(params.base_token);
-    }
-    if !quote_whitelisted {
-        market_manager.whitelist(params.quote_token);
+    start_prank(CheatTarget::One(market_manager.contract_address), params.owner);
+    let market_id = id::market_id(
+        MarketInfo {
+            base_token: params.base_token,
+            quote_token: params.quote_token,
+            strategy: params.strategy,
+            width: params.width,
+            swap_fee_rate: params.swap_fee_rate,
+            fee_controller: params.fee_controller,
+            controller: params.controller,
+        }
+    );
+    let whitelisted = market_manager.is_whitelisted(market_id);
+    if !whitelisted {
+        market_manager.whitelist(market_id);
     }
     let market_id = market_manager
         .create_market(
@@ -48,9 +57,8 @@ fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketP
             params.fee_controller,
             params.protocol_share,
             params.start_limit,
-            params.allow_positions,
-            params.allow_orders,
-            params.is_concentrated
+            params.controller,
+            params.market_configs,
         );
     stop_prank(market_manager.contract_address);
     market_id

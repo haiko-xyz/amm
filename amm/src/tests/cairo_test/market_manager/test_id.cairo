@@ -43,8 +43,7 @@ fn test_market_id() {
         strategy: contract_address_const::<0x999>(),
         swap_fee_rate: 25,
         fee_controller: contract_address_const::<0x0>(),
-        allow_positions: true,
-        allow_orders: true
+        controller: contract_address_const::<0x8888>(),
     };
     let mut market_id = id::market_id(market_info);
 
@@ -85,16 +84,10 @@ fn test_market_id() {
     assert(market_id != last_market_id, 'Market id: fee controller');
 
     // Vary allow positions.
-    market_info.allow_positions = false;
+    market_info.controller = contract_address_const::<0x666>();
     last_market_id = market_id;
     market_id = id::market_id(market_info);
-    assert(market_id != last_market_id, 'Market id: allow positions');
-
-    // Vary allow orders.
-    market_info.allow_orders = false;
-    last_market_id = market_id;
-    market_id = id::market_id(market_info);
-    assert(market_id != last_market_id, 'Market id: allow orders');
+    assert(market_id != last_market_id, 'Market id: controller');
 }
 
 // Test IDs by changing each parameter and checking id has changed.
@@ -238,8 +231,7 @@ fn market_id() {
         strategy: contract_address_const::<0x0>(),
         swap_fee_rate: 1,
         fee_controller: contract_address_const::<0x0>(),
-        allow_positions: true,
-        allow_orders: true
+        controller: contract_address_const::<0x0>(),
     };
 
     let id = id::market_id(market_info);

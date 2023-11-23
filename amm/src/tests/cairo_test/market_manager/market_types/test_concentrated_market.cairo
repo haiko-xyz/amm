@@ -6,12 +6,15 @@ use starknet::testing::set_contract_address;
 use amm::contracts::market_manager::MarketManager;
 use amm::libraries::math::price_math;
 use amm::libraries::constants::{OFFSET, MIN_LIMIT, MAX_LIMIT, MAX_WIDTH};
+use amm::types::core::MarketConfigs;
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::types::i256::I256Trait;
 use amm::tests::cairo_test::helpers::market_manager::{deploy_market_manager, create_market};
 use amm::tests::cairo_test::helpers::token::{deploy_token, fund, approve};
-use amm::tests::common::params::{owner, alice, default_token_params, default_market_params};
+use amm::tests::common::params::{
+    owner, alice, default_token_params, default_market_params, valid_limits, config
+};
 use amm::tests::common::utils::{to_e18, to_e28};
 
 // External imports.
@@ -54,11 +57,17 @@ fn test_enable_concentrated() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
 
-    // Create market.
+    // Create linear market.
     let mut params = default_market_params();
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
-    params.is_concentrated = false;
+    let valid_limits = valid_limits(
+        OFFSET - MIN_LIMIT, OFFSET - MIN_LIMIT, OFFSET + MAX_LIMIT, OFFSET + MAX_LIMIT
+    );
+    let mut market_configs: MarketConfigs = Default::default();
+    market_configs.limits = config(valid_limits, false);
+    params.market_configs = Option::Some(market_configs);
+    params.controller = owner();
     let market_id = create_market(market_manager, params);
 
     // Place positions across whole range.
@@ -68,32 +77,40 @@ fn test_enable_concentrated() {
     let liquidity = I256Trait::new(to_e18(100000), false);
     market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
 
-    // Enable concentrated.
+    // Enable concentrated by removing constraint.
     set_contract_address(owner());
-    market_manager.enable_concentrated(market_id);
+    market_configs.limits = config(Default::default(), false);
+    market_manager.set_market_configs(market_id, market_configs);
 }
 
 #[test]
-#[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('OnlyController', 'ENTRYPOINT_FAILED',))]
 #[available_gas(40000000)]
 fn test_enable_concentrated_not_owner() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
 
-    // Create market.
+    // Create linear market.
     let mut params = default_market_params();
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
-    params.is_concentrated = false;
+    let valid_limits = valid_limits(
+        OFFSET - MIN_LIMIT, OFFSET - MIN_LIMIT, OFFSET + MAX_LIMIT, OFFSET + MAX_LIMIT
+    );
+    let mut market_configs: MarketConfigs = Default::default();
+    market_configs.limits = config(valid_limits, false);
+    params.market_configs = Option::Some(market_configs);
+    params.controller = owner();
     let market_id = create_market(market_manager, params);
 
     // Enable concentrated.
     set_contract_address(alice());
-    market_manager.enable_concentrated(market_id);
+    market_configs.limits = config(Default::default(), false);
+    market_manager.set_market_configs(market_id, market_configs);
 }
 
 #[test]
-#[should_panic(expected: ('AlreadyConcentrated', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('NoChange', 'ENTRYPOINT_FAILED',))]
 #[available_gas(40000000)]
 fn test_enable_concentrated_already_concentrated() {
     // Deploy market manager and tokens.
@@ -103,8 +120,10 @@ fn test_enable_concentrated_already_concentrated() {
     let mut params = default_market_params();
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
+    params.controller = owner();
     let market_id = create_market(market_manager, params);
 
-    // Enable concentrated.
-    market_manager.enable_concentrated(market_id);
+    // Try set concentrated.
+    let market_configs = market_manager.market_configs(market_id);
+    market_manager.set_market_configs(market_id, market_configs);
 }
