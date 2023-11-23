@@ -158,7 +158,8 @@ fn print_fee_factors(
     position.base_fee_factor_last.print();
     'position quote ff last'.print();
     position.quote_fee_factor_last.print();
-    let (pos_base_fee_factor, pos_quote_fee_factor) = fee_math::get_fee_inside(
+    let (_, _, pos_base_fee_factor, pos_quote_fee_factor) = fee_math::get_fee_inside(
+        position,
         lower_limit_info,
         upper_limit_info,
         lower_limit,

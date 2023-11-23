@@ -60,25 +60,25 @@ fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketP
             params.controller,
             params.market_configs,
         );
-    stop_prank(market_manager.contract_address);
+    stop_prank(CheatTarget::One(market_manager.contract_address));
     market_id
 }
 
 fn modify_position(
     market_manager: IMarketManagerDispatcher, params: ModifyPositionParams,
 ) -> (i256, i256, u256, u256) {
-    start_prank(market_manager.contract_address, params.owner);
+    start_prank(CheatTarget::One(market_manager.contract_address), params.owner);
     let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
         .modify_position(
             params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
         );
-    stop_prank(market_manager.contract_address);
+    stop_prank(CheatTarget::One(market_manager.contract_address));
 
     (base_amount, quote_amount, base_fees, quote_fees)
 }
 
 fn swap(market_manager: IMarketManagerDispatcher, params: SwapParams) -> (u256, u256, u256) {
-    start_prank(market_manager.contract_address, params.owner);
+    start_prank(CheatTarget::One(market_manager.contract_address), params.owner);
     let (amount_in, amount_out, fees) = market_manager
         .swap(
             params.market_id,
@@ -89,12 +89,12 @@ fn swap(market_manager: IMarketManagerDispatcher, params: SwapParams) -> (u256, 
             params.threshold_amount,
             params.deadline,
         );
-    stop_prank(market_manager.contract_address);
+    stop_prank(CheatTarget::One(market_manager.contract_address));
     (amount_in, amount_out, fees)
 }
 
 fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleParams) -> u256 {
-    start_prank(market_manager.contract_address, params.owner);
+    start_prank(CheatTarget::One(market_manager.contract_address), params.owner);
     let amount_out = market_manager
         .swap_multiple(
             params.in_token,
@@ -104,7 +104,7 @@ fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleP
             params.threshold_amount,
             params.deadline,
         );
-    stop_prank(market_manager.contract_address);
+    stop_prank(CheatTarget::One(market_manager.contract_address));
     amount_out
 }
 

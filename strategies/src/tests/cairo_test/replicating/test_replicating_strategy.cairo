@@ -13,7 +13,7 @@ use amm::interfaces::IMarketManager::{
 use amm::types::core::{MarketState};
 use amm::types::i256::{i256, I256Trait};
 use amm::tests::cairo_test::helpers::{
-    market_manager::{deploy_market_manager, create_market, modify_position},
+    market_manager::{deploy_market_manager, create_market, modify_position, swap},
     token::{deploy_token, fund, approve},
 };
 use amm::tests::common::params::{
@@ -21,7 +21,6 @@ use amm::tests::common::params::{
     swap_params
 };
 use amm::tests::common::utils::{to_e18, to_e28, approx_eq, approx_eq_pct};
-use amm::tests::cairo_test::helpers::market_manager::swap;
 use amm::libraries::liquidity as liquidity_helpers;
 use amm::libraries::constants::MAX;
 use strategies::strategies::replicating::{

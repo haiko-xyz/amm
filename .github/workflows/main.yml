@@ -8,7 +8,7 @@ on:
 
 env:
   SCARB_VERSION: 2.3.1
-  SNFORGE_VERSION: 0.10.2
+  SNFORGE_VERSION: 0.11.0
 
 jobs:
   build:
@@ -24,30 +24,16 @@ jobs:
         run: |
           curl -L https://raw.githubusercontent.com/foundry-rs/starknet-foundry/master/scripts/install.sh | sh -s -- -v ${{ env.SNFORGE_VERSION }}
 
-      # TEMPORARILY DISABLING `snforge` tests
-
-      # - name: Build and test `amm`
-      #   working-directory: ./amm
-      #   run: |
-      #     scarb test -f tests::cairo_test
-      #     snforge test amm::tests::snforge
-      #     scarb build
-
-      # - name: Build and test `strategies`
-      #   working-directory: ./strategies
-      #   run: |
-      #     scarb test -f tests::cairo_test
-      #     snforge test strategies::tests::snforge
-      #     scarb build
-
       - name: Build and test `amm`
         working-directory: ./amm
         run: |
-          scarb test -f tests::cairo_test
+          scarb test -f cairo_test
+          snforge test snforge
           scarb build
 
       - name: Build and test `strategies`
         working-directory: ./strategies
         run: |
-          scarb test -f tests::cairo_test
+          scarb test -f cairo_test
+          snforge test snforge
           scarb build

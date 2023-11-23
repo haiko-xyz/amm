@@ -1740,7 +1740,7 @@ mod MarketManager {
             }
 
             // Emit event if position was modified or fees collected.
-            if base_amount.val > 0 || quote_amount.val > 0 || base_fees > 0 || quote_fees > 0 {
+            if base_amount.val != 0 || quote_amount.val != 0 || base_fees != 0 || quote_fees != 0 {
                 self
                     .emit(
                         Event::ModifyPosition(

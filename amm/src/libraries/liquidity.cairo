@@ -89,7 +89,8 @@ fn update_liquidity(
     // Checkpoint: gas used in calc fee inside
     gas_before = testing::get_available_gas();
     // Get fee factors and calculate accrued fees.
-    let (base_fee_factor, quote_fee_factor) = fee_math::get_fee_inside(
+    let (base_fees, quote_fees, base_fee_factor, quote_fee_factor) = fee_math::get_fee_inside(
+        position,
         lower_limit_info,
         upper_limit_info,
         lower_limit,
@@ -267,7 +268,8 @@ fn amounts_inside_position(
     // Checkpoint: gas used in calculating base/quote fee factor
     gas_before = testing::get_available_gas();
     // Get fee factors and calculate accrued fees.
-    let (base_fee_factor, quote_fee_factor) = fee_math::get_fee_inside(
+    let (base_fees, quote_fees, _, _) = fee_math::get_fee_inside(
+        position,
         lower_limit_info,
         upper_limit_info,
         position.lower_limit,

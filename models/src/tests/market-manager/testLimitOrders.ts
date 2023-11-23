@@ -181,10 +181,21 @@ const testCreateAndCollectPartiallyFilledBidOrder = () => {
   const protocolFee = calcFee(fee, protocolShare)
   const grossAmountIn = new Decimal(amountIn).add(fee).sub(protocolFee)
 
+  console.log("Limit order 1")
+  console.log({
+    quoteAmount: new Decimal(quoteAmount).mul(1e28).mul(1).div(3).toFixed(0, 1),
+    amountFilled: new Decimal(amountOut).mul(1e28).mul(1).div(3).toFixed(0, 1),
+    // fees are forfeited if order is partially filled
+    amountEarned: new Decimal(amountIn).mul(1e28).mul(1).div(3).toFixed(0, 1),
+    fee: new Decimal(fee).mul(1e28).mul(1).div(3).toFixed(0, 1),
+  })
+
+  console.log("Limit order 2")
   console.log({
     quoteAmount: new Decimal(quoteAmount).mul(1e28).mul(2).div(3).toFixed(0, 1),
-    amountIn: new Decimal(grossAmountIn).mul(1e28).mul(2).div(3).toFixed(0, 1),
-    amountOut: new Decimal(amountOut).mul(1e28).mul(2).div(3).toFixed(0, 1),
+    amountFilled: new Decimal(amountOut).mul(1e28).mul(2).div(3).toFixed(0, 1),
+    // forfeited fees get allocated to remaining position instead
+    amountEarned: new Decimal(grossAmountIn).sub(new Decimal(amountIn).div(3)).mul(1e28).toFixed(0, 1),
     fee: new Decimal(fee).mul(1e28).mul(2).div(3).toFixed(0, 1),
   })
 }
@@ -211,10 +222,21 @@ const testCreateAndCollectPartiallyFilledAskOrder = () => {
   const protocolFee = calcFee(fee, protocolShare)
   const grossAmountIn = new Decimal(amountIn).add(fee).sub(protocolFee)
 
+  console.log("Limit order 1")
+  console.log({
+    baseAmount: new Decimal(baseAmount).mul(1e28).mul(1).div(3).toFixed(0, 1),
+    amountFilled: new Decimal(amountOut).mul(1e28).mul(1).div(3).toFixed(0, 1),
+    // fees are forfeited if order is partially filled
+    amountEarned: new Decimal(amountIn).mul(1e28).mul(1).div(3).toFixed(0, 1),
+    fee: new Decimal(fee).mul(1e28).mul(1).div(3).toFixed(0, 1),
+  })
+
+  console.log("Limit order 2")
   console.log({
     baseAmount: new Decimal(baseAmount).mul(1e28).mul(2).div(3).toFixed(0, 1),
-    amountIn: new Decimal(grossAmountIn).mul(1e28).mul(2).div(3).toFixed(0, 1),
-    amountOut: new Decimal(amountOut).mul(1e28).mul(2).div(3).toFixed(0, 1),
+    amountFilled: new Decimal(amountOut).mul(1e28).mul(2).div(3).toFixed(0, 1),
+    // forfeited fees get allocated to remaining position instead
+    amountEarned: new Decimal(grossAmountIn).sub(new Decimal(amountIn).div(3)).mul(1e28).toFixed(0, 1),
     fee: new Decimal(fee).mul(1e28).mul(2).div(3).toFixed(0, 1),
   })
 }
@@ -453,18 +475,20 @@ const testLimitOrdersMiscActions = () => {
     amountOut: new Decimal(amountOut2).mul(1e28).toFixed(0, 1),
     fee: new Decimal(fee2).mul(1e28).toFixed(0, 1),
     bobCollect900BaseAmt: askBob900BaseAmt.sub(new Decimal(amountOut2b).mul(2).div(5)).mul(1e28).toFixed(0, 1),
-    bobCollect900QuoteAmt: grossAmountInLessPFee2b.mul(2).div(5).mul(1e28).toFixed(0, 1),
+    // fees are forfeited if order is partially filled
+    bobCollect900QuoteAmt: new Decimal(amountIn2b).mul(2).div(5).mul(1e28).toFixed(0, 1),
     askBob1000BaseAmt: askBob1000BaseAmt.mul(1e28).toFixed(0, 1),
     nextSqrtPrice2b: nextSqrtPrice2b.mul(1e28).toFixed(0, 1),
     baseFeeFactor: baseFeeFactor.mul(1e28).toFixed(0, 1),
     quoteFeeFactor: quoteFeeFactor.mul(1e28).toFixed(0, 1),
     batch900BaseAmt: askAlice900BaseAmt.sub(new Decimal(amountOut2b).mul(3).div(5)).mul(1e28).toFixed(0, 1),
-    batch1000QuoteAmt: grossAmountInLessPFee2b.mul(3).div(5).mul(1e28).toFixed(0, 1),
+    // forfeited fees get allocated to remaining position instead
+    batch1000QuoteAmt: grossAmountInLessPFee2b.sub(new Decimal(amountIn2b).mul(2).div(5)).mul(1e28).toFixed(0, 1),
   })
 }
 
-testCreateMultipleBidOrders()
-testCreateMultipleAskOrders()
+// testCreateMultipleBidOrders()
+// testCreateMultipleAskOrders()
 // testSwapFullyFillsBidLimitOrders()
 // testSwapFullyFillsAskLimitOrders()
 // testCreateAndCollectUnfilledBidOrder()
@@ -475,4 +499,4 @@ testCreateMultipleAskOrders()
 // testCreateAndCollectPartiallyFilledAskOrder()
 // testPartiallyFilledBidCorrectlyUnfills()
 // testPartiallyFilledAskCorrectlyUnfills()
-// testLimitOrdersMiscActions()
+testLimitOrdersMiscActions()
