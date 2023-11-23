@@ -1,3 +1,4 @@
+use snforge_std::forge_print::PrintTrait;
 // Core lib imports.
 use cmp::{min, max};
 use core::traits::TryInto;
@@ -50,11 +51,19 @@ fn update_liquidity(
     upper_limit: u32,
     liquidity_delta: i256,
 ) -> (i256, i256, u256, u256) {
+
+    // Checkpoint: gas used in reading current market state from contract storage
+    let mut gas_before = testing::get_available_gas();
     // Initialise state.
     let mut market_state = self.market_state.read(market_id);
     let curr_limit = market_state.curr_limit;
     let width = *market_info.width;
+    'ULiq read state 1'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // Checkpoint End
 
+    // Checkpoint: gas used in updating limits
+    gas_before = testing::get_available_gas();
     // Update limits and bitmap.
     let lower_limit_info = update_limit(
         ref self, lower_limit, @market_state, market_id, curr_limit, liquidity_delta, true, width
@@ -64,6 +73,9 @@ fn update_liquidity(
     );
     self.limit_info.write((market_id, lower_limit), lower_limit_info);
     self.limit_info.write((market_id, upper_limit), upper_limit_info);
+    'ULiq update limits 2'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // Checkpoint End
 
     // If writing to position for first time, initialise immutables.
     let position_id = id::position_id(market_id, owner, lower_limit, upper_limit);
@@ -74,6 +86,8 @@ fn update_liquidity(
         position.upper_limit = upper_limit;
     }
 
+    // Checkpoint: gas used in calc fee inside
+    gas_before = testing::get_available_gas();
     // Get fee factors and calculate accrued fees.
     let (base_fee_factor, quote_fee_factor) = fee_math::get_fee_inside(
         lower_limit_info,
@@ -91,7 +105,12 @@ fn update_liquidity(
         - min(quote_fee_factor, position.quote_fee_factor_last);
     let base_fees = math::mul_div(base_fee_factor_diff, position.liquidity, ONE, false);
     let quote_fees = math::mul_div(quote_fee_factor_diff, position.liquidity, ONE, false);
+    'ULiq calc base/quote fees 3'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // Checkpoint End
 
+    // Checkpoint: gas used in updating liquidity position
+    gas_before = testing::get_available_gas();
     // Update liquidity position.
     if liquidity_delta.sign {
         assert(position.liquidity >= liquidity_delta.val, 'UpdatePosLiq');
@@ -102,10 +121,15 @@ fn update_liquidity(
     }
     position.base_fee_factor_last = base_fee_factor;
     position.quote_fee_factor_last = quote_fee_factor;
+    'ULiq update liq position 4'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // Checkpoint End
 
     // Write updates to position.
     self.positions.write(position_id, position);
 
+    // Checkpoint: gas used in calculating amounts to transfer
+    gas_before = testing::get_available_gas();
     // Calculate base and quote amounts to transfer.
     let (base_amount, quote_amount) = if liquidity_delta.val == 0 {
         (I256Zeroable::zero(), I256Zeroable::zero())
@@ -130,6 +154,9 @@ fn update_liquidity(
     // Add fees to amounts.
     let base_total = base_amount + I256Trait::new(base_fees, true);
     let quote_total = quote_amount + I256Trait::new(quote_fees, true);
+    'ULiq calc base/quote amount 5'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // Checkpoint End
 
     // Return amounts.
     (base_total, quote_total, base_fees, quote_fees)
@@ -154,9 +181,17 @@ fn update_limit(
     is_start: bool,
     width: u32,
 ) -> LimitInfo {
+
+    // Checkpoint: gas used in calculating amounts to transfer
+    let mut gas_before = testing::get_available_gas();
     // Fetch limit.
     let mut limit_info = self.limit_info.read((market_id, limit));
+    'ULim read limit info 1'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // Checkpoint End
 
+    // Checkpoint: gas used in checks and adding liquidity
+    gas_before = testing::get_available_gas();
     // Add liquidity to limits.
     let liquidity_before = limit_info.liquidity;
     if liquidity_delta.sign {
@@ -168,6 +203,9 @@ fn update_limit(
     } else {
         limit_info.liquidity_delta += I256Trait::new(liquidity_delta.val, !liquidity_delta.sign);
     }
+    'ULim add liquidiy 2'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // Checkpoint End
 
     // Check for liquidity overflow.
     if !liquidity_delta.sign {
@@ -176,7 +214,12 @@ fn update_limit(
 
     // Update bitmap if necessary.
     if (liquidity_before == 0) != (limit_info.liquidity == 0) {
+        // Checkpoint: gas used in updating tree
+        gas_before = testing::get_available_gas();
         tree::flip(ref self, market_id, width, limit);
+        'ULim update bitmap 3'.print();
+        (gas_before - testing::get_available_gas()).print(); 
+        // Checkpoint End
     }
     // When liquidity at limit is first initialised, fee factor is set to either 0 or global fees:
     //   * Case 1: limit <= curr_limit -> fee factor = market fee factor
@@ -208,13 +251,21 @@ fn amounts_inside_position(
     lower_limit: u32,
     upper_limit: u32,
 ) -> (u256, u256) {
+
+    // Checkpoint: gas used in fetching contract state
+    let mut gas_before = testing::get_available_gas();
     // Fetch state.
     let market_state = self.market_state.read(market_id);
     let market_info = self.market_info.read(market_id);
     let position = self.positions.read(position_id);
     let lower_limit_info = self.limit_info.read((market_id, lower_limit));
     let upper_limit_info = self.limit_info.read((market_id, upper_limit));
+    'AIP read state 1'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // Checkpoint End
 
+    // Checkpoint: gas used in calculating base/quote fee factor
+    gas_before = testing::get_available_gas();
     // Get fee factors and calculate accrued fees.
     let (base_fee_factor, quote_fee_factor) = fee_math::get_fee_inside(
         lower_limit_info,
@@ -225,7 +276,12 @@ fn amounts_inside_position(
         market_state.base_fee_factor,
         market_state.quote_fee_factor,
     );
+    'AIP calc fee factors 2'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // Checkpoint End
 
+    // Checkpoint: gas used in calculating base/quote fees
+    gas_before = testing::get_available_gas();
     // Calculate fees accrued since last update.
     // Includes various asserts for debugging u256_overflow errors - can be removed later.
     assert(base_fee_factor >= position.base_fee_factor_last, 'AmtsInsideBaseFeeFactor');
@@ -236,7 +292,12 @@ fn amounts_inside_position(
     let quote_fees = math::mul_div(
         (quote_fee_factor - position.quote_fee_factor_last), position.liquidity.into(), ONE, false
     );
+    'AIP calc fee 3'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // Checkpoint End
 
+    // Checkpoint: gas used in calculating base/quote amounts for position
+    gas_before = testing::get_available_gas();
     // Calculate amounts inside position.
     let (base_amount, quote_amount) = liquidity_math::liquidity_to_amounts(
         I256Trait::new(position.liquidity, true),
@@ -245,6 +306,9 @@ fn amounts_inside_position(
         price_math::limit_to_sqrt_price(position.upper_limit, market_info.width),
         market_info.width,
     );
+    'AIP calc amounts 4'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // Checkpoint End
 
     // Return amounts
     (base_amount.val + base_fees, quote_amount.val + quote_fees)
@@ -255,10 +319,16 @@ fn amounts_inside_position(
 // # Arguments
 // * `market_id` - market id
 fn max_liquidity_per_limit(width: u32) -> u256 {
+    // Checkpoint: gas used in function execution
+    let mut gas_before = testing::get_available_gas();
     let intervals = MAX_NUM_LIMITS / width + if MAX_NUM_LIMITS % width != 0 {
         1
     } else {
         0
     };
-    MAX_UNSCALED / intervals.into()
+    let liq = MAX_UNSCALED / intervals.into();
+    'max_liquidity_per_limit'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // Checkpoint End
+    liq
 }
