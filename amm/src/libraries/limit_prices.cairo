@@ -1,10 +1,14 @@
 // Core lib imports.
+use cmp::min;
 use traits::Into;
 use option::OptionTrait;
 
 // Local imports.
+use amm::types::core::ValidLimits;
 use amm::libraries::math::price_math;
 use amm::libraries::constants::{MAX_SQRT_PRICE, MIN_SQRT_PRICE};
+
+use debug::PrintTrait;
 
 // Checks limits are different and properly ordered.
 // 
@@ -13,13 +17,25 @@ use amm::libraries::constants::{MAX_SQRT_PRICE, MIN_SQRT_PRICE};
 // * `upper_limit` - upper limit (shifted)
 // * `width` - market width
 // * `is_concentrated` - whether the pool allows concentrated liquidity positions
-fn check_limits(lower_limit: u32, upper_limit: u32, width: u32, is_concentrated: bool) {
+fn check_limits(lower_limit: u32, upper_limit: u32, width: u32, valid: ValidLimits) {
     let max_limit = price_math::max_limit(width);
     assert(lower_limit < upper_limit, 'LimitsUnordered');
-    assert(upper_limit <= max_limit, 'UpperLimitOverflow');
     assert(lower_limit % width == 0 && upper_limit % width == 0, 'NotMultipleOfWidth');
-    if !is_concentrated {
-        assert(lower_limit == 0 && upper_limit == max_limit, 'LinearOnly');
+
+    // If the valid limits struct has not been initialised, just perform the default range checks.
+    if valid.min_lower == 0
+        && valid.max_lower == 0
+        && valid.min_upper == 0
+        && valid.max_upper == 0 {
+        assert(upper_limit <= max_limit, 'UpperLimitOverflow');
+    } else {
+        assert(
+            lower_limit >= valid.min_lower
+                && lower_limit <= valid.max_lower
+                && upper_limit >= valid.min_upper
+                && upper_limit <= min(max_limit, valid.max_upper),
+            'LimitsOutOfRange'
+        );
     }
 }
 

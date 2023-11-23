@@ -288,7 +288,8 @@ fn test_collect_partially_filled_order_events() {
                             lower_limit: limit,
                             upper_limit: limit + width,
                             liquidity_delta: I256Trait::new(liquidity_delta, true),
-                            base_amount: I256Trait::new(base_amount, true),
+                            // base amount is different because fees are forfeited for partial fills
+                            base_amount: I256Trait::new(999993999999996772, true),
                             quote_amount: I256Trait::new(quote_amount, true),
                             base_fees,
                             quote_fees,

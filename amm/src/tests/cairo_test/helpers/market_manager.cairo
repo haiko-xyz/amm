@@ -11,8 +11,10 @@ use starknet::testing::{set_caller_address, set_contract_address, set_block_time
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
+use amm::libraries::id;
 use amm::libraries::math::price_math;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
+use amm::types::core::MarketInfo;
 use amm::types::i256::i256;
 use amm::tests::cairo_test::helpers::{market_manager, token};
 use amm::tests::common::params::{
@@ -35,13 +37,20 @@ fn deploy_market_manager(owner: ContractAddress,) -> IMarketManagerDispatcher {
 
 fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketParams) -> felt252 {
     set_contract_address(params.owner);
-    let base_whitelisted = market_manager.is_whitelisted(params.base_token);
-    let quote_whitelisted = market_manager.is_whitelisted(params.quote_token);
-    if !base_whitelisted {
-        market_manager.whitelist(params.base_token);
-    }
-    if !quote_whitelisted {
-        market_manager.whitelist(params.quote_token);
+    let market_id = id::market_id(
+        MarketInfo {
+            base_token: params.base_token,
+            quote_token: params.quote_token,
+            width: params.width,
+            strategy: params.strategy,
+            swap_fee_rate: params.swap_fee_rate,
+            fee_controller: params.fee_controller,
+            controller: params.controller,
+        }
+    );
+    let whitelisted = market_manager.is_whitelisted(market_id);
+    if !whitelisted {
+        market_manager.whitelist(market_id);
     }
     market_manager
         .create_market(
@@ -53,9 +62,8 @@ fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketP
             params.fee_controller,
             params.protocol_share,
             params.start_limit,
-            params.allow_positions,
-            params.allow_orders,
-            params.is_concentrated
+            params.controller,
+            params.market_configs,
         )
 }
 

@@ -11,7 +11,7 @@ use poseidon::poseidon_hash_span;
 use amm::types::core::MarketInfo;
 
 // Compute market id.
-//   Poseidon(base_token, quote_token, width, strategy, swap_fee_rate, fee_controller, allow_positions, allow_orders)
+//   Poseidon(base_token, quote_token, width, strategy, swap_fee_rate, fee_controller, owner)
 //
 // # Arguments
 // * `base_token` - address of the base token
@@ -20,8 +20,7 @@ use amm::types::core::MarketInfo;
 // * `strategy` - address of the strategy contract
 // * `swap_fee_rate` - swap fee rate
 // * `fee_controller` - address of the fee controller contract
-// * `allow_positions` - whether positions are allowed
-// * `allow_orders` - whether orders are allowed
+// * `controller` - market controller (optional)
 //
 // # Returns
 // * `salt` - salt for Starknet contract address
@@ -33,8 +32,7 @@ fn market_id(params: MarketInfo) -> felt252 {
     params.strategy.serialize(ref input);
     params.swap_fee_rate.serialize(ref input);
     params.fee_controller.serialize(ref input);
-    params.allow_positions.serialize(ref input);
-    params.allow_orders.serialize(ref input);
+    params.controller.serialize(ref input);
     poseidon_hash_span(input.span())
 }
 

@@ -71,16 +71,15 @@ fn test_create_market_event() {
                             market_id,
                             base_token: base_token.contract_address,
                             quote_token: quote_token.contract_address,
-                            start_limit: params.start_limit,
                             width: params.width,
                             strategy: params.strategy,
                             swap_fee_rate: params.swap_fee_rate,
                             fee_controller: params.fee_controller,
+                            start_limit: params.start_limit,
                             start_sqrt_price: price_math::limit_to_sqrt_price(
                                 params.start_limit, params.width
                             ),
-                            allow_orders: params.allow_orders,
-                            allow_positions: params.allow_positions,
+                            controller: params.controller,
                         }
                     )
                 ),

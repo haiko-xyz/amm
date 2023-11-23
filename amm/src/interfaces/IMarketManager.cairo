@@ -2,7 +2,8 @@ use starknet::ContractAddress;
 use starknet::class_hash::ClassHash;
 
 use amm::types::core::{
-    MarketInfo, MarketState, OrderBatch, Position, LimitInfo, LimitOrder, ERC721PositionInfo
+    MarketInfo, MarketState, MarketConfigs, OrderBatch, Position, LimitInfo, LimitOrder,
+    ERC721PositionInfo
 };
 use amm::types::i256::i256;
 
@@ -15,8 +16,8 @@ trait IMarketManager<TContractState> {
     // Get contract owner.
     fn owner(self: @TContractState) -> ContractAddress;
 
-    // Tokens whitelisted for market creation.
-    fn is_whitelisted(self: @TContractState, token: ContractAddress) -> bool;
+    // Market whitelisted for creation.
+    fn is_whitelisted(self: @TContractState, market_id: felt252) -> bool;
 
     // Get base token for market.
     fn base_token(self: @TContractState, market_id: felt252) -> ContractAddress;
@@ -59,6 +60,9 @@ trait IMarketManager<TContractState> {
 
     // Get market state (mutable).
     fn market_state(self: @TContractState, market_id: felt252) -> MarketState;
+
+    // Get market configs (either fixed or upgradeable).
+    fn market_configs(self: @TContractState, market_id: felt252) -> MarketConfigs;
 
     // Get limit order batch info.
     fn batch(self: @TContractState, batch_id: felt252) -> OrderBatch;
@@ -125,16 +129,15 @@ trait IMarketManager<TContractState> {
     // # Arguments
     // * `base_token` - base token address
     // * `quote_token` - quote token address
-    // * `width` - Limit width of market
-    // * `strategy` - Strategy contract address
-    // * `swap_fee_rate` - Swap fee denominated in bps
-    // * `flash_loan_fee` - Flash loan fee denominated in bps
-    // * `fee_controller` - Fee controller contract address
-    // * `protocol_share` - Protocol share denominated in 0.01% shares of swap fee (e.g. 500 = 5%)
-    // * `start_limit` - Initial limit (shifted)
-    // * `allow_positions` - Whether market allows liquidity positions
-    // * `allow_orders` - Whether market allows limit orders
-    // * `is_concentrated` - Whether market allows concentrated liquidity positions
+    // * `width` - limit width of market
+    // * `strategy` - strategy contract address, or 0 if no strategy
+    // * `swap_fee_rate` - swap fee denominated in bps
+    // * `flash_loan_fee` - flash loan fee denominated in bps
+    // * `fee_controller` - fee controller contract address
+    // * `protocol_share` - protocol share denominated in 0.01% shares of swap fee (e.g. 500 = 5%)
+    // * `start_limit` - initial limit (shifted)
+    // * `controller` - market controller for upgrading market configs, or 0 if none
+    // * `configs` - (optional) custom market configurations
     //
     // # Returns
     // * `market_id` - Market ID
@@ -148,9 +151,8 @@ trait IMarketManager<TContractState> {
         fee_controller: ContractAddress,
         protocol_share: u16,
         start_limit: u32,
-        allow_positions: bool,
-        allow_orders: bool,
-        is_concentrated: bool,
+        controller: ContractAddress,
+        configs: Option<MarketConfigs>,
     ) -> felt252;
 
     // Add or remove liquidity from a position, or collect fees by passing 0 as liquidity delta.
@@ -314,19 +316,12 @@ trait IMarketManager<TContractState> {
     // * `position_id` - id of position to burn
     fn burn(ref self: TContractState, position_id: felt252);
 
-    // Whitelist a token for market creation.
-    // Callable by owner only.
-    //
-    // # Arguments
-    // * `token` - token address
-    fn whitelist(ref self: TContractState, token: ContractAddress);
-
-    // Upgrade Linear Market to Concentrated Market by enabling concentrated liquidity positions.
+    // Whitelist a market for creation.
     // Callable by owner only.
     //
     // # Arguments
     // * `market_id` - market id
-    fn enable_concentrated(ref self: TContractState, market_id: felt252);
+    fn whitelist(ref self: TContractState, market_id: felt252);
 
     // Collect protocol fees.
     // Callable by owner only.
@@ -382,6 +377,14 @@ trait IMarketManager<TContractState> {
     // * `market_id` - market id
     // * `protocol_share` - protocol share
     fn set_protocol_share(ref self: TContractState, market_id: felt252, protocol_share: u16);
+
+    // Set market configs.
+    // Callable by market owner only. Enforces checks that each config is upgradeable.
+    // 
+    // # Arguments
+    // * `market_id` - market id'
+    // * `new_configs` - new market configs
+    fn set_market_configs(ref self: TContractState, market_id: felt252, new_configs: MarketConfigs);
 
     // Upgrade contract class.
     // Callable by owner only.

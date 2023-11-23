@@ -5,8 +5,10 @@
 // Core lib imports.
 use starknet::ContractAddress;
 use starknet::StorePacking;
+use option::Option;
 
 // Local imports.
+use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_LIMIT_SHIFTED};
 use amm::types::i256::i256;
 
 ////////////////////////////////
@@ -21,8 +23,7 @@ use amm::types::i256::i256;
 // * `strategy` - liquidity strategy contract
 // * `swap_fee_rate` - swap fee denominated in bps (overridden by fee controller)
 // * `fee_controller` - fee controller contract, if unset then swap fee is 0
-// * `allow_positions` - whether regular liquidity positions are allowed
-// * `allow_orders` - whether limit orders are allowed
+// * `controller` - market controller, or 0 if market is not controlled
 #[derive(Copy, Drop, Serde)]
 struct MarketInfo {
     base_token: ContractAddress,
@@ -31,8 +32,101 @@ struct MarketInfo {
     strategy: ContractAddress,
     swap_fee_rate: u16,
     fee_controller: ContractAddress,
-    allow_positions: bool,
-    allow_orders: bool,
+    controller: ContractAddress,
+}
+
+// Granular market settings for creating custom market types.
+//
+// Notes: 
+//  1. Each market setting controls an aspect of a market (e.g. liquidity positions, limit orders),
+//     or the entire market (e.g. pausing, deprecation), and can be either fixed or upgradeable. 
+//     If upgradeable, the market owner can update a setting at any time. If fixed, the setting is 
+//     immutable. 
+//  2. A market owner can permanently fix an upgradeable market setting at any time, but not vice versa. 
+//  3. By default, all features are enabled and upgradeable.
+//  4. The market owner must be set during `create_market` to enable upgradeable settings.
+//
+// * `limits` - valid ranges of lower and upper limits
+// * `add_liquidity` - whether adding liquidity is enabled
+// * `remove_liquidity` - whether removing liquidity is enabled
+// * `create_bid` - whether creating bid limit orders is enabled
+// * `create_ask` - whether creating ask limit orders is enabled
+// * `collect_order` - whether collecting orders is enabled
+// * `swap` - whether swapping is enabled
+#[derive(Copy, Drop, Serde, PartialEq)]
+struct MarketConfigs {
+    limits: Config<ValidLimits>,
+    add_liquidity: Config<ConfigOption>,
+    remove_liquidity: Config<ConfigOption>,
+    create_bid: Config<ConfigOption>,
+    create_ask: Config<ConfigOption>,
+    collect_order: Config<ConfigOption>,
+    swap: Config<ConfigOption>,
+}
+
+// Default market configs.
+//  1. If an owner is set, all market configs are upgradeable by default.
+//  2. If an owner is not set, all features are enabled by default.
+impl DefaultMarketConfigs of Default<MarketConfigs> {
+    fn default() -> MarketConfigs {
+        MarketConfigs {
+            limits: Config { value: Default::default(), fixed: false },
+            add_liquidity: Config { value: ConfigOption::Enabled, fixed: false },
+            remove_liquidity: Config { value: ConfigOption::Enabled, fixed: false },
+            create_bid: Config { value: ConfigOption::Enabled, fixed: false },
+            create_ask: Config { value: ConfigOption::Enabled, fixed: false },
+            collect_order: Config { value: ConfigOption::Enabled, fixed: false },
+            swap: Config { value: ConfigOption::Enabled, fixed: false },
+        }
+    }
+}
+
+// An individual market config.
+//
+// * `value` - current value
+// * `fixed` - whether config is fixed at its current value
+#[derive(Copy, Drop, Serde, PartialEq)]
+struct Config<T> {
+    value: T,
+    fixed: bool,
+}
+
+// Struct representing valid limits.
+//
+// * `min_lower` - minimum lower limit
+// * `max_lower` - maximum lower limit
+// * `min_upper` - minimum upper limit
+// * `max_upper` - maximum upper limit
+#[derive(Copy, Drop, Serde, PartialEq)]
+struct ValidLimits {
+    min_lower: u32,
+    max_lower: u32,
+    min_upper: u32,
+    max_upper: u32,
+}
+
+// Default valid limits.
+// Allows placing positions across entire market range.
+impl DefaultValidLimits of Default<ValidLimits> {
+    fn default() -> ValidLimits {
+        ValidLimits {
+            min_lower: 0, max_lower: MAX_LIMIT_SHIFTED, min_upper: 0, max_upper: MAX_LIMIT_SHIFTED,
+        }
+    }
+}
+
+// Market setting controlling the status of a feature.
+//
+// * `Enabled` - setting is enabled for all users
+// * `Disabled` - setting is disabled for all users
+// * `OnlyOwner` - setting is enabled only for market owner
+// * `OnlyStrategy` - setting is enabled only for the market strategy
+#[derive(Copy, Drop, Serde, PartialEq)]
+enum ConfigOption {
+    Enabled,
+    Disabled,
+    OnlyOwner,
+    OnlyStrategy,
 }
 
 // Mutable state of a market.
@@ -41,7 +135,6 @@ struct MarketInfo {
 // * `curr_limit` - current limit (shifted)
 // * `curr_sqrt_price` - current sqrt price of market (encoded as UD47x28)
 // * `protocol_share` - protocol share denominated 0.01% shares of swap fees (e.g. 500 = 5%)
-// * `is_concentrated` - whether market allows concentrated liquidity positions
 // * `base_fee_factor` - accumulated base fees per unit of liquidity (encoded as UD47x28)
 // * `quote_fee_factor` - accumulated quote fees per unit of liquidity (encoded as UD47x28)
 #[derive(Copy, Drop, Serde, PartialEq)]
@@ -50,7 +143,6 @@ struct MarketState {
     curr_limit: u32,
     curr_sqrt_price: u256,
     protocol_share: u16,
-    is_concentrated: bool,
     base_fee_factor: u256,
     quote_fee_factor: u256,
 }
@@ -197,13 +289,15 @@ struct ERC721PositionInfo {
 // * `quote_token` - address of quote token
 // * `strategy` - liquidity strategy contract
 // * `fee_controller` - fee controller contract
-// * `slab0` - packed `width`, `swap_fee_rate`, `allow_positions`, `allow_orders`
+// * `controller` - market controller (or 0 if market is not controlled)
+// * `slab0` - packed `width` + `swap_fee_rate`
 #[derive(starknet::Store)]
 struct PackedMarketInfo {
     base_token: felt252,
     quote_token: felt252,
     strategy: felt252,
     fee_controller: felt252,
+    controller: felt252,
     slab0: felt252,
 }
 
@@ -213,7 +307,7 @@ struct PackedMarketInfo {
 // * `slab1` - first 252 bits of `curr_sqrt_price`
 // * `slab2` - first 252 bits of `quote_fee_factor`
 // * `slab3` - first 252 bits of `base_fee_factor`
-// * `slab4` - last 4 bits of four variables above + protocol_share + curr_limit + is_concentrated
+// * `slab4` - last 4 bits of four variables above + protocol_share + curr_limit
 #[derive(starknet::Store)]
 struct PackedMarketState {
     slab0: felt252,
@@ -221,6 +315,18 @@ struct PackedMarketState {
     slab2: felt252,
     slab3: felt252,
     slab4: felt252,
+}
+
+// Packed version of `MarketConfigs`.
+// 
+// `ValidLimits` - 128 bits
+// `ConfigOption` - 2 bits for variants
+// `Config` - 1 bit
+//
+// * `slab` - 128 bits of `ValidLimits` + 12 bits of `ConfigOption`s + 7 bits of `Config`s
+#[derive(starknet::Store)]
+struct PackedMarketConfigs {
+    slab: felt252,
 }
 
 // Packed version of `LimitInfo`.

@@ -28,13 +28,13 @@ mod MarketManager {
     use amm::interfaces::IFeeController::{IFeeControllerDispatcher, IFeeControllerDispatcherTrait};
     use amm::interfaces::ILoanReceiver::{ILoanReceiverDispatcher, ILoanReceiverDispatcherTrait};
     use amm::types::core::{
-        MarketInfo, MarketState, OrderBatch, Position, LimitInfo, LimitOrder, ERC721PositionInfo,
-        SwapParams
+        MarketInfo, MarketConfigs, MarketState, OrderBatch, Position, LimitInfo, LimitOrder,
+        ERC721PositionInfo, SwapParams, ConfigOption, Config
     };
     use amm::types::i256::{i256, I256Zeroable, I256Trait};
     use amm::libraries::store_packing::{
-        MarketInfoStorePacking, MarketStateStorePacking, LimitInfoStorePacking,
-        OrderBatchStorePacking, PositionStorePacking, LimitOrderStorePacking
+        MarketInfoStorePacking, MarketStateStorePacking, MarketConfigsStorePacking,
+        LimitInfoStorePacking, OrderBatchStorePacking, PositionStorePacking, LimitOrderStorePacking
     };
 
     // External imports.
@@ -67,20 +67,16 @@ mod MarketManager {
         owner: ContractAddress,
         queued_owner: ContractAddress,
         // Global information
-        whitelist: LegacyMap::<ContractAddress, bool>,
         // Indexed by asset
         reserves: LegacyMap::<ContractAddress, u256>,
-        // Indexed by asset
         protocol_fees: LegacyMap::<ContractAddress, u256>,
-        // Indexed by asset
         flash_loan_fee: LegacyMap::<ContractAddress, u16>,
-        // Next assignable swap id
-        swap_id: u128,
         // Market information
         // Indexed by market_id = hash(base_token, quote_token, width, strategy, fee_controller)
         market_info: LegacyMap::<felt252, MarketInfo>,
-        // Indexed by market_id
         market_state: LegacyMap::<felt252, MarketState>,
+        market_configs: LegacyMap::<felt252, MarketConfigs>,
+        whitelist: LegacyMap::<felt252, bool>,
         // Indexed by (market_id: felt252, limit: u32)
         limit_info: LegacyMap::<(felt252, u32), LimitInfo>,
         // Indexed by position id = hash(market_id: felt252, owner: ContractAddress, lower_limit: u32, upper_limit: u32)
@@ -89,6 +85,8 @@ mod MarketManager {
         batches: LegacyMap::<felt252, OrderBatch>,
         // Indexed by order_id = hash(market_id: felt252, nonce: u128, owner: ContractAddress)
         orders: LegacyMap::<felt252, LimitOrder>,
+        // Next assignable swap id
+        swap_id: u128,
         // Bitmap of initialised limits arranged as 3-level tree.
         // Indexed by market_id
         limit_tree_l0: LegacyMap::<felt252, u256>,
@@ -123,6 +121,7 @@ mod MarketManager {
         ChangeOwner: ChangeOwner,
         ChangeFlashLoanFee: ChangeFlashLoanFee,
         ChangeProtocolShare: ChangeProtocolShare,
+        SetMarketConfigs: SetMarketConfigs,
         #[flat]
         ERC721Event: ERC721Component::Event,
         #[flat]
@@ -138,10 +137,9 @@ mod MarketManager {
         strategy: ContractAddress,
         swap_fee_rate: u16,
         fee_controller: ContractAddress,
+        controller: ContractAddress,
         start_limit: u32,
         start_sqrt_price: u256,
-        allow_orders: bool,
-        allow_positions: bool,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -222,7 +220,7 @@ mod MarketManager {
 
     #[derive(Drop, starknet::Event)]
     struct Whitelist {
-        token: ContractAddress
+        market_id: felt252
     }
 
     #[derive(Drop, starknet::Event)]
@@ -255,6 +253,20 @@ mod MarketManager {
         protocol_share: u16,
     }
 
+    #[derive(Drop, starknet::Event)]
+    struct SetMarketConfigs {
+        min_lower: u32,
+        max_lower: u32,
+        min_upper: u32,
+        max_upper: u32,
+        add_liquidity: ConfigOption,
+        remove_liquidity: ConfigOption,
+        create_bid: ConfigOption,
+        create_ask: ConfigOption,
+        collect_order: ConfigOption,
+        swap: ConfigOption,
+    }
+
     ////////////////////////////////
     // CONSTRUCTOR
     ////////////////////////////////
@@ -276,6 +288,26 @@ mod MarketManager {
         fn assert_only_owner(self: @ContractState) {
             assert(self.owner.read() == get_caller_address(), 'OnlyOwner');
         }
+
+        fn enforce_status(
+            self: @ContractState, value: ConfigOption, market_info: @MarketInfo, err_msg: felt252,
+        ) {
+            let caller = get_caller_address();
+            match value {
+                ConfigOption::Enabled => assert(true, err_msg),
+                ConfigOption::Disabled => assert(false, err_msg),
+                ConfigOption::OnlyOwner => assert(caller == *market_info.controller, err_msg),
+                ConfigOption::OnlyStrategy => assert(caller == *market_info.strategy, err_msg),
+            }
+        }
+
+        fn enforce_fixed<T, impl TPartialEq: PartialEq<T>, impl TDrop: Drop<T>>(
+            self: @ContractState, config: Config<T>, new_config: Config<T>, err_msg: felt252
+        ) {
+            if config.fixed {
+                assert(config == new_config, err_msg);
+            }
+        }
     }
 
     #[external(v0)]
@@ -288,8 +320,8 @@ mod MarketManager {
             self.owner.read()
         }
 
-        fn is_whitelisted(self: @ContractState, token: ContractAddress) -> bool {
-            self.whitelist.read(token)
+        fn is_whitelisted(self: @ContractState, market_id: felt252) -> bool {
+            self.whitelist.read(market_id)
         }
 
         fn base_token(self: @ContractState, market_id: felt252) -> ContractAddress {
@@ -350,6 +382,10 @@ mod MarketManager {
 
         fn market_state(self: @ContractState, market_id: felt252) -> MarketState {
             self.market_state.read(market_id)
+        }
+
+        fn market_configs(self: @ContractState, market_id: felt252) -> MarketConfigs {
+            self.market_configs.read(market_id)
         }
 
         fn batch(self: @ContractState, batch_id: felt252) -> OrderBatch {
@@ -516,16 +552,15 @@ mod MarketManager {
         // # Arguments
         // * `base_token` - base token address
         // * `quote_token` - quote token address
-        // * `width` - Limit width of market
-        // * `strategy` - Strategy contract address
-        // * `swap_fee_rate` - Swap fee denominated in bps
-        // * `flash_loan_fee` - Flash loan fee denominated in bps
-        // * `fee_controller` - Fee controller contract address
-        // * `protocol_share` - Protocol share denominated in 0.01% shares of swap fee (e.g. 500 = 5%)
-        // * `start_limit` - Initial limit (shifted)
-        // * `allow_positions` - Whether market allows liquidity positions
-        // * `allow_orders` - Whether market allows limit orders
-        // * `is_concentrated` - Whether market allows concentrated liquidity positions
+        // * `width` - limit width of market
+        // * `strategy` - strategy contract address, or 0 if no strategy
+        // * `swap_fee_rate` - swap fee denominated in bps
+        // * `flash_loan_fee` - flash loan fee denominated in bps
+        // * `fee_controller` - fee controller contract address
+        // * `protocol_share` - protocol share denominated in 0.01% shares of swap fee (e.g. 500 = 5%)
+        // * `start_limit` - initial limit (shifted)
+        // * `controller` - market controller for upgrading market configs, or 0 if none
+        // * `configs` - (optional) custom market configurations
         //
         // # Returns
         // * `market_id` - Market ID
@@ -539,9 +574,8 @@ mod MarketManager {
             fee_controller: ContractAddress,
             protocol_share: u16,
             start_limit: u32,
-            allow_positions: bool,
-            allow_orders: bool,
-            is_concentrated: bool,
+            controller: ContractAddress,
+            configs: Option<MarketConfigs>,
         ) -> felt252 {
             self.assert_only_owner();
 
@@ -553,29 +587,28 @@ mod MarketManager {
             assert(protocol_share <= fee_math::MAX_FEE_RATE, 'ProtocolShareOverflow');
             assert(start_limit < MAX_LIMIT_SHIFTED, 'StartLimitOverflow');
 
-            // Check tokens exist and whitelisted.
+            // Check tokens exist.
             IERC20MetadataDispatcher { contract_address: base_token }.name();
             IERC20MetadataDispatcher { contract_address: quote_token }.name();
-            assert(
-                self.whitelist.read(base_token) && self.whitelist.read(quote_token), 'Whitelist'
-            );
 
-            // Check market does not already exist.
+            // Initialise market info, first checking the market does not already exist.
             // A market is uniquely identified by the base and quote token, market width, swap fee,
-            // and market type configurations. Duplicate markets are disallowed.
+            // fee controller and market owner. Duplicate markets are disallowed.
             let new_market_info = MarketInfo {
-                base_token,
-                quote_token,
-                width,
-                strategy,
-                swap_fee_rate,
-                fee_controller,
-                allow_positions,
-                allow_orders,
+                base_token, quote_token, width, strategy, swap_fee_rate, fee_controller, controller,
             };
             let market_id = id::market_id(new_market_info);
             let market_info = self.market_info.read(market_id);
             assert(market_info.base_token.is_zero(), 'MarketExists');
+            assert(self.whitelist.read(market_id), 'NotWhitelisted');
+            self.market_info.write(market_id, new_market_info);
+
+            // Initialise market settings.
+            if configs.is_some() {
+                let configs = configs.unwrap();
+                assert(controller.is_non_zero(), 'OwnerNotSet');
+                self.market_configs.write(market_id, configs);
+            }
 
             // Initialise market state.
             let start_sqrt_price = price_math::limit_to_sqrt_price(start_limit, width);
@@ -584,16 +617,12 @@ mod MarketManager {
                 curr_limit: start_limit,
                 curr_sqrt_price: start_sqrt_price,
                 protocol_share,
-                is_concentrated,
                 base_fee_factor: Zeroable::zero(),
                 quote_fee_factor: Zeroable::zero(),
             };
-
-            // Commit state.
-            self.market_info.write(market_id, new_market_info);
             self.market_state.write(market_id, market_state);
 
-            // Emit event.
+            // Emit events.
             self
                 .emit(
                     Event::CreateMarket(
@@ -605,10 +634,9 @@ mod MarketManager {
                             strategy,
                             swap_fee_rate,
                             fee_controller,
+                            controller,
                             start_limit,
                             start_sqrt_price,
-                            allow_orders,
-                            allow_positions,
                         }
                     )
                 );
@@ -616,6 +644,26 @@ mod MarketManager {
                 .emit(
                     Event::ChangeProtocolShare(ChangeProtocolShare { market_id, protocol_share })
                 );
+            if configs.is_some() {
+                let configs = configs.unwrap();
+                self
+                    .emit(
+                        Event::SetMarketConfigs(
+                            SetMarketConfigs {
+                                min_lower: configs.limits.value.min_lower,
+                                max_lower: configs.limits.value.max_lower,
+                                min_upper: configs.limits.value.min_upper,
+                                max_upper: configs.limits.value.max_upper,
+                                add_liquidity: configs.add_liquidity.value,
+                                remove_liquidity: configs.remove_liquidity.value,
+                                create_bid: configs.create_bid.value,
+                                create_ask: configs.create_ask.value,
+                                collect_order: configs.collect_order.value,
+                                swap: configs.swap.value,
+                            }
+                        )
+                    );
+            }
 
             market_id
         }
@@ -640,6 +688,21 @@ mod MarketManager {
             upper_limit: u32,
             liquidity_delta: i256,
         ) -> (i256, i256, u256, u256) {
+            // Run checks.
+            let market_info = self.market_info.read(market_id);
+            let market_configs = self.market_configs.read(market_id);
+            if liquidity_delta.sign {
+                self
+                    .enforce_status(
+                        market_configs.remove_liquidity.value, @market_info, 'RemLiqDisabled'
+                    );
+            } else {
+                self
+                    .enforce_status(
+                        market_configs.add_liquidity.value, @market_info, 'AddLiqDisabled'
+                    );
+            }
+
             // The caller of `_modify_position` can either be a user address (formatted as felt252) or 
             // a `batch_id` if it is being modified as part of a limit order. Here, we are dealing with
             // regular positions, so we simply pass in the caller address.
@@ -671,10 +734,21 @@ mod MarketManager {
             // Retrieve market info.
             let market_state = self.market_state.read(market_id);
             let market_info = self.market_info.read(market_id);
+            let market_configs = self.market_configs.read(market_id);
 
             // Run checks.
             assert(market_info.width != 0, 'MarketNull');
-            assert(market_info.allow_orders, 'OrdersDisabled');
+            if is_bid {
+                self
+                    .enforce_status(
+                        market_configs.create_bid.value, @market_info, 'CreateBidDisabled'
+                    );
+            } else {
+                self
+                    .enforce_status(
+                        market_configs.create_ask.value, @market_info, 'CreateAskDisabled'
+                    );
+            }
             assert(
                 if is_bid {
                     limit < market_state.curr_limit
@@ -775,10 +849,13 @@ mod MarketManager {
             let market_info = self.market_info.read(market_id);
             let market_state = self.market_state.read(market_id);
             let mut order = self.orders.read(order_id);
-            let mut batch = self.batches.read(order.batch_id);
+            let market_configs = self.market_configs.read(market_id);
 
             // Run checks.
-            assert(market_info.allow_orders, 'OrdersDisabled');
+            self
+                .enforce_status(
+                    market_configs.collect_order.value, @market_info, 'CollectOrderDisabled'
+                );
             assert(order.liquidity != 0, 'OrderCollected');
 
             // Calculate withdraw amounts. User's share of batch is calculated based on
@@ -788,6 +865,7 @@ mod MarketManager {
             // has accrued fees (e.g. through partial fills), it will also withdraw all fees
             // from the position. To discourage this, fees are forfeited and not paid out to
             // the user if they collect from an unfilled batch.
+            let mut batch = self.batches.read(order.batch_id);
             let (base_amount, quote_amount) = if !batch.filled {
                 let (base_amount, quote_amount, base_fees, quote_fees) = self
                     ._modify_position(
@@ -1117,40 +1195,20 @@ mod MarketManager {
         // Callable by owner only.
         //
         // # Arguments
-        // * `token` - token address
-        fn whitelist(ref self: ContractState, token: ContractAddress) {
+        // * `market_id` - market id
+        fn whitelist(ref self: ContractState, market_id: felt252) {
             // Validate caller and inputs.
             self.assert_only_owner();
-            assert(token.is_non_zero(), 'TokenNull');
 
             // Check not already whitelisted.
-            let whitelisted = self.whitelist.read(token);
+            let whitelisted = self.whitelist.read(market_id);
             assert(!whitelisted, 'AlreadyWhitelisted');
 
             // Update whitelist.
-            self.whitelist.write(token, true);
+            self.whitelist.write(market_id, true);
 
             // Emit event.
-            self.emit(Event::Whitelist(Whitelist { token }));
-        }
-
-        // Upgrade Linear Market to Concentrated Market by enabling concentrated liquidity positions.
-        // Callable by owner only.
-        //
-        // # Arguments
-        // * `market_id` - market id
-        fn enable_concentrated(ref self: ContractState, market_id: felt252) {
-            // Validate caller and check not already upgraded.
-            self.assert_only_owner();
-            let mut market_state = self.market_state.read(market_id);
-            assert(!market_state.is_concentrated, 'AlreadyConcentrated');
-
-            // Update market state.
-            market_state.is_concentrated = true;
-            self.market_state.write(market_id, market_state);
-
-            // Emit event.
-            self.emit(Event::EnableConcentrated(EnableConcentrated { market_id }));
+            self.emit(Event::Whitelist(Whitelist { market_id }));
         }
 
         // Collect protocol fees.
@@ -1305,6 +1363,62 @@ mod MarketManager {
                 );
         }
 
+        // Set market configs.
+        // Callable by market owner only. Enforces checks that each config is upgradeable.
+        // 
+        // # Arguments
+        // * `market_id` - market id'
+        // * `new_configs` - new market configs
+        fn set_market_configs(
+            ref self: ContractState, market_id: felt252, new_configs: MarketConfigs
+        ) {
+            // Fetch market info and configs.
+            let market_info = self.market_info.read(market_id);
+            let configs = self.market_configs.read(market_id);
+
+            // Check inputs.
+            if market_info.controller.is_non_zero() {
+                assert(get_caller_address() == market_info.controller, 'OnlyController');
+            } else {
+                assert(false, 'MarketUnowned');
+            }
+            self.enforce_fixed(configs.limits, new_configs.limits, 'LimitsFixed');
+            self.enforce_fixed(configs.add_liquidity, new_configs.add_liquidity, 'AddLiqFixed');
+            self
+                .enforce_fixed(
+                    configs.remove_liquidity, new_configs.remove_liquidity, 'RemLiqFixed'
+                );
+            self.enforce_fixed(configs.create_bid, new_configs.create_bid, 'CreateBidFixed');
+            self.enforce_fixed(configs.create_ask, new_configs.create_ask, 'CreateAskFixed');
+            self
+                .enforce_fixed(
+                    configs.collect_order, new_configs.collect_order, 'CollectOrderFixed'
+                );
+            assert(configs != new_configs, 'NoChange');
+
+            // Update configs.
+            self.market_configs.write(market_id, new_configs);
+
+            // Emit event.
+            self
+                .emit(
+                    Event::SetMarketConfigs(
+                        SetMarketConfigs {
+                            min_lower: new_configs.limits.value.min_lower,
+                            max_lower: new_configs.limits.value.max_lower,
+                            min_upper: new_configs.limits.value.min_upper,
+                            max_upper: new_configs.limits.value.max_upper,
+                            add_liquidity: new_configs.add_liquidity.value,
+                            remove_liquidity: new_configs.remove_liquidity.value,
+                            create_bid: new_configs.create_bid.value,
+                            create_ask: new_configs.create_ask.value,
+                            collect_order: new_configs.collect_order.value,
+                            swap: new_configs.swap.value,
+                        }
+                    )
+                );
+        }
+
         // Upgrade contract class.
         // Callable by owner only.
         // TODO: add timelock
@@ -1323,18 +1437,18 @@ mod MarketManager {
         // Called by `modify_position`, `create_order`, `collect_order` and `fill_limits`.
         //
         // # Arguments
-        // * `market_id` - Market ID
-        // * `owner` - Owner of position (or batch id if limit order)
-        // * `lower_limit` - Lower limit at which position starts
-        // * `upper_limit` - Higher limit at which position ends
-        // * `liquidity_delta` - Amount of liquidity to add or remove
-        // * `is_limit_order` - Whether `modify_position` is being called as part of a limit order
+        // * `market_id` - market ID
+        // * `owner` - owner of position (or batch id if limit order)
+        // * `lower_limit` - lower limit at which position starts
+        // * `upper_limit` - higher limit at which position ends
+        // * `liquidity_delta` - amount of liquidity to add or remove
+        // * `is_limit_order` - whether `modify_position` is being called as part of a limit order
         //
         // # Returns
-        // * `base_amount` - Amount of base tokens transferred in (+ve) or out (-ve), including fees
-        // * `quote_amount` - Amount of quote tokens transferred in (+ve) or out (-ve), including fees
-        // * `base_fees` - Amount of base tokens collected in fees
-        // * `quote_fees` - Amount of quote tokens collected in fees
+        // * `base_amount` - amount of base tokens transferred in (+ve) or out (-ve), including fees
+        // * `quote_amount` - amount of quote tokens transferred in (+ve) or out (-ve), including fees
+        // * `base_fees` - amount of base tokens collected in fees
+        // * `quote_fees` - amount of quote tokens collected in fees
         fn _modify_position(
             ref self: ContractState,
             owner: felt252,
@@ -1347,17 +1461,13 @@ mod MarketManager {
             // Fetch market info and caller.
             let market_info = self.market_info.read(market_id);
             let market_state = self.market_state.read(market_id);
+            let valid_limits = self.market_configs.read(market_id).limits.value;
             let caller = get_caller_address();
 
             // Check inputs.
             assert(market_info.quote_token.is_non_zero(), 'MarketNull');
-            if caller != market_info.strategy {
-                assert(market_info.allow_positions, 'PositionsDisabled');
-            }
             assert(liquidity_delta.val <= MAX, 'LiqDeltaOverflow');
-            limit_prices::check_limits(
-                lower_limit, upper_limit, market_info.width, market_state.is_concentrated
-            );
+            limit_prices::check_limits(lower_limit, upper_limit, market_info.width, valid_limits);
 
             // Update liquidity (without transferring tokens).
             let (base_amount, quote_amount, base_fees, quote_fees) =
@@ -1501,8 +1611,10 @@ mod MarketManager {
             // Fetch market info and state.
             let market_info = self.market_info.read(market_id);
             let mut market_state = self.market_state.read(market_id);
+            let market_configs = self.market_configs.read(market_id);
 
-            // Validate inputs.
+            // Run checks.
+            self.enforce_status(market_configs.swap.value, @market_info, 'SwapDisabled');
             assert(market_info.quote_token.is_non_zero(), 'MarketNull');
             assert(amount > 0, 'AmtZero');
             if threshold_sqrt_price.is_some() {

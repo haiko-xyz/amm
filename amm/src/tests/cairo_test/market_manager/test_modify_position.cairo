@@ -7,10 +7,10 @@ use debug::PrintTrait;
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
 use amm::libraries::math::price_math;
-use amm::libraries::constants::{MAX, OFFSET, MAX_LIMIT, MIN_LIMIT};
+use amm::libraries::constants::{MAX, OFFSET, MAX_LIMIT, MIN_LIMIT, MAX_LIMIT_SHIFTED};
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
-use amm::types::core::LimitInfo;
+use amm::types::core::{LimitInfo, MarketConfigs, Config, ConfigOption};
 use amm::types::i256::{i256, I256Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position
@@ -18,7 +18,8 @@ use amm::tests::cairo_test::helpers::market_manager::{
 use amm::tests::cairo_test::helpers::token::{deploy_token, fund, approve};
 use amm::tests::common::utils::approx_eq;
 use amm::tests::common::params::{
-    owner, alice, bob, treasury, default_token_params, default_market_params, modify_position_params
+    owner, alice, bob, treasury, default_token_params, default_market_params,
+    modify_position_params, valid_limits, config
 };
 use amm::tests::common::utils::to_e28;
 
@@ -43,7 +44,7 @@ struct TestCase {
 ////////////////////////////////
 
 fn _before(
-    width: u32, is_concentrated: bool, allow_orders: bool, allow_positions: bool
+    width: u32, allow_positions: bool, is_concentrated: bool
 ) -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252) {
     // Get default owner.
     let owner = owner();
@@ -62,9 +63,18 @@ fn _before(
     params.quote_token = quote_token.contract_address;
     params.width = width;
     params.start_limit = OFFSET - 230260; // initial limit
-    params.is_concentrated = is_concentrated;
-    params.allow_orders = allow_orders;
-    params.allow_positions = allow_positions;
+    let mut market_configs: MarketConfigs = Default::default();
+    if !allow_positions {
+        market_configs.add_liquidity = config(ConfigOption::Disabled, true);
+        params.market_configs = Option::Some(market_configs);
+        params.controller = owner();
+    }
+    if !is_concentrated {
+        let valid_limits = valid_limits(0, 0, MAX_LIMIT_SHIFTED, MAX_LIMIT_SHIFTED);
+        market_configs.limits = config(valid_limits, true);
+        params.market_configs = Option::Some(market_configs);
+        params.controller = owner();
+    }
     let market_id = create_market(market_manager, params);
 
     // Fund LPs with initial token balances and approve market manager as spender.
@@ -85,23 +95,17 @@ fn _before(
 fn before(
     width: u32
 ) -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252) {
-    _before(width, true, true, true)
+    _before(width, true, true)
 }
 
-fn before_strategy_only() -> (
+fn before_no_positions() -> (
     IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252
 ) {
-    _before(1, true, true, false)
+    _before(1, false, true)
 }
 
 fn before_linear() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252) {
-    _before(1, false, true, true)
-}
-
-fn before_no_orders() -> (
-    IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252
-) {
-    _before(1, true, false, true)
+    _before(1, true, false)
 }
 
 ////////////////////////////////
@@ -875,9 +879,9 @@ fn test_modify_position_remove_more_than_position() {
 
 #[test]
 #[available_gas(100000000)]
-#[should_panic(expected: ('PositionsDisabled', 'ENTRYPOINT_FAILED',))]
-fn test_modify_position_strategy_only_market() {
-    let (market_manager, base_token, quote_token, market_id) = before_strategy_only();
+#[should_panic(expected: ('AddLiqDisabled', 'ENTRYPOINT_FAILED',))]
+fn test_modify_position_in_positions_disabled_market() {
+    let (market_manager, base_token, quote_token, market_id) = before_no_positions();
 
     // Create position
     let lower_limit = 8388575;
@@ -889,7 +893,7 @@ fn test_modify_position_strategy_only_market() {
 
 #[test]
 #[available_gas(100000000)]
-#[should_panic(expected: ('LinearOnly', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('LimitsOutOfRange', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_concentrated_in_linear_market() {
     let (market_manager, base_token, quote_token, market_id) = before_linear();
 
