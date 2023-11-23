@@ -6,7 +6,10 @@ use amm::tests::common::contracts::store_packing_contract::StorePackingContract;
 use amm::tests::common::contracts::store_packing_contract::{
     IStorePackingContractDispatcher, IStorePackingContractDispatcherTrait,
 };
-use amm::types::core::{MarketInfo, MarketState, LimitInfo, OrderBatch, Position, LimitOrder};
+use amm::types::core::{
+    MarketInfo, MarketState, LimitInfo, OrderBatch, Position, LimitOrder, MarketConfigs, Config,
+    ValidLimits, ConfigOption
+};
 use amm::types::i256::I256Trait;
 
 
@@ -44,8 +47,7 @@ fn test_store_packing_market_info() {
         strategy: contract_address_const::<0xccccccccccccccc>(),
         swap_fee_rate: 2000,
         fee_controller: contract_address_const::<0xfffffffffffff>(),
-        allow_positions: true,
-        allow_orders: true,
+        controller: contract_address_const::<0x123>(),
     };
 
     store_packing_contract.set_market_info(1, market_info);
@@ -57,6 +59,7 @@ fn test_store_packing_market_info() {
     assert(unpacked.strategy == market_info.strategy, 'Market info: strategy');
     assert(unpacked.swap_fee_rate == market_info.swap_fee_rate, 'Market info: swap fee rate');
     assert(unpacked.fee_controller == market_info.fee_controller, 'Market info: fee controller');
+    assert(unpacked.controller == market_info.controller, 'Market info: controller');
 }
 
 #[test]
@@ -69,7 +72,6 @@ fn test_store_packing_market_state() {
         curr_sqrt_price: 111111000000000000,
         quote_fee_factor: 7123981237891236712313,
         base_fee_factor: 3650171973094710571238267576572937,
-        is_concentrated: true,
         protocol_share: 1000,
         curr_limit: 11093740
     };
@@ -82,13 +84,40 @@ fn test_store_packing_market_state() {
         unpacked.curr_sqrt_price == market_state.curr_sqrt_price, 'Market state: curr sqrt price'
     );
     assert(
-        unpacked.quote_fee_factor == market_state.quote_fee_factor, 'Market state: quote fee factor'
+        unpacked.base_fee_factor == market_state.base_fee_factor, 'Market state: base fee factor'
     );
     assert(
-        unpacked.base_fee_factor == market_state.base_fee_factor, 'Market state: base fee factor'
+        unpacked.quote_fee_factor == market_state.quote_fee_factor, 'Market state: quote fee factor'
     );
     assert(unpacked.protocol_share == market_state.protocol_share, 'Market state: protocol share');
     assert(unpacked.curr_limit == market_state.curr_limit, 'Market state: curr limit');
+}
+
+#[test]
+#[available_gas(100000000)]
+fn test_store_packing_market_configs() {
+    let store_packing_contract = before();
+
+    let market_configs = MarketConfigs {
+        limits: Config { value: Default::default(), fixed: false },
+        add_liquidity: Config { value: ConfigOption::OnlyOwner, fixed: true },
+        remove_liquidity: Config { value: ConfigOption::Disabled, fixed: false },
+        create_bid: Config { value: ConfigOption::Enabled, fixed: false },
+        create_ask: Config { value: ConfigOption::OnlyOwner, fixed: true },
+        collect_order: Config { value: ConfigOption::Enabled, fixed: true },
+        swap: Config { value: ConfigOption::OnlyStrategy, fixed: true },
+    };
+
+    store_packing_contract.set_market_configs(1, market_configs);
+    let unpacked = store_packing_contract.get_market_configs(1);
+
+    assert(unpacked.limits == market_configs.limits, 'Market configs: limits');
+    assert(unpacked.add_liquidity == market_configs.add_liquidity, 'Market configs: add liq');
+    assert(unpacked.remove_liquidity == market_configs.remove_liquidity, 'Market configs: rem liq');
+    assert(unpacked.create_bid == market_configs.create_bid, 'Market configs: create bid');
+    assert(unpacked.create_ask == market_configs.create_ask, 'Market configs: create ask');
+    assert(unpacked.collect_order == market_configs.collect_order, 'Market configs: collect order');
+    assert(unpacked.swap == market_configs.swap, 'Market configs: swap');
 }
 
 #[test]

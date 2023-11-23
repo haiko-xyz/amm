@@ -1,13 +1,16 @@
+// Core lib imports.
 use traits::{Into, TryInto};
 use option::OptionTrait;
 use starknet::contract_address_const;
 use starknet::ContractAddress;
 use starknet::contract_address::ContractAddressZeroable;
 
-use amm::types::core::Position;
+// Local imports.
+use amm::types::core::{Position, MarketConfigs, ValidLimits, Config};
 use amm::types::i256::{i256, I256Trait};
 use amm::libraries::constants::OFFSET;
 use amm::tests::common::utils::to_e28;
+
 
 ////////////////////////////////
 // TYPES
@@ -37,9 +40,8 @@ struct CreateMarketParams {
     fee_controller: ContractAddress,
     protocol_share: u16,
     start_limit: u32,
-    allow_positions: bool,
-    allow_orders: bool,
-    is_concentrated: bool,
+    controller: ContractAddress,
+    market_configs: Option<MarketConfigs>,
 }
 
 #[derive(Drop, Copy)]
@@ -137,18 +139,25 @@ fn token_params(
 fn default_market_params() -> CreateMarketParams {
     CreateMarketParams {
         owner: owner(),
-        base_token: ContractAddressZeroable::zero(), // To replace with actual address
-        quote_token: ContractAddressZeroable::zero(), // To replace with actual address
+        base_token: ContractAddressZeroable::zero(), // Replaced with actual address on deployment
+        quote_token: ContractAddressZeroable::zero(), // Replaced with actual address on deployment
         width: 1,
         swap_fee_rate: 30, // 0.3%
-        fee_controller: ContractAddressZeroable::zero(), // To replace with actual address
-        strategy: ContractAddressZeroable::zero(), // To replace with actual address
+        fee_controller: ContractAddressZeroable::zero(), // Replaced with actual address on deployment
+        strategy: ContractAddressZeroable::zero(), // Replaced with actual address on deployment
         protocol_share: 20, // 0.2%
         start_limit: OFFSET + 749558,
-        allow_positions: true,
-        allow_orders: true,
-        is_concentrated: true,
+        controller: ContractAddressZeroable::zero(),
+        market_configs: Option::None(())
     }
+}
+
+fn valid_limits(min_lower: u32, max_lower: u32, min_upper: u32, max_upper: u32) -> ValidLimits {
+    ValidLimits { min_lower, max_lower, min_upper, max_upper }
+}
+
+fn config<T>(value: T, fixed: bool) -> Config<T> {
+    Config { value, fixed }
 }
 
 fn default_transfer_owner_params() -> TransferOwnerParams {

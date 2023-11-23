@@ -53,12 +53,13 @@ fn test_create_market_whitelisted_works() {
 
 #[test]
 #[available_gas(2000000000)]
-#[should_panic(expected: ('Whitelist', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('NotWhitelisted', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_not_whitelisted() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
 
     // Create market.
+    set_contract_address(owner());
     market_manager
         .create_market(
             base_token.contract_address,
@@ -69,9 +70,8 @@ fn test_create_market_not_whitelisted() {
             contract_address_const::<0x0>(),
             0,
             OFFSET + 0,
-            true,
-            true,
-            true,
+            contract_address_const::<0x0>(),
+            Option::None(()),
         );
 }
 
@@ -83,7 +83,7 @@ fn test_whitelist_not_owner() {
     let (market_manager, base_token, quote_token) = before();
 
     set_contract_address(alice());
-    market_manager.whitelist(base_token.contract_address);
+    market_manager.whitelist(123);
 }
 
 #[test]
@@ -97,7 +97,7 @@ fn test_whitelist_twice() {
     let mut params = default_market_params();
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
-    create_market(market_manager, params);
+    let market_id = create_market(market_manager, params);
 
-    market_manager.whitelist(base_token.contract_address);
+    market_manager.whitelist(market_id);
 }

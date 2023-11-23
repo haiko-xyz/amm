@@ -169,8 +169,12 @@ fn test_quote_fuzz(
             // `snforge` prank. Calling `swap` with a different caller will fail because when
             // re-entering `MarketManager` to update positions, it continues to treat the caller
             // as the non-strategy LP.
-            start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
-            start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+            start_prank(
+                CheatTarget::One(strategy.contract_address), market_manager.contract_address
+            );
+            start_prank(
+                CheatTarget::One(market_manager.contract_address), strategy.contract_address
+            );
 
             // Fetch quote without using quoter (for the same reasons outlined above).
             let mut calldata = array![

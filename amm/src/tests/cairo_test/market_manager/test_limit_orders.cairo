@@ -6,7 +6,7 @@ use debug::PrintTrait;
 use amm::libraries::math::math;
 use amm::libraries::constants::OFFSET;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
-use amm::types::core::{MarketState, OrderBatch};
+use amm::types::core::{MarketState, OrderBatch, MarketConfigs, Config, ConfigOption};
 use amm::types::i256::{i256, I256Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position
@@ -14,7 +14,7 @@ use amm::tests::cairo_test::helpers::market_manager::{
 use amm::tests::cairo_test::helpers::token::{deploy_token, fund, approve};
 use amm::tests::common::params::{
     owner, alice, bob, charlie, treasury, default_token_params, default_market_params,
-    modify_position_params
+    modify_position_params, config
 };
 use amm::tests::common::utils::{to_e28, approx_eq, approx_eq_pct};
 
@@ -28,11 +28,8 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 fn _before(
     width: u32, allow_orders: bool
 ) -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252) {
-    // Get default owner.
-    let owner = owner();
-
     // Deploy market manager.
-    let market_manager = deploy_market_manager(owner);
+    let market_manager = deploy_market_manager(owner());
 
     // Deploy tokens.
     let (treasury, base_token_params, quote_token_params) = default_token_params();
@@ -45,7 +42,13 @@ fn _before(
     params.quote_token = quote_token.contract_address;
     params.width = width;
     params.start_limit = OFFSET - 0; // initial limit
-    params.allow_orders = allow_orders;
+    let mut market_configs: MarketConfigs = Default::default();
+    if !allow_orders {
+        market_configs.create_bid = config(ConfigOption::Disabled, true);
+        market_configs.create_ask = config(ConfigOption::Disabled, true);
+    }
+    params.controller = owner();
+    params.market_configs = Option::Some(market_configs);
     let market_id = create_market(market_manager, params);
 
     // Fund LPs with initial token balances and approve market manager as spender.
@@ -1113,10 +1116,18 @@ fn test_limit_orders_misc_actions() {
 
 #[test]
 #[available_gas(100000000)]
-#[should_panic(expected: ('OrdersDisabled', 'ENTRYPOINT_FAILED',))]
-fn test_create_order_in_limit_order_disabled_market() {
+#[should_panic(expected: ('CreateBidDisabled', 'ENTRYPOINT_FAILED',))]
+fn test_create_bid_in_bid_disabled_market() {
     let (market_manager, base_token, quote_token, market_id) = before_no_orders();
     market_manager.create_order(market_id, true, 8388000, to_e28(1));
+}
+
+#[test]
+#[available_gas(100000000)]
+#[should_panic(expected: ('CreateAskDisabled', 'ENTRYPOINT_FAILED',))]
+fn test_create_ask_in_ask_disabled_market() {
+    let (market_manager, base_token, quote_token, market_id) = before_no_orders();
+    market_manager.create_order(market_id, false, 8388000, to_e28(1));
 }
 
 #[test]
