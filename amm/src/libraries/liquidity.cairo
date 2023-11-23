@@ -282,22 +282,6 @@ fn amounts_inside_position(
     (gas_before - testing::get_available_gas()).print(); 
     // Checkpoint End
 
-    // Checkpoint: gas used in calculating base/quote fees
-    gas_before = testing::get_available_gas();
-    // Calculate fees accrued since last update.
-    // Includes various asserts for debugging u256_overflow errors - can be removed later.
-    assert(base_fee_factor >= position.base_fee_factor_last, 'AmtsInsideBaseFeeFactor');
-    let base_fees = math::mul_div(
-        (base_fee_factor - position.base_fee_factor_last), position.liquidity.into(), ONE, false
-    );
-    assert(quote_fee_factor >= position.quote_fee_factor_last, 'AmtsInsideQuoteFeeFactor');
-    let quote_fees = math::mul_div(
-        (quote_fee_factor - position.quote_fee_factor_last), position.liquidity.into(), ONE, false
-    );
-    'AIP calc fee 3'.print();
-    (gas_before - testing::get_available_gas()).print(); 
-    // Checkpoint End
-
     // Checkpoint: gas used in calculating base/quote amounts for position
     gas_before = testing::get_available_gas();
     // Calculate amounts inside position.

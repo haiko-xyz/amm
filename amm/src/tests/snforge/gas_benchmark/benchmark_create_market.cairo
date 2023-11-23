@@ -29,7 +29,7 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 // SETUP
 ////////////////////////////////
 
-fn _before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher) {
+fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher) {
     // Get default owner.
     let owner = owner();
 
@@ -52,7 +52,7 @@ fn _before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatche
 
 #[test]
 fn test_create_market() {
-    let (market_manager, base_token, quote_token) = _before();
+    let (market_manager, base_token, quote_token) = before();
 
     // Create market.
     let mut params = default_market_params();
@@ -60,9 +60,6 @@ fn test_create_market() {
     params.quote_token = quote_token.contract_address;
     params.width = 1;
     params.start_limit = OFFSET - 230260; // initial limit
-    params.is_concentrated = true;
-    params.allow_orders = true;
-    params.allow_positions = true;
 
     let gas_before = testing::get_available_gas();
     gas::withdraw_gas().unwrap();

@@ -32,12 +32,14 @@ use strategies::tests::snforge::replicating::helpers::{
 };
 
 // External imports.
-use snforge_std::{start_prank, stop_prank, PrintTrait, declare, ContractClass, ContractClassTrait};
+use snforge_std::{
+    start_prank, stop_prank, PrintTrait, declare, ContractClass, ContractClassTrait, CheatTarget
+};
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
-fn _before(
-    width: u32, is_concentrated: bool, allow_orders: bool, allow_positions: bool
-) -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252, IReplicatingStrategyDispatcher) {
+fn before() -> (
+    IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252, IReplicatingStrategyDispatcher
+) {
     // Get default owner.
     let owner = owner();
 
@@ -57,11 +59,8 @@ fn _before(
     let mut params = default_market_params();
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
-    params.width = width;
+    params.width = 1;
     params.start_limit = OFFSET - 230260; // initial limit
-    params.is_concentrated = is_concentrated;
-    params.allow_orders = allow_orders;
-    params.allow_positions = allow_positions;
     params.strategy = strategy.contract_address;
     let market_id = create_market(market_manager, params);
 
@@ -88,7 +87,7 @@ fn _before(
     approve(quote_token, strategy.contract_address, market_manager.contract_address, quote_amount);
 
     let oracle = deploy_mock_pragma_oracle(owner);
-    start_prank(strategy.contract_address, owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy
         .initialise(
             'ETH-USDC Replicating 1 0.3%',
@@ -109,7 +108,7 @@ fn _before(
 
     // Deposit initial to strategy.
     strategy.deposit_initial(to_e18(50000), to_e18(50000));
-    stop_prank(strategy.contract_address);
+    stop_prank(CheatTarget::One(strategy.contract_address));
     
     // Create position
     let mut upper_limit = 8388600;
@@ -124,19 +123,13 @@ fn _before(
     (market_manager, base_token, quote_token, market_id, strategy)
 }
 
-fn before(
-    width: u32
-) -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252, IReplicatingStrategyDispatcher) {
-    _before(width, true, true, true)
-}
-
 ////////////////////////////////
 // TESTS
 ////////////////////////////////
 
 #[test]
 fn test_single_swap() {
-    let (market_manager, base_token, quote_token, market_id, strategy) = before(width: 1);
+    let (market_manager, base_token, quote_token, market_id, strategy) = before();
 
     let curr_sqrt_price = market_manager.market_state(market_id).curr_sqrt_price;
     let mut is_buy = false;
@@ -145,8 +138,8 @@ fn test_single_swap() {
     let sqrt_price = Option::Some(curr_sqrt_price - 1000);
     let threshold_amount = Option::Some(0);
 
-    start_prank(strategy.contract_address, market_manager.contract_address);
-    start_prank(market_manager.contract_address, strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
     let mut swap_params = swap_params(
         strategy.contract_address, market_id, is_buy, exact_input, amount, sqrt_price, threshold_amount, Option::None,
     );

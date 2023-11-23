@@ -22,16 +22,16 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::{to_e28, to_e18, approx_eq};
 
 // External imports.
-use snforge_std::{start_prank, stop_prank, PrintTrait, declare, ContractClass, ContractClassTrait};
+use snforge_std::{
+    start_prank, stop_prank, PrintTrait, declare, ContractClass, ContractClassTrait, CheatTarget
+};
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
 // SETUP
 ////////////////////////////////
 
-fn _before(
-    width: u32, is_concentrated: bool, allow_orders: bool, allow_positions: bool
-) -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252) {
+fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252) {
     // Get default owner.
     let owner = owner();
 
@@ -49,11 +49,8 @@ fn _before(
     let mut params = default_market_params();
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
-    params.width = width;
+    params.width = 1;
     params.start_limit = OFFSET - 230260; // initial limit
-    params.is_concentrated = is_concentrated;
-    params.allow_orders = allow_orders;
-    params.allow_positions = allow_positions;
     let market_id = create_market(market_manager, params);
 
     // Fund LPs with initial token balances and approve market manager as spender.
@@ -71,22 +68,16 @@ fn _before(
     (market_manager, base_token, quote_token, market_id)
 }
 
-fn before(
-    width: u32
-) -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252) {
-    _before(width, true, true, true)
-}
-
 ////////////////////////////////
 // TESTS
 ////////////////////////////////
 
 #[test]
 fn test_collect_order() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, base_token, quote_token, market_id) = before();
 
     // Create limit order.
-    start_prank(market_manager.contract_address, alice());
+    start_prank(CheatTarget::One(market_manager.contract_address), alice());
     let liquidity = to_e28(1);
     let limit = OFFSET - 1000;
     let is_bid = false;
@@ -99,15 +90,15 @@ fn test_collect_order() {
 
     'collect_order gas used'.print();
     (gas_before - testing::get_available_gas()).print(); 
-    stop_prank(market_manager.contract_address);
+    stop_prank(CheatTarget::One(market_manager.contract_address));
 }
 
 #[test]
 fn test_collect_order_batch_filled() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, base_token, quote_token, market_id) = before();
 
     // Create limit order.
-    start_prank(market_manager.contract_address, alice());
+    start_prank(CheatTarget::One(market_manager.contract_address), alice());
     let liquidity = 10000;
     let limit = OFFSET;
     let is_bid = false;
@@ -123,5 +114,5 @@ fn test_collect_order_batch_filled() {
 
     'collect_order gas used'.print();
     (gas_before - testing::get_available_gas()).print(); 
-    stop_prank(market_manager.contract_address);
+    stop_prank(CheatTarget::One(market_manager.contract_address));
 }
