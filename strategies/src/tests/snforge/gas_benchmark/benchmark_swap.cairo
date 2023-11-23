@@ -37,7 +37,7 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 
 fn _before(
     width: u32, is_concentrated: bool, allow_orders: bool, allow_positions: bool
-) -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252) {
+) -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252, IReplicatingStrategyDispatcher) {
     // Get default owner.
     let owner = owner();
 
@@ -79,6 +79,14 @@ fn _before(
     approve(base_token, owner(), strategy.contract_address, initial_base_amount);
     approve(quote_token, owner(), strategy.contract_address, initial_quote_amount);
 
+    // Fund strategy with initial token balances and approve market manager as spender.
+    let base_amount = to_e28(500000000000000000);
+    let quote_amount = to_e28(10000000000000000000);
+    fund(base_token, strategy.contract_address, base_amount);
+    fund(quote_token, strategy.contract_address, quote_amount);
+    approve(base_token, strategy.contract_address, market_manager.contract_address, base_amount);
+    approve(quote_token, strategy.contract_address, market_manager.contract_address, quote_amount);
+
     let oracle = deploy_mock_pragma_oracle(owner);
     start_prank(strategy.contract_address, owner());
     strategy
@@ -113,12 +121,12 @@ fn _before(
     let (base_amount, quote_amount, base_fees, quote_fees) = modify_position(
         market_manager, params
     );
-    (market_manager, base_token, quote_token, market_id)
+    (market_manager, base_token, quote_token, market_id, strategy)
 }
 
 fn before(
     width: u32
-) -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252) {
+) -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252, IReplicatingStrategyDispatcher) {
     _before(width, true, true, true)
 }
 
@@ -128,7 +136,7 @@ fn before(
 
 #[test]
 fn test_single_swap() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, base_token, quote_token, market_id, strategy) = before(width: 1);
 
     let curr_sqrt_price = market_manager.market_state(market_id).curr_sqrt_price;
     let mut is_buy = false;
@@ -137,8 +145,10 @@ fn test_single_swap() {
     let sqrt_price = Option::Some(curr_sqrt_price - 1000);
     let threshold_amount = Option::Some(0);
 
+    start_prank(strategy.contract_address, market_manager.contract_address);
+    start_prank(market_manager.contract_address, strategy.contract_address);
     let mut swap_params = swap_params(
-        alice(), market_id, is_buy, exact_input, amount, sqrt_price, threshold_amount, Option::None,
+        strategy.contract_address, market_id, is_buy, exact_input, amount, sqrt_price, threshold_amount, Option::None,
     );
     let gas_before = testing::get_available_gas();
     gas::withdraw_gas().unwrap();

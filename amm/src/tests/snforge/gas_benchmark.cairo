@@ -1,4 +1,4 @@
-mod test_modify_position;
-mod test_create_market;
-mod test_create_order;
-mod test_collect_order;
+mod benchmark_modify_position;
+mod benchmark_create_market;
+mod benchmark_create_order;
+mod benchmark_collect_order;

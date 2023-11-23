@@ -583,11 +583,12 @@ mod MarketManager {
             gas_before = testing::get_available_gas();
 
             let market_id = id::market_id(new_market_info);
+            'CM market id gen 2'.print();
+            (gas_before - testing::get_available_gas()).print();
+
             let market_info = self.market_info.read(market_id);
             assert(market_info.base_token.is_zero(), 'MarketExists');
 
-            'CM market validate 2'.print();
-            (gas_before - testing::get_available_gas()).print();
             // Checkpoint End   
 
             // Checkpoint: gas used in finding sqrt price from limit
@@ -724,11 +725,17 @@ mod MarketManager {
             let mut limit_info = self.limit_info.read((market_id, limit));
             let caller = get_caller_address();
 
-            // Checkpoint: gas used in creating batch and order id
+            // Checkpoint: gas used in creating order id
             gas_before = testing::get_available_gas();
             let order_id = id::order_id(market_id, limit, limit_info.nonce, caller);
+            'CO order_id create 3'.print();
+            (gas_before - testing::get_available_gas()).print();
+            // Checkpoint End   
+            
+            // Checkpoint: gas used in creating batch id
+            gas_before = testing::get_available_gas();
             let mut batch_id = id::batch_id(market_id, limit, limit_info.nonce);
-            'CO id create 3'.print();
+            'CO batch_id create 3'.print();
             (gas_before - testing::get_available_gas()).print();
             // Checkpoint End   
 

@@ -101,3 +101,27 @@ fn test_collect_order() {
     (gas_before - testing::get_available_gas()).print(); 
     stop_prank(market_manager.contract_address);
 }
+
+#[test]
+fn test_collect_order_batch_filled() {
+    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+
+    // Create limit order.
+    start_prank(market_manager.contract_address, alice());
+    let liquidity = 10000;
+    let limit = OFFSET;
+    let is_bid = false;
+
+    let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity);
+
+    let swap_params = swap_params(alice(), market_id, true, true, 10000, Option::None, Option::None, Option::None);
+    swap(market_manager, swap_params);
+
+    let gas_before = testing::get_available_gas();
+    gas::withdraw_gas().unwrap();
+    market_manager.collect_order(market_id, order_id);
+
+    'collect_order gas used'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    stop_prank(market_manager.contract_address);
+}

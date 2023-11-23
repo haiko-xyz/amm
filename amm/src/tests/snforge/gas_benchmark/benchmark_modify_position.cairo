@@ -88,3 +88,36 @@ fn test_modify_position() {
     'modify_position gas used'.print();
     (gas_before - testing::get_available_gas()).print(); 
 }
+
+#[test]
+fn test_modify_position_after_swap() {
+    let manager_class = declare('MarketManager');
+    let erc20_class = declare_token();
+    let (market_manager, market_id, base_token, quote_token) = before(
+        manager_class, erc20_class, 30
+    );
+
+    let lower_limit = OFFSET - 1000;
+    let upper_limit = OFFSET + 1000;
+    let liquidity = I256Trait::new(to_e18(100000), false);
+
+    let params = modify_position_params(
+        alice(),
+        market_id,
+        lower_limit,
+        upper_limit,
+        liquidity
+    );
+
+    modify_position(market_manager, params);
+
+    let swap_params = swap_params(alice(), market_id, true, true, 10000, Option::None, Option::None, Option::None);
+    swap(market_manager, swap_params);
+
+    let gas_before = testing::get_available_gas();
+    gas::withdraw_gas().unwrap();
+    modify_position(market_manager, params);
+    'modify_position gas used'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+
+}
