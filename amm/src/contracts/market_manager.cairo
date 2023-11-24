@@ -1798,15 +1798,17 @@ mod MarketManager {
         ) -> (u256, u256, u256) {
             // Checkpoint: gas used in validating inputs
             let mut gas_before = testing::get_available_gas();
+
             // Fetch market info and state.
             let market_info = self.market_info.read(market_id);
             let mut market_state = self.market_state.read(market_id);
             let market_configs = self.market_configs.read(market_id);
-            '_SW read state'.print();
-            (gas_before - testing::get_available_gas()).print();
+            let curr_sqrt_price_start = market_state.curr_sqrt_price;
 
-            // Checkpoint: gas used in validating inputs
+            'SW: read state'.print();
+            (gas_before - testing::get_available_gas()).print();
             gas_before = testing::get_available_gas();
+
             // Run checks.
             self.enforce_status(market_configs.swap.value, @market_info, 'SwapDisabled');
             assert(market_info.quote_token.is_non_zero(), 'MarketNull');
@@ -1819,20 +1821,12 @@ mod MarketManager {
             if deadline.is_some() {
                 assert(deadline.unwrap() >= get_block_timestamp(), 'Expired');
             }
-            '_SW val input'.print();
-            (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
 
-            // Checkpoint: gas used in snapshot sqrt price before swap
+            'SW: run checks'.print();
+            (gas_before - testing::get_available_gas()).print();
             gas_before = testing::get_available_gas();
+
             // Snapshot sqrt price before swap.
-            let curr_sqrt_price_start = market_state.curr_sqrt_price;
-            '_SW snapshot curr price'.print();
-            (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
-
-            // Checkpoint: gas used in executing strategy
-            gas_before = testing::get_available_gas();
             // Execute strategy if it exists.
             // Strategy positions are updated before the swap occurs.
             let caller = get_caller_address();
@@ -1842,12 +1836,11 @@ mod MarketManager {
                         SwapParams { is_buy, amount, exact_input, threshold_sqrt_price, deadline }
                     );
             }
-            '_SW exec strategy'.print();
-            (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
 
-            // Checkpoint: gas used in fetchig fee rate
+            'SW: update strategy [T]'.print();
+            (gas_before - testing::get_available_gas()).print();
             gas_before = testing::get_available_gas();
+
             // Get swap fee. 
             // This is either a fixed swap fee or a variable one set by the external fee controller.
             let fee_rate = if market_info.fee_controller.is_zero() {
@@ -1858,12 +1851,11 @@ mod MarketManager {
                 assert(rate <= fee_math::MAX_FEE_RATE, 'FeeRateOverflow');
                 rate
             };
-            '_SW fetch fee rate'.print();
-            (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
 
-            // Checkpoint: gas used in initialising swap state and read market state
+            'SW: fetch fee rate'.print();
+            (gas_before - testing::get_available_gas()).print();
             gas_before = testing::get_available_gas();
+
             // Initialise trackers for swap state.
             let mut amount_rem = amount;
             let mut amount_calc = 0;
@@ -1876,12 +1868,11 @@ mod MarketManager {
             // If the final limit is partially filled, details of this are returned to correctly
             // update the limit order batch.
             market_state = self.market_state.read(market_id);
-            '_SW initialise swap state'.print();
-            (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
 
-            // Checkpoint: gas used in total swap iteration
+            'SW: init swap state'.print();
+            (gas_before - testing::get_available_gas()).print();
             gas_before = testing::get_available_gas();
+
             let partial_fill_info = swap_helpers::swap_iter(
                 ref self,
                 market_id,
@@ -1897,12 +1888,11 @@ mod MarketManager {
                 is_buy,
                 exact_input,
             );
-            '_SW swap_itr [T]'.print();
-            (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
 
-            // Checkpoint: gas used in updating and checking swap amounts
+            'SW: swap iter [T]'.print();
+            (gas_before - testing::get_available_gas()).print();
             gas_before = testing::get_available_gas();
+
             // Calculate swap amounts.
             assert(amount >= amount_rem, 'SwapAmtSubAmtRem');
             let amount_in = if exact_input {
@@ -1928,7 +1918,8 @@ mod MarketManager {
                     'ThresholdAmount'
                 );
             }
-            '_SW swap amount'.print();
+
+            'SW: calc swap amts'.print();
             (gas_before - testing::get_available_gas()).print();
             // Checkpoint End
 
@@ -1939,6 +1930,7 @@ mod MarketManager {
 
             // Checkpoint: gas used in calculating and updating fee balances and commit state
             gas_before = testing::get_available_gas();
+
             // Calculate protocol fee and update fee balances. Write updates to storage.
             if is_buy {
                 let mut quote_protocol_fees = self.protocol_fees.read(market_info.quote_token);
@@ -1950,14 +1942,17 @@ mod MarketManager {
                 self.protocol_fees.write(market_info.base_token, base_protocol_fees);
             }
 
+            'SW: update fee'.print();
+            (gas_before - testing::get_available_gas()).print();
+            gas_before = testing::get_available_gas();
+
             // Commit update to market state.
             self.market_state.write(market_id, market_state);
-            '_SW update fee/market'.print();
-            (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
 
-            // Checkpoint: gas used in identify tokens
+            'SW: update market state'.print();
+            (gas_before - testing::get_available_gas()).print();
             gas_before = testing::get_available_gas();
+
             // Identify in and out tokens.
             let in_token = if is_buy {
                 market_info.quote_token
@@ -1969,35 +1964,26 @@ mod MarketManager {
             } else {
                 market_info.quote_token
             };
-            '_SW identify tokens'.print();
-            (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
-
-
-            // Checkpoint: gas used in updating reserves
-            gas_before = testing::get_available_gas();
             // Update reserves.
             let in_reserves = self.reserves.read(in_token);
             let out_reserves = self.reserves.read(out_token);
             self.reserves.write(in_token, in_reserves + amount_in);
             assert(out_reserves >= amount_out, 'SwapOutReservesSubAmtOut');
             self.reserves.write(out_token, out_reserves - amount_out);
-            '_SW update reserves'.print();
-            (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
 
-            // Checkpoint: gas used in updating fully filled orders
+            'SW: update reserves'.print();
+            (gas_before - testing::get_available_gas()).print();
             gas_before = testing::get_available_gas();
+
             // Handle fully filled limit orders. Must be done after state updates above.
             order_helpers::fill_limits(
                 ref self, market_id, market_info.width, fee_rate, filled_limits.span(),
             );
-            '_SW fill_limits'.print();
-            (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
 
-            // Checkpoint: gas used in updating partially filled orders
+            'SW: fill full limits [T]'.print();
+            (gas_before - testing::get_available_gas()).print();
             gas_before = testing::get_available_gas();
+
             // Handle partially filled limit order. Must be done after state updates above.
             if partial_fill_info.is_some() {
                 let partial_fill_info = partial_fill_info.unwrap();
@@ -2010,33 +1996,30 @@ mod MarketManager {
                     partial_fill_info.is_buy,
                 );
             }
-            '_SW fill_partial_limit'.print();
-            (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
 
-            // Checkpoint: gas used in transferring tokens
+            'SW: fill partial limits [T]'.print();
+            (gas_before - testing::get_available_gas()).print();
             gas_before = testing::get_available_gas();
+
             // Transfer tokens between payer, receiver and contract.
             let contract = get_contract_address();
             IERC20Dispatcher { contract_address: in_token }
                 .transfer_from(caller, contract, amount_in);
             IERC20Dispatcher { contract_address: out_token }.transfer(caller, amount_out);
-            '_SW transfer tokens'.print();
-            (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
 
-            // Checkpoint: gas used in running strategy cleanup
+            'SW: transfer tokens'.print();
+            (gas_before - testing::get_available_gas()).print();
             gas_before = testing::get_available_gas();
+
             // Execute strategy cleanup.
             if market_info.strategy.is_non_zero() && caller != market_info.strategy {
                 IStrategyDispatcher { contract_address: market_info.strategy }.cleanup();
             }
-            '_SW strategy cleanup'.print();
-            (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
 
-            // Checkpoint: gas used in emitting event
+            'SW: strategy cleanup'.print();
+            (gas_before - testing::get_available_gas()).print();
             gas_before = testing::get_available_gas();
+
             // Emit event.
             self
                 .emit(
@@ -2056,9 +2039,9 @@ mod MarketManager {
                         }
                     )
                 );
-            '_SW emit Swap event'.print();
+
+            'SW: emit event'.print();
             (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
 
             // Return amounts.
             (amount_in, amount_out, swap_fees + protocol_fees)
