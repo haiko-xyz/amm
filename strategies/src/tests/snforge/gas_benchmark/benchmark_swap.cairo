@@ -62,7 +62,7 @@ fn before(width: u32) -> (
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
     params.width = width;
-    params.start_limit = OFFSET - 230260; // initial limit
+    params.start_limit = OFFSET; // initial limit
     params.strategy = strategy.contract_address;
     let market_id = create_market(market_manager, params);
 
@@ -88,7 +88,24 @@ fn before(width: u32) -> (
     approve(base_token, strategy.contract_address, market_manager.contract_address, base_amount);
     approve(quote_token, strategy.contract_address, market_manager.contract_address, quote_amount);
 
-    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let lower_limit = OFFSET - 1000000;
+    let upper_limit = OFFSET + 1000000;
+    let liquidity = I256Trait::new(to_e18(100000), false);
+
+    let mut params = modify_position_params(
+        alice(),
+        market_id,
+        lower_limit,
+        upper_limit,
+        liquidity
+    );
+    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    market_manager
+        .modify_position(
+            params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
+        );
+    stop_prank(CheatTarget::One(market_manager.contract_address));
+
     // Initialise strategy.
     initialise_strategy(
         strategy,
@@ -98,11 +115,6 @@ fn before(width: u32) -> (
         market_manager.contract_address,
         market_id
     );
-
-    // Deposit initial to strategy.    
-    strategy.deposit(to_e18(100000000), to_e18(1125000000000));
-    stop_prank(CheatTarget::One(strategy.contract_address));
-    
     (market_manager, base_token, quote_token, market_id, strategy)
 }
 
@@ -112,34 +124,64 @@ fn before(width: u32) -> (
 
 #[test]
 fn test_swap_no_position_updates() {
-    let (market_manager, base_token, quote_token, market_id, strategy) = before(10);
-
-    let curr_sqrt_price = market_manager.market_state(market_id).curr_sqrt_price;
-    let mut is_buy = false;
-    let exact_input = true;
-    let amount = 100;
-    let sqrt_price = Option::Some(curr_sqrt_price - 1000);
-    let threshold_amount = Option::Some(0);
-
-    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
-    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
-    let mut swap_params = swap_params(
-        strategy.contract_address, market_id, is_buy, exact_input, amount, sqrt_price, threshold_amount, Option::None,
-    );
-
-    'test start'.print();
-    swap(market_manager, swap_params);
-    'test end'.print();
-}
-
-#[test]
-fn test_two_swap_iteration() {
     let (market_manager, base_token, quote_token, market_id, strategy) = before(1);
 
     let curr_sqrt_price = market_manager.market_state(market_id).curr_sqrt_price;
-    let mut is_buy = false;
+    let mut is_buy = true;
     let exact_input = true;
     let amount = 100;
+    let sqrt_price = Option::Some(curr_sqrt_price + 1000);
+    let threshold_amount = Option::Some(0);
+
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    let mut swap_params = swap_params(
+        strategy.contract_address, market_id, is_buy, exact_input, amount, sqrt_price, threshold_amount, Option::None,
+    );
+
+    'test start'.print();
+    swap(market_manager, swap_params);
+    '(SSNP) test end'.print();
+}
+
+#[test]
+fn test_swap_one_position_update() {
+    let (market_manager, base_token, quote_token, market_id, strategy) = before(1);
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    strategy.set_positions(OFFSET - MIN_LIMIT, OFFSET - 1, 0, 0);
+    strategy.deposit(to_e18(100000000), 0);
+    stop_prank(CheatTarget::One(strategy.contract_address));
+
+    let curr_sqrt_price = market_manager.market_state(market_id).curr_sqrt_price;
+    let mut is_buy = true;
+    let exact_input = true;
+    let amount = 100;
+    let sqrt_price = Option::Some(curr_sqrt_price + 1000);
+    let threshold_amount = Option::Some(0);
+
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    let mut swap_params = swap_params(
+        strategy.contract_address, market_id, is_buy, exact_input, amount, sqrt_price, threshold_amount, Option::None,
+    );
+
+    'test start'.print();
+    swap(market_manager, swap_params);
+    '(SSOP) test end'.print();
+}
+
+#[test]
+fn test_swap_both_position_update() {
+    let (market_manager, base_token, quote_token, market_id, strategy) = before(1);
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    strategy.set_positions(OFFSET - MIN_LIMIT, OFFSET - 1, OFFSET + 1, OFFSET + MAX_LIMIT);
+    strategy.deposit(to_e18(100000000), to_e18(100000000));
+    stop_prank(CheatTarget::One(strategy.contract_address));
+
+    let curr_sqrt_price = market_manager.market_state(market_id).curr_sqrt_price;
+    let mut is_buy = false;
+    let exact_input = true;
+    let amount = 1000;
     let sqrt_price = Option::Some(curr_sqrt_price - 1000);
     let threshold_amount = Option::Some(0);
 
@@ -151,5 +193,5 @@ fn test_two_swap_iteration() {
 
     'test start'.print();
     swap(market_manager, swap_params);
-    'test end'.print();
+    '(SSBP) test end'.print();
 }

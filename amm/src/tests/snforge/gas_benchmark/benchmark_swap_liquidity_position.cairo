@@ -28,7 +28,7 @@ use snforge_std::{
 };
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
-fn before(width: u32) -> (
+fn before(width: u32, start_limit: u32) -> (
     IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252
 ) {
     // Get default owner.
@@ -49,12 +49,12 @@ fn before(width: u32) -> (
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
     params.width = width;
-    params.start_limit = OFFSET - 230260; // initial limit
+    params.start_limit = start_limit; // initial limit
     let market_id = create_market(market_manager, params);
 
     // Fund LPs with initial token balances and approve market manager as spender.
-    let initial_base_amount = to_e28(500000);
-    let initial_quote_amount = to_e28(10000000);
+    let initial_base_amount = to_e28(5000000000000000000);
+    let initial_quote_amount = to_e28(1000000000000000000000);
     fund(base_token, alice(), initial_base_amount);
     fund(quote_token, alice(), initial_quote_amount);
     fund(base_token, owner(), initial_base_amount);
@@ -64,8 +64,19 @@ fn before(width: u32) -> (
     approve(base_token, owner(), market_manager.contract_address, initial_base_amount);
     approve(quote_token, owner(), market_manager.contract_address, initial_quote_amount);
 
-    let lower_limit = 0;
-    let upper_limit = 1000000;
+    (market_manager, base_token, quote_token, market_id)
+}
+
+////////////////////////////////
+// TESTS
+////////////////////////////////
+
+#[test]
+fn test_swap_zero_liquidity_no_limit_crossed() {
+    let (market_manager, base_token, quote_token, market_id) = before(10, 10);
+
+    let lower_limit = 20;
+    let upper_limit = 30;
     let liquidity = I256Trait::new(to_e18(100000), false);
 
     let mut params = modify_position_params(
@@ -75,55 +86,170 @@ fn before(width: u32) -> (
         upper_limit,
         liquidity
     );
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    start_prank(CheatTarget::One(market_manager.contract_address), owner());
     market_manager
         .modify_position(
             params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
         );
     stop_prank(CheatTarget::One(market_manager.contract_address));
-    (market_manager, base_token, quote_token, market_id)
+
+    let curr_sqrt_price = market_manager.market_state(market_id).curr_sqrt_price;
+    let mut is_buy = true;
+    let exact_input = true;
+    let amount = 5;
+    let sqrt_price = Option::Some(curr_sqrt_price + 1000);
+
+    let mut swap_params = swap_params(
+        alice(), market_id, is_buy, exact_input, amount, sqrt_price, Option::None, Option::None,
+    );
+
+    'test start'.print();
+    swap(market_manager, swap_params);
+    '(SPZN) test end'.print();
 }
 
-////////////////////////////////
-// TESTS
-////////////////////////////////
+#[test]
+fn test_swap_high_liquidity_no_limit_crossed() {
+    let (market_manager, base_token, quote_token, market_id) = before(10, 10);
+
+    let lower_limit = 0;
+    let upper_limit = 1000;
+    let liquidity = I256Trait::new(to_e18(100000), false);
+
+    let mut params = modify_position_params(
+        alice(),
+        market_id,
+        lower_limit,
+        upper_limit,
+        liquidity
+    );
+    start_prank(CheatTarget::One(market_manager.contract_address), owner());
+    market_manager
+        .modify_position(
+            params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
+        );
+    stop_prank(CheatTarget::One(market_manager.contract_address));
+
+    let curr_sqrt_price = market_manager.market_state(market_id).curr_sqrt_price;
+    let mut is_buy = true;
+    let exact_input = true;
+    let amount = 10;
+
+    let mut swap_params = swap_params(
+        alice(), market_id, is_buy, exact_input, amount, Option::None, Option::None, Option::None,
+    );
+
+    'test start'.print();
+    swap(market_manager, swap_params);
+    '(SPHN) test end'.print();
+}
 
 #[test]
-fn test_swap_no_limit_crossed() {
-    let (market_manager, base_token, quote_token, market_id) = before(10);
+fn test_swap_zero_liquidity_one_limit_crossed() {
+    let (market_manager, base_token, quote_token, market_id) = before(10, 10);
+
+    let lower_limit = 20;
+    let upper_limit = 1000;
+    let liquidity = I256Trait::new(to_e18(100000), false);
+
+    let mut params = modify_position_params(
+        alice(),
+        market_id,
+        lower_limit,
+        upper_limit,
+        liquidity
+    );
+    start_prank(CheatTarget::One(market_manager.contract_address), owner());
+    market_manager
+        .modify_position(
+            params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
+        );
+    stop_prank(CheatTarget::One(market_manager.contract_address));
+
+    let curr_sqrt_price = market_manager.market_state(market_id).curr_sqrt_price;
+    let mut is_buy = true;
+    let exact_input = true;
+    let amount = 10;
+
+    let mut swap_params = swap_params(
+        alice(), market_id, is_buy, exact_input, amount, Option::None, Option::None, Option::None,
+    );
+
+    'test start'.print();
+    swap(market_manager, swap_params);
+    '(SPZ1) test end'.print();
+}
+
+#[test]
+fn test_swap_high_liquidity_one_limit_crossed() {
+    let (market_manager, base_token, quote_token, market_id) = before(1, 10000);
+
+    let lower_limit = 0;
+    let upper_limit = 10000;
+    let liquidity = I256Trait::new(to_e18(1000000000), false);
+
+    let mut params = modify_position_params(
+        alice(),
+        market_id,
+        lower_limit,
+        upper_limit,
+        liquidity
+    );
+    start_prank(CheatTarget::One(market_manager.contract_address), owner());
+    market_manager
+        .modify_position(
+            params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
+        );
+    stop_prank(CheatTarget::One(market_manager.contract_address));
 
     let curr_sqrt_price = market_manager.market_state(market_id).curr_sqrt_price;
     let mut is_buy = false;
     let exact_input = true;
     let amount = 100;
     let sqrt_price = Option::Some(curr_sqrt_price - 1000);
-    let threshold_amount = Option::Some(0);
 
     let mut swap_params = swap_params(
-        alice(), market_id, is_buy, exact_input, amount, sqrt_price, threshold_amount, Option::None,
+        alice(), market_id, is_buy, exact_input, amount, sqrt_price, Option::None, Option::None,
     );
 
     'test start'.print();
     swap(market_manager, swap_params);
-    'test end'.print();
+    '(SPH1) test end'.print();
 }
 
+// WIP: trying to cross four limits
 #[test]
-fn test_swap_one_limit_crossed() {
-    let (market_manager, base_token, quote_token, market_id) = before(1);
+fn test_swap_high_liquidity_four_limit_crossed() {
+    let (market_manager, base_token, quote_token, market_id) = before(1, 10000);
+
+    let lower_limit = 0;
+    let upper_limit = 10000;
+    let liquidity = I256Trait::new(to_e18(1000000000000000000000), false);
+
+    let mut params = modify_position_params(
+        alice(),
+        market_id,
+        lower_limit,
+        upper_limit,
+        liquidity
+    );
+    start_prank(CheatTarget::One(market_manager.contract_address), owner());
+    market_manager
+        .modify_position(
+            params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
+        );
+    stop_prank(CheatTarget::One(market_manager.contract_address));
 
     let curr_sqrt_price = market_manager.market_state(market_id).curr_sqrt_price;
     let mut is_buy = false;
     let exact_input = true;
-    let amount = 100;
-    let sqrt_price = Option::Some(curr_sqrt_price - 1000);
-    let threshold_amount = Option::Some(0);
+    let amount = to_e18(100000000000);
 
     let mut swap_params = swap_params(
-        alice(), market_id, is_buy, exact_input, amount, sqrt_price, threshold_amount, Option::None,
+        alice(), market_id, is_buy, exact_input, amount, Option::None, Option::None, Option::None,
     );
 
     'test start'.print();
     swap(market_manager, swap_params);
-    'test end'.print();
+    '(SPH1) test end'.print();
 }
