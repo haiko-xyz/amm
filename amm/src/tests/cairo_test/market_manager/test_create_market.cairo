@@ -127,7 +127,7 @@ fn test_create_market_max_start_limit_less_1_width_10() {
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
     params.width = 10;
-    params.start_limit = OFFSET + 8388590;
+    params.start_limit = OFFSET + 7906610;
     create_market(market_manager, params);
 }
 

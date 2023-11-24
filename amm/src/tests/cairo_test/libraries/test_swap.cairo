@@ -1,5 +1,7 @@
+use integer::BoundedU256;
+
 use amm::libraries::math::fee_math::gross_to_net;
-use amm::libraries::constants::{MAX, ONE};
+use amm::libraries::constants::ONE;
 use amm::libraries::swap::{compute_swap_amounts, next_sqrt_price_input, next_sqrt_price_output};
 use amm::tests::common::utils::encode_sqrt_price;
 use amm::tests::common::utils::to_e28;
@@ -228,19 +230,23 @@ fn test_compute_swap_amounts_sell_exact_output_intermediate_insufficient_liquidi
 #[test]
 #[available_gas(2000000000)]
 fn test_next_sqrt_price_in_cases() {
-    assert(next_sqrt_price_input(1, 1, MAX, false) == 1, 'next_sqrt_price_in_amt_max');
-    assert(next_sqrt_price_input(256, 100, 0, false) == 256, 'next_sqrt_price_in_buy_amt_0');
-    assert(next_sqrt_price_input(256, 100, 0, true) == 256, 'next_sqrt_price_in_sell_amt_0');
-    assert(next_sqrt_price_input(MAX, MAX, MAX, false) == ONE, 'next_sqrt_price_in_sell_all_max');
+    let max = BoundedU256::max();
+    assert(next_sqrt_price_input(1, 1, max - 1, false) == 1, 'next_sqrt_price_in amt max');
+    assert(next_sqrt_price_input(256, 100, 0, false) == 256, 'next_sqrt_price_in buy amt 0');
+    assert(next_sqrt_price_input(256, 100, 0, true) == 256, 'next_sqrt_price_in sell amt_0');
+    assert(
+        next_sqrt_price_input(max - ONE, max - ONE, max - ONE, false) == ONE,
+        'next_sqrt_price_in all MAX-ONE'
+    );
     assert(
         next_sqrt_price_input(ONE, ONE, ONE / 10, true) == 11000000000000000000000000000,
-        'next_sqrt_price_in_buy_amt_0.1'
+        'next_sqrt_price_in buy amt 0.1'
     );
     assert(
         next_sqrt_price_input(ONE, ONE, ONE / 10, false) == 9090909090909090909090909091,
-        'next_sqrt_price_in_sell_amt_0.1'
+        'next_sqrt_price_in sell amt 0.1'
     );
-    assert(next_sqrt_price_input(ONE, 1, MAX / 2, false) == 1, 'next_sqrt_price_in_sell_rtns_1');
+    assert(next_sqrt_price_input(ONE, 1, max / 2, false) == 1, 'next_sqrt_price_in sell rtns 1');
 }
 
 #[test]
@@ -258,10 +264,10 @@ fn test_next_sqrt_price_in_liq_0() {
 }
 
 #[test]
-#[should_panic(expected: ('PriceOverflow',))]
+#[should_panic(expected: ('u256_add Overflow',))]
 #[available_gas(2000000000)]
 fn test_next_sqrt_price_in_price_overflow() {
-    next_sqrt_price_input(MAX, 1, 1, true);
+    next_sqrt_price_input(BoundedU256::max(), 1, 1, true);
 }
 
 /////////////////////////////////////
@@ -305,14 +311,14 @@ fn test_next_sqrt_price_out_liq_0() {
 #[should_panic(expected: ('PriceOverflow',))]
 #[available_gas(2000000000)]
 fn test_next_sqrt_price_out_buy_price_overflow() {
-    next_sqrt_price_output(ONE, 1, MAX, true);
+    next_sqrt_price_output(ONE, 1, BoundedU256::max(), true);
 }
 
 #[test]
 #[should_panic(expected: ('MulDivOverflow',))]
 #[available_gas(2000000000)]
 fn test_next_sqrt_price_out_sell_price_overflow() {
-    next_sqrt_price_output(ONE, 1, MAX, false);
+    next_sqrt_price_output(ONE, 1, BoundedU256::max(), false);
 }
 
 #[test]

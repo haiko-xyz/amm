@@ -3,7 +3,7 @@ import { PRECISION, ROUNDING } from "../../config"
 import { computeSwapAmount, nextSqrtPriceAmountIn, nextSqrtPriceAmountOut } from "../../libraries/swap"
 import { limitToSqrtPrice, shiftLimit } from "../../math/priceMath"
 import { maxLiquidityPerLimit } from "../../libraries/liquidity"
-import { OFFSET } from "../../constants"
+import { MAX_SCALED, OFFSET } from "../../constants"
 
 type SwapCase = {
   isBuy: boolean
@@ -89,25 +89,25 @@ const swapCases: SwapCase[] = [
   {
     isBuy: true,
     exactInput: true,
-    amount: "36185027886661312136973227830.95070105526743751716087489154079457884512865583",
+    amount: MAX_SCALED,
     thresholdSqrtPrice: new Decimal(5).div(2).sqrt(),
   },
   {
     isBuy: false,
     exactInput: true,
-    amount: "36185027886661312136973227830.95070105526743751716087489154079457884512865583",
+    amount: MAX_SCALED,
     thresholdSqrtPrice: new Decimal(2).div(5).sqrt(),
   },
   {
     isBuy: true,
     exactInput: false,
-    amount: "36185027886661312136973227830.95070105526743751716087489154079457884512865583",
+    amount: MAX_SCALED,
     thresholdSqrtPrice: new Decimal(5).div(2).sqrt(),
   },
   {
     isBuy: false,
     exactInput: false,
-    amount: "36185027886661312136973227830.95070105526743751716087489154079457884512865583",
+    amount: MAX_SCALED,
     thresholdSqrtPrice: new Decimal(2).div(5).sqrt(),
   },
 ]
@@ -216,11 +216,11 @@ const marketCasesComplex = [
     startLiquidity: "0",
     liquidityMapBuy: {
       "10": "20000000000",
-      "8388600": "0",
+      "7906620": "0",
     },
     liquidityMapSell: {
       "-10": "20000000000",
-      "-8388600": "0",
+      "-7906620": "0",
     },
   },
   {
@@ -230,11 +230,11 @@ const marketCasesComplex = [
     startLiquidity: "20000000000",
     liquidityMapBuy: {
       "10": "40000000000",
-      "8388600": "0",
+      "7906620": "0",
     },
     liquidityMapSell: {
       "-10": "40000000000",
-      "-8388600": "0",
+      "-7906620": "0",
     },
   },
   {
@@ -255,7 +255,7 @@ const marketCasesComplex = [
     startLimit: shiftLimit(10, 10), // set above 0 to set startLiquidity at 0
     startLiquidity: "0",
     liquidityMapBuy: {
-      "8388600": "0",
+      "7906620": "0",
     },
     liquidityMapSell: {
       "0": "200000000000",
@@ -272,43 +272,43 @@ const marketCasesComplex = [
       "20000": "0",
     },
     liquidityMapSell: {
-      "-8388600": "0",
+      "-7906620": "0",
     },
   },
   {
     swapFeeRate: 0.0025,
     width: 10,
-    startLimit: shiftLimit(8388500, 10),
+    startLimit: shiftLimit(7906500, 10),
     startLiquidity: "20000000000",
     liquidityMapBuy: {
-      "8388600": "0",
+      "7906620": "0",
     },
     liquidityMapSell: {
-      "-8388600": "0",
+      "-7906620": "0",
     },
   },
   {
     swapFeeRate: 0.0025,
     width: 10,
-    startLimit: shiftLimit(-8388500, 10),
+    startLimit: shiftLimit(-7906500, 10),
     startLiquidity: "20000000000",
     liquidityMapBuy: {
-      "8388600": "0",
+      "7906620": "0",
     },
     liquidityMapSell: {
-      "-8388600": "0",
+      "-7906620": "0",
     },
   },
   {
     swapFeeRate: 0.0025,
     width: 10,
     startLimit: shiftLimit(0, 10),
-    startLiquidity: maxLiquidityPerLimit(10).mul(1e10).toFixed(),
+    startLiquidity: maxLiquidityPerLimit(10).toFixed(),
     liquidityMapBuy: {
-      "8388600": "0",
+      "7906620": "0",
     },
     liquidityMapSell: {
-      "-8388600": "0",
+      "-7906620": "0",
     },
   },
 ]

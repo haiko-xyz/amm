@@ -72,13 +72,13 @@ const testModifyPositionWrapsCurrPrice = () => {
       liquidity: "50000",
     },
     {
-      lowerLimit: -8388608,
-      upperLimit: 8388607,
+      lowerLimit: -7906625,
+      upperLimit: 7906625,
       liquidity: "50000",
     },
     {
-      lowerLimit: -8388608,
-      upperLimit: 8388607,
+      lowerLimit: -7906625,
+      upperLimit: 7906625,
       liquidity: "-50000",
     },
   ]
@@ -99,8 +99,8 @@ const testModifyPositionBelowCurrPrice = () => {
       liquidity: "15000",
     },
     {
-      lowerLimit: -8388608,
-      upperLimit: -8388607,
+      lowerLimit: -7906625,
+      upperLimit: -7906624,
       liquidity: "100000000000000000000000000000",
     },
     {
@@ -109,8 +109,8 @@ const testModifyPositionBelowCurrPrice = () => {
       liquidity: "-35000",
     },
     {
-      lowerLimit: -8388608,
-      upperLimit: -8388607,
+      lowerLimit: -7906625,
+      upperLimit: -7906624,
       liquidity: "-40000000000000000000000000000",
     },
   ]
