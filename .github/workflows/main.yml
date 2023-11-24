@@ -25,7 +25,7 @@ jobs:
           curl -L https://raw.githubusercontent.com/foundry-rs/starknet-foundry/master/scripts/install.sh | sh -s -- -v ${{ env.SNFORGE_VERSION }}
 
       - name: Add Foundry to PATH
-        run: echo "/home/runner/.local/bin:$PATH" >> $GITHUB_ENV
+        run: echo "PATH=/home/runner/.local/bin:$PATH" >> $GITHUB_ENV
 
       - name: Build and test `amm`
         working-directory: ./amm
