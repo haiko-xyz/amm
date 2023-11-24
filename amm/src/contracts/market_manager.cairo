@@ -1466,7 +1466,9 @@ mod MarketManager {
 
             // Check inputs.
             assert(market_info.quote_token.is_non_zero(), 'MarketNull');
-            limit_prices::check_limits(lower_limit, upper_limit, market_info.width, valid_limits);
+            limit_prices::check_limits(
+                lower_limit, upper_limit, market_info.width, valid_limits, liquidity_delta.sign
+            );
 
             // Update liquidity (without transferring tokens).
             let (base_amount, quote_amount, base_fees, quote_fees) =

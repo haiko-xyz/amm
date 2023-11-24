@@ -15,16 +15,21 @@ use amm::libraries::constants::{MAX_SQRT_PRICE, MIN_SQRT_PRICE};
 // * `upper_limit` - upper limit (shifted)
 // * `width` - market width
 // * `is_concentrated` - whether the pool allows concentrated liquidity positions
-fn check_limits(lower_limit: u32, upper_limit: u32, width: u32, valid: ValidLimits) {
+// * `is_remove` - whether liquidity is being removed
+fn check_limits(
+    lower_limit: u32, upper_limit: u32, width: u32, valid: ValidLimits, is_remove: bool
+) {
     let max_limit = price_math::max_limit(width);
     assert(lower_limit < upper_limit, 'LimitsUnordered');
     assert(lower_limit % width == 0 && upper_limit % width == 0, 'NotMultipleOfWidth');
 
-    // If the valid limits struct has not been initialised, just perform the default range checks.
-    if valid.min_lower == 0
-        && valid.max_lower == 0
-        && valid.min_upper == 0
-        && valid.max_upper == 0 {
+    // If the valid limits struct has not been initialised, or we are removing liquidity, 
+    // just perform the default range checks.
+    if is_remove
+        || (valid.min_lower == 0
+            && valid.max_lower == 0
+            && valid.min_upper == 0
+            && valid.max_upper == 0) {
         assert(upper_limit <= max_limit, 'UpperLimitOverflow');
     } else {
         assert(
