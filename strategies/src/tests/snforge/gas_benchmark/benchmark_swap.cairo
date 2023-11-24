@@ -4,7 +4,9 @@ use starknet::ContractAddress;
 use dict::{Felt252Dict, Felt252DictTrait};
 
 // Local imports.
-use amm::libraries::constants::{MAX, OFFSET, MAX_LIMIT};
+use amm::libraries::constants::{
+    OFFSET, MIN_LIMIT, MIN_SQRT_PRICE, MAX_SQRT_PRICE, MAX, MAX_NUM_LIMITS, MAX_LIMIT
+};
 use amm::libraries::math::fee_math;
 use amm::types::core::{SwapParams, PositionInfo};
 use amm::libraries::id;
@@ -14,10 +16,13 @@ use amm::types::i256::{i256, I256Trait, I256Zeroable};
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
     use amm::interfaces::IStrategy::{IStrategyDispatcher, IStrategyDispatcherTrait};
 use strategies::strategies::replicating::{
-    replicating_strategy::{IReplicatingStrategyDispatcher, IReplicatingStrategyDispatcherTrait},
     pragma_interfaces::{DataType, PragmaPricesResponse},
     mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait}
 };
+use strategies::strategies::test::manual_strategy::{
+    ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
+};
+use strategies::tests::snforge::helpers::strategy::{deploy_strategy, initialise_strategy};
 use amm::tests::snforge::helpers::{
     market_manager::{deploy_market_manager, create_market, modify_position, swap, swap_multiple},
     token::{declare_token, deploy_token, fund, approve},
@@ -27,9 +32,6 @@ use amm::tests::common::params::{
     swap_params, swap_multiple_params, default_token_params
 };
 use amm::tests::common::utils::{to_e28, to_e18, approx_eq};
-use strategies::tests::snforge::replicating::helpers::{
-    deploy_replicating_strategy, deploy_mock_pragma_oracle
-};
 
 // External imports.
 use snforge_std::{
@@ -38,7 +40,7 @@ use snforge_std::{
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 fn before(width: u32) -> (
-    IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252, IReplicatingStrategyDispatcher
+    IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252, IManualStrategyDispatcher
 ) {
     // Get default owner.
     let owner = owner();
@@ -53,7 +55,7 @@ fn before(width: u32) -> (
     let base_token = deploy_token(erc20_class, base_token_params);
     let quote_token = deploy_token(erc20_class, quote_token_params);
 
-    let strategy = deploy_replicating_strategy(owner());
+    let strategy = deploy_strategy(owner());
 
     // Create market.
     let mut params = default_market_params();
@@ -86,28 +88,19 @@ fn before(width: u32) -> (
     approve(base_token, strategy.contract_address, market_manager.contract_address, base_amount);
     approve(quote_token, strategy.contract_address, market_manager.contract_address, quote_amount);
 
-    let oracle = deploy_mock_pragma_oracle(owner);
     start_prank(CheatTarget::One(strategy.contract_address), owner());
-    strategy
-        .initialise(
-            'ETH-USDC Replicating 1 0.3%',
-            'ETH-USDC REPL-1-0.3%',
-            market_manager.contract_address,
-            market_id,
-            oracle.contract_address,
-            'ETH/USD',
-            'USDC/USD',
-            100000000000000000000, // 10^20 = 10^28 / 10^8
-            10, // ~0.01% min spread
-            20000, // ~20% slippage
-            200, // ~0.2% delta
-        );
+    // Initialise strategy.
+    initialise_strategy(
+        strategy,
+        owner(),
+        'ETH-USDC Manual 1 0.3%',
+        'ETH-USDC MANU-1-0.3%',
+        market_manager.contract_address,
+        market_id
+    );
 
-    // Set initial oracle price.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 100000000); // 1
-
-    // Deposit initial to strategy.
-    strategy.deposit_initial(to_e18(50000), to_e18(50000));
+    // Deposit initial to strategy.    
+    strategy.deposit(to_e18(100000000), to_e18(1125000000000));
     stop_prank(CheatTarget::One(strategy.contract_address));
     
     (market_manager, base_token, quote_token, market_id, strategy)
@@ -118,7 +111,7 @@ fn before(width: u32) -> (
 ////////////////////////////////
 
 #[test]
-fn test_single_swap_iteration() {
+fn test_swap_no_position_updates() {
     let (market_manager, base_token, quote_token, market_id, strategy) = before(10);
 
     let curr_sqrt_price = market_manager.market_state(market_id).curr_sqrt_price;

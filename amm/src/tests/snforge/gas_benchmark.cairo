@@ -3,3 +3,4 @@ mod benchmark_create_market;
 mod benchmark_create_order;
 mod benchmark_collect_order;
 mod benchmark_swap_liquidity_position;
+mod benchmark_swap_limit_order;
