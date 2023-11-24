@@ -5,7 +5,7 @@ use starknet::deploy_syscall;
 
 // Local imports.
 use amm::libraries::constants::{
-    OFFSET, MIN_LIMIT, MIN_SQRT_PRICE, MAX_SQRT_PRICE, MAX, MAX_NUM_LIMITS, MAX_LIMIT
+    OFFSET, MIN_LIMIT, MIN_SQRT_PRICE, MAX_SQRT_PRICE, MAX_NUM_LIMITS, MAX_LIMIT
 };
 use amm::libraries::math::fee_math;
 use amm::types::core::SwapParams;

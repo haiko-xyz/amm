@@ -7,7 +7,7 @@ use debug::PrintTrait;
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
 use amm::libraries::math::price_math;
-use amm::libraries::constants::{MAX, OFFSET, MAX_LIMIT, MIN_LIMIT, MAX_LIMIT_SHIFTED};
+use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT, MAX_LIMIT_SHIFTED};
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::types::core::{LimitInfo, MarketConfigs, Config, ConfigOption};
@@ -159,7 +159,7 @@ fn test_modify_position_above_curr_price_cases() {
     lower_limit = OFFSET + MAX_LIMIT - 1;
     upper_limit = OFFSET + MAX_LIMIT;
     liquidity = I256Trait::new(100000000000000000000000000000, false);
-    base_exp = I256Trait::new(304391, false);
+    base_exp = I256Trait::new(3388729, false);
     quote_exp = I256Trait::new(0, false);
     _modify_position_and_run_checks(
         market_manager,
@@ -368,7 +368,7 @@ fn test_modify_position_below_curr_price_cases() {
     upper_limit = OFFSET - MIN_LIMIT + 1;
     liquidity = I256Trait::new(100000000000000000000000000000, false);
     base_exp = I256Trait::new(0, false);
-    quote_exp = I256Trait::new(304390, false);
+    quote_exp = I256Trait::new(3388729, false);
     _modify_position_and_run_checks(
         market_manager,
         market_id,
@@ -421,7 +421,7 @@ fn test_modify_position_below_curr_price_cases() {
     upper_limit = OFFSET - MIN_LIMIT + 1;
     liquidity = I256Trait::new(40000000000000000000000000000, true);
     base_exp = I256Trait::new(0, false);
-    quote_exp = I256Trait::new(121755, true);
+    quote_exp = I256Trait::new(1355491, true);
     _modify_position_and_run_checks(
         market_manager,
         market_id,
@@ -812,20 +812,6 @@ fn test_modify_position_upper_limit_overflow() {
 
 #[test]
 #[available_gas(100000000)]
-#[should_panic(expected: ('LiqDeltaOverflow', 'ENTRYPOINT_FAILED',))]
-fn test_modify_position_delta_overflow() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
-
-    // Create position
-    let lower_limit = OFFSET + 1235;
-    let upper_limit = OFFSET + 2500;
-    let liquidity = I256Trait::new(MAX + 1, false);
-    let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
-    modify_position(market_manager, params);
-}
-
-#[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('LimitLiqOverflow', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_liq_at_limit_overflow_width_1() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
@@ -834,7 +820,7 @@ fn test_modify_position_liq_at_limit_overflow_width_1() {
     let lower_limit = OFFSET + 1235;
     let upper_limit = OFFSET + 2500;
     let liquidity = I256Trait::new(
-        215679599048216897853083520487672751001849517548985635466894530753707, false
+        7322472098704826441038024692625691444047146577616491639793587290046376, false
     );
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
@@ -847,10 +833,10 @@ fn test_modify_position_liq_at_limit_overflow_width_25() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 25);
 
     // Create position
-    let lower_limit = 8388575;
-    let upper_limit = 8388600;
+    let lower_limit = price_math::offset(25) - 25;
+    let upper_limit = price_math::offset(25);
     let liquidity = I256Trait::new(
-        5391986440943200102664956187771026056941394884607090101542536769168491, false
+        183061524632494210439600565045330438908559398141182904931865132314326302, false
     );
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
@@ -863,8 +849,8 @@ fn test_modify_position_remove_more_than_position() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 25);
 
     // Create position
-    let lower_limit = 8388575;
-    let upper_limit = 8388600;
+    let lower_limit = price_math::offset(25) - 25;
+    let upper_limit = price_math::offset(25);
     let mut liquidity = I256Trait::new(1000000000, false);
     let mut params = modify_position_params(
         alice(), market_id, lower_limit, upper_limit, liquidity
@@ -884,8 +870,8 @@ fn test_modify_position_in_positions_disabled_market() {
     let (market_manager, base_token, quote_token, market_id) = before_no_positions();
 
     // Create position
-    let lower_limit = 8388575;
-    let upper_limit = 8388600;
+    let lower_limit = OFFSET - 25;
+    let upper_limit = OFFSET;
     let liquidity = I256Trait::new(100, false);
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
@@ -898,8 +884,8 @@ fn test_modify_position_concentrated_in_linear_market() {
     let (market_manager, base_token, quote_token, market_id) = before_linear();
 
     // Create position
-    let lower_limit = 8388575;
-    let upper_limit = 8388600;
+    let lower_limit = OFFSET - 25;
+    let upper_limit = OFFSET;
     let liquidity = I256Trait::new(100, false);
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);

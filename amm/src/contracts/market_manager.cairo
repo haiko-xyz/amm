@@ -23,7 +23,7 @@ mod MarketManager {
         order as order_helpers
     };
     use amm::libraries::math::{math, price_math, fee_math, liquidity_math};
-    use amm::libraries::constants::{ONE, MAX, MAX_WIDTH, MAX_LIMIT_SHIFTED};
+    use amm::libraries::constants::{ONE, MAX_WIDTH, MAX_LIMIT_SHIFTED};
     use amm::interfaces::IMarketManager::IMarketManager;
     use amm::interfaces::IStrategy::{IStrategyDispatcher, IStrategyDispatcherTrait};
     use amm::interfaces::IFeeController::{IFeeControllerDispatcher, IFeeControllerDispatcherTrait};
@@ -90,11 +90,11 @@ mod MarketManager {
         swap_id: u128,
         // Bitmap of initialised limits arranged as 3-level tree.
         // Indexed by market_id
-        limit_tree_l0: LegacyMap::<felt252, u256>,
+        limit_tree_l0: LegacyMap::<felt252, felt252>,
         // Indexed by (market_id: felt252, seg_index_l1: u32)
-        limit_tree_l1: LegacyMap::<(felt252, u32), u256>,
+        limit_tree_l1: LegacyMap::<(felt252, u32), felt252>,
         // Indexed by (market_id: felt252, seg_index_l2: u32)
-        limit_tree_l2: LegacyMap::<(felt252, u32), u256>,
+        limit_tree_l2: LegacyMap::<(felt252, u32), felt252>,
         #[substorage(v0)]
         erc721: ERC721Component::Storage,
         #[substorage(v0)]
@@ -1629,7 +1629,6 @@ mod MarketManager {
 
             // Check inputs.
             assert(market_info.quote_token.is_non_zero(), 'MarketNull');
-            assert(liquidity_delta.val <= MAX, 'LiqDeltaOverflow');
             limit_prices::check_limits(lower_limit, upper_limit, market_info.width, valid_limits);
 
             'MP: input checks'.print();
