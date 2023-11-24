@@ -53,15 +53,19 @@ fn swap_iter(
     is_buy: bool,
     exact_input: bool,
 ) -> Option<PartialFillInfo> {
+    // Checkpoint: gas used in creating snapshot
+    let mut gas_before = testing::get_available_gas();
+    let total_gas_before = testing::get_available_gas();
+
     // Break loop if amount remaining filled or price threshold reached. 
     if amount_rem == 0
         || (threshold_sqrt_price.is_some()
             && market_state.curr_sqrt_price == threshold_sqrt_price.unwrap()) {
+        's_itr in one itr [T]'.print();
+        (total_gas_before - testing::get_available_gas()).print(); 
         return Option::None(());
     }
 
-    // Checkpoint: gas used in creating snapshot
-    let mut gas_before = testing::get_available_gas();
     // Snapshot starting state (used below).
     let start_sqrt_price = market_state.curr_sqrt_price;
     let start_limit = market_state.curr_limit;
@@ -79,13 +83,15 @@ fn swap_iter(
     (gas_before - testing::get_available_gas()).print(); 
     // Checkpoint End
 
+    // Checkpoint: gas used in min operation
+    gas_before = testing::get_available_gas();
     // If running out of liquidity, we stop the swap execution.
     if target_limit_opt.is_none() {
+        's_itr in one itr [T]'.print();
+        (total_gas_before - testing::get_available_gas()).print(); 
         return Option::None(());
     }
     // assert(target_limit_opt.is_some(), 'NoLiquidity');
-    // Checkpoint: gas used in min operation
-    gas_before = testing::get_available_gas();
     let target_limit = min(target_limit_opt.unwrap(), price_math::max_limit(width));
     's_itr min operation'.print();
     (gas_before - testing::get_available_gas()).print(); 
@@ -119,10 +125,12 @@ fn swap_iter(
         fee_rate,
         exact_input,
     );
-    's_itr compute_swap_amounts 5'.print();
+    's_itr compute_swap_amounts'.print();
     (gas_before - testing::get_available_gas()).print(); 
     // Checkpoint End
 
+    // Checkpoint: gas used in calculateing amount rem
+    gas_before = testing::get_available_gas();
     market_state.curr_sqrt_price = next_sqrt_price;
 
     // Update amount remaining and amount calc.
@@ -134,18 +142,23 @@ fn swap_iter(
         amount_rem -= min(amount_out_iter, amount_rem);
         amount_calc += amount_in_iter + fee_iter;
     }
+    's_itr calc amount_rem'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // Checkpoint End
 
     // Checkpoint: gas used in calc_fee function
     gas_before = testing::get_available_gas();
     // Calculate protocol fees and update swap fee balance.
     let protocol_fee_iter = fee_math::calc_fee(fee_iter, market_state.protocol_share);
-    's_itr calc_fee 6'.print();
-    (gas_before - testing::get_available_gas()).print(); 
-    // Checkpoint End
 
     protocol_fees += protocol_fee_iter;
     swap_fees += fee_iter - protocol_fee_iter;
+    's_itr calc_fee'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // Checkpoint End
 
+    // Checkpoint: gas used in upadting fee factor
+    gas_before = testing::get_available_gas();
     // Update fee factor.
     if market_state.liquidity != 0 && fee_iter != 0 {
         let fee_factor = math::mul_div(
@@ -157,6 +170,9 @@ fn swap_iter(
             market_state.base_fee_factor += fee_factor;
         }
     }
+    's_itr update fee factor'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // Checkpoint End
 
     // Move to the next iteration if price target reached.
     if market_state.curr_sqrt_price == uncapped_target_sqrt_price {
@@ -170,7 +186,7 @@ fn swap_iter(
                 filled_limits.append(target_limit);
             };
         }
-        's_itr update limits 7'.print();
+        's_itr update limits'.print();
         (gas_before - testing::get_available_gas()).print(); 
         // Checkpoint End
         
@@ -188,26 +204,34 @@ fn swap_iter(
         limit_info.base_fee_factor = market_state.base_fee_factor - limit_info.base_fee_factor;
         limit_info.quote_fee_factor = market_state.quote_fee_factor - limit_info.quote_fee_factor;
         self.limit_info.write((market_id, target_limit), limit_info);
-        's_itr update fee factors 8'.print();
+        's_itr update fee factors'.print();
         (gas_before - testing::get_available_gas()).print(); 
         // Checkpoint End
 
+        // Checkpoint: gas used in add_delta execution
+        gas_before = testing::get_available_gas();
         // Apply liquidity deltas.
         let mut liquidity_delta = limit_info.liquidity_delta;
         if !is_buy {
             liquidity_delta.sign = !liquidity_delta.sign;
         }
-        // Checkpoint: gas used in add_delta execution
-        gas_before = testing::get_available_gas();
         liquidity_math::add_delta(ref market_state.liquidity, liquidity_delta);
-        's_itr update add_delta 9'.print();
+        's_itr update add_delta'.print();
         (gas_before - testing::get_available_gas()).print(); 
         // Checkpoint End
 
+        // Checkpoint: gas used in checking edge case for target limit
+        gas_before = testing::get_available_gas();
         // Handle edge case where target limit is min or max.
         if target_limit == price_math::max_limit(width) || target_limit == 0 {
+            's_itr case for target limit'.print();
+            (gas_before - testing::get_available_gas()).print(); 
+
+            's_itr in one itr [T]'.print();
+            (total_gas_before - testing::get_available_gas()).print(); 
             return Option::None(());
         }
+
         // If selling, we need to reduce the limit by 1 because searching to the left moves us to
         // the next price boundary. 
         if is_buy {
@@ -215,7 +239,13 @@ fn swap_iter(
         } else {
             market_state.curr_limit = target_limit - 1
         };
+        's_itr case for target limit'.print();
+        (gas_before - testing::get_available_gas()).print(); 
+        // Checkpoint End
 
+
+        's_itr in one itr [T]'.print();
+        (total_gas_before - testing::get_available_gas()).print(); 
         // Recursively call swap_iter.
         return swap_iter(
             ref self,
@@ -233,16 +263,18 @@ fn swap_iter(
             exact_input,
         );
     } else if market_state.curr_sqrt_price != start_sqrt_price {
+        // Checkpoint: gas used in sqrt_price_to_limit execution
+        gas_before = testing::get_available_gas();
         // If sqrt price has changed, calculate new limit.
         let curr_limit = market_state.curr_limit;
 
-        // Checkpoint: gas used in sqrt_price_to_limit execution
-        gas_before = testing::get_available_gas();
         let next_limit = price_math::sqrt_price_to_limit(next_sqrt_price, width);
-        's_itr sqrt_price_to_limit 10'.print();
+        's_itr sqrt_price_to_limit'.print();
         (gas_before - testing::get_available_gas()).print(); 
         // Checkpoint End
 
+        // Checkpoint: gas used in finding new limit
+        gas_before = testing::get_available_gas();
         // To handle imprecision at limit boundaries, constrain next limit so it is never lower
         // for buys, and never higher for sells.
         let new_limit = if is_buy {
@@ -253,9 +285,14 @@ fn swap_iter(
 
         // Update state.
         market_state.curr_limit = new_limit;
+        's_itr find new limit'.print();
+        (gas_before - testing::get_available_gas()).print(); 
+        // Checkpoint End
 
         // Handle partial fill by returning info.
         if curr_limit == next_limit {
+            's_itr in one itr [T]'.print();
+            (total_gas_before - testing::get_available_gas()).print(); 
             return Option::Some(
                 PartialFillInfo {
                     limit: curr_limit,
@@ -266,7 +303,8 @@ fn swap_iter(
             );
         }
     }
-
+    's_itr in one itr [T]'.print();
+    (total_gas_before - testing::get_available_gas()).print(); 
     Option::None(())
 }
 
