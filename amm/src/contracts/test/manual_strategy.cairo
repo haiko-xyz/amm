@@ -76,8 +76,6 @@ mod ManualStrategy {
     // External imports.
     use openzeppelin::token::erc20::interface::{ERC20ABI, IERC20Dispatcher, IERC20DispatcherTrait};
 
-    use snforge_std::PrintTrait;
-
     #[storage]
     struct Storage {
         // Immutables
@@ -165,33 +163,47 @@ mod ManualStrategy {
 
         // Get queued positions.
         fn queued_positions(self: @ContractState) -> Span<PositionInfo> {
+            // Fetch strategy state.
             let mut bid = self.bid.read();
             let mut ask = self.ask.read();
+            let base_reserves = self.base_reserves.read();
+            let quote_reserves = self.quote_reserves.read();
 
             // Fetch queued positions.
             let next_bid = self.queued_bid.read();
             let next_ask = self.queued_ask.read();
 
+            // Fetch amounts inside existing positions.
+            let contract: felt252 = get_contract_address().into();
+            let market_id = self.market_id.read();
+            let market_manager = self.market_manager.read();
+            let bid_pos_id = id::position_id(market_id, contract, bid.lower_limit, bid.upper_limit);
+            let ask_pos_id = id::position_id(market_id, contract, ask.lower_limit, ask.upper_limit);
+            let (bid_base, bid_quote) = market_manager
+                .amounts_inside_position(market_id, bid_pos_id, bid.lower_limit, bid.upper_limit);
+            let (ask_base, ask_quote) = market_manager
+                .amounts_inside_position(market_id, ask_pos_id, ask.lower_limit, ask.upper_limit);
+
             // Calculate liquidity.
-            let base_reserves = self.base_reserves.read();
-            let quote_reserves = self.quote_reserves.read();
-            let width = self.market_manager.read().width(self.market_id.read());
-            let bid_liquidity = if quote_reserves == 0 {
+            let width = market_manager.width(market_id);
+            let quote_amount = quote_reserves + bid_quote + ask_quote;
+            let bid_liquidity = if quote_amount == 0 {
                 0
             } else {
                 liquidity_math::quote_to_liquidity(
                     price_math::limit_to_sqrt_price(next_bid.lower_limit, width),
                     price_math::limit_to_sqrt_price(next_bid.upper_limit, width),
-                    quote_reserves
+                    quote_amount
                 )
             };
-            let ask_liquidity = if base_reserves == 0 {
+            let base_amount = base_reserves + bid_base + ask_base;
+            let ask_liquidity = if base_amount == 0 {
                 0
             } else {
                 liquidity_math::base_to_liquidity(
                     price_math::limit_to_sqrt_price(next_ask.lower_limit, width),
                     price_math::limit_to_sqrt_price(next_ask.upper_limit, width),
-                    base_reserves
+                    base_amount
                 )
             };
 
@@ -199,8 +211,8 @@ mod ManualStrategy {
             bid.upper_limit = next_bid.upper_limit;
             ask.lower_limit = next_ask.lower_limit;
             ask.upper_limit = next_ask.upper_limit;
-            bid.liquidity += bid_liquidity;
-            ask.liquidity += ask_liquidity;
+            bid.liquidity = bid_liquidity;
+            ask.liquidity = ask_liquidity;
 
             let positions = array![bid, ask];
             positions.span()
@@ -224,21 +236,12 @@ mod ManualStrategy {
             let queued_positions = self.queued_positions();
             let next_bid = *queued_positions.at(0);
             let next_ask = *queued_positions.at(1);
-            next_bid.lower_limit.print();
-            bid.lower_limit.print();
-            next_bid.upper_limit.print();
-            bid.upper_limit.print();
-            next_ask.lower_limit.print();
-            ask.lower_limit.print();
-            next_ask.upper_limit.print();
-            ask.upper_limit.print();
             let update_bid: bool = next_bid != bid;
             let update_ask: bool = next_ask != ask;
 
             // Update positions.
             // If old positions exist at different price ranges, first remove them.
             if bid.liquidity != 0 && update_bid {
-                'reached bid'.print();
                 let (base_amount, quote_amount, _, _) = market_manager
                     .modify_position(
                         market_id,
@@ -251,7 +254,6 @@ mod ManualStrategy {
                 bid.liquidity = Default::default();
             }
             if ask.liquidity != 0 && update_ask {
-                'reached ask'.print();
                 let (base_amount, quote_amount, _, _) = market_manager
                     .modify_position(
                         market_id,
@@ -273,7 +275,6 @@ mod ManualStrategy {
                         next_bid.upper_limit,
                         I256Trait::new(next_bid.liquidity, false)
                     );
-
                 quote_reserves -= quote_amount.val;
                 bid = next_bid;
             };
