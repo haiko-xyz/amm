@@ -2,7 +2,7 @@
 use cmp::{min, max};
 
 // Local imports.
-use amm::libraries::constants::{MAX, OFFSET, MAX_LIMIT};
+use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::libraries::math::fee_math;
 use amm::types::core::{SwapParams, PositionInfo};
 use amm::types::i256::I256Trait;

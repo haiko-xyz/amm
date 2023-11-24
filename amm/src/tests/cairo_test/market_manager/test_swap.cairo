@@ -3,12 +3,13 @@ use array::SpanTrait;
 use starknet::ContractAddress;
 use cmp::{min, max};
 use debug::PrintTrait;
+use integer::BoundedU256;
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
 use amm::libraries::liquidity as liquidity_helpers;
 use amm::libraries::math::{math, price_math};
-use amm::libraries::constants::{MAX, OFFSET, MAX_LIMIT, ONE};
+use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_SCALED, ONE};
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::types::core::MarketState;
@@ -146,8 +147,8 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 liquidity: to_e28(2),
                 positions: array![
                     Position {
-                        lower_limit: price_math::offset(10) - 8388600,
-                        upper_limit: price_math::offset(10) + 8388600,
+                        lower_limit: price_math::offset(10) - 7906620,
+                        upper_limit: price_math::offset(10) + 7906620,
                         liquidity: I256Trait::new(to_e28(2), false)
                     }
                 ]
@@ -194,8 +195,8 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 liquidity: to_e28(2),
                 positions: array![
                     Position {
-                        lower_limit: price_math::offset(100) - 8388600,
-                        upper_limit: price_math::offset(100) + 8388600,
+                        lower_limit: price_math::offset(100) - 7906600,
+                        upper_limit: price_math::offset(100) + 7906600,
                         liquidity: I256Trait::new(to_e28(2), false)
                     }
                 ]
@@ -242,8 +243,8 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 liquidity: to_e28(20),
                 positions: array![
                     Position {
-                        lower_limit: price_math::offset(10) - 8388600,
-                        upper_limit: price_math::offset(10) + 8388600,
+                        lower_limit: price_math::offset(10) - 7906620,
+                        upper_limit: price_math::offset(10) + 7906620,
                         liquidity: I256Trait::new(to_e28(20), false)
                     }
                 ]
@@ -290,8 +291,8 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 liquidity: to_e28(2),
                 positions: array![
                     Position {
-                        lower_limit: price_math::offset(10) - 8388600,
-                        upper_limit: price_math::offset(10) + 8388600,
+                        lower_limit: price_math::offset(10) - 7906620,
+                        upper_limit: price_math::offset(10) + 7906620,
                         liquidity: I256Trait::new(to_e28(2), false)
                     }
                 ]
@@ -334,13 +335,13 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 liquidity: to_e28(2),
                 positions: array![
                     Position {
-                        lower_limit: price_math::offset(10) - 8388600,
+                        lower_limit: price_math::offset(10) - 7906620,
                         upper_limit: price_math::offset(10) - 10,
                         liquidity: I256Trait::new(to_e28(2), false)
                     },
                     Position {
                         lower_limit: price_math::offset(10) + 10,
-                        upper_limit: price_math::offset(10) + 8388600,
+                        upper_limit: price_math::offset(10) + 7906620,
                         liquidity: I256Trait::new(to_e28(2), false)
                     }
                 ]
@@ -387,18 +388,18 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 liquidity: to_e28(2),
                 positions: array![
                     Position {
-                        lower_limit: price_math::offset(10) - 8388600,
-                        upper_limit: price_math::offset(10) + 8388600,
+                        lower_limit: price_math::offset(10) - 7906620,
+                        upper_limit: price_math::offset(10) + 7906620,
                         liquidity: I256Trait::new(to_e28(2), false)
                     },
                     Position {
-                        lower_limit: price_math::offset(10) - 8388600,
+                        lower_limit: price_math::offset(10) - 7906620,
                         upper_limit: price_math::offset(10) - 10,
                         liquidity: I256Trait::new(to_e28(2), false)
                     },
                     Position {
                         lower_limit: price_math::offset(10) + 10,
-                        upper_limit: price_math::offset(10) + 8388600,
+                        upper_limit: price_math::offset(10) + 7906620,
                         liquidity: I256Trait::new(to_e28(2), false)
                     }
                 ]
@@ -577,12 +578,12 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 description: '11) .25% 10 2e28 (near max P)',
                 width: 10,
                 swap_fee_rate: 25,
-                start_limit: price_math::offset(10) + 8388500,
+                start_limit: price_math::offset(10) + 7906500,
                 liquidity: to_e28(2),
                 positions: array![
                     Position {
-                        lower_limit: price_math::offset(10) - 8388600,
-                        upper_limit: price_math::offset(10) + 8388600,
+                        lower_limit: price_math::offset(10) - 7906620,
+                        upper_limit: price_math::offset(10) + 7906620,
                         liquidity: I256Trait::new(to_e28(2), false)
                     }
                 ]
@@ -591,7 +592,7 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 exp: array![
                     (
                         1000000000000000000,
-                        32834863955144570450305514694953651757643792660,
+                        2949108149691712599060461905658989437293111180,
                         2500000000000000
                     ),
                     (1000000000000000000, 0, 2500000000000000),
@@ -601,31 +602,31 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                     ), // 4 - skipped (runs out of liquidity, which is valid but model doesnt handle)
                     (
                         1000000000000000000,
-                        32834863955144570450305514694953651757643792660,
+                        2949108149691712599060461905658989437293111180,
                         2500000000000000
                     ),
                     (0, 0, 0), // 6 - skipped
                     (1, 1000000000000000000, 0),
                     (0, 0, 0), // 8 - skipped
-                    (100001, 268856047677783457439868432029073499404805, 250),
+                    (100001, 2168872940104215547356291842882542686826, 251),
                     (100000, 0, 250),
                     (1, 100000, 0),
                     (
-                        270209816393105201946059590446309745021559,
+                        2179761317308093225783475672365225264549,
                         100000,
-                        675524540982763004865148976115774362553
+                        5449403293270233064458689180913063162
                     ),
                     (0, 0, 0), // 13 - skipped
                     (
-                        31702031680886008328617240931,
-                        32834864356147071805995382193637557289790119545,
-                        79255079202215020821543103
+                        31702031680886008204855803272,
+                        2949108550694164326111003358682796642998343735,
+                        79255079202215020512139509
                     ),
                     (0, 0, 0), // 15 - skipped
                     (
-                        31702031680886008328617240931,
-                        32834864356147071805995382193637557289790119545,
-                        79255079202215020821543103
+                        31702031680886008204855803272,
+                        2949108550694164326111003358682796642998343735,
+                        79255079202215020512139509
                     ),
                 ]
                     .span()
@@ -639,12 +640,12 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 description: '12) .25% 10 2e28 (near min P)',
                 width: 10,
                 swap_fee_rate: 25,
-                start_limit: price_math::offset(10) - 8388500,
+                start_limit: price_math::offset(10) - 7906500,
                 liquidity: to_e28(2),
                 positions: array![
                     Position {
-                        lower_limit: price_math::offset(10) - 8388600,
-                        upper_limit: price_math::offset(10) + 8388600,
+                        lower_limit: price_math::offset(10) - 7906620,
+                        upper_limit: price_math::offset(10) + 7906620,
                         liquidity: I256Trait::new(to_e28(2), false)
                     }
                 ]
@@ -654,7 +655,7 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                     (1000000000000000001, 0, 2500000000000001),
                     (
                         1000000000000000000,
-                        32834863955144570450305514694953651757643792660,
+                        2949108149691712599060461905658989437293111180,
                         2500000000000000
                     ),
                     (
@@ -666,7 +667,7 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                     ), // 5 - skipped (runs out of liquidity, which is valid but model doesnt handle)
                     (
                         1000000000000000000,
-                        32834863955144570450305514694953651757643792660,
+                        2949108149691712599060461905658989437293111180,
                         2500000000000000
                     ),
                     (
@@ -674,17 +675,17 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                     ), // 7 - skipped (runs out of liquidity, which is valid but model doesnt handle)
                     (1, 999999999999999999, 0),
                     (100001, 0, 251),
-                    (100001, 268856047677783457439868432029073499404805, 250),
+                    (100001, 2168872940104215547356291842882542686826, 250),
                     (
-                        270209816393105201946059590446309745021559,
+                        2179761317308093225783475672365225264549,
                         100000,
-                        675524540982763004865148976115774362554
+                        5449403293270233064458689180913063162
                     ),
                     (1, 100000, 0),
                     (
-                        31702031680886008328639425504,
-                        32834864356147071805995382193637557289798971190,
-                        79255079202215020821598564
+                        31702031680886008204877987845,
+                        2949108550694164326111003358682796643007195380,
+                        79255079202215020512194970
                     ),
                     (0, 0, 0), // 14 - skipped
                     (0, 0, 0), // 15 - skipped
@@ -705,8 +706,8 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 liquidity: liquidity_helpers::max_liquidity_per_limit(10),
                 positions: array![
                     Position {
-                        lower_limit: price_math::offset(10) - 8388600,
-                        upper_limit: price_math::offset(10) + 8388600,
+                        lower_limit: price_math::offset(10) - 7906620,
+                        upper_limit: price_math::offset(10) + 7906620,
                         liquidity: I256Trait::new(
                             liquidity_helpers::max_liquidity_per_limit(10), false
                         )
@@ -728,14 +729,14 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                     (100251, 100000, 251),
                     (100251, 100000, 251),
                     (
-                        125653879738262311539003978580322511489525,
-                        79271815133553318730935770729710482668757,
-                        314134699345655778847509946450806278724
+                        42660355356906680216056386115876984620264026331300314,
+                        26913325799638093516111757964092930180611365088418625,
+                        106650888392266700540140965289692461550660065828251
                     ),
                     (
-                        125653879738262311539003978580322511489525,
-                        79271815133553318730935770729710482668757,
-                        314134699345655778847509946450806278724
+                        42660355356906680215975163204511696931623586612278104,
+                        26913325799638093516079350022458180392843829640528763,
+                        106650888392266700539937908011279242329058966530696
                     ),
                     (0, 0, 0), // 15 - skipped
                     (0, 0, 0), // 16 - skipped
@@ -870,7 +871,7 @@ fn swap_test_cases() -> Array<SwapCase> {
             SwapCase {
                 is_buy: true,
                 exact_input: true,
-                amount: MAX / 1000000000000000000,
+                amount: MAX_SCALED,
                 threshold_sqrt_price: Option::Some(encode_sqrt_price(5, 2))
             }
         );
@@ -879,7 +880,7 @@ fn swap_test_cases() -> Array<SwapCase> {
             SwapCase {
                 is_buy: false,
                 exact_input: true,
-                amount: MAX / 1000000000000000000,
+                amount: MAX_SCALED,
                 threshold_sqrt_price: Option::Some(encode_sqrt_price(2, 5))
             }
         );
@@ -888,7 +889,7 @@ fn swap_test_cases() -> Array<SwapCase> {
             SwapCase {
                 is_buy: true,
                 exact_input: false,
-                amount: MAX / 1000000000000000000,
+                amount: MAX_SCALED,
                 threshold_sqrt_price: Option::Some(encode_sqrt_price(5, 2))
             }
         );
@@ -897,7 +898,7 @@ fn swap_test_cases() -> Array<SwapCase> {
             SwapCase {
                 is_buy: false,
                 exact_input: false,
-                amount: MAX / 1000000000000000000,
+                amount: MAX_SCALED,
                 threshold_sqrt_price: Option::Some(encode_sqrt_price(2, 5))
             }
         );
@@ -1000,12 +1001,12 @@ fn test_swap_cases() {
                 let (amount_in, amount_out, fees) = swap(market_manager, params);
 
                 let (amount_in_exp, amount_out_exp, fees_exp) = *market_case.exp.at(swap_index);
-                // 'amount_in'.print();
-                // amount_in.print();
-                // 'amount_out'.print();
-                // amount_out.print();
-                // 'fees'.print();
-                // fees.print();
+                'amount_in'.print();
+                amount_in.print();
+                'amount_out'.print();
+                amount_out.print();
+                'fees'.print();
+                fees.print();
 
                 // When swapping very small amounts relative to available liquidity, there can
                 // be large percentage differences in swap amounts due to rounding errors in

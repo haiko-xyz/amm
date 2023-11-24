@@ -9,7 +9,7 @@ use debug::PrintTrait;
 use amm::contracts::market_manager::MarketManager;
 use amm::libraries::math::price_math;
 use amm::libraries::id;
-use amm::libraries::constants::{MAX, OFFSET, MAX_LIMIT, MIN_LIMIT};
+use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT};
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::types::core::LimitInfo;

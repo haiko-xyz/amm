@@ -6,7 +6,7 @@ use amm::libraries::math::liquidity_math::{
     add_delta, liquidity_to_quote, liquidity_to_base, base_to_liquidity, quote_to_liquidity,
     liquidity_to_amounts
 };
-use amm::libraries::constants::{MAX, ONE, OFFSET};
+use amm::libraries::constants::{ONE, OFFSET};
 use amm::tests::common::utils::{encode_sqrt_price, approx_eq};
 use amm::types::i256::I256Trait;
 
@@ -56,10 +56,11 @@ fn test_add_delta_cases() {
     add_delta(ref liquidity, delta);
     assert(liquidity == 0, '10 + -10');
 
-    liquidity = MAX - 5;
+    let max = BoundedU256::max();
+    liquidity = max - 5;
     delta = I256Trait::new(5, false);
     add_delta(ref liquidity, delta);
-    assert(liquidity == MAX, 'max-5 + 5');
+    assert(liquidity == max, 'max-5 + 5');
 }
 
 #[test]
@@ -68,15 +69,6 @@ fn test_add_delta_cases() {
 fn test_add_delta_underflow() {
     let mut liquidity = 0;
     let delta = I256Trait::new(1, true);
-    add_delta(ref liquidity, delta);
-}
-
-#[test]
-#[should_panic(expected: ('AddDeltaOverflow',))]
-#[available_gas(2000000000)]
-fn test_AddDeltaOverflow() {
-    let mut liquidity = MAX - 5;
-    let delta = I256Trait::new(10, false);
     add_delta(ref liquidity, delta);
 }
 

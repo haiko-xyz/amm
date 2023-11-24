@@ -3,7 +3,7 @@ use starknet::testing::set_contract_address;
 use debug::PrintTrait;
 
 // Local imports.
-use amm::libraries::constants::{MAX, OFFSET, MAX_LIMIT};
+use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::interfaces::IQuoter::{IQuoterDispatcher, IQuoterDispatcherTrait};
 use amm::types::i256::{i256, I256Trait};
