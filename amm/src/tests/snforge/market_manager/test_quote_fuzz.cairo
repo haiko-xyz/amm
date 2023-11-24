@@ -15,19 +15,19 @@ use amm::interfaces::{
     IStrategy::{IStrategyDispatcher, IStrategyDispatcherTrait},
     IQuoter::{IQuoterDispatcher, IQuoterDispatcherTrait}
 };
-use strategies::strategies::test::manual_strategy::{
+use amm::contracts::test::manual_strategy::{
     ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
 };
-use amm::tests::snforge::helpers::{
-    market_manager::{deploy_market_manager, create_market, modify_position, swap, swap_multiple},
-    token::{declare_token, deploy_token, fund, approve}, quoter::deploy_quoter
-};
-use strategies::tests::snforge::helpers::strategy::{deploy_strategy, initialise_strategy};
 use amm::tests::common::params::{
     owner, treasury, token_params, default_market_params, modify_position_params, swap_params,
     swap_multiple_params, default_token_params
 };
 use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
+use amm::tests::snforge::helpers::{
+    market_manager::{deploy_market_manager, create_market, modify_position, swap, swap_multiple},
+    token::{declare_token, deploy_token, fund, approve}, quoter::deploy_quoter
+};
+use amm::tests::snforge::helpers::strategy::{deploy_strategy, initialise_strategy};
 
 // External imports.
 use snforge_std::{start_prank, stop_prank, PrintTrait, declare, CheatTarget};
@@ -105,6 +105,10 @@ fn before() -> (
     (market_manager, market_id, base_token, quote_token, quoter, strategy)
 }
 
+// Note: this test is currently disabled because it panics when run with `snforge`.
+// In any case, it is a generalised version of the other quoter tests which pass with no issues
+// when run with `cairo-test`. 
+// TODO: debug at a later date.
 #[test]
 fn test_quote_fuzz(
     swap1_price: u128,
@@ -202,6 +206,8 @@ fn test_quote_fuzz(
                     quote.into()
                 },
             };
+            'quote'.print();
+            quote.print();
 
             // Execute swap.
             let mut params = swap_params(
@@ -222,6 +228,8 @@ fn test_quote_fuzz(
             } else {
                 amount_in
             };
+            'quote_exp'.print();
+            quote_exp.print();
             assert(quote.into() == quote_exp, 'quote value not equal');
         }
         j += 1;

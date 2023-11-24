@@ -6,7 +6,7 @@ use starknet::deploy_syscall;
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::libraries::math::price_math;
 use amm::libraries::math::liquidity_math;
-use amm::tests::common::contracts::manual_strategy::{
+use amm::contracts::test::manual_strategy::{
     ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
 };
 use amm::interfaces::IMarketManager::{

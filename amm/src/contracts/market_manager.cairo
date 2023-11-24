@@ -6,10 +6,8 @@ mod MarketManager {
 
     // Core lib imports.
     use cmp::min;
-    use traits::Into;
-    use traits::TryInto;
-    use option::OptionTrait;
-    use zeroable::Zeroable;
+    use dict::Felt252DictTrait;
+    use nullable::nullable_from_box;
     use starknet::ContractAddress;
     use starknet::contract_address::ContractAddressZeroable;
     use starknet::info::{get_caller_address, get_block_timestamp, get_contract_address};
@@ -19,7 +17,7 @@ mod MarketManager {
     // Local imports.
     use amm::libraries::{
         tree, id, limit_prices, liquidity as liquidity_helpers, swap as swap_helpers,
-        order as order_helpers
+        order as order_helpers, quote as quote_helpers
     };
     use amm::libraries::math::{math, price_math, fee_math, liquidity_math};
     use amm::libraries::constants::{ONE, MAX_WIDTH, MAX_LIMIT_SHIFTED};
@@ -29,7 +27,7 @@ mod MarketManager {
     use amm::interfaces::ILoanReceiver::{ILoanReceiverDispatcher, ILoanReceiverDispatcherTrait};
     use amm::types::core::{
         MarketInfo, MarketConfigs, MarketState, OrderBatch, Position, LimitInfo, LimitOrder,
-        ERC721PositionInfo, SwapParams, ConfigOption, Config
+        PositionInfo, ERC721PositionInfo, SwapParams, ConfigOption, Config
     };
     use amm::types::i256::{i256, I256Zeroable, I256Trait};
     use amm::libraries::store_packing::{
@@ -1041,6 +1039,8 @@ mod MarketManager {
         }
 
         // Obtain quote for a swap between tokens (returned as error message).
+        // This is the safest way to obtain a quote as it does not rely on the strategy to
+        // correctly report its queued and placed positions.
         //
         // # Arguments
         // * `market_id` - market id
@@ -1081,7 +1081,8 @@ mod MarketManager {
         }
 
         // Obtain quote for a swap across multiple markets in a multi-hop route.
-        // Returned as error message.
+        // Returned as error message. This is the safest way to obtain a quote as it does not rely on
+        // the strategy to correctly report its queued and placed positions.
         // 
         // # Arguments
         // * `in_token` - in token address
@@ -1101,6 +1102,198 @@ mod MarketManager {
             let amount_out = self
                 ._swap_multiple(in_token, out_token, amount, route, Option::None(()), true);
             assert(false, amount_out.try_into().unwrap());
+        }
+
+        // Obtain quote for a single swap.
+        // Caution: this function returns a correct quote only so long as the strategy correctly
+        // reports its queued and placed positions. This function is intended for use by on-chain
+        // routers that cannot call `quote` and retrieve the output via error message. Alternatively,
+        // it can be used to obtain guaranteed correct quotes for non-strategy markets.
+        //
+        // # Arguments
+        // * `market_id` - market id
+        // * `is_buy` - whether swap is a buy or sell
+        // * `amount` - amount of tokens to swap
+        // * `exact_input` - true if `amount` is exact input, or false if exact output
+        // * `threshold_sqrt_price` - maximum sqrt price to swap at for buys, minimum for sells
+        // * `ignore_strategy` - whether to ignore strategy positions when fetching quote
+        //
+        // # Returns
+        // * `amount` - amount out (if exact input) or amount in (if exact output)
+        fn unsafe_quote(
+            self: @ContractState,
+            market_id: felt252,
+            is_buy: bool,
+            amount: u256,
+            exact_input: bool,
+            threshold_sqrt_price: Option<u256>,
+            ignore_strategy: bool,
+        ) -> u256 {
+            // Fetch market info and state.
+            let market_info = self.market_info.read(market_id);
+            let mut market_state = self.market_state.read(market_id);
+            let market_configs = self.market_configs.read(market_id);
+
+            // Run checks.
+            self.enforce_status(market_configs.swap.value, @market_info, 'SwapDisabled');
+            assert(market_info.quote_token.is_non_zero(), 'MarketNull');
+            assert(amount > 0, 'AmtZero');
+            if threshold_sqrt_price.is_some() {
+                limit_prices::check_threshold(
+                    threshold_sqrt_price.unwrap(), market_state.curr_sqrt_price, is_buy
+                );
+            }
+
+            // Fetch strategy positions and simulate updates.
+            // To account for queued position updates, we update in-memory market liquidity by 
+            // removing liquidity from in-range placed positions and adding liquidity to in-range 
+            // queued positions. Simultaneously, we extract a set of liquidity deltas and initialised
+            // limits from the positions, which we use to augment liquidity when traversing limits. 
+            let mut queued_deltas: Felt252Dict<Nullable<i256>> = Default::default();
+            let mut target_limits = ArrayTrait::<u32>::new();
+            if market_info.strategy.is_non_zero() && !ignore_strategy {
+                let strategy = IStrategyDispatcher { contract_address: market_info.strategy };
+                let placed_positions = strategy.placed_positions();
+                let queued_positions = strategy.queued_positions();
+
+                self
+                    ._populate_strategy_arrays(
+                        ref queued_deltas,
+                        ref target_limits,
+                        ref market_state,
+                        placed_positions,
+                        true
+                    );
+                self
+                    ._populate_strategy_arrays(
+                        ref queued_deltas,
+                        ref target_limits,
+                        ref market_state,
+                        queued_positions,
+                        false
+                    );
+            }
+
+            // Get swap fee. 
+            // This is either a fixed swap fee or a variable one set by the external fee controller.
+            let fee_rate = if market_info.fee_controller.is_zero() {
+                market_info.swap_fee_rate
+            } else {
+                let rate = IFeeControllerDispatcher { contract_address: market_info.fee_controller }
+                    .swap_fee_rate();
+                assert(rate <= fee_math::MAX_FEE_RATE, 'FeeRateOverflow');
+                rate
+            };
+
+            // Initialise trackers for swap state.
+            let mut amount_rem = amount;
+            let mut amount_calc = 0;
+            let mut swap_fees = 0;
+            let mut protocol_fees = 0;
+
+            // Simulate swap.
+            quote_helpers::quote_iter(
+                self,
+                market_id,
+                ref market_state,
+                ref amount_rem,
+                ref amount_calc,
+                ref swap_fees,
+                ref queued_deltas,
+                target_limits.span(),
+                threshold_sqrt_price,
+                fee_rate,
+                market_info.width,
+                is_buy,
+                exact_input,
+            );
+
+            // Calculate swap amounts.
+            let amount_in = if exact_input {
+                amount - amount_rem
+            } else {
+                amount_calc
+            };
+            let amount_out = if exact_input {
+                amount_calc
+            } else {
+                amount - amount_rem
+            };
+
+            // Returns quote.
+            if exact_input {
+                amount_out
+            } else {
+                amount_in
+            }
+        }
+
+        // Obtain quote for a swap across multiple markets in a multi-hop route.
+        // Caution: this function returns a correct quote only so long as the strategy correctly
+        // reports its queued and placed positions. This function is intended for use by on-chain
+        // routers that cannot call `quote` and retrieve the output via error message. Alternatively,
+        // it can be used to obtain guaranteed correct quotes for non-strategy markets.
+        //
+        // # Arguments
+        // * `in_token` - in token address
+        // * `out_token` - out token address
+        // * `amount` - amount of tokens to swap in
+        // * `route` - list of market ids defining the route to swap through
+        // * `ignore_strategy` - whether to ignore strategy positions when fetching quote
+        //
+        // # Returns
+        // * `amount_out` - amount of tokens swapped out net of fees
+        fn unsafe_quote_multiple(
+            self: @ContractState,
+            in_token: ContractAddress,
+            out_token: ContractAddress,
+            amount: u256,
+            route: Span<felt252>,
+            ignore_strategy: bool,
+        ) -> u256 {
+            assert(route.len() > 1, 'NotMultiSwap');
+
+            // Initialise swap values.
+            let mut i = 0;
+            let mut in_token_iter = in_token;
+            let mut amount_out = amount;
+
+            loop {
+                if i == route.len() {
+                    break;
+                }
+
+                // Fetch market for current swap iteration.
+                let market_id = *route.at(i);
+                let market_info = self.market_info.read(market_id);
+
+                // Check that route is valid.
+                let is_buy_iter = in_token_iter == market_info.quote_token;
+                if !is_buy_iter {
+                    assert(in_token_iter == market_info.base_token, 'RouteMismatch');
+                }
+
+                // Execute swap and update values.
+                let amount_out_iter = self
+                    .unsafe_quote(
+                        market_id, is_buy_iter, amount_out, true, Option::None(()), ignore_strategy,
+                    );
+                amount_out = amount_out_iter;
+                in_token_iter =
+                    if is_buy_iter {
+                        market_info.base_token
+                    } else {
+                        market_info.quote_token
+                    };
+
+                i += 1;
+            };
+
+            // Check that final token is out token.
+            assert(in_token_iter == out_token, 'RouteMismatch');
+
+            // Return amount out.
+            amount_out
         }
 
         // Initiates a flash loan.
@@ -1466,7 +1659,9 @@ mod MarketManager {
 
             // Check inputs.
             assert(market_info.quote_token.is_non_zero(), 'MarketNull');
-            limit_prices::check_limits(lower_limit, upper_limit, market_info.width, valid_limits);
+            limit_prices::check_limits(
+                lower_limit, upper_limit, market_info.width, valid_limits, liquidity_delta.sign
+            );
 
             // Update liquidity (without transferring tokens).
             let (base_amount, quote_amount, base_fees, quote_fees) =
@@ -1631,7 +1826,7 @@ mod MarketManager {
             // Execute strategy if it exists.
             // Strategy positions are updated before the swap occurs.
             let caller = get_caller_address();
-            if market_info.strategy.is_non_zero() && caller != market_info.strategy {
+            if market_info.strategy.is_non_zero() {
                 IStrategyDispatcher { contract_address: market_info.strategy }
                     .update_positions(
                         SwapParams { is_buy, amount, exact_input, threshold_sqrt_price, deadline }
@@ -1871,6 +2066,47 @@ mod MarketManager {
 
             // Return amount out.
             amount_out
+        }
+
+        // Internal function used to populate two arrays used for tracking the liquidity deltas
+        // and initialised limits for queued strategy positions updates. Used by `unsafe_quote`.
+        //
+        // # Arguments
+        // * `queued_deltas` - ref to mapping of limit of liquidity deltas
+        // * `target_limits` - ref to array of initialised limits
+        // * `market_state` - ref to market state
+        // * `positions` - list of queued positions to update
+        // * `is_placed` - whether positions are placed or queued
+        fn _populate_strategy_arrays(
+            self: @ContractState,
+            ref queued_deltas: Felt252Dict<Nullable<i256>>,
+            ref target_limits: Array<u32>,
+            ref market_state: MarketState,
+            positions: Span<PositionInfo>,
+            is_placed: bool,
+        ) {
+            let mut i = 0;
+            let curr_limit = market_state.curr_limit;
+            loop {
+                if i >= positions.len() {
+                    break;
+                }
+                let pos = *positions.at(i);
+                if pos.lower_limit <= curr_limit && pos.upper_limit > curr_limit {
+                    market_state.liquidity -= pos.liquidity;
+                }
+                let lower_liq = nullable_from_box(
+                    BoxTrait::new(I256Trait::new(pos.liquidity, is_placed))
+                );
+                let upper_liq = nullable_from_box(
+                    BoxTrait::new(I256Trait::new(pos.liquidity, !is_placed))
+                );
+                queued_deltas.insert(pos.lower_limit.into(), lower_liq);
+                queued_deltas.insert(pos.upper_limit.into(), upper_liq);
+                target_limits.append(pos.lower_limit);
+                target_limits.append(pos.upper_limit);
+                i += 1;
+            };
         }
     }
 }

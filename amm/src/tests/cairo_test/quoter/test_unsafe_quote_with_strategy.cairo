@@ -1,12 +1,10 @@
 // Core lib imports.
 use cmp::{min, max};
 use starknet::testing::set_contract_address;
-use debug::PrintTrait;
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MIN_LIMIT, MAX_LIMIT};
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
-use amm::interfaces::IQuoter::{IQuoterDispatcher, IQuoterDispatcherTrait};
 use amm::types::i256::{i256, I256Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position, swap
@@ -50,7 +48,6 @@ fn before() -> (
     ERC20ABIDispatcher,
     ERC20ABIDispatcher,
     felt252,
-    IQuoterDispatcher,
     IManualStrategyDispatcher
 ) {
     // Get default owner.
@@ -75,9 +72,6 @@ fn before() -> (
     params.strategy = strategy.contract_address;
     let market_id = create_market(market_manager, params);
 
-    // Deploy quoter.
-    let quoter = deploy_quoter(owner(), market_manager.contract_address);
-
     // Initialise strategy.
     strategy.initialise('Manual Strategy', 'MANU', market_manager.contract_address, market_id);
 
@@ -97,7 +91,7 @@ fn before() -> (
     set_contract_address(owner());
     strategy.deposit(to_e18(10000000), to_e18(11250000000000));
 
-    (market_manager, base_token, quote_token, market_id, quoter, strategy)
+    (market_manager, base_token, quote_token, market_id, strategy)
 }
 
 fn swap_test_cases() -> Array<SwapCase> {
@@ -178,8 +172,8 @@ fn swap_test_cases() -> Array<SwapCase> {
 
 #[test]
 #[available_gas(15000000000)]
-fn test_quote_with_strategy() {
-    let (market_manager, base_token, quote_token, market_id, quoter, strategy) = before();
+fn test_unsafe_quote_with_strategy() {
+    let (market_manager, base_token, quote_token, market_id, strategy) = before();
 
     // Iterate through swap test cases.
     set_contract_address(alice());
@@ -207,13 +201,14 @@ fn test_quote_with_strategy() {
 
         // Obtain quote.
         set_contract_address(alice());
-        let quote = quoter
-            .quote(
+        let quote = market_manager
+            .unsafe_quote(
                 market_id,
                 swap_case.is_buy,
                 swap_case.amount,
                 swap_case.exact_input,
                 swap_case.threshold_sqrt_price,
+                false
             );
 
         // Execute swap.
