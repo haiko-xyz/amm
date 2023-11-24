@@ -23,8 +23,8 @@ use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
 
 // External imports.
 use snforge_std::{
-    start_prank, stop_prank, declare, PrintTrait, spy_events, SpyOn, EventSpy, 
-    EventAssertions, CheatTarget
+    start_prank, stop_prank, declare, PrintTrait, spy_events, SpyOn, EventSpy, EventAssertions,
+    CheatTarget
 };
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
@@ -32,10 +32,12 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 // SETUP
 ////////////////////////////////
 
-fn _before(deploy_strategy: bool) -> (
-    IMarketManagerDispatcher, 
-    felt252, 
-    ERC20ABIDispatcher, 
+fn _before(
+    deploy_strategy: bool
+) -> (
+    IMarketManagerDispatcher,
+    felt252,
+    ERC20ABIDispatcher,
     ERC20ABIDispatcher,
     IManualStrategyDispatcher
 ) {
@@ -72,14 +74,15 @@ fn _before(deploy_strategy: bool) -> (
     let market_id = create_market(market_manager, params);
 
     // Initialise strategy and return.
-    let strategy = IManualStrategyDispatcher{ contract_address: params.strategy };
+    let strategy = IManualStrategyDispatcher { contract_address: params.strategy };
     if deploy_strategy {
         initialise_strategy(
-            strategy, 
-            owner(), 
-            'Manual Strategy', 
-            'MANU', 
-            market_manager.contract_address, market_id,
+            strategy,
+            owner(),
+            'Manual Strategy',
+            'MANU',
+            market_manager.contract_address,
+            market_id,
         );
     }
 
@@ -92,10 +95,10 @@ fn before() -> (IMarketManagerDispatcher, felt252, ERC20ABIDispatcher, ERC20ABID
 }
 
 fn before_strategy() -> (
-    IMarketManagerDispatcher, 
-    felt252, 
-    ERC20ABIDispatcher, 
-    ERC20ABIDispatcher, 
+    IMarketManagerDispatcher,
+    felt252,
+    ERC20ABIDispatcher,
+    ERC20ABIDispatcher,
     IManualStrategyDispatcher
 ) {
     let (market_manager, market_id, base_token, quote_token, strategy) = _before(true);
@@ -106,8 +109,8 @@ fn before_strategy() -> (
     fund(base_token, owner(), base_amount);
     fund(quote_token, owner(), quote_amount);
     approve(base_token, owner(), strategy.contract_address, base_amount);
-    approve(quote_token, owner(), strategy.contract_address, quote_amount);    
-    
+    approve(quote_token, owner(), strategy.contract_address, quote_amount);
+
     // Fund strategy with initial token balances and approve market manager as spender.
     fund(base_token, strategy.contract_address, base_amount);
     fund(quote_token, strategy.contract_address, quote_amount);
