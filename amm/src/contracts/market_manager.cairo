@@ -1633,7 +1633,7 @@ mod MarketManager {
             // Execute strategy if it exists.
             // Strategy positions are updated before the swap occurs.
             let caller = get_caller_address();
-            if market_info.strategy.is_non_zero() && caller != market_info.strategy {
+            if market_info.strategy.is_non_zero() {
                 IStrategyDispatcher { contract_address: market_info.strategy }
                     .update_positions(
                         SwapParams { is_buy, amount, exact_input, threshold_sqrt_price, deadline }
