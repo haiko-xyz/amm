@@ -37,7 +37,7 @@ use snforge_std::{
 };
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
-fn before() -> (
+fn before(width: u32) -> (
     IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252, IReplicatingStrategyDispatcher
 ) {
     // Get default owner.
@@ -59,7 +59,7 @@ fn before() -> (
     let mut params = default_market_params();
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
-    params.width = 1;
+    params.width = width;
     params.start_limit = OFFSET - 230260; // initial limit
     params.strategy = strategy.contract_address;
     let market_id = create_market(market_manager, params);
@@ -110,16 +110,6 @@ fn before() -> (
     strategy.deposit_initial(to_e18(50000), to_e18(50000));
     stop_prank(CheatTarget::One(strategy.contract_address));
     
-    // Create position
-    let mut upper_limit = 8388600;
-    let mut lower_limit = 8368590;
-    let mut liquidity = I256Trait::new(to_e18(1000000000000), false);
-
-    let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
-    
-    let (base_amount, quote_amount, base_fees, quote_fees) = modify_position(
-        market_manager, params
-    );
     (market_manager, base_token, quote_token, market_id, strategy)
 }
 
@@ -128,8 +118,8 @@ fn before() -> (
 ////////////////////////////////
 
 #[test]
-fn test_single_swap() {
-    let (market_manager, base_token, quote_token, market_id, strategy) = before();
+fn test_single_swap_iteration() {
+    let (market_manager, base_token, quote_token, market_id, strategy) = before(10);
 
     let curr_sqrt_price = market_manager.market_state(market_id).curr_sqrt_price;
     let mut is_buy = false;
@@ -143,10 +133,30 @@ fn test_single_swap() {
     let mut swap_params = swap_params(
         strategy.contract_address, market_id, is_buy, exact_input, amount, sqrt_price, threshold_amount, Option::None,
     );
-    let gas_before = testing::get_available_gas();
-    gas::withdraw_gas().unwrap();
-    swap(market_manager, swap_params);
 
-    'single swap gas used'.print();
-    (gas_before - testing::get_available_gas()).print(); 
+    'test start'.print();
+    swap(market_manager, swap_params);
+    'test end'.print();
+}
+
+#[test]
+fn test_two_swap_iteration() {
+    let (market_manager, base_token, quote_token, market_id, strategy) = before(1);
+
+    let curr_sqrt_price = market_manager.market_state(market_id).curr_sqrt_price;
+    let mut is_buy = false;
+    let exact_input = true;
+    let amount = 100;
+    let sqrt_price = Option::Some(curr_sqrt_price - 1000);
+    let threshold_amount = Option::Some(0);
+
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    let mut swap_params = swap_params(
+        strategy.contract_address, market_id, is_buy, exact_input, amount, sqrt_price, threshold_amount, Option::None,
+    );
+
+    'test start'.print();
+    swap(market_manager, swap_params);
+    'test end'.print();
 }

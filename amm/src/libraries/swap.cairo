@@ -65,7 +65,7 @@ fn swap_iter(
     // Snapshot starting state (used below).
     let start_sqrt_price = market_state.curr_sqrt_price;
     let start_limit = market_state.curr_limit;
-    's_itr create snapshot 1'.print();
+    's_itr create snapshot'.print();
     (gas_before - testing::get_available_gas()).print(); 
     // Checkpoint End
 
@@ -75,7 +75,7 @@ fn swap_iter(
     let target_limit_opt = tree::next_limit(
         @self, market_id, is_buy, width, market_state.curr_limit
     );
-    's_itr next limit 2'.print();
+    's_itr next limit'.print();
     (gas_before - testing::get_available_gas()).print(); 
     // Checkpoint End
 
@@ -87,7 +87,7 @@ fn swap_iter(
     // Checkpoint: gas used in min operation
     gas_before = testing::get_available_gas();
     let target_limit = min(target_limit_opt.unwrap(), price_math::max_limit(width));
-    's_itr min operation 3'.print();
+    's_itr min operation'.print();
     (gas_before - testing::get_available_gas()).print(); 
     // Checkpoint End
 
@@ -104,7 +104,7 @@ fn swap_iter(
     } else {
         uncapped_target_sqrt_price
     };
-    's_itr sqrt price 4'.print();
+    's_itr sqrt price'.print();
     (gas_before - testing::get_available_gas()).print(); 
     // Checkpoint End
     
@@ -300,20 +300,13 @@ fn compute_swap_amounts(
     let liquidity_i256 = I256Trait::new(liquidity, false);
 
 
-    // Checkpoint: gas used in finding amount_in
-    let mut gas_before = testing::get_available_gas();
     let mut amount_in = if is_buy {
         liquidity_math::liquidity_to_quote(curr_sqrt_price, target_sqrt_price, liquidity_i256, true)
     } else {
         liquidity_math::liquidity_to_base(target_sqrt_price, curr_sqrt_price, liquidity_i256, true)
     }
         .val;
-    'csa amount_in calc 1'.print();
-    (gas_before - testing::get_available_gas()).print(); 
-    // Checkpoint End
 
-    // Checkpoint: gas used in finding amount_out
-    gas_before = testing::get_available_gas();
     let mut amount_out = if is_buy {
         liquidity_math::liquidity_to_base(curr_sqrt_price, target_sqrt_price, liquidity_i256, false)
     } else {
@@ -322,17 +315,9 @@ fn compute_swap_amounts(
         )
     }
         .val;
-    'csa amount_out calc 2'.print();
-    (gas_before - testing::get_available_gas()).print(); 
-    // Checkpoint End
 
-    // Checkpoint: gas used in gross_to_net execution
-    gas_before = testing::get_available_gas();
     // Calculate next sqrt price.
     let amount_rem_less_fee = fee_math::gross_to_net(amount_rem, fee_rate);
-    'csa gross_to_net exec 3'.print();
-    (gas_before - testing::get_available_gas()).print(); 
-    // Checkpoint End
 
     let filled_max = if exact_input {
         amount_rem_less_fee < amount_in
@@ -340,8 +325,6 @@ fn compute_swap_amounts(
         amount_rem < amount_out
     };
 
-    // Checkpoint: gas used in finding next_sqrt_price
-    gas_before = testing::get_available_gas();
     let next_sqrt_price = if !filled_max {
         target_sqrt_price
     } else {
@@ -351,9 +334,6 @@ fn compute_swap_amounts(
             next_sqrt_price_output(curr_sqrt_price, liquidity, amount_rem, is_buy)
         }
     };
-    'csa next_sqrt_price calc 4'.print();
-    (gas_before - testing::get_available_gas()).print(); 
-    // Checkpoint End
 
     // At this point, amounts in and out are assuming target price was reached.
     // If that isn't the case, recalculate amounts using next sqrt price.
@@ -390,17 +370,12 @@ fn compute_swap_amounts(
             };
     }
 
-    // Checkpoint: gas used in net_to_fee execution
-    gas_before = testing::get_available_gas();
     // Calculate fees. 
     // Amount in is net of fees because we capped amounts by net amount remaining.
     // Fees are rounded down by default to prevent overflow when transferring amounts.
     // Note that in Uniswap, if target price is not reached, LP takes the remainder 
     // of the maximum input as fee. We don't do that here.
     let fees = fee_math::net_to_fee(amount_in, fee_rate);
-    'csa net_to_fee exec 4'.print();
-    (gas_before - testing::get_available_gas()).print(); 
-    // Checkpoint End
 
     // Return amounts.
     (amount_in, amount_out, fees, next_sqrt_price)

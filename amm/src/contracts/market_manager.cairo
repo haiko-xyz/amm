@@ -1796,26 +1796,36 @@ mod MarketManager {
             deadline: Option<u64>,
             quote_mode: bool,
         ) -> (u256, u256, u256) {
+            // Checkpoint: gas used in validating inputs
+            let mut gas_before = testing::get_available_gas();
             // Fetch market info and state.
             let market_info = self.market_info.read(market_id);
             let mut market_state = self.market_state.read(market_id);
             let market_configs = self.market_configs.read(market_id);
+            '_SW read state'.print();
+            (gas_before - testing::get_available_gas()).print();
+            // Checkpoint End
 
             // Checkpoint: gas used in validating inputs
-            let mut gas_before = testing::get_available_gas();
+            gas_before = testing::get_available_gas();
             // Run checks.
             self.enforce_status(market_configs.swap.value, @market_info, 'SwapDisabled');
             assert(market_info.quote_token.is_non_zero(), 'MarketNull');
             assert(amount > 0, 'AmtZero');
             if threshold_sqrt_price.is_some() {
+                // Checkpoint: gas used in validating inputs
+                let mut gas_before = testing::get_available_gas();
                 limit_prices::check_threshold(
                     threshold_sqrt_price.unwrap(), market_state.curr_sqrt_price, is_buy
                 );
+                '_SW check_threshold'.print();
+                (gas_before - testing::get_available_gas()).print();
+                // Checkpoint End
             }
             if deadline.is_some() {
                 assert(deadline.unwrap() >= get_block_timestamp(), 'Expired');
             }
-            '_sw val input 1'.print();
+            '_SW val input'.print();
             (gas_before - testing::get_available_gas()).print();
             // Checkpoint End
 
@@ -1832,7 +1842,7 @@ mod MarketManager {
                     .update_positions(
                         SwapParams { is_buy, amount, exact_input, threshold_sqrt_price, deadline }
                     );
-                '_sw exec strategy 2'.print();
+                '_SW exec strategy'.print();
                 (gas_before - testing::get_available_gas()).print();
                 // Checkpoint End
             }
@@ -1849,7 +1859,7 @@ mod MarketManager {
                 assert(rate <= fee_math::MAX_FEE_RATE, 'FeeRateOverflow');
                 rate
             };
-            '_sw fetch fee rate 3'.print();
+            '_SW fetch fee rate'.print();
             (gas_before - testing::get_available_gas()).print();
             // Checkpoint End
 
@@ -1882,7 +1892,7 @@ mod MarketManager {
                 is_buy,
                 exact_input,
             );
-            '_sw s_itr 4'.print();
+            '_SW s_itr'.print();
             (gas_before - testing::get_available_gas()).print();
             // Checkpoint End
 
@@ -1913,7 +1923,7 @@ mod MarketManager {
                     'ThresholdAmount'
                 );
             }
-            '_sw swap amount 5'.print();
+            '_SW swap amount'.print();
             (gas_before - testing::get_available_gas()).print();
             // Checkpoint End
 
@@ -1934,7 +1944,7 @@ mod MarketManager {
                 base_protocol_fees += protocol_fees;
                 self.protocol_fees.write(market_info.base_token, base_protocol_fees);
             }
-            '_sw calc/update fee bal 6'.print();
+            '_SW calc/update fee bal'.print();
             (gas_before - testing::get_available_gas()).print();
             // Checkpoint End
 
@@ -1966,7 +1976,7 @@ mod MarketManager {
             order_helpers::fill_limits(
                 ref self, market_id, market_info.width, fee_rate, filled_limits.span(),
             );
-            '_sw fill_limits 7'.print();
+            '_SW fill_limits'.print();
             (gas_before - testing::get_available_gas()).print();
             // Checkpoint End
 
@@ -1983,27 +1993,34 @@ mod MarketManager {
                     partial_fill_info.amount_out,
                     partial_fill_info.is_buy,
                 );
-                '_sw fill_partial_limit 8'.print();
+                '_SW fill_partial_limit'.print();
                 (gas_before - testing::get_available_gas()).print();
                 // Checkpoint End
             }
 
+            // Checkpoint: gas used in transferring tokens
+            gas_before = testing::get_available_gas();
             // Transfer tokens between payer, receiver and contract.
             let contract = get_contract_address();
             IERC20Dispatcher { contract_address: in_token }
                 .transfer_from(caller, contract, amount_in);
             IERC20Dispatcher { contract_address: out_token }.transfer(caller, amount_out);
+            '_SW transfer tokens'.print();
+            (gas_before - testing::get_available_gas()).print();
+            // Checkpoint End
 
             // Execute strategy cleanup.
             if market_info.strategy.is_non_zero() && caller != market_info.strategy {
                 // Checkpoint: gas used in running strategy cleanup
                 gas_before = testing::get_available_gas();
                 IStrategyDispatcher { contract_address: market_info.strategy }.cleanup();
-                '_sw strategy cleanup 9'.print();
+                '_SW strategy cleanup'.print();
                 (gas_before - testing::get_available_gas()).print();
                 // Checkpoint End
             }
 
+            // Checkpoint: gas used in emitting event
+            gas_before = testing::get_available_gas();
             // Emit event.
             self
                 .emit(
@@ -2023,6 +2040,9 @@ mod MarketManager {
                         }
                     )
                 );
+            '_SW emit Swap event'.print();
+            (gas_before - testing::get_available_gas()).print();
+            // Checkpoint End
 
             // Return amounts.
             (amount_in, amount_out, swap_fees + protocol_fees)
@@ -2060,9 +2080,6 @@ mod MarketManager {
             let mut i = 0;
             let mut in_token_iter = in_token;
             let mut amount_out = amount;
-
-            // Checkpoint: gas used in iterating over swaps
-            let mut gas_before = testing::get_available_gas();
 
             loop {
                 if i == route.len() {
@@ -2102,9 +2119,6 @@ mod MarketManager {
 
                 i += 1;
             };
-            '_sm itr _sw 1'.print();
-            (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
 
             // Check that final token is out token.
             assert(in_token_iter == out_token, 'RouteMismatch');
