@@ -105,6 +105,10 @@ fn before() -> (
     (market_manager, market_id, base_token, quote_token, quoter, strategy)
 }
 
+// Note: this test is currently disabled because it panics when run with `snforge`.
+// In any case, it is a generalised version of the other quoter tests which pass with no issues
+// when run with `cairo-test`. 
+// TODO: debug at a later date.
 #[test]
 fn test_quote_fuzz(
     swap1_price: u128,
@@ -202,6 +206,8 @@ fn test_quote_fuzz(
                     quote.into()
                 },
             };
+            'quote'.print();
+            quote.print();
 
             // Execute swap.
             let mut params = swap_params(
@@ -222,6 +228,8 @@ fn test_quote_fuzz(
             } else {
                 amount_in
             };
+            'quote_exp'.print();
+            quote_exp.print();
             assert(quote.into() == quote_exp, 'quote value not equal');
         }
         j += 1;
