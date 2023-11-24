@@ -96,10 +96,14 @@ fn test_create_position_uninitialised_limits() {
 
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
     'MPALU: start of test'.print();
+    let gas_before = testing::get_available_gas();
+    gas::withdraw_gas().unwrap();
     let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
         .modify_position(
             params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
         );
+    'create_position gas used'.print();
+    (gas_before - testing::get_available_gas()).print();
     'MPALU: end of test'.print();
 }
 
@@ -128,11 +132,15 @@ fn test_create_position_initialised_limits() {
         params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
     );
 
-    'MPALI: start of test'.print(); 
+    'MPALI: start of test'.print();
+    let gas_before = testing::get_available_gas();
+    gas::withdraw_gas().unwrap();
     let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
         .modify_position(
             params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
         );
+    'create_position gas used'.print();
+    (gas_before - testing::get_available_gas()).print();
     'MPALI: end of test'.print(); 
 }
 
