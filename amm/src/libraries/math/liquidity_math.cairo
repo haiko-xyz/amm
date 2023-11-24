@@ -6,7 +6,7 @@ use integer::{u256_wide_mul, u512_safe_div_rem_by_u256, u256_try_as_non_zero};
 
 // Local imports.
 use amm::libraries::math::{math, fee_math, price_math, liquidity_math};
-use amm::libraries::constants::{ONE, MAX};
+use amm::libraries::constants::ONE;
 use amm::types::core::{MarketState, LimitInfo};
 use amm::types::i256::{i256, I256Trait, I256Zeroable};
 
@@ -19,7 +19,6 @@ fn add_delta(ref amount: u256, delta: i256) {
     if delta.sign {
         amount -= delta.val;
     } else {
-        assert(MAX - amount >= delta.val, 'AddDeltaOverflow');
         amount += delta.val;
     }
 }

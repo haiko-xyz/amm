@@ -45,11 +45,11 @@ fn test_check_limits_upper_limit_overflow() {
 #[test]
 #[available_gas(2000000000)]
 fn test_check_threshold_cases() {
-    check_threshold(17000000000, 16000000000, true);
+    check_threshold(170000000000, 160000000000, true);
     check_threshold(MIN_SQRT_PRICE + 1, MIN_SQRT_PRICE, true);
     check_threshold(MAX_SQRT_PRICE, MAX_SQRT_PRICE - 1, true);
 
-    check_threshold(12000000000, 16000000000, false);
+    check_threshold(120000000000, 160000000000, false);
     check_threshold(MIN_SQRT_PRICE, MIN_SQRT_PRICE + 1, false);
     check_threshold(MAX_SQRT_PRICE - 1, MAX_SQRT_PRICE, false);
 }

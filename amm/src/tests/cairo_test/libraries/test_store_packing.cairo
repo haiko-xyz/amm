@@ -177,8 +177,8 @@ fn test_store_packing_position() {
 
     let position = Position {
         market_id: 121381238912,
-        lower_limit: 8388708,
-        upper_limit: 8388908,
+        lower_limit: 7906725,
+        upper_limit: 7906825,
         liquidity: 28123192319023231239,
         quote_fee_factor_last: 31892319283213127389127312831273123123,
         base_fee_factor_last: 9938560381238123811392129756646474789,

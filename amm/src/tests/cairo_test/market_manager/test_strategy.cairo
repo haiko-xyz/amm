@@ -58,7 +58,7 @@ fn before() -> (
     params.width = 1;
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
-    params.start_limit = 8388608 + 741930; // initial limit
+    params.start_limit = OFFSET + 741930; // initial limit
     params.strategy = strategy.contract_address;
     let market_id = create_market(market_manager, params);
 

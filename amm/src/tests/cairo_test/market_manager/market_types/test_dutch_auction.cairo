@@ -47,7 +47,7 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
     let mut params = default_market_params();
 
     let valid_limits = valid_limits(
-        8388600 - 69310, 8388600 + 299570, 8388600 - 69310, 8388600 + 299570
+        7906620 - 69310, 7906620 + 299570, 7906620 - 69310, 7906620 + 299570
     );
     let market_configs = MarketConfigs {
         limits: config(valid_limits, true),
@@ -87,10 +87,10 @@ fn test_dutch_auction() {
 
     // Place some bids.
     set_contract_address(alice());
-    let id_1 = market_manager.create_order(market_id, true, 8388600 + 0, to_e18(10000)); // $1.0
-    let id_2 = market_manager.create_order(market_id, true, 8388600 + 91630, to_e18(50000)); // $2.5
+    let id_1 = market_manager.create_order(market_id, true, 7906620 + 0, to_e18(10000)); // $1.0
+    let id_2 = market_manager.create_order(market_id, true, 7906620 + 91630, to_e18(50000)); // $2.5
     let id_3 = market_manager
-        .create_order(market_id, true, 8388600 + 228240, to_e18(37000)); // $9.8
+        .create_order(market_id, true, 7906620 + 228240, to_e18(37000)); // $9.8
 
     // Should be able to withdraw bids before auction ends.
     market_manager.collect_order(market_id, id_2);
@@ -145,7 +145,7 @@ fn test_dutch_auction_ask_order() {
     let (market_manager, base_token, quote_token, market_id) = before();
 
     set_contract_address(alice());
-    market_manager.create_order(market_id, false, 8388600 + 0, to_e18(10000));
+    market_manager.create_order(market_id, false, 7906620 + 0, to_e18(10000));
 }
 
 #[test]
@@ -158,7 +158,7 @@ fn test_dutch_auction_liquidity_position() {
     set_contract_address(alice());
     market_manager
         .modify_position(
-            market_id, 8388600 + 0, 8388600 + 10, I256Trait::new(to_e18(10000), false)
+            market_id, 7906620 + 0, 7906620 + 10, I256Trait::new(to_e18(10000), false)
         );
 }
 
@@ -175,7 +175,7 @@ fn test_dutch_auction_bid_after_auction_ends() {
     market_manager.set_market_configs(market_id, market_configs);
 
     set_contract_address(alice());
-    market_manager.create_order(market_id, true, 8388600 + 0, to_e18(10000));
+    market_manager.create_order(market_id, true, 7906620 + 0, to_e18(10000));
 }
 
 #[test]

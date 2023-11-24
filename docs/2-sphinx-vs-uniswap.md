@@ -34,7 +34,7 @@ Markets are similar to pools, except they are defined over an explicit base and 
 
 #### Limits
 
-Limits are similar to ticks, except the have a lower minimum width of `0.00001 (1e-5)` instead of `0.0001 (1e-4)`. The current range of valid limits is `[-8388608, 8388607]` rather than `[-887272, 887272]`.
+Limits are similar to ticks, except the have a lower minimum width of `0.00001 (1e-5)` instead of `0.0001 (1e-4)`. The current range of valid limits is `[-7906625, 7906625]` rather than `[-887272, 887272]`.
 
 #### Width
 
@@ -109,7 +109,7 @@ The `sphinx` repo contains a library of reusable strategies under `/strategies`.
 
 Limits are implemented as ticks, but with a lower minimum width of `0.00001 (1e-5)` instead of `0.0001 (1e-4)`.
 
-The current range of valid limits is `[-8388608, 8388607]` rather than `[-887272, 887272]`. This gives a total of `16,777,216 (2 ** 24)` valid limits, which are stored in a three-level tree structure, each comprising a `u32` bitmap for a total of `256 ** 3 (16,777,216)` valid limits.
+The current range of valid limits is `[-7906625, 7906625]` rather than `[-887272, 887272]`. This gives a total of `15,813,251 (251 ** 3)` valid limits, which are stored in a three-level tree structure, each comprising a `u32` bitmap of nested `251` segments (fitting into a single `felt252` slot).
 
 Storing limits in a tree structure allows efficient traversal when searching for the next initialised limit. The tree can be expanded to four levels to allow for even greater precision of prices if needed.
 
@@ -117,7 +117,7 @@ Storing limits in a tree structure allows efficient traversal when searching for
 
 > Note: this section deals with lower level implementation details.
 
-Sphinx uses `UD47x28` fixed point numbers stored inside a `u256` to handle decimal numbers, including:
+Sphinx uses `X28` fixed point numbers (28 decimals) stored inside a `u256` to handle decimal numbers, including:
 
 - Sqrt prices
 - Base and quote fee factors
@@ -125,5 +125,3 @@ Sphinx uses `UD47x28` fixed point numbers stored inside a `u256` to handle decim
 Token amounts, as well as liquidity units, are represented as unscaled integers corresponding to the token's decimals as per their ERC20 specification (standardised at `18` for Starknet).
 
 In Uniswap V3, all prices are represented as `u160` fixed point numbers, with 96 bits for the integer part and 64 bits for the fractional part. The 28 decimals used by Sphinx roughly corresponds to comparable 93 bits of precision.
-
-> Note: Sphinx currently uses `UD47x28` fixed point numbers that fit inside a single `felt252` slot (a legacy optimisation). However, given these numbers are now stored inside a regular `u256` and bitpacked as structs into `felt252` slots, they will likely be replaced with `UD49x28` or `UD47x30` fixed point numbers to take full advantage of the 256 bits.

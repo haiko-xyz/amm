@@ -5,7 +5,7 @@ use starknet::get_caller_address;
 // Local imports.
 use amm::libraries::id;
 use amm::libraries::math::{math, price_math, fee_math, liquidity_math};
-use amm::libraries::constants::{ONE, MAX};
+use amm::libraries::constants::ONE;
 use amm::contracts::market_manager::MarketManager::{ContractState, MarketManagerInternalTrait};
 use amm::contracts::market_manager::MarketManager::{
     orders::InternalContractMemberStateTrait as OrderStateTrait,
