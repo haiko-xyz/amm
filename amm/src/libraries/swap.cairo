@@ -242,6 +242,7 @@ fn compute_swap_amounts(
     let is_buy = target_sqrt_price > curr_sqrt_price;
 
     // Calculate amounts in and out.
+    // We round up amounts in and round down amounts out to prevent protocol insolvency.
     let liquidity_i256 = I256Trait::new(liquidity, false);
     let mut amount_in = if is_buy {
         liquidity_math::liquidity_to_quote(curr_sqrt_price, target_sqrt_price, liquidity_i256, true)
@@ -279,6 +280,7 @@ fn compute_swap_amounts(
 
     // At this point, amounts in and out are assuming target price was reached.
     // If that isn't the case, recalculate amounts using next sqrt price.
+    // Rounding applied as above.
     if filled_max {
         amount_in =
             if exact_input {

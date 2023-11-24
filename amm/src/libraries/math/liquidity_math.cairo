@@ -140,6 +140,9 @@ fn liquidity_to_amounts(
     upper_sqrt_price: u256,
     width: u32,
 ) -> (i256, i256) {
+    // Note we round down amounts for liquidity removals, and round up for liquidity additions
+    // to prevent rounding errors from causing protocol insolvency. 
+
     // Case 1: price range is below current price, all liquidity is quote token
     if upper_sqrt_price <= curr_sqrt_price {
         let quote_amount = liquidity_math::liquidity_to_quote(
