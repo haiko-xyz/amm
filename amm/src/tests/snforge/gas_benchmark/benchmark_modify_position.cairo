@@ -22,7 +22,9 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::{to_e28, to_e18, approx_eq};
 
 // External imports.
-use snforge_std::{start_prank, PrintTrait, declare, ContractClass, ContractClassTrait};
+use snforge_std::{
+    start_prank, PrintTrait, declare, ContractClass, ContractClassTrait, CheatTarget
+};
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
@@ -62,8 +64,18 @@ fn before(
     (market_manager, market_id, base_token, quote_token)
 }
 
+// Benchmark gas use for following cases:
+//  1. MPALU: Add liquidity at previously uninitialised limits.
+//  2. MPALI: Add liquidity at previously initialised limits.
+//  3. MPALIU: Add liquidity at initialised lower, but previously uninitialised upper limit.
+//  4. MPCF: Collect fees from position (position is only one at limits).
+//  4. MPRL01: Remove liquidity with no accumulated fees (position is only one at limits).
+//  5. MPRLFM: Remove liquidity with accumulated fees (position is only one at limits).
+//  6. MPRL01: Remove liquidity with no accumulated fees (other positions exist at limits).
+//  7. MPRLFM: Remove liquidity with accumulated fees (other positions exist at limits).
+
 #[test]
-fn test_modify_position() {
+fn test_create_position_uninitialised_limits() {
     let manager_class = declare('MarketManager');
     let erc20_class = declare_token();
     let (market_manager, market_id, base_token, quote_token) = before(
@@ -82,15 +94,17 @@ fn test_modify_position() {
         liquidity
     );
 
-    let gas_before = testing::get_available_gas();
-    gas::withdraw_gas().unwrap();
-    modify_position(market_manager, params);
-    'modify_position gas used'.print();
-    (gas_before - testing::get_available_gas()).print(); 
+    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    'MPALU: start of test'.print();
+    let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
+        .modify_position(
+            params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
+        );
+    'MPALU: end of test'.print();
 }
 
 #[test]
-fn test_modify_position_after_swap() {
+fn test_create_position_initialised_limits() {
     let manager_class = declare('MarketManager');
     let erc20_class = declare_token();
     let (market_manager, market_id, base_token, quote_token) = before(
@@ -101,7 +115,7 @@ fn test_modify_position_after_swap() {
     let upper_limit = OFFSET + 1000;
     let liquidity = I256Trait::new(to_e18(100000), false);
 
-    let params = modify_position_params(
+    let mut params = modify_position_params(
         alice(),
         market_id,
         lower_limit,
@@ -109,15 +123,50 @@ fn test_modify_position_after_swap() {
         liquidity
     );
 
-    modify_position(market_manager, params);
+    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    market_manager.modify_position(
+        params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
+    );
 
-    let swap_params = swap_params(alice(), market_id, true, true, 10000, Option::None, Option::None, Option::None);
-    swap(market_manager, swap_params);
-
-    let gas_before = testing::get_available_gas();
-    gas::withdraw_gas().unwrap();
-    modify_position(market_manager, params);
-    'modify_position gas used'.print();
-    (gas_before - testing::get_available_gas()).print(); 
-
+    'MPALI: start of test'.print(); 
+    let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
+        .modify_position(
+            params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
+        );
+    'MPALI: end of test'.print(); 
 }
+
+// TODO: add remaining cases.
+
+// #[test]
+// fn test_modify_position_after_swap() {
+//     let manager_class = declare('MarketManager');
+//     let erc20_class = declare_token();
+//     let (market_manager, market_id, base_token, quote_token) = before(
+//         manager_class, erc20_class, 30
+//     );
+
+//     let lower_limit = OFFSET - 1000;
+//     let upper_limit = OFFSET + 1000;
+//     let liquidity = I256Trait::new(to_e18(100000), false);
+
+//     let params = modify_position_params(
+//         alice(),
+//         market_id,
+//         lower_limit,
+//         upper_limit,
+//         liquidity
+//     );
+
+//     modify_position(market_manager, params);
+
+//     let swap_params = swap_params(alice(), market_id, true, true, 10000, Option::None, Option::None, Option::None);
+//     swap(market_manager, swap_params);
+
+//     let gas_before = testing::get_available_gas();
+//     gas::withdraw_gas().unwrap();
+//     modify_position(market_manager, params);
+//     'modify_position gas used'.print();
+//     (gas_before - testing::get_available_gas()).print(); 
+
+// }

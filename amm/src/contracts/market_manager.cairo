@@ -716,6 +716,7 @@ mod MarketManager {
             upper_limit: u32,
             liquidity_delta: i256,
         ) -> (i256, i256, u256, u256) {
+            let gas_before = testing::get_available_gas();
             // Run checks.
             let market_info = self.market_info.read(market_id);
             let market_configs = self.market_configs.read(market_id);
@@ -730,6 +731,8 @@ mod MarketManager {
                         market_configs.add_liquidity.value, @market_info, 'AddLiqDisabled'
                     );
             }
+            'MP: initial checks'.print();
+            (gas_before - testing::get_available_gas()).print();
 
             // The caller of `_modify_position` can either be a user address (formatted as felt252) or 
             // a `batch_id` if it is being modified as part of a limit order. Here, we are dealing with
@@ -1612,41 +1615,38 @@ mod MarketManager {
             liquidity_delta: i256,
             is_limit_order: bool,
         ) -> (i256, i256, u256, u256) {
-                
-            // Checkpoint: gas used in reading current market state from contract storage
             let mut gas_before = testing::get_available_gas();
+
             // Fetch market info and caller.
             let market_info = self.market_info.read(market_id);
             let market_state = self.market_state.read(market_id);
             let valid_limits = self.market_configs.read(market_id).limits.value;
             let caller = get_caller_address();
-            '_mp read state 1'.print();
-            (gas_before - testing::get_available_gas()).print(); 
-            // Checkpoint End
 
-            // Checkpoint: gas used in validating inputs
+            'MP: read state'.print();
+            (gas_before - testing::get_available_gas()).print(); 
             gas_before = testing::get_available_gas();
+
             // Check inputs.
             assert(market_info.quote_token.is_non_zero(), 'MarketNull');
             assert(liquidity_delta.val <= MAX, 'LiqDeltaOverflow');
             limit_prices::check_limits(lower_limit, upper_limit, market_info.width, valid_limits);
-            '_mp val input 2'.print();
-            (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
 
-            // Checkpoint: gas used in updating liquidity
+            'MP: input checks'.print();
+            (gas_before - testing::get_available_gas()).print();
             gas_before = testing::get_available_gas();
+
             // Update liquidity (without transferring tokens).
+            // Gas benchmarks take place inside this function so we exclude it here.
             let (base_amount, quote_amount, base_fees, quote_fees) =
                 liquidity_helpers::update_liquidity(
                 ref self, owner, @market_info, market_id, lower_limit, upper_limit, liquidity_delta
             );
-            '_mp update liq 3'.print();
-            (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
 
-            // Checkpoint: gas used in calculating and updating fees
+            'MP: update_liquidity [T]'.print();
+            (gas_before - testing::get_available_gas()).print();
             gas_before = testing::get_available_gas();
+
             // Calculate and update protocol fee amounts.
             if base_fees > 0 || quote_fees > 0 {
                 let protocol_share: u256 = market_state.protocol_share.into();
@@ -1664,16 +1664,15 @@ mod MarketManager {
                     self.protocol_fees.write(market_info.quote_token, quote_protocol_fees);
                 }
             }
-            '_mp calc/update fee 4'.print();
+
+            'MP: update fees'.print();
             (gas_before - testing::get_available_gas()).print();
-            // Checkpoint End
+            gas_before = testing::get_available_gas();
 
             // Update reserves and transfer tokens.
             // That is, unless modifying liquidity as part of a limit order. In this case, do nothing
             // because tokens are transferred only when the order is collected.
             if !is_limit_order || !liquidity_delta.sign {
-                // Checkpoint: gas used in updating reserves and checks
-                gas_before = testing::get_available_gas();
                 // Update reserves.
                 if base_amount.val != 0 {
                     let mut base_reserves = self.reserves.read(market_info.base_token);
@@ -1691,15 +1690,15 @@ mod MarketManager {
                     liquidity_math::add_delta(ref quote_reserves, quote_amount);
                     self.reserves.write(market_info.quote_token, quote_reserves);
                 }
-                '_mp update reserve 5'.print();
+
+                'MP: update reserves'.print();
                 (gas_before - testing::get_available_gas()).print();
-                // Checkpoint End
+                gas_before = testing::get_available_gas();
 
                 // Transfer tokens from payer to contract.
                 let contract = get_contract_address();
 
                 // Checkpoint: gas used in transferring tokens from payer to contract
-                gas_before = testing::get_available_gas();
                 if base_amount.val > 0 {
                     let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
                     if base_amount.sign {
@@ -1734,9 +1733,9 @@ mod MarketManager {
                         quote_token.transfer_from(caller, contract, quote_amount.val);
                     }
                 }
-                '_mp transfer tokens 6'.print();
+                'MP: transfer tokens'.print();
                 (gas_before - testing::get_available_gas()).print();
-                // Checkpoint End
+                gas_before = testing::get_available_gas();
             }
 
             // Emit event if position was modified or fees collected.
@@ -1759,6 +1758,9 @@ mod MarketManager {
                         )
                     );
             }
+
+            'MP: emit event'.print();
+            (gas_before - testing::get_available_gas()).print();
 
             // Return amounts.
             (base_amount, quote_amount, base_fees, quote_fees)
