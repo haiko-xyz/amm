@@ -1,1 +1,0 @@
-mod manual_strategy;

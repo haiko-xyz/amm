@@ -3,7 +3,9 @@ use starknet::ContractAddress;
 use starknet::deploy_syscall;
 
 // Local imports.
-use amm::tests::common::contracts::manual_strategy::{ManualStrategy, IManualStrategyDispatcher};
+use amm::contracts::test::manual_strategy::{
+    ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
+};
 
 fn deploy_manual_strategy(owner: ContractAddress) -> IManualStrategyDispatcher {
     let mut constructor_calldata = ArrayTrait::<felt252>::new();

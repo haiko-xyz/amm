@@ -4,3 +4,4 @@ mod test_modify_position_events;
 mod test_limit_order_events;
 mod test_fee_factors;
 mod test_swap_events;
+mod test_quote_fuzz;

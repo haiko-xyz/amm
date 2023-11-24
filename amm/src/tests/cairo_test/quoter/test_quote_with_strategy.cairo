@@ -13,8 +13,8 @@ use amm::tests::cairo_test::helpers::market_manager::{
 use amm::tests::cairo_test::helpers::{
     token::{deploy_token, fund, approve}, quoter::deploy_quoter, strategy::deploy_manual_strategy,
 };
-use amm::tests::common::contracts::manual_strategy::{
-    IManualStrategyDispatcher, IManualStrategyDispatcherTrait
+use amm::contracts::test::manual_strategy::{
+    ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
 };
 use amm::tests::common::params::{
     owner, alice, default_token_params, default_market_params, modify_position_params, swap_params

@@ -1,11 +1,20 @@
 use starknet::ContractAddress;
 
+use amm::types::core::PositionInfo;
+
 ////////////////////////////////
 // INTERFACE
 ////////////////////////////////
 
 #[starknet::interface]
 trait IManualStrategy<TContractState> {
+    fn queued_bid(self: @TContractState) -> PositionRange;
+    fn queued_ask(self: @TContractState) -> PositionRange;
+    fn base_reserves(self: @TContractState) -> u256;
+    fn quote_reserves(self: @TContractState) -> u256;
+    fn bid(self: @TContractState) -> PositionInfo;
+    fn ask(self: @TContractState) -> PositionInfo;
+
     fn initialise(
         ref self: TContractState,
         name: felt252,
@@ -27,7 +36,7 @@ trait IManualStrategy<TContractState> {
 // TYPES
 ////////////////////////////////
 
-#[derive(Drop, Copy, starknet::Store)]
+#[derive(Drop, Copy, Serde, starknet::Store)]
 struct PositionRange {
     lower_limit: u32,
     upper_limit: u32,
@@ -66,6 +75,8 @@ mod ManualStrategy {
 
     // External imports.
     use openzeppelin::token::erc20::interface::{ERC20ABI, IERC20Dispatcher, IERC20DispatcherTrait};
+
+    use snforge_std::PrintTrait;
 
     #[storage]
     struct Storage {
@@ -213,12 +224,21 @@ mod ManualStrategy {
             let queued_positions = self.queued_positions();
             let next_bid = *queued_positions.at(0);
             let next_ask = *queued_positions.at(1);
+            next_bid.lower_limit.print();
+            bid.lower_limit.print();
+            next_bid.upper_limit.print();
+            bid.upper_limit.print();
+            next_ask.lower_limit.print();
+            ask.lower_limit.print();
+            next_ask.upper_limit.print();
+            ask.upper_limit.print();
             let update_bid: bool = next_bid != bid;
             let update_ask: bool = next_ask != ask;
 
             // Update positions.
             // If old positions exist at different price ranges, first remove them.
             if bid.liquidity != 0 && update_bid {
+                'reached bid'.print();
                 let (base_amount, quote_amount, _, _) = market_manager
                     .modify_position(
                         market_id,
@@ -231,6 +251,7 @@ mod ManualStrategy {
                 bid.liquidity = Default::default();
             }
             if ask.liquidity != 0 && update_ask {
+                'reached ask'.print();
                 let (base_amount, quote_amount, _, _) = market_manager
                     .modify_position(
                         market_id,
@@ -395,6 +416,30 @@ mod ManualStrategy {
 
             self.queued_bid.write(queued_bid);
             self.queued_ask.write(queued_ask);
+        }
+
+        fn queued_bid(self: @ContractState) -> PositionRange {
+            self.queued_bid.read()
+        }
+
+        fn queued_ask(self: @ContractState) -> PositionRange {
+            self.queued_ask.read()
+        }
+
+        fn base_reserves(self: @ContractState) -> u256 {
+            self.base_reserves.read()
+        }
+
+        fn quote_reserves(self: @ContractState) -> u256 {
+            self.quote_reserves.read()
+        }
+
+        fn bid(self: @ContractState) -> PositionInfo {
+            self.bid.read()
+        }
+
+        fn ask(self: @ContractState) -> PositionInfo {
+            self.ask.read()
         }
     }
 }

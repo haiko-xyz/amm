@@ -15,19 +15,19 @@ use amm::interfaces::{
     IStrategy::{IStrategyDispatcher, IStrategyDispatcherTrait},
     IQuoter::{IQuoterDispatcher, IQuoterDispatcherTrait}
 };
-use strategies::strategies::test::manual_strategy::{
+use amm::contracts::test::manual_strategy::{
     ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
 };
-use amm::tests::snforge::helpers::{
-    market_manager::{deploy_market_manager, create_market, modify_position, swap, swap_multiple},
-    token::{declare_token, deploy_token, fund, approve}, quoter::deploy_quoter
-};
-use strategies::tests::snforge::helpers::strategy::{deploy_strategy, initialise_strategy};
 use amm::tests::common::params::{
     owner, treasury, token_params, default_market_params, modify_position_params, swap_params,
     swap_multiple_params, default_token_params
 };
 use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
+use amm::tests::snforge::helpers::{
+    market_manager::{deploy_market_manager, create_market, modify_position, swap, swap_multiple},
+    token::{declare_token, deploy_token, fund, approve}, quoter::deploy_quoter
+};
+use amm::tests::snforge::helpers::strategy::{deploy_strategy, initialise_strategy};
 
 // External imports.
 use snforge_std::{start_prank, stop_prank, PrintTrait, declare, CheatTarget};
