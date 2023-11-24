@@ -23,6 +23,7 @@ jobs:
       - name: Setup Foundry
         run: |
           curl -L https://raw.githubusercontent.com/foundry-rs/starknet-foundry/master/scripts/install.sh | sh -s -- -v ${{ env.SNFORGE_VERSION }}
+          snfoundryup
 
       - name: Build and test `amm`
         working-directory: ./amm
