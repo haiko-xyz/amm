@@ -83,13 +83,13 @@ fn test_swap_limit_fully_filled() {
     let (market_manager, base_token, quote_token, market_id) = before(10);
 
     let curr_sqrt_price = market_manager.market_state(market_id).curr_sqrt_price;
-    let mut is_buy = true;
+    let is_buy = true;
     let exact_input = true;
     let amount = 1;
     let sqrt_price = Option::Some(curr_sqrt_price + 1000000);
     let threshold_amount = Option::Some(0);
 
-    let mut swap_params = swap_params(
+    let swap_params = swap_params(
         alice(), market_id, is_buy, exact_input, amount, sqrt_price, threshold_amount, Option::None,
     );
 
@@ -110,13 +110,13 @@ fn test_swap_partially_filled() {
     stop_prank(CheatTarget::One(market_manager.contract_address));
     
     let curr_sqrt_price = market_manager.market_state(market_id).curr_sqrt_price;
-    let mut is_buy = true;
+    let is_buy = true;
     let exact_input = true;
     let amount = 100;
     let sqrt_price = Option::Some(curr_sqrt_price + 1000000);
     let threshold_amount = Option::Some(0);
 
-    let mut swap_params = swap_params(
+    let swap_params = swap_params(
         alice(), market_id, is_buy, exact_input, amount, sqrt_price, threshold_amount, Option::None,
     );
 

@@ -149,7 +149,7 @@ fn test_create_position_initialised_limits() {
 }
 
 #[test]
-fn test_remove_liquidity_min_limit_last_position() {
+fn test_add_liquidity_to_initialised_lower_unintialised_upper() {
     let manager_class = declare('MarketManager');
     let erc20_class = declare_token();
     let (market_manager, market_id, base_token, quote_token) = before(
@@ -157,54 +157,60 @@ fn test_remove_liquidity_min_limit_last_position() {
     );
 
     let lower_limit = OFFSET - MIN_LIMIT;
-    let upper_limit = OFFSET - MIN_LIMIT + market_manager.width(market_id);
-    let liquidity_to_add = I256Trait::new(to_e18(100000), false);
-    let liquidity_to_remove = I256Trait::new(to_e18(100000), true);
+    let upper_limit = OFFSET;
+    let liquidity = I256Trait::new(to_e18(100000), false);
 
-    let mut params = modify_position_params(
+    let params_1 = modify_position_params(
         alice(),
         market_id,
         lower_limit,
         upper_limit,
-        liquidity_to_add
+        liquidity
+    );
+
+    let params_2 = modify_position_params(
+        alice(),
+        market_id,
+        upper_limit - 10,
+        OFFSET + 1000,
+        liquidity
     );
 
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
     market_manager.modify_position(
-        params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
+        params_1.market_id, params_1.lower_limit, params_1.upper_limit, params_1.liquidity_delta,
     );
 
-    'MPALI: start of test'.print();
+    'MPALIU: start of test'.print();
     let gas_before = testing::get_available_gas();
     gas::withdraw_gas().unwrap();
     let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
         .modify_position(
-            params.market_id, params.lower_limit, params.upper_limit, liquidity_to_remove,
+            params_2.market_id, params_2.lower_limit, params_2.upper_limit, params_2.liquidity_delta,
         );
     'remove_position gas used'.print();
     (gas_before - testing::get_available_gas()).print();
-    'MPALI: end of test'.print();
+    'MPALIU: end of test'.print();
 }
 
 #[test]
-fn test_remove_liquidity_max_limit_last_position() {
+fn test_collect_fee_from_single_position() {
     let manager_class = declare('MarketManager');
     let erc20_class = declare_token();
     let (market_manager, market_id, base_token, quote_token) = before(
         manager_class, erc20_class, 30
     );
 
-    let lower_limit = OFFSET + MAX_LIMIT - market_manager.width(market_id);
-    let upper_limit = OFFSET + MAX_LIMIT;
-    let liquidity_to_add = I256Trait::new(to_e18(100000), false);
-    let liquidity_to_remove = I256Trait::new(to_e18(100000), true);
+    let lower_limit = OFFSET - MIN_LIMIT;
+    let upper_limit = OFFSET;
+    let liquidity = I256Trait::new(to_e18(100000), false);
 
     let mut params = modify_position_params(
         alice(),
         market_id,
         lower_limit,
         upper_limit,
-        liquidity_to_add
+        liquidity
     );
 
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
@@ -212,17 +218,20 @@ fn test_remove_liquidity_max_limit_last_position() {
         params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
     );
 
-    'MPALI: start of test'.print();
+    market_manager.swap(market_id, false, 1000, true, Option::None, Option::None, Option::None);
+
+    'MPCF: start of test'.print();
     let gas_before = testing::get_available_gas();
     gas::withdraw_gas().unwrap();
     let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
         .modify_position(
-            params.market_id, params.lower_limit, params.upper_limit, liquidity_to_remove,
+            params.market_id, params.lower_limit, params.upper_limit, I256Trait::new(0, true),
         );
     (gas_before - testing::get_available_gas()).print();
-    'MPALI: end of test'.print();
+    'MPCF: end of test'.print();
 }
 
+//WIP
 #[test]
 fn test_remove_liquidity_min_limit() {
     let manager_class = declare('MarketManager');
