@@ -1,3 +1,4 @@
+use snforge_std::forge_print::PrintTrait;
 // Core lib imports.
 use starknet::ContractAddress;
 use starknet::get_caller_address;
@@ -41,7 +42,9 @@ fn fill_limits(
         if i == 0 {
             break;
         }
-
+        // Checkpoint: gas used in full iteration
+        let mut gas_before = testing::get_available_gas();
+        
         // Get batch info.
         let limit = *filled_limits.at(i - 1);
         let nonce = self.limit_info.read((market_id, limit)).nonce;
@@ -75,6 +78,9 @@ fn fill_limits(
             self.limit_info.write((market_id, limit), limit_info);
         }
         i -= 1;
+        'fill_limits itr'.print();
+        (gas_before - testing::get_available_gas()).print(); 
+        // Checkpoint End
     };
 }
 
@@ -97,15 +103,23 @@ fn fill_partial_limit(
     amount_out: u256,
     is_buy: bool,
 ) {
+    // Checkpoint: gas used in reading state
+    let mut gas_before = testing::get_available_gas();
     // Get limit and batch info.
     let partial_limit_info = self.limit_info.read((market_id, limit));
     let batch_id = id::batch_id(market_id, limit, partial_limit_info.nonce);
     let mut batch = self.batches.read(batch_id);
+    'FPL read state 1'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // Checkpoint End
 
     // Return if batch does not exist.
     if batch.liquidity == 0 {
         return;
     }
+
+    // Checkpoint: gas used in updating partial fill
+    gas_before = testing::get_available_gas();
     // Otherwise, update for partial fill.
     // Fill
     if is_buy != batch.is_bid {
@@ -129,4 +143,7 @@ fn fill_partial_limit(
 
     // Commit changes.
     self.batches.write(batch_id, batch);
+    'FPL update fill 2'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    // Checkpoint End
 }

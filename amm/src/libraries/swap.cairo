@@ -1,3 +1,4 @@
+use snforge_std::forge_print::PrintTrait;
 // Core lib imports.
 use cmp::{min, max};
 use integer::u512;
@@ -52,6 +53,10 @@ fn swap_iter(
     is_buy: bool,
     exact_input: bool,
 ) -> Option<PartialFillInfo> {
+    // Checkpoint: gas used in creating snapshot
+    let mut gas_before = testing::get_available_gas();
+    let total_gas_before = testing::get_available_gas();
+
     // Break loop if amount remaining filled or price threshold reached. 
     if amount_rem == 0
         || (threshold_sqrt_price.is_some()
@@ -63,12 +68,23 @@ fn swap_iter(
     let start_sqrt_price = market_state.curr_sqrt_price;
     let start_limit = market_state.curr_limit;
 
+    'SW (iter): checks + init state'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    gas_before = testing::get_available_gas();
+
     // Get next limit and constrain to max limit.
     let target_limit_opt = tree::next_limit(
         @self, market_id, is_buy, width, market_state.curr_limit
     );
+
+    'SW (iter): tree next limit'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    gas_before = testing::get_available_gas();
+
     // If running out of liquidity, we stop the swap execution.
     if target_limit_opt.is_none() {
+        'SW (iter): iter TOTAL [T]'.print();
+        (total_gas_before - testing::get_available_gas()).print(); 
         return Option::None(());
     }
     // assert(target_limit_opt.is_some(), 'NoLiquidity');
@@ -86,6 +102,10 @@ fn swap_iter(
         uncapped_target_sqrt_price
     };
 
+    'SW (iter): calc target price'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    gas_before = testing::get_available_gas();
+
     // Compute swap amounts and update for new price and accrued fees.
     let (amount_in_iter, amount_out_iter, fee_iter, next_sqrt_price) = compute_swap_amounts(
         market_state.curr_sqrt_price,
@@ -97,6 +117,10 @@ fn swap_iter(
     );
     market_state.curr_sqrt_price = next_sqrt_price;
 
+    'SW (iter): comp swap amts [T]'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    gas_before = testing::get_available_gas();
+
     // Update amount remaining and amount calc.
     // Amount calc refers to amount out for exact input, and vice versa for exact out.
     if exact_input {
@@ -106,9 +130,10 @@ fn swap_iter(
         amount_rem -= min(amount_out_iter, amount_rem);
         amount_calc += amount_in_iter + fee_iter;
     }
-
+    
     // Calculate protocol fees and update swap fee balance.
     let protocol_fee_iter = fee_math::calc_fee(fee_iter, market_state.protocol_share);
+
     protocol_fees += protocol_fee_iter;
     swap_fees += fee_iter - protocol_fee_iter;
 
@@ -124,8 +149,15 @@ fn swap_iter(
         }
     }
 
+    'SW (iter): calc amts + fees'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    gas_before = testing::get_available_gas();
+
     // Move to the next iteration if price target reached.
     if market_state.curr_sqrt_price == uncapped_target_sqrt_price {
+        'SW (iter): OPTION 1 - next'.print();
+        gas_before = testing::get_available_gas();
+
         // Update fully filled limits.
         if amount_in_iter != 0 {
             if is_buy {
@@ -134,6 +166,10 @@ fn swap_iter(
                 filled_limits.append(target_limit);
             };
         }
+
+        'SW (iter): append filled limit'.print();
+        (gas_before - testing::get_available_gas()).print(); 
+        gas_before = testing::get_available_gas();
 
         // Update fee factors.
         let mut limit_info = self.limit_info.read((market_id, target_limit));
@@ -148,6 +184,10 @@ fn swap_iter(
         limit_info.quote_fee_factor = market_state.quote_fee_factor - limit_info.quote_fee_factor;
         self.limit_info.write((market_id, target_limit), limit_info);
 
+        'SW (iter): update limit info'.print();
+        (gas_before - testing::get_available_gas()).print(); 
+        gas_before = testing::get_available_gas();
+
         // Apply liquidity deltas.
         let mut liquidity_delta = limit_info.liquidity_delta;
         if !is_buy {
@@ -157,8 +197,11 @@ fn swap_iter(
 
         // Handle edge case where target limit is min or max.
         if target_limit == price_math::max_limit(width) || target_limit == 0 {
+            'SW (iter): iter TOTAL [T]'.print();
+            (total_gas_before - testing::get_available_gas()).print(); 
             return Option::None(());
         }
+
         // If selling, we need to reduce the limit by 1 because searching to the left moves us to
         // the next price boundary. 
         if is_buy {
@@ -166,6 +209,13 @@ fn swap_iter(
         } else {
             market_state.curr_limit = target_limit - 1
         };
+
+        'SW (iter): update mkt state'.print();
+        (gas_before - testing::get_available_gas()).print(); 
+        gas_before = testing::get_available_gas();
+
+        'SW (iter): iter TOTAL [T]'.print();
+        (total_gas_before - testing::get_available_gas()).print(); 
 
         // Recursively call swap_iter.
         return swap_iter(
@@ -184,8 +234,12 @@ fn swap_iter(
             exact_input,
         );
     } else if market_state.curr_sqrt_price != start_sqrt_price {
+        'SW (iter): OPTION 2 - final'.print();
+        gas_before = testing::get_available_gas();
+
         // If sqrt price has changed, calculate new limit.
         let curr_limit = market_state.curr_limit;
+
         let next_limit = price_math::sqrt_price_to_limit(next_sqrt_price, width);
 
         // To handle imprecision at limit boundaries, constrain next limit so it is never lower
@@ -199,6 +253,13 @@ fn swap_iter(
         // Update state.
         market_state.curr_limit = new_limit;
 
+        'SW (iter): update mkt state'.print();
+        (gas_before - testing::get_available_gas()).print(); 
+        gas_before = testing::get_available_gas();
+
+        'SW (iter): iter TOTAL [T]'.print();
+        (total_gas_before - testing::get_available_gas()).print(); 
+
         // Handle partial fill by returning info.
         if curr_limit == next_limit {
             return Option::Some(
@@ -211,7 +272,9 @@ fn swap_iter(
             );
         }
     }
-
+    'SW (iter): OPTION 3 - final'.print();
+    'SW (iter): iter TOTAL [T]'.print();
+    (total_gas_before - testing::get_available_gas()).print(); 
     Option::None(())
 }
 
@@ -238,11 +301,15 @@ fn compute_swap_amounts(
     fee_rate: u16,
     exact_input: bool,
 ) -> (u256, u256, u256, u256) {
+    let mut gas_before = testing::get_available_gas();
+
     // Determine whether swap is a buy or sell.
     let is_buy = target_sqrt_price > curr_sqrt_price;
 
     // Calculate amounts in and out.
     let liquidity_i256 = I256Trait::new(liquidity, false);
+
+
     let mut amount_in = if is_buy {
         liquidity_math::liquidity_to_quote(curr_sqrt_price, target_sqrt_price, liquidity_i256, true)
     } else {
@@ -259,8 +326,13 @@ fn compute_swap_amounts(
     }
         .val;
 
+    'SW (CSA): calc amts'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    gas_before = testing::get_available_gas();
+
     // Calculate next sqrt price.
     let amount_rem_less_fee = fee_math::gross_to_net(amount_rem, fee_rate);
+
     let filled_max = if exact_input {
         amount_rem_less_fee < amount_in
     } else {
@@ -276,6 +348,10 @@ fn compute_swap_amounts(
             next_sqrt_price_output(curr_sqrt_price, liquidity, amount_rem, is_buy)
         }
     };
+
+    'SW (CSA): calc next sqrtP'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    gas_before = testing::get_available_gas();
 
     // At this point, amounts in and out are assuming target price was reached.
     // If that isn't the case, recalculate amounts using next sqrt price.
@@ -312,12 +388,19 @@ fn compute_swap_amounts(
             };
     }
 
+    'SW (CSA): update amts'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+    gas_before = testing::get_available_gas();
+
     // Calculate fees. 
     // Amount in is net of fees because we capped amounts by net amount remaining.
     // Fees are rounded down by default to prevent overflow when transferring amounts.
     // Note that in Uniswap, if target price is not reached, LP takes the remainder 
     // of the maximum input as fee. We don't do that here.
     let fees = fee_math::net_to_fee(amount_in, fee_rate);
+
+    'SW (CSA): calc fee'.print();
+    (gas_before - testing::get_available_gas()).print(); 
 
     // Return amounts.
     (amount_in, amount_out, fees, next_sqrt_price)
