@@ -4,7 +4,7 @@ use starknet::ContractAddress;
 use dict::{Felt252Dict, Felt252DictTrait};
 
 // Local imports.
-use amm::libraries::constants::{MAX, OFFSET, MAX_LIMIT};
+use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::libraries::math::fee_math;
 use amm::types::core::{SwapParams, PositionInfo};
 use amm::libraries::id;
@@ -95,7 +95,7 @@ fn test_swap_limit_fully_filled() {
 
     'test start'.print();
     swap(market_manager, swap_params);
-    'test end'.print();
+    '(SLLFF) test end'.print();
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn test_swap_partially_filled() {
     let (market_manager, base_token, quote_token, market_id) = before(1);
 
     let liquidity = to_e18(1000000000);
-    let limit = 10;
+    let limit = 11;
     let is_bid = false;
     start_prank(CheatTarget::One(market_manager.contract_address), owner());
     market_manager.create_order(market_id, is_bid, limit, liquidity);
@@ -112,8 +112,8 @@ fn test_swap_partially_filled() {
     let curr_sqrt_price = market_manager.market_state(market_id).curr_sqrt_price;
     let is_buy = true;
     let exact_input = true;
-    let amount = 100;
-    let sqrt_price = Option::Some(curr_sqrt_price + 1000000);
+    let amount = 10;
+    let sqrt_price = Option::Some(curr_sqrt_price + 100000000000);
     let threshold_amount = Option::Some(0);
 
     let swap_params = swap_params(
@@ -122,5 +122,5 @@ fn test_swap_partially_filled() {
 
     'test start'.print();
     swap(market_manager, swap_params);
-    'test end'.print();
+    '(SLLPF) test end'.print();
 }

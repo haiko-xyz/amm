@@ -2206,7 +2206,7 @@ mod MarketManager {
             gas_before = testing::get_available_gas();
 
             // Execute strategy cleanup.
-            if market_info.strategy.is_non_zero() && caller != market_info.strategy {
+            if market_info.strategy.is_non_zero() {
                 IStrategyDispatcher { contract_address: market_info.strategy }.cleanup();
             }
 

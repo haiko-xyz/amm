@@ -5,7 +5,7 @@ use dict::{Felt252Dict, Felt252DictTrait};
 
 // Local imports.
 use amm::libraries::constants::{
-    OFFSET, MIN_LIMIT, MIN_SQRT_PRICE, MAX_SQRT_PRICE, MAX, MAX_NUM_LIMITS, MAX_LIMIT
+    OFFSET, MIN_LIMIT, MIN_SQRT_PRICE, MAX_SQRT_PRICE, MAX_LIMIT
 };
 use amm::libraries::math::fee_math;
 use amm::types::core::{SwapParams, PositionInfo};
@@ -15,14 +15,10 @@ use amm::types::core::{MarketState, LimitInfo};
 use amm::types::i256::{i256, I256Trait, I256Zeroable};
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
     use amm::interfaces::IStrategy::{IStrategyDispatcher, IStrategyDispatcherTrait};
-use strategies::strategies::replicating::{
-    pragma_interfaces::{DataType, PragmaPricesResponse},
-    mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait}
-};
-use strategies::strategies::test::manual_strategy::{
+use amm::contracts::test::manual_strategy::{
     ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
 };
-use strategies::tests::snforge::helpers::strategy::{deploy_strategy, initialise_strategy};
+use amm::tests::snforge::helpers::strategy::{deploy_strategy, initialise_strategy};
 use amm::tests::snforge::helpers::{
     market_manager::{deploy_market_manager, create_market, modify_position, swap, swap_multiple},
     token::{declare_token, deploy_token, fund, approve},

@@ -4,7 +4,7 @@ use starknet::ContractAddress;
 use dict::{Felt252Dict, Felt252DictTrait};
 
 // Local imports.
-use amm::libraries::constants::{MAX, OFFSET, MAX_LIMIT};
+use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::libraries::math::fee_math;
 use amm::libraries::id;
 use amm::libraries::liquidity as liquidity_helpers;

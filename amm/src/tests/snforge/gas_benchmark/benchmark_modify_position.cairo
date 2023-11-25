@@ -4,7 +4,7 @@ use starknet::ContractAddress;
 use dict::{Felt252Dict, Felt252DictTrait};
 
 // Local imports.
-use amm::libraries::constants::{MAX, OFFSET, MAX_LIMIT, MIN_LIMIT};
+use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT};
 use amm::libraries::math::fee_math;
 use amm::libraries::id;
 use amm::libraries::liquidity as liquidity_helpers;
@@ -231,9 +231,8 @@ fn test_collect_fee_from_single_position() {
     'MPCF: end of test'.print();
 }
 
-//WIP
 #[test]
-fn test_remove_liquidity_min_limit() {
+fn test_remove_liquidity_no_fee() {
     let manager_class = declare('MarketManager');
     let erc20_class = declare_token();
     let (market_manager, market_id, base_token, quote_token) = before(
@@ -264,7 +263,7 @@ fn test_remove_liquidity_min_limit() {
     );
     stop_prank(CheatTarget::One(market_manager.contract_address));
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
-    'MPALI: start of test'.print();
+    'MPRL01: start of test'.print();
     let gas_before = testing::get_available_gas();
     gas::withdraw_gas().unwrap();
     let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
@@ -273,11 +272,52 @@ fn test_remove_liquidity_min_limit() {
         );
     'remove_position gas used'.print();
     (gas_before - testing::get_available_gas()).print();
-    'MPALI: end of test'.print();
+    'MPRL01: end of test'.print();
 }
 
 #[test]
-fn test_remove_liquidity_max_limit() {
+fn test_remove_liquidity_accumulated_fee() {
+    let manager_class = declare('MarketManager');
+    let erc20_class = declare_token();
+    let (market_manager, market_id, base_token, quote_token) = before(
+        manager_class, erc20_class, 30
+    );
+
+    let lower_limit = OFFSET + MAX_LIMIT - market_manager.width(market_id);
+    let upper_limit = OFFSET + MAX_LIMIT;
+    let liquidity_to_add = I256Trait::new(to_e18(100000), false);
+    let liquidity_to_remove = I256Trait::new(to_e18(100000), true);
+
+    let mut params = modify_position_params(
+        alice(),
+        market_id,
+        lower_limit,
+        upper_limit,
+        liquidity_to_add
+    );
+
+    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    market_manager.modify_position(
+        params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
+    );
+    market_manager.swap(market_id, false, 1000, true, Option::None, Option::None, Option::None);
+    stop_prank(CheatTarget::One(market_manager.contract_address));
+
+    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    'MPRLFM: start of test'.print();
+    let gas_before = testing::get_available_gas();
+    gas::withdraw_gas().unwrap();
+    let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
+        .modify_position(
+            params.market_id, params.lower_limit, params.upper_limit, liquidity_to_remove,
+        );
+    'remove_position gas used'.print();
+    (gas_before - testing::get_available_gas()).print();
+    'MPRLFM: end of test'.print();
+}
+
+#[test]
+fn test_remove_liquidity_no_fee_other_position_exists() {
     let manager_class = declare('MarketManager');
     let erc20_class = declare_token();
     let (market_manager, market_id, base_token, quote_token) = before(
@@ -307,8 +347,9 @@ fn test_remove_liquidity_max_limit() {
         params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
     );
     stop_prank(CheatTarget::One(market_manager.contract_address));
+
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
-    'MPALI: start of test'.print();
+    'MPRL01: start of test'.print();
     let gas_before = testing::get_available_gas();
     gas::withdraw_gas().unwrap();
     let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
@@ -317,39 +358,51 @@ fn test_remove_liquidity_max_limit() {
         );
     'remove_position gas used'.print();
     (gas_before - testing::get_available_gas()).print();
-    'MPALI: end of test'.print();
+    'MPRL01: end of test'.print();
 }
-// TODO: add remaining cases.
 
-// #[test]
-// fn test_modify_position_after_swap() {
-//     let manager_class = declare('MarketManager');
-//     let erc20_class = declare_token();
-//     let (market_manager, market_id, base_token, quote_token) = before(
-//         manager_class, erc20_class, 30
-//     );
+#[test]
+fn test_remove_liquidity_accumulated_fee_other_position_exists() {
+    let manager_class = declare('MarketManager');
+    let erc20_class = declare_token();
+    let (market_manager, market_id, base_token, quote_token) = before(
+        manager_class, erc20_class, 30
+    );
 
-//     let lower_limit = OFFSET - 1000;
-//     let upper_limit = OFFSET + 1000;
-//     let liquidity = I256Trait::new(to_e18(100000), false);
+    let lower_limit = OFFSET;
+    let upper_limit = OFFSET + MAX_LIMIT;
+    let liquidity_to_add = I256Trait::new(to_e18(100000), false);
+    let liquidity_to_remove = I256Trait::new(to_e18(100000), true);
 
-//     let params = modify_position_params(
-//         alice(),
-//         market_id,
-//         lower_limit,
-//         upper_limit,
-//         liquidity
-//     );
+    let mut params = modify_position_params(
+        alice(),
+        market_id,
+        lower_limit,
+        upper_limit,
+        liquidity_to_add
+    );
 
-//     modify_position(market_manager, params);
+    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    market_manager.modify_position(
+        params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
+    );
+    stop_prank(CheatTarget::One(market_manager.contract_address));
+    start_prank(CheatTarget::One(market_manager.contract_address), bob());
+    market_manager.modify_position(
+        params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
+    );
+    market_manager.swap(market_id, true, 1000, true, Option::None, Option::None, Option::None);
+    stop_prank(CheatTarget::One(market_manager.contract_address));
 
-//     let swap_params = swap_params(alice(), market_id, true, true, 10000, Option::None, Option::None, Option::None);
-//     swap(market_manager, swap_params);
-
-//     let gas_before = testing::get_available_gas();
-//     gas::withdraw_gas().unwrap();
-//     modify_position(market_manager, params);
-//     'modify_position gas used'.print();
-//     (gas_before - testing::get_available_gas()).print(); 
-
-// }
+    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    'MPRLFM: start of test'.print();
+    let gas_before = testing::get_available_gas();
+    gas::withdraw_gas().unwrap();
+    let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
+        .modify_position(
+            params.market_id, params.lower_limit, params.upper_limit, liquidity_to_remove,
+        );
+    'remove_position gas used'.print();
+    (gas_before - testing::get_available_gas()).print();
+    'MPRLFM: end of test'.print();
+}
