@@ -99,6 +99,8 @@ fn swap_iter(
 
     // Update amount remaining and amount calc.
     // Amount calc refers to amount out for exact input, and vice versa for exact out.
+    // In same cases, rounding errors can cause computed swap amounts to be slightly different
+    // from amounts remaining. We handle this by capping at total amount remaining.
     if exact_input {
         amount_rem -= min(amount_in_iter + fee_iter, amount_rem);
         amount_calc += amount_out_iter;
