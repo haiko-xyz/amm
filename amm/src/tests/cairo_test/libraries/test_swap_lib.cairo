@@ -2,7 +2,7 @@ use integer::BoundedU256;
 
 use amm::libraries::math::fee_math::gross_to_net;
 use amm::libraries::constants::ONE;
-use amm::libraries::swap::{compute_swap_amounts, next_sqrt_price_input, next_sqrt_price_output};
+use amm::libraries::swap_lib::{compute_swap_amounts, next_sqrt_price_input, next_sqrt_price_output};
 use amm::tests::common::utils::encode_sqrt_price;
 use amm::tests::common::utils::to_e28;
 

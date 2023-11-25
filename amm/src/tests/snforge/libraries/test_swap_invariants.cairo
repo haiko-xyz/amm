@@ -5,7 +5,7 @@ use integer::{BoundedU256, u256_wide_mul, u512};
 use amm::libraries::constants::{MIN_SQRT_PRICE, MAX_SQRT_PRICE};
 use amm::libraries::math::math;
 use amm::libraries::math::liquidity_math::{liquidity_to_base, liquidity_to_quote};
-use amm::libraries::swap::{compute_swap_amounts, next_sqrt_price_input, next_sqrt_price_output};
+use amm::libraries::swap_lib::{compute_swap_amounts, next_sqrt_price_input, next_sqrt_price_output};
 use amm::libraries::constants::ONE;
 use amm::types::i256::I256Trait;
 use amm::tests::common::utils::approx_eq;

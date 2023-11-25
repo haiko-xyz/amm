@@ -1,4 +1,4 @@
-use amm::libraries::limit_prices::{check_limits, check_threshold};
+use amm::libraries::price_lib::{check_limits, check_threshold};
 use amm::libraries::constants::{
     OFFSET, MAX_LIMIT, MAX_LIMIT_SHIFTED, MIN_SQRT_PRICE, MAX_SQRT_PRICE
 };

@@ -67,7 +67,6 @@ mod ManualStrategy {
     use amm::types::core::{MarketState, SwapParams, PositionInfo};
     use amm::libraries::math::{math, price_math, liquidity_math, fee_math};
     use amm::libraries::id;
-    use amm::libraries::liquidity as liquidity_helpers;
     use amm::libraries::constants::ONE;
     use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
     use amm::interfaces::IStrategy::IStrategy;
@@ -190,20 +189,24 @@ mod ManualStrategy {
             let bid_liquidity = if quote_amount == 0 {
                 0
             } else {
+                // Rounded down as per convention when depositing liquidity.
                 liquidity_math::quote_to_liquidity(
                     price_math::limit_to_sqrt_price(next_bid.lower_limit, width),
                     price_math::limit_to_sqrt_price(next_bid.upper_limit, width),
-                    quote_amount
+                    quote_amount,
+                    false
                 )
             };
             let base_amount = base_reserves + bid_base + ask_base;
             let ask_liquidity = if base_amount == 0 {
                 0
             } else {
+                // Rounded down as per convention when depositing liquidity.
                 liquidity_math::base_to_liquidity(
                     price_math::limit_to_sqrt_price(next_ask.lower_limit, width),
                     price_math::limit_to_sqrt_price(next_ask.upper_limit, width),
-                    base_amount
+                    base_amount,
+                    false
                 )
             };
 

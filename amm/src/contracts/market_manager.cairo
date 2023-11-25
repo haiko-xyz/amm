@@ -15,10 +15,7 @@ mod MarketManager {
     use starknet::class_hash::ClassHash;
 
     // Local imports.
-    use amm::libraries::{
-        tree, id, limit_prices, liquidity as liquidity_helpers, swap as swap_helpers,
-        order as order_helpers, quote as quote_helpers
-    };
+    use amm::libraries::{tree, id, price_lib, liquidity_lib, swap_lib, order_lib, quote_lib};
     use amm::libraries::math::{math, price_math, fee_math, liquidity_math};
     use amm::libraries::constants::{ONE, MAX_WIDTH, MAX_LIMIT_SHIFTED};
     use amm::interfaces::IMarketManager::IMarketManager;
@@ -27,7 +24,7 @@ mod MarketManager {
     use amm::interfaces::ILoanReceiver::{ILoanReceiverDispatcher, ILoanReceiverDispatcherTrait};
     use amm::types::core::{
         MarketInfo, MarketConfigs, MarketState, OrderBatch, Position, LimitInfo, LimitOrder,
-        PositionInfo, ERC721PositionInfo, SwapParams, ConfigOption, Config
+        ERC721PositionInfo, SwapParams, ConfigOption, Config
     };
     use amm::types::i256::{i256, I256Zeroable, I256Trait};
     use amm::libraries::store_packing::{
@@ -344,8 +341,8 @@ mod MarketManager {
 
         fn swap_fee_rate(self: @ContractState, market_id: felt252) -> u16 {
             let fee_controller = self.market_info.read(market_id).fee_controller;
-            if fee_controller == ContractAddressZeroable::zero() {
-                0
+            if fee_controller.is_zero() {
+                self.market_info.read(market_id).swap_fee_rate
             } else {
                 IFeeControllerDispatcher { contract_address: fee_controller }.swap_fee_rate()
             }
@@ -438,7 +435,7 @@ mod MarketManager {
             lower_limit: u32,
             upper_limit: u32,
         ) -> (u256, u256) {
-            liquidity_helpers::amounts_inside_position(
+            liquidity_lib::amounts_inside_position(
                 self, market_id, position_id, lower_limit, upper_limit
             )
         }
@@ -473,12 +470,12 @@ mod MarketManager {
             (base_amount.val, quote_amount.val)
         }
 
-        // Convert desired token amount to liquidity.
+        // Convert desired token amount to liquidity for limit orders.
         //
         // # Arguments
         // * `market_id` - market id
         // * `is_buy` - whether order is a bid or ask
-        // * `limit` - limit at which order is placed
+        // * `limit` - limit at which limit order is placed
         // * `amount` - amount of tokens to convert
         //
         // # Returns
@@ -486,19 +483,17 @@ mod MarketManager {
         fn amount_to_liquidity(
             self: @ContractState, market_id: felt252, is_bid: bool, limit: u32, amount: u256,
         ) -> u256 {
-            let market_info = self.market_info.read(market_id);
+            let width = self.width(market_id);
+            let lower_sqrt_price = price_math::limit_to_sqrt_price(limit, width);
+            let upper_sqrt_price = price_math::limit_to_sqrt_price(limit + width, width);
+            // Round down to avoid returning a liquidity amount that requires greater token balances
+            // than is available to the user.
             if is_bid {
                 liquidity_math::quote_to_liquidity(
-                    price_math::limit_to_sqrt_price(limit, market_info.width),
-                    price_math::limit_to_sqrt_price(limit + market_info.width, market_info.width),
-                    amount,
+                    lower_sqrt_price, upper_sqrt_price, amount, false
                 )
             } else {
-                liquidity_math::base_to_liquidity(
-                    price_math::limit_to_sqrt_price(limit, market_info.width),
-                    price_math::limit_to_sqrt_price(limit + market_info.width, market_info.width),
-                    amount,
-                )
+                liquidity_math::base_to_liquidity(lower_sqrt_price, upper_sqrt_price, amount, false)
             }
         }
 
@@ -522,7 +517,7 @@ mod MarketManager {
         fn ERC721_position_info(self: @ContractState, token_id: felt252) -> ERC721PositionInfo {
             let position = self.positions.read(token_id);
             let market_info = self.market_info.read(position.market_id);
-            let (base_amount, quote_amount) = liquidity_helpers::amounts_inside_position(
+            let (base_amount, quote_amount) = liquidity_lib::amounts_inside_position(
                 self, position.market_id, token_id, position.lower_limit, position.upper_limit
             );
 
@@ -575,8 +570,6 @@ mod MarketManager {
             controller: ContractAddress,
             configs: Option<MarketConfigs>,
         ) -> felt252 {
-            self.assert_only_owner();
-
             // Validate inputs.
             assert(base_token.is_non_zero() && quote_token.is_non_zero(), 'TokensNull');
             assert(width != 0, 'WidthZero');
@@ -603,21 +596,17 @@ mod MarketManager {
 
             // Initialise market settings.
             if configs.is_some() {
-                let configs = configs.unwrap();
-                assert(controller.is_non_zero(), 'OwnerNotSet');
-                self.market_configs.write(market_id, configs);
+                let configs_uw = configs.unwrap();
+                assert(controller.is_non_zero(), 'NoController');
+                self.market_configs.write(market_id, configs_uw);
             }
 
             // Initialise market state.
             let start_sqrt_price = price_math::limit_to_sqrt_price(start_limit, width);
-            let market_state = MarketState {
-                liquidity: Zeroable::zero(),
-                curr_limit: start_limit,
-                curr_sqrt_price: start_sqrt_price,
-                protocol_share,
-                base_fee_factor: Zeroable::zero(),
-                quote_fee_factor: Zeroable::zero(),
-            };
+            let mut market_state: MarketState = Default::default();
+            market_state.curr_limit = start_limit;
+            market_state.curr_sqrt_price = start_sqrt_price;
+            market_state.protocol_share = protocol_share;
             self.market_state.write(market_id, market_state);
 
             // Emit events.
@@ -638,10 +627,14 @@ mod MarketManager {
                         }
                     )
                 );
-            self
-                .emit(
-                    Event::ChangeProtocolShare(ChangeProtocolShare { market_id, protocol_share })
-                );
+            if protocol_share != 0 {
+                self
+                    .emit(
+                        Event::ChangeProtocolShare(
+                            ChangeProtocolShare { market_id, protocol_share }
+                        )
+                    );
+            }
             if configs.is_some() {
                 let configs = configs.unwrap();
                 self
@@ -689,17 +682,12 @@ mod MarketManager {
             // Run checks.
             let market_info = self.market_info.read(market_id);
             let market_configs = self.market_configs.read(market_id);
-            if liquidity_delta.sign {
-                self
-                    .enforce_status(
-                        market_configs.remove_liquidity.value, @market_info, 'RemLiqDisabled'
-                    );
+            let (config, err_msg) = if liquidity_delta.sign {
+                (market_configs.remove_liquidity.value, 'RemLiqDisabled')
             } else {
-                self
-                    .enforce_status(
-                        market_configs.add_liquidity.value, @market_info, 'AddLiqDisabled'
-                    );
-            }
+                (market_configs.add_liquidity.value, 'AddLiqDisabled')
+            };
+            self.enforce_status(config, @market_info, err_msg);
 
             // The caller of `_modify_position` can either be a user address (formatted as felt252) or 
             // a `batch_id` if it is being modified as part of a limit order. Here, we are dealing with
@@ -736,25 +724,17 @@ mod MarketManager {
 
             // Run checks.
             assert(market_info.width != 0, 'MarketNull');
-            if is_bid {
-                self
-                    .enforce_status(
-                        market_configs.create_bid.value, @market_info, 'CreateBidDisabled'
-                    );
+            let (config, err_msg) = if is_bid {
+                (market_configs.create_bid.value, 'CreateBidDisabled')
             } else {
-                self
-                    .enforce_status(
-                        market_configs.create_ask.value, @market_info, 'CreateAskDisabled'
-                    );
+                (market_configs.create_ask.value, 'CreateAskDisabled')
+            };
+            self.enforce_status(config, @market_info, err_msg);
+            if is_bid {
+                assert(limit < market_state.curr_limit, 'NotLimitOrder');
+            } else {
+                assert(limit > market_state.curr_limit, 'NotLimitOrder');
             }
-            assert(
-                if is_bid {
-                    limit < market_state.curr_limit
-                } else {
-                    limit > market_state.curr_limit
-                },
-                'NotLimitOrder'
-            );
             assert(liquidity_delta != 0, 'OrderAmtZero');
 
             // Fetch order and batch info.
@@ -876,6 +856,7 @@ mod MarketManager {
                     );
                 (base_amount.val - base_fees, quote_amount.val - quote_fees)
             } else {
+                // Round down token amounts when withdrawing.
                 let base_amount = math::mul_div(
                     batch.base_amount, order.liquidity, batch.liquidity, false
                 );
@@ -1071,13 +1052,13 @@ mod MarketManager {
                     Option::None(()),
                     true,
                 );
-            let return_amount = if exact_input {
+            let quote = if exact_input {
                 amount_out
             } else {
                 amount_in
             };
             // Return amount as error message.
-            assert(false, return_amount.try_into().unwrap());
+            assert(false, quote.try_into().unwrap());
         }
 
         // Obtain quote for a swap across multiple markets in a multi-hop route.
@@ -1139,7 +1120,7 @@ mod MarketManager {
             assert(market_info.quote_token.is_non_zero(), 'MarketNull');
             assert(amount > 0, 'AmtZero');
             if threshold_sqrt_price.is_some() {
-                limit_prices::check_threshold(
+                price_lib::check_threshold(
                     threshold_sqrt_price.unwrap(), market_state.curr_sqrt_price, is_buy
                 );
             }
@@ -1155,23 +1136,12 @@ mod MarketManager {
                 let strategy = IStrategyDispatcher { contract_address: market_info.strategy };
                 let placed_positions = strategy.placed_positions();
                 let queued_positions = strategy.queued_positions();
-
-                self
-                    ._populate_strategy_arrays(
-                        ref queued_deltas,
-                        ref target_limits,
-                        ref market_state,
-                        placed_positions,
-                        true
-                    );
-                self
-                    ._populate_strategy_arrays(
-                        ref queued_deltas,
-                        ref target_limits,
-                        ref market_state,
-                        queued_positions,
-                        false
-                    );
+                quote_lib::populate_limits(
+                    ref queued_deltas, ref target_limits, ref market_state, placed_positions, true
+                );
+                quote_lib::populate_limits(
+                    ref queued_deltas, ref target_limits, ref market_state, queued_positions, false
+                );
             }
 
             // Get swap fee. 
@@ -1192,7 +1162,7 @@ mod MarketManager {
             let mut protocol_fees = 0;
 
             // Simulate swap.
-            quote_helpers::quote_iter(
+            quote_lib::quote_iter(
                 self,
                 market_id,
                 ref market_state,
@@ -1208,24 +1178,8 @@ mod MarketManager {
                 exact_input,
             );
 
-            // Calculate swap amounts.
-            let amount_in = if exact_input {
-                amount - amount_rem
-            } else {
-                amount_calc
-            };
-            let amount_out = if exact_input {
-                amount_calc
-            } else {
-                amount - amount_rem
-            };
-
-            // Returns quote.
-            if exact_input {
-                amount_out
-            } else {
-                amount_in
-            }
+            // Return quote.
+            amount_calc
         }
 
         // Obtain quote for a multi-market swap.
@@ -1329,14 +1283,12 @@ mod MarketManager {
             assert(balance_after >= balance_before + fees, 'LoanNotReturned');
 
             // Update reserves.
-            let mut reserves = self.reserves.read(token);
-            reserves += fees;
-            self.reserves.write(token, reserves);
+            let reserves = self.reserves.read(token);
+            self.reserves.write(token, reserves + fees);
 
             // Update protocol fees.
-            let mut protocol_fees = self.protocol_fees.read(token);
-            protocol_fees += fees;
-            self.protocol_fees.write(token, protocol_fees);
+            let protocol_fees = self.protocol_fees.read(token);
+            self.protocol_fees.write(token, protocol_fees + fees);
 
             // Emit event.
             self.emit(Event::FlashLoan(FlashLoan { borrower, token, amount }));
@@ -1659,13 +1611,13 @@ mod MarketManager {
 
             // Check inputs.
             assert(market_info.quote_token.is_non_zero(), 'MarketNull');
-            limit_prices::check_limits(
+            price_lib::check_limits(
                 lower_limit, upper_limit, market_info.width, valid_limits, liquidity_delta.sign
             );
 
             // Update liquidity (without transferring tokens).
             let (base_amount, quote_amount, base_fees, quote_fees) =
-                liquidity_helpers::update_liquidity(
+                liquidity_lib::update_liquidity(
                 ref self, owner, @market_info, market_id, lower_limit, upper_limit, liquidity_delta
             );
 
@@ -1812,7 +1764,7 @@ mod MarketManager {
             assert(market_info.quote_token.is_non_zero(), 'MarketNull');
             assert(amount > 0, 'AmtZero');
             if threshold_sqrt_price.is_some() {
-                limit_prices::check_threshold(
+                price_lib::check_threshold(
                     threshold_sqrt_price.unwrap(), market_state.curr_sqrt_price, is_buy
                 );
             }
@@ -1856,7 +1808,7 @@ mod MarketManager {
             // If the final limit is partially filled, details of this are returned to correctly
             // update the limit order batch.
             market_state = self.market_state.read(market_id);
-            let partial_fill_info = swap_helpers::swap_iter(
+            let partial_fill_info = swap_lib::swap_iter(
                 ref self,
                 market_id,
                 ref market_state,
@@ -1874,15 +1826,10 @@ mod MarketManager {
 
             // Calculate swap amounts.
             assert(amount >= amount_rem, 'SwapAmtSubAmtRem');
-            let amount_in = if exact_input {
-                amount - amount_rem
+            let (amount_in, amount_out) = if exact_input {
+                (amount - amount_rem, amount_calc)
             } else {
-                amount_calc
-            };
-            let amount_out = if exact_input {
-                amount_calc
-            } else {
-                amount - amount_rem
+                (amount_calc, amount - amount_rem)
             };
 
             // Check swap amount against amount threshold.
@@ -1918,15 +1865,10 @@ mod MarketManager {
             self.market_state.write(market_id, market_state);
 
             // Identify in and out tokens.
-            let in_token = if is_buy {
-                market_info.quote_token
+            let (in_token, out_token) = if is_buy {
+                (market_info.quote_token, market_info.base_token)
             } else {
-                market_info.base_token
-            };
-            let out_token = if is_buy {
-                market_info.base_token
-            } else {
-                market_info.quote_token
+                (market_info.base_token, market_info.quote_token)
             };
 
             // Update reserves.
@@ -1937,14 +1879,14 @@ mod MarketManager {
             self.reserves.write(out_token, out_reserves - amount_out);
 
             // Handle fully filled limit orders. Must be done after state updates above.
-            order_helpers::fill_limits(
+            order_lib::fill_limits(
                 ref self, market_id, market_info.width, fee_rate, filled_limits.span(),
             );
 
             // Handle partially filled limit order. Must be done after state updates above.
             if partial_fill_info.is_some() {
                 let partial_fill_info = partial_fill_info.unwrap();
-                order_helpers::fill_partial_limit(
+                order_lib::fill_partial_limit(
                     ref self,
                     market_id,
                     partial_fill_info.limit,
@@ -2066,47 +2008,6 @@ mod MarketManager {
 
             // Return amount out.
             amount_out
-        }
-
-        // Internal function used to populate two arrays used for tracking the liquidity deltas
-        // and initialised limits for queued strategy positions updates. Used by `unsafe_quote`.
-        //
-        // # Arguments
-        // * `queued_deltas` - ref to mapping of limit of liquidity deltas
-        // * `target_limits` - ref to array of initialised limits
-        // * `market_state` - ref to market state
-        // * `positions` - list of queued positions to update
-        // * `is_placed` - whether positions are placed or queued
-        fn _populate_strategy_arrays(
-            self: @ContractState,
-            ref queued_deltas: Felt252Dict<Nullable<i256>>,
-            ref target_limits: Array<u32>,
-            ref market_state: MarketState,
-            positions: Span<PositionInfo>,
-            is_placed: bool,
-        ) {
-            let mut i = 0;
-            let curr_limit = market_state.curr_limit;
-            loop {
-                if i >= positions.len() {
-                    break;
-                }
-                let pos = *positions.at(i);
-                if pos.lower_limit <= curr_limit && pos.upper_limit > curr_limit {
-                    market_state.liquidity -= pos.liquidity;
-                }
-                let lower_liq = nullable_from_box(
-                    BoxTrait::new(I256Trait::new(pos.liquidity, is_placed))
-                );
-                let upper_liq = nullable_from_box(
-                    BoxTrait::new(I256Trait::new(pos.liquidity, !is_placed))
-                );
-                queued_deltas.insert(pos.lower_limit.into(), lower_liq);
-                queued_deltas.insert(pos.upper_limit.into(), upper_liq);
-                target_limits.append(pos.lower_limit);
-                target_limits.append(pos.upper_limit);
-                i += 1;
-            };
         }
     }
 }

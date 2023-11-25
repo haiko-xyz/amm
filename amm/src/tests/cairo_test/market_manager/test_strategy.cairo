@@ -23,7 +23,6 @@ use amm::tests::common::params::{
 };
 use amm::tests::common::utils::{encode_sqrt_price, to_e18, approx_eq_pct};
 use amm::tests::cairo_test::helpers::market_manager::swap;
-use amm::libraries::liquidity as liquidity_helpers;
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};

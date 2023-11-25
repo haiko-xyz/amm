@@ -105,8 +105,6 @@ mod ReplicatingStrategy {
     use amm::types::core::{MarketState, SwapParams, PositionInfo};
     use amm::libraries::math::{math, price_math, liquidity_math, fee_math};
     use amm::libraries::id;
-    use amm::libraries::liquidity as liquidity_helpers;
-    use amm::libraries::constants::ONE;
     use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
     use amm::interfaces::IStrategy::IStrategy;
     use amm::types::i256::{I256Trait, i256};
@@ -306,6 +304,7 @@ mod ReplicatingStrategy {
                 .get_bid_ask();
 
             // Calculate amount of new liquidity to add.
+            // Token amounts rounded down as per convention when depositing liquidity.
             let base_amount = base_reserves + bid_base + ask_base;
             let base_liquidity = if base_amount == 0 || next_ask_lower
                 + strategy_params.range > price_math::max_limit(market_info.width) {
@@ -314,7 +313,8 @@ mod ReplicatingStrategy {
                 liquidity_math::base_to_liquidity(
                     price_math::limit_to_sqrt_price(next_ask_lower, market_info.width),
                     price_math::limit_to_sqrt_price(next_ask_upper, market_info.width),
-                    base_amount
+                    base_amount,
+                    false
                 )
             };
             let quote_amount = quote_reserves + bid_quote + ask_quote;
@@ -324,7 +324,8 @@ mod ReplicatingStrategy {
                 liquidity_math::quote_to_liquidity(
                     price_math::limit_to_sqrt_price(next_bid_lower, market_info.width),
                     price_math::limit_to_sqrt_price(next_bid_upper, market_info.width),
-                    quote_amount
+                    quote_amount,
+                    false
                 )
             };
 

@@ -4,9 +4,9 @@ use debug::PrintTrait;
 use amm::libraries::math::price_math::limit_to_sqrt_price;
 use amm::libraries::math::liquidity_math::{
     add_delta, liquidity_to_quote, liquidity_to_base, base_to_liquidity, quote_to_liquidity,
-    liquidity_to_amounts
+    liquidity_to_amounts, max_liquidity_per_limit
 };
-use amm::libraries::constants::{ONE, OFFSET};
+use amm::libraries::constants::{ONE, OFFSET, MAX_NUM_LIMITS, MAX_SCALED};
 use amm::tests::common::utils::{encode_sqrt_price, approx_eq};
 use amm::types::i256::I256Trait;
 
@@ -277,7 +277,7 @@ fn test_quote_to_liquidity_cases(cases: Span<TestCase>) {
             continue;
         }
         let liquidity = quote_to_liquidity(
-            case.lower_sqrt_price, case.upper_sqrt_price, case.quote_amount,
+            case.lower_sqrt_price, case.upper_sqrt_price, case.quote_amount, false
         );
         assert(approx_eq(liquidity, case.liquidity, 100), 'q->l 00' + i.into());
         i += 1;
@@ -314,7 +314,7 @@ fn test_base_to_liquidity_cases(cases: Span<TestCase>) {
             continue;
         }
         let liquidity = base_to_liquidity(
-            case.lower_sqrt_price, case.upper_sqrt_price, case.base_amount,
+            case.lower_sqrt_price, case.upper_sqrt_price, case.base_amount, false
         );
         assert(approx_eq(liquidity, case.liquidity, 10000), 'b->l 00' + i.into());
         i += 1;
@@ -358,4 +358,25 @@ fn test_liquidity_to_amounts() {
     );
     assert(approx_eq(base_amount.val, 166, 1), 'wrap base');
     assert(quote_amount.val == 369, 'wrap quote');
+}
+
+#[test]
+#[available_gas(2000000000)]
+fn test_max_liquidity_per_limit() {
+    assert(
+        max_liquidity_per_limit(1) == 7322472098704826441038024692625691444047146577616491,
+        'max_liq(1)'
+    );
+
+    assert(
+        max_liquidity_per_limit(10) == 73224679311739764870476413471155162093881960244529315,
+        'max_liq(10)'
+    );
+
+    assert(
+        max_liquidity_per_limit(250) == 1830589199691975138703812960582538777836500216043895469,
+        'max_liq(250)'
+    );
+
+    assert(max_liquidity_per_limit(MAX_NUM_LIMITS) == MAX_SCALED, 'max_liq(MAX)');
 }

@@ -7,7 +7,6 @@ use dict::{Felt252Dict, Felt252DictTrait};
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::libraries::math::fee_math;
 use amm::libraries::id;
-use amm::libraries::liquidity as liquidity_helpers;
 use amm::types::core::{MarketState, LimitInfo};
 use amm::types::i256::{i256, I256Trait, I256Zeroable};
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};

@@ -7,8 +7,7 @@ use integer::BoundedU256;
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
-use amm::libraries::liquidity as liquidity_helpers;
-use amm::libraries::math::{math, price_math};
+use amm::libraries::math::{math, price_math, liquidity_math};
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_SCALED, ONE};
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
@@ -703,13 +702,13 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 0,
-                liquidity: liquidity_helpers::max_liquidity_per_limit(10),
+                liquidity: liquidity_math::max_liquidity_per_limit(10),
                 positions: array![
                     Position {
                         lower_limit: price_math::offset(10) - 7906620,
                         upper_limit: price_math::offset(10) + 7906620,
                         liquidity: I256Trait::new(
-                            liquidity_helpers::max_liquidity_per_limit(10), false
+                            liquidity_math::max_liquidity_per_limit(10), false
                         )
                     }
                 ]

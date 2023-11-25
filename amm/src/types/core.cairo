@@ -137,7 +137,7 @@ enum ConfigOption {
 // * `protocol_share` - protocol share denominated 0.01% shares of swap fees (e.g. 500 = 5%)
 // * `base_fee_factor` - accumulated base fees per unit of liquidity (encoded as UD47x28)
 // * `quote_fee_factor` - accumulated quote fees per unit of liquidity (encoded as UD47x28)
-#[derive(Copy, Drop, Serde, PartialEq)]
+#[derive(Copy, Drop, Serde, PartialEq, Default)]
 struct MarketState {
     liquidity: u256,
     curr_limit: u32,

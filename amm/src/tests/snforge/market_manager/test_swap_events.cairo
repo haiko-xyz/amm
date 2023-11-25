@@ -314,12 +314,14 @@ fn test_swap_with_strategy() {
     let base_liquidity = liquidity_math::base_to_liquidity(
         price_math::limit_to_sqrt_price(ask_lower, width),
         price_math::limit_to_sqrt_price(ask_upper, width),
-        base_amount
+        base_amount,
+        false
     );
     let quote_liquidity = liquidity_math::quote_to_liquidity(
         price_math::limit_to_sqrt_price(bid_lower, width),
         price_math::limit_to_sqrt_price(bid_upper, width),
-        quote_amount
+        quote_amount,
+        false
     );
 
     // Execute swap as strategy. 

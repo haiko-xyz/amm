@@ -41,7 +41,7 @@ fn test_liquidity_to_base_invariants(liquidity: u128, width: u16, rand1: u32, ra
         return;
     }
     let liquidity_deriv = base_to_liquidity(
-        lower_sqrt_price, upper_sqrt_price, base_round_down.val
+        lower_sqrt_price, upper_sqrt_price, base_round_down.val, false
     );
     assert(liquidity_deriv <= liquidity.into(), 'Liquidity deriv <= liquidity');
 }
@@ -78,7 +78,7 @@ fn test_liquidity_to_quote_invariants(liquidity: u128, width: u16, rand1: u32, r
         return;
     }
     let liquidity_deriv = quote_to_liquidity(
-        lower_sqrt_price, upper_sqrt_price, quote_round_down.val
+        lower_sqrt_price, upper_sqrt_price, quote_round_down.val, false
     );
     assert(liquidity_deriv <= liquidity.into(), 'Liquidity deriv <= liquidity');
 }

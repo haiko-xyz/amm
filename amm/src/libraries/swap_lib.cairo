@@ -6,7 +6,6 @@ use integer::u256_wide_mul;
 // Local imports.
 use amm::libraries::tree;
 use amm::libraries::id;
-use amm::libraries::order as order_helpers;
 use amm::libraries::math::{math, fee_math, price_math, liquidity_math};
 use amm::libraries::constants::{ONE, MAX_SQRT_PRICE};
 use amm::contracts::market_manager::MarketManager::ContractState;
@@ -115,6 +114,8 @@ fn swap_iter(
     swap_fees += fee_iter - protocol_fee_iter;
 
     // Update fee factor.
+    // Fee factors are rounded down to ensure LPs can never withdraw more swap fees than
+    // accrued over swaps.
     if market_state.liquidity != 0 && fee_iter != 0 {
         let fee_factor = math::mul_div(
             fee_iter - protocol_fee_iter, ONE, market_state.liquidity, false
@@ -347,11 +348,13 @@ fn next_sqrt_price_input(
 
     if is_buy {
         // Buy case: sqrt_price + amount * ONE / liquidity.
+        // Round down to avoid overflow near max price.
         let next = curr_sqrt_price + math::mul_div(amount_in, ONE, liquidity, false);
         assert(next <= MAX_SQRT_PRICE, 'PriceOverflow');
         next
     } else {
         // Sell case: switches between a more precise and less precise formula depending on overflow.
+        // Round up to avoid underflow near min price.
         if amount_in == 0 {
             return curr_sqrt_price;
         }

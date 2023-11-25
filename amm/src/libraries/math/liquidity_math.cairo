@@ -6,7 +6,7 @@ use integer::{u256_wide_mul, u512_safe_div_rem_by_u256, u256_try_as_non_zero};
 
 // Local imports.
 use amm::libraries::math::{math, fee_math, price_math, liquidity_math};
-use amm::libraries::constants::ONE;
+use amm::libraries::constants::{ONE, MAX_NUM_LIMITS, MAX_SCALED};
 use amm::types::core::{MarketState, LimitInfo};
 use amm::types::i256::{i256, I256Trait, I256Zeroable};
 
@@ -35,10 +35,10 @@ fn add_delta(ref amount: u256, delta: i256) {
 fn liquidity_to_quote(
     lower_sqrt_price: u256, upper_sqrt_price: u256, liquidity_delta: i256, round_up: bool,
 ) -> i256 {
-    let abs_quote_amount = math::mul_div(
+    let val = math::mul_div(
         liquidity_delta.val, upper_sqrt_price - lower_sqrt_price, ONE, round_up
     );
-    i256 { val: abs_quote_amount, sign: liquidity_delta.sign }
+    i256 { val, sign: liquidity_delta.sign }
 }
 
 // Calculate the amount of base tokens received for a given liquidity delta and price range.
@@ -54,11 +54,13 @@ fn liquidity_to_quote(
 fn liquidity_to_base(
     lower_sqrt_price: u256, upper_sqrt_price: u256, liquidity_delta: i256, round_up: bool,
 ) -> i256 {
+    // Handle edge case to avoid dividing by zero.
     if lower_sqrt_price == upper_sqrt_price {
         return i256 { val: 0, sign: false };
     }
 
     // Switch between formulas depending on magnitude of price, to maintain precision.
+    // Case 1: used for larger sqrt prices
     let abs_base_amount = if lower_sqrt_price > ONE || upper_sqrt_price > ONE {
         math::mul_div(
             math::mul_div(
@@ -68,11 +70,11 @@ fn liquidity_to_base(
             upper_sqrt_price,
             round_up
         )
-    } else {
+    } // Case 2: used for smaller sqrt prices 
+    else {
         let product = u256_wide_mul(lower_sqrt_price, upper_sqrt_price);
         let (q, r) = u512_safe_div_rem_by_u256(
-            product,
-            u256_try_as_non_zero(upper_sqrt_price - lower_sqrt_price).expect('MulDivByZero')
+            product, u256_try_as_non_zero(upper_sqrt_price - lower_sqrt_price).unwrap()
         );
         let q_u256 = u256 { low: q.limb0, high: q.limb1 };
         let denominator = q_u256 + if r != 0 && !round_up {
@@ -92,11 +94,15 @@ fn liquidity_to_base(
 // * `lower_sqrt_price` - starting sqrt price of the range
 // * `upper_sqrt_price` - ending sqrt price of the range
 // * `quote_amount` - amount of quote tokens
+// * `round_up` - whether to round up or down
 // 
 // # Returns
 // * `liquidity_delta` - liquidity delta
-fn quote_to_liquidity(lower_sqrt_price: u256, upper_sqrt_price: u256, quote_amount: u256) -> u256 {
-    math::mul_div(quote_amount, ONE, upper_sqrt_price - lower_sqrt_price, false)
+fn quote_to_liquidity(
+    lower_sqrt_price: u256, upper_sqrt_price: u256, quote_amount: u256, round_up: bool
+) -> u256 {
+    // Rounds down as 
+    math::mul_div(quote_amount, ONE, upper_sqrt_price - lower_sqrt_price, round_up)
 }
 
 // Calculate liquidity delta corresponding to amount of base tokens over given price range.
@@ -105,18 +111,22 @@ fn quote_to_liquidity(lower_sqrt_price: u256, upper_sqrt_price: u256, quote_amou
 // * `lower_sqrt_price` - starting sqrt price of the range
 // * `upper_sqrt_price` - ending sqrt price of the range
 // * `base_amount` - amount of base tokens
+// * `round_up` - whether to round up or down
 // 
 // # Returns
 // * `liquidity_delta` - liquidity delta
-fn base_to_liquidity(lower_sqrt_price: u256, upper_sqrt_price: u256, base_amount: u256) -> u256 {
+fn base_to_liquidity(
+    lower_sqrt_price: u256, upper_sqrt_price: u256, base_amount: u256, round_up: bool
+) -> u256 {
+    // Handle edge case to avoid division by 0.
     if lower_sqrt_price == upper_sqrt_price {
         return 0;
     }
     math::mul_div(
-        math::mul_div(base_amount, upper_sqrt_price, ONE, false),
+        math::mul_div(base_amount, upper_sqrt_price, ONE, round_up),
         lower_sqrt_price,
         upper_sqrt_price - lower_sqrt_price,
-        false
+        round_up
     )
 }
 
@@ -165,4 +175,18 @@ fn liquidity_to_amounts(
         );
         (base_amount, I256Zeroable::zero())
     }
+}
+
+// Calculate max liquidity per limit.
+// We scale down max liquidity by ONE to avoid overflows when calculating amounts.
+//
+// # Arguments
+// * `market_id` - market id
+fn max_liquidity_per_limit(width: u32) -> u256 {
+    let intervals = MAX_NUM_LIMITS / width + if MAX_NUM_LIMITS % width != 0 {
+        1
+    } else {
+        0
+    };
+    MAX_SCALED / intervals.into()
 }

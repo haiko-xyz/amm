@@ -19,7 +19,6 @@ use amm::libraries::tree;
 use amm::libraries::id;
 use amm::types::core::{LimitInfo, MarketState, MarketInfo, Position};
 use amm::libraries::math::{liquidity_math, price_math, fee_math, math};
-use amm::libraries::constants::{ONE, HALF, MAX_SCALED, MAX_NUM_LIMITS};
 use amm::types::i256::{I256Trait, i256, I256Zeroable};
 use amm::interfaces::IMarketManager::IMarketManager;
 
@@ -163,7 +162,10 @@ fn update_limit(
 
     // Check for liquidity overflow.
     if !liquidity_delta.sign {
-        assert(limit_info.liquidity.into() <= max_liquidity_per_limit(width), 'LimitLiqOverflow');
+        assert(
+            limit_info.liquidity.into() <= liquidity_math::max_liquidity_per_limit(width),
+            'LimitLiqOverflow'
+        );
     }
 
     // Update bitmap if necessary.
@@ -230,18 +232,4 @@ fn amounts_inside_position(
 
     // Return amounts
     (base_amount.val + base_fees, quote_amount.val + quote_fees)
-}
-
-// Calculate max liquidity per limit.
-// We scale down max liquidity by ONE to avoid overflows when calculating amounts.
-//
-// # Arguments
-// * `market_id` - market id
-fn max_liquidity_per_limit(width: u32) -> u256 {
-    let intervals = MAX_NUM_LIMITS / width + if MAX_NUM_LIMITS % width != 0 {
-        1
-    } else {
-        0
-    };
-    MAX_SCALED / intervals.into()
 }
