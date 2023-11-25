@@ -299,8 +299,8 @@ trait IMarketManager<TContractState> {
     // Obtain quote for a single swap.
     // Caution: this function returns a correct quote only so long as the strategy correctly
     // reports its queued and placed positions. This function is intended for use by on-chain
-    // routers that cannot call `quote` and retrieve the output via error message. Alternatively,
-    // it can be used to obtain correct quotes for non-strategy markets.
+    // callers that cannot retrieve `quote` via error message. Alternatively, it can be used 
+    // to obtain guaranteed correct quotes for non-strategy markets.
     //
     // # Arguments
     // * `market_id` - market id
@@ -322,11 +322,11 @@ trait IMarketManager<TContractState> {
         ignore_strategy: bool,
     ) -> u256;
 
-    // Obtain quote for a swap across multiple markets in a multi-hop route.
+    // Obtain quote for a multi-market swap.
     // Caution: this function returns a correct quote only so long as the strategy correctly
     // reports its queued and placed positions. This function is intended for use by on-chain
-    // routers that cannot call `quote` and retrieve the output via error message. Alternatively,
-    // it can be used to obtain correct quotes for non-strategy markets.
+    // callers that cannot retrieve `quote_multiple` via error message. Alternatively, it can 
+    // be used to obtain guaranteed correct quotes for non-strategy markets.
     //
     // # Arguments
     // * `in_token` - in token address
