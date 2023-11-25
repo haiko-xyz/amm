@@ -2,6 +2,7 @@ use snforge_std::forge_print::PrintTrait;
 // Core lib imports.
 use cmp::{min, max};
 use core::traits::TryInto;
+use integer::BoundedU256;
 use traits::Into;
 use option::OptionTrait;
 use starknet::info::get_caller_address;
@@ -19,7 +20,7 @@ use amm::libraries::tree;
 use amm::libraries::id;
 use amm::types::core::{LimitInfo, MarketState, MarketInfo, Position};
 use amm::libraries::math::{liquidity_math, price_math, fee_math, math};
-use amm::libraries::constants::{ONE, MAX_UNSCALED, MAX, HALF, MAX_NUM_LIMITS};
+use amm::libraries::constants::{ONE, HALF, MAX_SCALED, MAX_NUM_LIMITS};
 use amm::types::i256::{I256Trait, i256, I256Zeroable};
 use amm::interfaces::IMarketManager::IMarketManager;
 
@@ -115,9 +116,6 @@ fn update_liquidity(
         assert(position.liquidity >= liquidity_delta.val, 'UpdatePosLiq');
     }
     liquidity_math::add_delta(ref position.liquidity, liquidity_delta);
-    if !liquidity_delta.sign {
-        assert(position.liquidity.into() < MAX, 'PosLiqOverflow');
-    }
     position.base_fee_factor_last = base_fee_factor;
     position.quote_fee_factor_last = quote_fee_factor;
 
@@ -302,6 +300,7 @@ fn amounts_inside_position(
 }
 
 // Calculate max liquidity per limit.
+// We scale down max liquidity by ONE to avoid overflows when calculating amounts.
 //
 // # Arguments
 // * `market_id` - market id
@@ -311,6 +310,5 @@ fn max_liquidity_per_limit(width: u32) -> u256 {
     } else {
         0
     };
-    let liq = MAX_UNSCALED / intervals.into();
-    liq
+    MAX_SCALED / intervals.into()
 }

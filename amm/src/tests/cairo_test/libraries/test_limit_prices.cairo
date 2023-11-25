@@ -10,32 +10,32 @@ use amm::libraries::constants::{
 #[test]
 #[available_gas(2000000000)]
 fn test_check_limits_cases() {
-    check_limits(0, 1, 1, Default::default());
-    check_limits(1, 2, 1, Default::default());
-    check_limits(MAX_LIMIT_SHIFTED - 1, MAX_LIMIT_SHIFTED, 1, Default::default());
-    check_limits(10, 1000, 10, Default::default());
-    check_limits(5, 10, 5, Default::default());
+    check_limits(0, 1, 1, Default::default(), false);
+    check_limits(1, 2, 1, Default::default(), false);
+    check_limits(MAX_LIMIT_SHIFTED - 1, MAX_LIMIT_SHIFTED, 1, Default::default(), false);
+    check_limits(10, 1000, 10, Default::default(), false);
+    check_limits(5, 10, 5, Default::default(), false);
 }
 
 #[test]
 #[available_gas(2000000000)]
 #[should_panic(expected: ('LimitsUnordered',))]
 fn test_check_limits_limits_equal() {
-    check_limits(1, 1, 1, Default::default());
+    check_limits(1, 1, 1, Default::default(), false);
 }
 
 #[test]
 #[available_gas(2000000000)]
 #[should_panic(expected: ('LimitsUnordered',))]
 fn test_check_limits_wrong_order() {
-    check_limits(2, 1, 1, Default::default());
+    check_limits(2, 1, 1, Default::default(), false);
 }
 
 #[test]
 #[available_gas(2000000000)]
 #[should_panic(expected: ('LimitsOutOfRange',))]
 fn test_check_limits_upper_limit_overflow() {
-    check_limits(1, OFFSET + MAX_LIMIT + 1, 1, Default::default());
+    check_limits(1, OFFSET + MAX_LIMIT + 1, 1, Default::default(), false);
 }
 
 ////////////////////////////////
@@ -45,11 +45,11 @@ fn test_check_limits_upper_limit_overflow() {
 #[test]
 #[available_gas(2000000000)]
 fn test_check_threshold_cases() {
-    check_threshold(17000000000, 16000000000, true);
+    check_threshold(170000000000, 160000000000, true);
     check_threshold(MIN_SQRT_PRICE + 1, MIN_SQRT_PRICE, true);
     check_threshold(MAX_SQRT_PRICE, MAX_SQRT_PRICE - 1, true);
 
-    check_threshold(12000000000, 16000000000, false);
+    check_threshold(120000000000, 160000000000, false);
     check_threshold(MIN_SQRT_PRICE, MIN_SQRT_PRICE + 1, false);
     check_threshold(MAX_SQRT_PRICE - 1, MAX_SQRT_PRICE, false);
 }

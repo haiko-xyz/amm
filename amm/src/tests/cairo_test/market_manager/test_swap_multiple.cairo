@@ -4,7 +4,7 @@ use integer::BoundedU256;
 use debug::PrintTrait;
 
 // Local imports.
-use amm::libraries::constants::{MAX, OFFSET, MAX_LIMIT};
+use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::types::i256::I256Trait;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::tests::cairo_test::helpers::market_manager::{

@@ -1,16 +1,20 @@
 // Core lib imports.
+use cmp::{min, max};
 use starknet::testing::set_contract_address;
-use debug::PrintTrait;
 
 // Local imports.
-use amm::libraries::constants::{OFFSET, MAX_LIMIT};
+use amm::libraries::constants::{OFFSET, MIN_LIMIT, MAX_LIMIT};
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
-use amm::interfaces::IQuoter::{IQuoterDispatcher, IQuoterDispatcherTrait};
 use amm::types::i256::{i256, I256Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position, swap
 };
-use amm::tests::cairo_test::helpers::{token::{deploy_token, fund, approve}, quoter::deploy_quoter};
+use amm::tests::cairo_test::helpers::{
+    token::{deploy_token, fund, approve}, quoter::deploy_quoter, strategy::deploy_manual_strategy,
+};
+use amm::contracts::test::manual_strategy::{
+    ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
+};
 use amm::tests::common::params::{
     owner, alice, default_token_params, default_market_params, modify_position_params, swap_params
 };
@@ -29,6 +33,10 @@ struct SwapCase {
     exact_input: bool,
     amount: u256,
     threshold_sqrt_price: Option<u256>,
+    bid_lower: u32,
+    bid_upper: u32,
+    ask_lower: u32,
+    ask_upper: u32
 }
 
 ////////////////////////////////
@@ -36,7 +44,11 @@ struct SwapCase {
 ////////////////////////////////
 
 fn before() -> (
-    IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, IQuoterDispatcher
+    IMarketManagerDispatcher,
+    ERC20ABIDispatcher,
+    ERC20ABIDispatcher,
+    felt252,
+    IManualStrategyDispatcher
 ) {
     // Get default owner.
     let owner = owner();
@@ -49,18 +61,37 @@ fn before() -> (
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
 
+    // Deploy strategy.
+    let strategy = deploy_manual_strategy(owner());
+
+    // Create the market.
+    let mut params = default_market_params();
+    params.base_token = base_token.contract_address;
+    params.quote_token = quote_token.contract_address;
+    params.start_limit = OFFSET + 0;
+    params.strategy = strategy.contract_address;
+    let market_id = create_market(market_manager, params);
+
+    // Initialise strategy.
+    strategy.initialise('Manual Strategy', 'MANU', market_manager.contract_address, market_id);
+
     // Fund LP with initial token balances and approve market manager as spender.
-    let initial_base_amount = to_e28(5000000000000000000000000000000000000000000);
-    let initial_quote_amount = to_e28(100000000000000000000000000000000000000000000);
+    let initial_base_amount = to_e28(5000000000000000000000000);
+    let initial_quote_amount = to_e28(10000000000000000000000000000);
     fund(base_token, alice(), initial_base_amount);
     fund(quote_token, alice(), initial_quote_amount);
+    fund(base_token, owner(), initial_base_amount);
+    fund(quote_token, owner(), initial_quote_amount);
     approve(base_token, alice(), market_manager.contract_address, initial_base_amount);
     approve(quote_token, alice(), market_manager.contract_address, initial_quote_amount);
+    approve(base_token, owner(), strategy.contract_address, initial_base_amount);
+    approve(quote_token, owner(), strategy.contract_address, initial_quote_amount);
 
-    // Deploy quoter.
-    let quoter = deploy_quoter(owner(), market_manager.contract_address);
+    // Deposit to strategy.
+    set_contract_address(owner());
+    strategy.deposit(to_e18(10000000), to_e18(11250000000000));
 
-    (market_manager, base_token, quote_token, quoter)
+    (market_manager, base_token, quote_token, market_id, strategy)
 }
 
 fn swap_test_cases() -> Array<SwapCase> {
@@ -73,6 +104,36 @@ fn swap_test_cases() -> Array<SwapCase> {
                 exact_input: true,
                 amount: to_e18(1),
                 threshold_sqrt_price: Option::None(()),
+                bid_lower: OFFSET - 200,
+                bid_upper: OFFSET - 100,
+                ask_lower: OFFSET + 100,
+                ask_upper: OFFSET + 200
+            }
+        );
+    cases
+        .append(
+            SwapCase {
+                is_buy: true,
+                exact_input: false,
+                amount: to_e18(1),
+                threshold_sqrt_price: Option::Some(to_e28(5) / 4),
+                bid_lower: OFFSET - MIN_LIMIT,
+                bid_upper: OFFSET - 1,
+                ask_lower: OFFSET + 1,
+                ask_upper: OFFSET + MAX_LIMIT
+            }
+        );
+    cases
+        .append(
+            SwapCase {
+                is_buy: false,
+                exact_input: true,
+                amount: to_e18(1),
+                threshold_sqrt_price: Option::Some(to_e28(4) / 5),
+                bid_lower: OFFSET - 1000,
+                bid_upper: OFFSET - 900,
+                ask_lower: OFFSET + 900,
+                ask_upper: OFFSET + 1000
             }
         );
     cases
@@ -81,7 +142,11 @@ fn swap_test_cases() -> Array<SwapCase> {
                 is_buy: true,
                 exact_input: true,
                 amount: to_e18(1),
-                threshold_sqrt_price: Option::None(()),
+                threshold_sqrt_price: Option::Some(to_e28(5) / 4),
+                bid_lower: OFFSET - MIN_LIMIT,
+                bid_upper: OFFSET - 1,
+                ask_lower: OFFSET + 1,
+                ask_upper: OFFSET + MAX_LIMIT
             }
         );
     cases
@@ -90,25 +155,11 @@ fn swap_test_cases() -> Array<SwapCase> {
                 is_buy: false,
                 exact_input: false,
                 amount: to_e18(1),
-                threshold_sqrt_price: Option::None(())
-            }
-        );
-    cases
-        .append(
-            SwapCase {
-                is_buy: true,
-                exact_input: false,
-                amount: to_e18(1),
-                threshold_sqrt_price: Option::None(())
-            }
-        );
-    cases
-        .append(
-            SwapCase {
-                is_buy: true,
-                exact_input: true,
-                amount: to_e18(1),
-                threshold_sqrt_price: Option::Some(to_e28(48))
+                threshold_sqrt_price: Option::Some(to_e28(4) / 5),
+                bid_lower: OFFSET - 500,
+                bid_upper: OFFSET - 1,
+                ask_lower: OFFSET + 10,
+                ask_upper: OFFSET + 200
             }
         );
 
@@ -121,21 +172,8 @@ fn swap_test_cases() -> Array<SwapCase> {
 
 #[test]
 #[available_gas(15000000000)]
-fn test_quote_cases() {
-    let (market_manager, base_token, quote_token, quoter) = before();
-
-    // Create the market.
-    let mut params = default_market_params();
-    params.base_token = base_token.contract_address;
-    params.quote_token = quote_token.contract_address;
-    let market_id = create_market(market_manager, params);
-
-    // Mint positions.
-    set_contract_address(alice());
-    let mut params = modify_position_params(
-        alice(), market_id, OFFSET + 749000, OFFSET + 750000, I256Trait::new(to_e18(100000), false),
-    );
-    modify_position(market_manager, params);
+fn test_unsafe_quote_with_strategy() {
+    let (market_manager, base_token, quote_token, market_id, strategy) = before();
 
     // Iterate through swap test cases.
     set_contract_address(alice());
@@ -149,14 +187,28 @@ fn test_quote_cases() {
         // Fetch swap test case.
         let swap_case: SwapCase = *swap_cases[swap_index];
 
+        // Set positions, recentering around current limit to ensure all positions are 
+        // single-sided.
+        set_contract_address(owner());
+        let curr_limit = market_manager.curr_limit(market_id);
+        strategy
+            .set_positions(
+                swap_case.bid_lower,
+                min(swap_case.bid_upper, curr_limit),
+                max(swap_case.ask_lower, curr_limit),
+                swap_case.ask_upper,
+            );
+
         // Obtain quote.
-        let quote = quoter
-            .quote(
+        set_contract_address(alice());
+        let quote = market_manager
+            .unsafe_quote(
                 market_id,
                 swap_case.is_buy,
                 swap_case.amount,
                 swap_case.exact_input,
                 swap_case.threshold_sqrt_price,
+                false
             );
 
         // Execute swap.

@@ -296,6 +296,56 @@ trait IMarketManager<TContractState> {
         route: Span<felt252>,
     );
 
+    // Obtain quote for a single swap.
+    // Caution: this function returns a correct quote only so long as the strategy correctly
+    // reports its queued and placed positions. This function is intended for use by on-chain
+    // callers that cannot retrieve `quote` via error message. Alternatively, it can be used 
+    // to obtain guaranteed correct quotes for non-strategy markets.
+    //
+    // # Arguments
+    // * `market_id` - market id
+    // * `is_buy` - whether swap is a buy or sell
+    // * `amount` - amount of tokens to swap
+    // * `exact_input` - true if `amount` is exact input, or false if exact output
+    // * `threshold_sqrt_price` - maximum sqrt price to swap at for buys, minimum for sells
+    // * `ignore_strategy` - whether to ignore strategy positions when fetching quote
+    //
+    // # Returns
+    // * `amount` - amount out (if exact input) or amount in (if exact output)
+    fn unsafe_quote(
+        self: @TContractState,
+        market_id: felt252,
+        is_buy: bool,
+        amount: u256,
+        exact_input: bool,
+        threshold_sqrt_price: Option<u256>,
+        ignore_strategy: bool,
+    ) -> u256;
+
+    // Obtain quote for a multi-market swap.
+    // Caution: this function returns a correct quote only so long as the strategy correctly
+    // reports its queued and placed positions. This function is intended for use by on-chain
+    // callers that cannot retrieve `quote_multiple` via error message. Alternatively, it can 
+    // be used to obtain guaranteed correct quotes for non-strategy markets.
+    //
+    // # Arguments
+    // * `in_token` - in token address
+    // * `out_token` - out token address
+    // * `amount` - amount of tokens to swap in
+    // * `route` - list of market ids defining the route to swap through
+    // * `ignore_strategy` - whether to ignore strategy positions when fetching quote
+    //
+    // # Returns
+    // * `amount_out` - amount of tokens swapped out net of fees
+    fn unsafe_quote_multiple(
+        self: @TContractState,
+        in_token: ContractAddress,
+        out_token: ContractAddress,
+        amount: u256,
+        route: Span<felt252>,
+        ignore_strategy: bool,
+    ) -> u256;
+
     // Initiates a flash loan.
     // Flash loan receiver must be a contract that implements `ILoanReceiver`.
     //

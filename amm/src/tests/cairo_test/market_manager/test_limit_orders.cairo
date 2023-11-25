@@ -1119,7 +1119,7 @@ fn test_limit_orders_misc_actions() {
 #[should_panic(expected: ('CreateBidDisabled', 'ENTRYPOINT_FAILED',))]
 fn test_create_bid_in_bid_disabled_market() {
     let (market_manager, base_token, quote_token, market_id) = before_no_orders();
-    market_manager.create_order(market_id, true, 8388000, to_e28(1));
+    market_manager.create_order(market_id, true, OFFSET, to_e28(1));
 }
 
 #[test]
@@ -1127,7 +1127,7 @@ fn test_create_bid_in_bid_disabled_market() {
 #[should_panic(expected: ('CreateAskDisabled', 'ENTRYPOINT_FAILED',))]
 fn test_create_ask_in_ask_disabled_market() {
     let (market_manager, base_token, quote_token, market_id) = before_no_orders();
-    market_manager.create_order(market_id, false, 8388000, to_e28(1));
+    market_manager.create_order(market_id, false, OFFSET, to_e28(1));
 }
 
 #[test]
@@ -1135,7 +1135,7 @@ fn test_create_ask_in_ask_disabled_market() {
 #[should_panic(expected: ('NotLimitOrder', 'ENTRYPOINT_FAILED',))]
 fn test_create_bid_above_curr_limit_reverts() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
-    market_manager.create_order(market_id, true, 8388609, to_e28(1));
+    market_manager.create_order(market_id, true, OFFSET + 1, to_e28(1));
 }
 
 #[test]
@@ -1143,15 +1143,15 @@ fn test_create_bid_above_curr_limit_reverts() {
 #[should_panic(expected: ('NotLimitOrder', 'ENTRYPOINT_FAILED',))]
 fn test_create_bid_at_curr_limit_reverts() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
-    market_manager.create_order(market_id, true, 8388608, to_e28(1));
+    market_manager.create_order(market_id, true, OFFSET, to_e28(1));
 }
 
 #[test]
 #[available_gas(100000000)]
 #[should_panic(expected: ('NotLimitOrder', 'ENTRYPOINT_FAILED',))]
-fn test_create_ask_curr_limit_reverts() {
+fn test_create_ask_below_curr_limit_reverts() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
-    market_manager.create_order(market_id, false, 8388608, to_e28(1));
+    market_manager.create_order(market_id, false, OFFSET - 1, to_e28(1));
 }
 
 #[test]
@@ -1159,7 +1159,7 @@ fn test_create_ask_curr_limit_reverts() {
 #[should_panic(expected: ('NotLimitOrder', 'ENTRYPOINT_FAILED',))]
 fn test_create_ask_at_curr_limit_reverts() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
-    market_manager.create_order(market_id, false, 8388608, to_e28(1));
+    market_manager.create_order(market_id, false, OFFSET, to_e28(1));
 }
 
 #[test]
@@ -1167,5 +1167,5 @@ fn test_create_ask_at_curr_limit_reverts() {
 #[should_panic(expected: ('OrderAmtZero', 'ENTRYPOINT_FAILED',))]
 fn test_create_order_zero_liquidity() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
-    market_manager.create_order(market_id, true, 8388508, 0);
+    market_manager.create_order(market_id, true, OFFSET - 10, 0);
 }

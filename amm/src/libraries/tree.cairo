@@ -31,7 +31,7 @@ fn get(self: @ContractState, market_id: felt252, width: u32, limit: u32) -> bool
     let (index_l2, pos_l2) = _get_segment_and_position(scaled_limit);
     let segment_l2 = self.limit_tree_l2.read((market_id, index_l2));
     let mask = math::pow(2, pos_l2.into());
-    segment_l2 & mask != 0
+    segment_l2.into() & mask != 0
 }
 
 // Flips the given limit in the tree.
@@ -46,7 +46,9 @@ fn flip(ref self: ContractState, market_id: felt252, width: u32, limit: u32) {
     let (index_l2, pos_l2) = _get_segment_and_position(scaled_limit);
     let segment_l2 = self.limit_tree_l2.read((market_id, index_l2));
     let mask_l2 = math::pow(2, pos_l2.into());
-    let new_segment_l2 = segment_l2 ^ mask_l2; // toggle the bit
+    let new_segment_l2: felt252 = (segment_l2.into() ^ mask_l2)
+        .try_into()
+        .unwrap(); // toggle the bit
     self.limit_tree_l2.write((market_id, index_l2), new_segment_l2);
 
     // If limit first initialised or last uninitialised in L2 segment, propagate to L1.
@@ -56,7 +58,9 @@ fn flip(ref self: ContractState, market_id: felt252, width: u32, limit: u32) {
     let (index_l1, pos_l1) = _get_segment_and_position(index_l2);
     let segment_l1 = self.limit_tree_l1.read((market_id, index_l1));
     let mask_l1 = math::pow(2, pos_l1.into());
-    let new_segment_l1 = segment_l1 ^ mask_l1; // toggle the bit
+    let new_segment_l1: felt252 = (segment_l1.into() ^ mask_l1)
+        .try_into()
+        .unwrap(); // toggle the bit
     self.limit_tree_l1.write((market_id, index_l1), new_segment_l1);
 
     // If first limit in L1 segment, propagate to L0.
@@ -66,7 +70,9 @@ fn flip(ref self: ContractState, market_id: felt252, width: u32, limit: u32) {
     let pos_l0 = index_l1 % 256;
     let segment_l0 = self.limit_tree_l0.read(market_id);
     let mask_l0 = math::pow(2, pos_l0.into());
-    let new_segment_l0 = segment_l0 ^ mask_l0; // toggle the bit
+    let new_segment_l0: felt252 = (segment_l0.into() ^ mask_l0)
+        .try_into()
+        .unwrap(); // toggle the bit
     self.limit_tree_l0.write(market_id, new_segment_l0);
 }
 
@@ -97,8 +103,8 @@ fn next_limit(
 
     // If next limit is within same L2 segment, return its position.
     let (mut index_l2, pos_l2) = _get_segment_and_position(scaled_limit);
-    if (is_buy && pos_l2 != 255) || (!is_buy && pos_l2 != 0) {
-        segment = self.limit_tree_l2.read((market_id, index_l2));
+    if (is_buy && pos_l2 != 250) || (!is_buy && pos_l2 != 0) {
+        segment = self.limit_tree_l2.read((market_id, index_l2)).into();
         if segment != 0 {
             let next_bit = if is_buy {
                 _next_bit_left(segment, pos_l2)
@@ -106,15 +112,15 @@ fn next_limit(
                 _next_bit_right(segment, pos_l2)
             };
             if next_bit.is_some() {
-                return Option::Some((index_l2 * 256 + next_bit.unwrap().into()) * width);
+                return Option::Some((index_l2 * 251 + next_bit.unwrap().into()) * width);
             }
         }
     }
 
     // If next limit is within same L1 segment, return its position.
     let (mut index_l1, pos_l1) = _get_segment_and_position(index_l2);
-    if (is_buy && pos_l1 != 255) || (!is_buy && pos_l1 != 0) {
-        segment = self.limit_tree_l1.read((market_id, index_l1));
+    if (is_buy && pos_l1 != 250) || (!is_buy && pos_l1 != 0) {
+        segment = self.limit_tree_l1.read((market_id, index_l1)).into();
         if segment != 0 {
             let next_bit = if is_buy {
                 _next_bit_left(segment, pos_l1)
@@ -122,21 +128,21 @@ fn next_limit(
                 _next_bit_right(segment, pos_l1)
             };
             if next_bit.is_some() {
-                index_l2 = index_l1 * 256 + next_bit.unwrap().into();
-                segment = self.limit_tree_l2.read((market_id, index_l2));
+                index_l2 = index_l1 * 251 + next_bit.unwrap().into();
+                segment = self.limit_tree_l2.read((market_id, index_l2)).into();
                 if is_buy {
-                    return Option::Some((index_l2 * 256 + bit_math::lsb(segment).into()) * width);
+                    return Option::Some((index_l2 * 251 + bit_math::lsb(segment).into()) * width);
                 } else {
-                    return Option::Some((index_l2 * 256 + bit_math::msb(segment).into()) * width);
+                    return Option::Some((index_l2 * 251 + bit_math::msb(segment).into()) * width);
                 }
             }
         }
     }
 
     // If next limit is within same L0 segment, return its position.
-    let pos_l0: u8 = (index_l1 % 256).try_into().unwrap();
-    if (is_buy && pos_l0 != 255) || (!is_buy && pos_l0 != 0) {
-        segment = self.limit_tree_l0.read(market_id);
+    let pos_l0: u8 = (index_l1 % 251).try_into().unwrap();
+    if (is_buy && pos_l0 != 250) || (!is_buy && pos_l0 != 0) {
+        segment = self.limit_tree_l0.read(market_id).into();
         let next_bit = if is_buy {
             _next_bit_left(segment, pos_l0)
         } else {
@@ -144,20 +150,20 @@ fn next_limit(
         };
         if next_bit.is_some() {
             index_l1 = next_bit.unwrap().into();
-            segment = self.limit_tree_l1.read((market_id, index_l1));
+            segment = self.limit_tree_l1.read((market_id, index_l1)).into();
 
-            index_l2 = index_l1 * 256
+            index_l2 = index_l1 * 251
                 + if is_buy {
                     bit_math::lsb(segment)
                 } else {
                     bit_math::msb(segment)
                 }.into();
-            segment = self.limit_tree_l2.read((market_id, index_l2));
+            segment = self.limit_tree_l2.read((market_id, index_l2)).into();
 
             if is_buy {
-                return Option::Some((index_l2 * 256 + bit_math::lsb(segment).into()) * width);
+                return Option::Some((index_l2 * 251 + bit_math::lsb(segment).into()) * width);
             } else {
-                return Option::Some((index_l2 * 256 + bit_math::msb(segment).into()) * width);
+                return Option::Some((index_l2 * 251 + bit_math::msb(segment).into()) * width);
             }
         }
     }
@@ -179,8 +185,8 @@ fn next_limit(
 // * `position` - position of the limit within the segment
 fn _get_segment_and_position(limit: u32) -> (u32, u8) {
     assert(limit <= MAX_LIMIT_SHIFTED, 'SegPosLimitOverflow');
-    let segment: u32 = limit / 256;
-    let position: u8 = (limit % 256).try_into().unwrap();
+    let segment: u32 = limit / 251;
+    let position: u8 = (limit % 251).try_into().unwrap();
     (segment, position)
 }
 

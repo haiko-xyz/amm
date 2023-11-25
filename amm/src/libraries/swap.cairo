@@ -9,7 +9,7 @@ use amm::libraries::tree;
 use amm::libraries::id;
 use amm::libraries::order as order_helpers;
 use amm::libraries::math::{math, fee_math, price_math, liquidity_math};
-use amm::libraries::constants::{MAX, ONE};
+use amm::libraries::constants::{ONE, MAX_SQRT_PRICE};
 use amm::contracts::market_manager::MarketManager::ContractState;
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::contracts::market_manager::MarketManager::{
@@ -123,6 +123,8 @@ fn swap_iter(
 
     // Update amount remaining and amount calc.
     // Amount calc refers to amount out for exact input, and vice versa for exact out.
+    // In same cases, rounding errors can cause computed swap amounts to be slightly different
+    // from amounts remaining. We handle this by capping at total amount remaining.
     if exact_input {
         amount_rem -= min(amount_in_iter + fee_iter, amount_rem);
         amount_calc += amount_out_iter;
@@ -307,6 +309,7 @@ fn compute_swap_amounts(
     let is_buy = target_sqrt_price > curr_sqrt_price;
 
     // Calculate amounts in and out.
+    // We round up amounts in and round down amounts out to prevent protocol insolvency.
     let liquidity_i256 = I256Trait::new(liquidity, false);
 
 
@@ -355,6 +358,7 @@ fn compute_swap_amounts(
 
     // At this point, amounts in and out are assuming target price was reached.
     // If that isn't the case, recalculate amounts using next sqrt price.
+    // Rounding applied as above.
     if filled_max {
         amount_in =
             if exact_input {
@@ -427,7 +431,7 @@ fn next_sqrt_price_input(
     if is_buy {
         // Buy case: sqrt_price + amount * ONE / liquidity.
         let next = curr_sqrt_price + math::mul_div(amount_in, ONE, liquidity, false);
-        assert(next <= MAX, 'PriceOverflow');
+        assert(next <= MAX_SQRT_PRICE, 'PriceOverflow');
         next
     } else {
         // Sell case: switches between a more precise and less precise formula depending on overflow.

@@ -180,25 +180,25 @@ fn test_get_segment_and_position_cases() {
     assert(segment == 0 && position == 0, 'seg_pos(MIN)');
 
     let (segment, position) = _get_segment_and_position(OFFSET - 248100);
-    assert(segment == 31798 && position == 220, 'seg_pos(-248100)');
+    assert(segment == 30512 && position == 13, 'seg_pos(-248100)');
 
     let (segment, position) = _get_segment_and_position(OFFSET - 1050);
-    assert(segment == 32763 && position == 230, 'seg_pos(-1050)');
+    assert(segment == 31496 && position == 79, 'seg_pos(-1050)');
 
     let (segment, position) = _get_segment_and_position(OFFSET - 1);
-    assert(segment == 32767 && position == 255, 'seg_pos(-1)');
+    assert(segment == 31500 && position == 124, 'seg_pos(-1)');
 
     let (segment, position) = _get_segment_and_position(OFFSET + 9794);
-    assert(segment == 32806 && position == 66, 'seg_pos(9794)');
+    assert(segment == 31539 && position == 130, 'seg_pos(9794)');
 
     let (segment, position) = _get_segment_and_position(OFFSET + 254839);
-    assert(segment == 33763 && position == 119, 'seg_pos(254839)');
+    assert(segment == 32515 && position == 199, 'seg_pos(254839)');
 
     let (segment, position) = _get_segment_and_position(OFFSET + 1857300);
-    assert(segment == 40023 && position == 20, 'seg_pos(1857300)');
+    assert(segment == 38900 && position == 25, 'seg_pos(1857300)');
 
     let (segment, position) = _get_segment_and_position(OFFSET + MAX_LIMIT);
-    assert(segment == 65535 && position == 255, 'seg_pos(MAX)');
+    assert(segment == 63000 && position == 250, 'seg_pos(MAX)');
 }
 
 #[test]

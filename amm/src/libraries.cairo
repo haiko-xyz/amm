@@ -5,5 +5,6 @@ mod limit_prices;
 mod liquidity;
 mod order;
 mod swap;
+mod quote;
 mod tree;
 mod store_packing;

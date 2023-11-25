@@ -6,7 +6,7 @@ use integer::{u256_wide_mul, u512_safe_div_rem_by_u256, u256_try_as_non_zero};
 
 // Local imports.
 use amm::libraries::math::{math, fee_math, price_math, liquidity_math};
-use amm::libraries::constants::{ONE, MAX};
+use amm::libraries::constants::ONE;
 use amm::types::core::{MarketState, LimitInfo};
 use amm::types::i256::{i256, I256Trait, I256Zeroable};
 
@@ -19,7 +19,6 @@ fn add_delta(ref amount: u256, delta: i256) {
     if delta.sign {
         amount -= delta.val;
     } else {
-        assert(MAX - amount >= delta.val, 'AddDeltaOverflow');
         amount += delta.val;
     }
 }
@@ -141,6 +140,9 @@ fn liquidity_to_amounts(
     upper_sqrt_price: u256,
     width: u32,
 ) -> (i256, i256) {
+    // Note we round down amounts for liquidity removals, and round up for liquidity additions
+    // to prevent rounding errors from causing protocol insolvency. 
+
     // Case 1: price range is below current price, all liquidity is quote token
     if upper_sqrt_price <= curr_sqrt_price {
         let quote_amount = liquidity_math::liquidity_to_quote(

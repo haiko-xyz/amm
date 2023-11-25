@@ -5,7 +5,6 @@ use debug::PrintTrait;
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
-use amm::interfaces::IQuoter::{IQuoterDispatcher, IQuoterDispatcherTrait};
 use amm::types::i256::{i256, I256Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position, swap
@@ -35,9 +34,7 @@ struct SwapCase {
 // SETUP
 ////////////////////////////////
 
-fn before() -> (
-    IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, IQuoterDispatcher
-) {
+fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher) {
     // Get default owner.
     let owner = owner();
 
@@ -57,10 +54,7 @@ fn before() -> (
     approve(base_token, alice(), market_manager.contract_address, initial_base_amount);
     approve(quote_token, alice(), market_manager.contract_address, initial_quote_amount);
 
-    // Deploy quoter.
-    let quoter = deploy_quoter(owner(), market_manager.contract_address);
-
-    (market_manager, base_token, quote_token, quoter)
+    (market_manager, base_token, quote_token)
 }
 
 fn swap_test_cases() -> Array<SwapCase> {
@@ -121,8 +115,8 @@ fn swap_test_cases() -> Array<SwapCase> {
 
 #[test]
 #[available_gas(15000000000)]
-fn test_quote_cases() {
-    let (market_manager, base_token, quote_token, quoter) = before();
+fn test_unsafe_quote() {
+    let (market_manager, base_token, quote_token) = before();
 
     // Create the market.
     let mut params = default_market_params();
@@ -150,13 +144,14 @@ fn test_quote_cases() {
         let swap_case: SwapCase = *swap_cases[swap_index];
 
         // Obtain quote.
-        let quote = quoter
-            .quote(
+        let quote = market_manager
+            .unsafe_quote(
                 market_id,
                 swap_case.is_buy,
                 swap_case.amount,
                 swap_case.exact_input,
                 swap_case.threshold_sqrt_price,
+                true,
             );
 
         // Execute swap.

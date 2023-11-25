@@ -1,7 +1,7 @@
 // Core lib imports.
 use starknet::ContractAddress;
 use starknet::testing::set_contract_address;
-use integer::BoundedU128;
+use integer::{BoundedU128, BoundedU256};
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
@@ -22,7 +22,6 @@ use amm::tests::common::params::{
 };
 use amm::tests::common::utils::{to_e18, to_e28, approx_eq, approx_eq_pct};
 use amm::libraries::liquidity as liquidity_helpers;
-use amm::libraries::constants::MAX;
 use strategies::strategies::replicating::{
     replicating_strategy::{IReplicatingStrategyDispatcher, IReplicatingStrategyDispatcherTrait},
     pragma_interfaces::{DataType, PragmaPricesResponse},
@@ -83,7 +82,7 @@ fn before() -> (
     params.width = 10;
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
-    params.start_limit = 8388600 + 741930; // initial limit
+    params.start_limit = 7906620 + 741930; // initial limit
     params.strategy = strategy.contract_address;
     let market_id = create_market(market_manager, params);
 
@@ -183,17 +182,17 @@ fn test_replicating_strategy_update_positions() {
     let ask = strategy.ask();
     let market_state = market_manager.market_state(market_id);
 
-    assert(bid.lower_limit == 8388600 + 721930, 'Bid: lower limit');
-    assert(bid.upper_limit == 8388600 + 741930, 'Bid: upper limit');
-    assert(ask.lower_limit == 8388600 + 742280, 'Ask: lower limit');
-    assert(ask.upper_limit == 8388600 + 762280, 'Ask: upper limit');
+    assert(bid.lower_limit == 7906620 + 721930, 'Bid: lower limit');
+    assert(bid.upper_limit == 7906620 + 741930, 'Bid: upper limit');
+    assert(ask.lower_limit == 7906620 + 742280, 'Ask: lower limit');
+    assert(ask.upper_limit == 7906620 + 762280, 'Ask: upper limit');
     assert(approx_eq_pct(bid.liquidity, 286266946460287812818573174, 20), 'Bid: liquidity');
     assert(approx_eq_pct(ask.liquidity, 429900874766712811848315655, 20), 'Ask: liquidity');
     assert(
         approx_eq(market_state.curr_sqrt_price, 409114423070831988486025303672, 100),
         'Market: curr sqrt price'
     );
-    assert(market_state.curr_limit == 8388600 + 742285, 'Market: curr sqrt price');
+    assert(market_state.curr_limit == 7906620 + 742285, 'Market: curr sqrt price');
 }
 
 #[test]
@@ -221,17 +220,17 @@ fn test_replicating_strategy_multiple_swaps() {
     let bid = strategy.bid();
     let ask = strategy.ask();
     let market_state = market_manager.market_state(market_id);
-    assert(bid.lower_limit == 8388600 + 719790, 'Bid 1: lower limit');
-    assert(bid.upper_limit == 8388600 + 739790, 'Bid 1: upper limit');
-    assert(ask.lower_limit == 8388600 + 741940, 'Ask 1: lower limit');
-    assert(ask.upper_limit == 8388600 + 761940, 'Ask 1: upper limit');
+    assert(bid.lower_limit == 7906620 + 719790, 'Bid 1: lower limit');
+    assert(bid.upper_limit == 7906620 + 739790, 'Bid 1: upper limit');
+    assert(ask.lower_limit == 7906620 + 741940, 'Ask 1: lower limit');
+    assert(ask.upper_limit == 7906620 + 761940, 'Ask 1: upper limit');
     assert(approx_eq_pct(bid.liquidity, 289346433263735605208989471, 20), 'Bid 1: liquidity');
     assert(approx_eq_pct(ask.liquidity, 429170667782432169281955462, 20), 'Ask 1: liquidity');
     assert(
         approx_eq_pct(market_state.curr_sqrt_price, 408407949181225947147258078960, 20),
         'Swap 1: end sqrt price'
     );
-    assert(market_state.curr_limit == 8388600 + 741940, 'Swap 1: end limit');
+    assert(market_state.curr_limit == 7906620 + 741940, 'Swap 1: end limit');
     let (base_amount, quote_amount) = strategy.get_balances();
 
     // Execute swap 2 and check positions updated.
@@ -240,17 +239,17 @@ fn test_replicating_strategy_multiple_swaps() {
     let bid_2 = strategy.bid();
     let ask_2 = strategy.ask();
     let market_state_2 = market_manager.market_state(market_id);
-    assert(bid_2.lower_limit == 8388600 + 719790, 'Bid 2: lower limit');
-    assert(bid_2.upper_limit == 8388600 + 739790, 'Bid 2: upper limit');
-    assert(ask_2.lower_limit == 8388600 + 741950, 'Ask 2: lower limit');
-    assert(ask_2.upper_limit == 8388600 + 761950, 'Ask 2: upper limit');
+    assert(bid_2.lower_limit == 7906620 + 719790, 'Bid 2: lower limit');
+    assert(bid_2.upper_limit == 7906620 + 739790, 'Bid 2: upper limit');
+    assert(ask_2.lower_limit == 7906620 + 741950, 'Ask 2: lower limit');
+    assert(ask_2.upper_limit == 7906620 + 761950, 'Ask 2: upper limit');
     assert(approx_eq_pct(bid_2.liquidity, 289346459271780151386678214, 20), 'Bid 2: liquidity');
     assert(approx_eq_pct(ask_2.liquidity, 429192101090792820578334882, 20), 'Ask 2: liquidity');
     assert(
         approx_eq_pct(market_state_2.curr_sqrt_price, 404035472140796796041975907438, 20),
         'Swap 2: end sqrt price'
     );
-    assert(market_state_2.curr_limit == 8388600 + 739787, 'Swap 2: end limit');
+    assert(market_state_2.curr_limit == 7906620 + 739787, 'Swap 2: end limit');
 }
 
 #[test]
@@ -374,6 +373,7 @@ fn test_replicating_strategy_collect_and_pause() {
 }
 
 fn swap_test_cases(width: u32) -> Array<SwapCase> {
+    let max_scaled = BoundedU256::max() / 1000000000000000000;
     let mut cases: Array<SwapCase> = array![
         // Large amounts with no price limit.
         SwapCase {
@@ -420,33 +420,33 @@ fn swap_test_cases(width: u32) -> Array<SwapCase> {
         SwapCase {
             is_buy: true,
             exact_input: true,
-            amount: MAX / 1000000000000000000,
+            amount: max_scaled,
             threshold_sqrt_price: Option::Some(
-                price_math::limit_to_sqrt_price(8388600 + 746000, width)
+                price_math::limit_to_sqrt_price(7906620 + 746000, width)
             )
         },
         SwapCase {
             is_buy: false,
             exact_input: true,
-            amount: MAX / 1000000000000000000,
+            amount: max_scaled,
             threshold_sqrt_price: Option::Some(
-                price_math::limit_to_sqrt_price(8388600 + 736000, width)
+                price_math::limit_to_sqrt_price(7906620 + 736000, width)
             )
         },
         SwapCase {
             is_buy: false,
             exact_input: false,
-            amount: MAX / 1000000000000000000,
+            amount: max_scaled,
             threshold_sqrt_price: Option::Some(
-                price_math::limit_to_sqrt_price(8388600 + 734000, width)
+                price_math::limit_to_sqrt_price(7906620 + 734000, width)
             )
         },
         SwapCase {
             is_buy: true,
             exact_input: false,
-            amount: MAX / 1000000000000000000,
+            amount: max_scaled,
             threshold_sqrt_price: Option::Some(
-                price_math::limit_to_sqrt_price(8388600 + 746000, width)
+                price_math::limit_to_sqrt_price(7906620 + 746000, width)
             )
         }
     ];

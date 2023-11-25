@@ -6,7 +6,7 @@ use starknet::deploy_syscall;
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::libraries::math::price_math;
 use amm::libraries::math::liquidity_math;
-use amm::tests::common::contracts::manual_strategy::{
+use amm::contracts::test::manual_strategy::{
     ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
 };
 use amm::interfaces::IMarketManager::{
@@ -58,7 +58,7 @@ fn before() -> (
     params.width = 1;
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
-    params.start_limit = 8388608 + 741930; // initial limit
+    params.start_limit = OFFSET + 741930; // initial limit
     params.strategy = strategy.contract_address;
     let market_id = create_market(market_manager, params);
 
