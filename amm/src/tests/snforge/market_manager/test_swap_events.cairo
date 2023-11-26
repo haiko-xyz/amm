@@ -131,7 +131,7 @@ fn before_strategy() -> (
 //  4. Swap with strategy, positions updated - should fire `Swap` and 2 x `ModifyPosition`
 
 #[test]
-fn test_swap_no_strategy_or_limit_orders_filled() {
+fn test_swap_events_no_strategy_or_limit_orders_filled() {
     let (market_manager, market_id, base_token, quote_token) = before();
 
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
@@ -177,7 +177,7 @@ fn test_swap_no_strategy_or_limit_orders_filled() {
 }
 
 #[test]
-fn test_swap_no_strategy_limit_orders_fully_filled() {
+fn test_swap_events_no_strategy_limit_orders_fully_filled() {
     let (market_manager, market_id, base_token, quote_token) = before();
 
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
@@ -294,7 +294,7 @@ fn test_swap_no_strategy_limit_orders_partially_filled() {
 }
 
 #[test]
-fn test_swap_with_strategy() {
+fn test_swap_events_with_strategy() {
     let (market_manager, market_id, base_token, quote_token, strategy) = before_strategy();
 
     // Set positions and deposit liquidity.
