@@ -71,7 +71,7 @@ fn before() -> (
     params.start_limit = OFFSET + 737780;
     params.width = 1;
     let eth_usdc_id = create_market(market_manager, params);
-    
+
     // Create bTC / USDC market.
     params.base_token = btc.contract_address;
     params.quote_token = usdc.contract_address;
@@ -93,26 +93,29 @@ fn test_multi_swap_events() {
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
 
     // Create position in ETH / USDC market.
-    market_manager.modify_position(
-        eth_usdc_id, OFFSET + 737000, OFFSET + 738000, I256Trait::new(to_e18(100000), false)
-    );
+    market_manager
+        .modify_position(
+            eth_usdc_id, OFFSET + 737000, OFFSET + 738000, I256Trait::new(to_e18(100000), false)
+        );
     // Create position in BTC / USDC market.
-    market_manager.modify_position(
-        btc_usdc_id, OFFSET + 1050000, OFFSET + 1060000, I256Trait::new(to_e18(100000), false)
-    );
+    market_manager
+        .modify_position(
+            btc_usdc_id, OFFSET + 1050000, OFFSET + 1060000, I256Trait::new(to_e18(100000), false)
+        );
 
     let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
 
     // Swapping across both markets should fire 2 x `Swap` and 1 x `MultiSwap`
     let swap_amount = to_e18(1);
-    let amount_out = market_manager.swap_multiple(
-        eth.contract_address, 
-        btc.contract_address, 
-        swap_amount, 
-        array![eth_usdc_id, btc_usdc_id].span(),
-        Option::None(()),
-        Option::None(()),
-    );
+    let amount_out = market_manager
+        .swap_multiple(
+            eth.contract_address,
+            btc.contract_address,
+            swap_amount,
+            array![eth_usdc_id, btc_usdc_id].span(),
+            Option::None(()),
+            Option::None(()),
+        );
     let swap_id = 1;
 
     let eth_usdc_state = market_manager.market_state(eth_usdc_id);
