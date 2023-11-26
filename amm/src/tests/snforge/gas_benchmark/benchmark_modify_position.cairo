@@ -257,11 +257,6 @@ fn test_remove_liquidity_no_fee() {
         params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
     );
     stop_prank(CheatTarget::One(market_manager.contract_address));
-    start_prank(CheatTarget::One(market_manager.contract_address), bob());
-    market_manager.modify_position(
-        params.market_id, params.lower_limit, params.upper_limit, params.liquidity_delta,
-    );
-    stop_prank(CheatTarget::One(market_manager.contract_address));
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
     'MPRL01: start of test'.print();
     let gas_before = testing::get_available_gas();
