@@ -42,17 +42,27 @@ fn fill_limits(
     let gas_before = testing::get_available_gas();
     let mut i = filled_limits.len();
     loop {
+        // Checkpoint: gas used in full iteration
+        let mut gas_before_itr = testing::get_available_gas();
+        let gas_before_total = testing::get_available_gas();
         if i == 0 {
+            'FL (itr) check iterator [T]'.print();
+            (gas_before_total - testing::get_available_gas()).print(); 
             break;
         }
-        // Checkpoint: gas used in full iteration
-        let gas_before = testing::get_available_gas();
         
+        'FL (itr) check filled_limits'.print();
+        (gas_before_total - testing::get_available_gas()).print(); 
+        gas_before_itr = testing::get_available_gas();
         // Get batch info.
         let limit = *filled_limits.at(i - 1);
         let nonce = self.limit_info.read((market_id, limit)).nonce;
         let batch_id = id::batch_id(market_id, limit, nonce);
         let mut batch = self.batches.read(batch_id);
+        'FL (itr) read state'.print();
+        (gas_before_total - testing::get_available_gas()).print(); 
+
+        gas_before_itr = testing::get_available_gas();
 
         // Fill limit orders if batch exists.
         if batch.liquidity != 0 {
@@ -66,6 +76,9 @@ fn fill_limits(
                     I128Trait::new(batch.liquidity, true),
                     true
                 );
+            'FL (itr) modify position'.print();
+            (gas_before_total - testing::get_available_gas()).print(); 
+            gas_before_itr = testing::get_available_gas();
 
             // Update batch info. If partial fills and unfills occured prior to the batch being fully
             // filled, the batch could have accrued swap fees in the opposite asset. Therefore, they
@@ -74,18 +87,26 @@ fn fill_limits(
             batch.base_amount = base_amount.val.try_into().expect('BatchBaseAmtOF');
             batch.quote_amount = quote_amount.val.try_into().expect('BatchQuoteAmtOF');
             self.batches.write(batch_id, batch);
+            'FL (itr) update batch'.print();
+            (gas_before_total - testing::get_available_gas()).print(); 
+            gas_before_itr = testing::get_available_gas();
 
             // Update limit info. Limit info is changed by `modify_position` so must be refetched here.
             let mut limit_info = self.limit_info.read((market_id, limit));
             limit_info.nonce += 1;
             self.limit_info.write((market_id, limit), limit_info);
+            'FL (itr) update limit info'.print();
+            (gas_before_total - testing::get_available_gas()).print(); 
+            gas_before_itr = testing::get_available_gas();
         }
         i -= 1;
-        'fill_limits itr'.print();
-        (gas_before - testing::get_available_gas()).print(); 
+        'FL (itr) update iterator'.print();
+        (gas_before_total - testing::get_available_gas()).print(); 
+        'FL (itr) [T]'.print();
+        (gas_before_total - testing::get_available_gas()).print(); 
         // Checkpoint End
     };
-    'fill_limits (itr) [T]'.print();
+    'FL [TOTAL]'.print();
     (gas_before - testing::get_available_gas()).print(); 
 }
 
