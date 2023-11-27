@@ -7,9 +7,10 @@ use dict::{Felt252Dict, Felt252DictTrait};
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::libraries::math::fee_math;
 use amm::libraries::id;
-use amm::libraries::liquidity as liquidity_helpers;
+use amm::libraries::liquidity_lib as liquidity_helpers;
 use amm::types::core::{MarketState, LimitInfo};
 use amm::types::i256::{i256, I256Trait, I256Zeroable};
+use amm::types::i128::{i128, I128Zeroable, I128Trait};
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::tests::snforge::helpers::{
     market_manager::{deploy_market_manager, create_market, modify_position, swap, swap_multiple},
@@ -19,7 +20,7 @@ use amm::tests::common::params::{
     owner, alice, treasury, token_params, default_market_params, modify_position_params,
     swap_params, swap_multiple_params, default_token_params
 };
-use amm::tests::common::utils::{to_e28, to_e18, approx_eq};
+use amm::tests::common::utils::{to_e28, to_e18, to_e18_u128, approx_eq, to_e28_u128};
 
 // External imports.
 use snforge_std::{start_prank, PrintTrait, declare, ContractClass, ContractClassTrait};

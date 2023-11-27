@@ -7,7 +7,7 @@ use starknet::contract_address::ContractAddressZeroable;
 
 // Local imports.
 use amm::types::core::{Position, MarketConfigs, ValidLimits, Config};
-use amm::types::i256::{i256, I256Trait};
+use amm::types::i128::{i128, I128Trait};
 use amm::libraries::constants::OFFSET;
 use amm::tests::common::utils::to_e28;
 
@@ -55,7 +55,7 @@ struct ModifyPositionParams {
     market_id: felt252,
     lower_limit: u32,
     upper_limit: u32,
-    liquidity_delta: i256,
+    liquidity_delta: i128,
 }
 
 #[derive(Drop, Copy)]
@@ -175,7 +175,7 @@ fn modify_position_params(
     market_id: felt252,
     lower_limit: u32,
     upper_limit: u32,
-    liquidity_delta: i256,
+    liquidity_delta: i128,
 ) -> ModifyPositionParams {
     ModifyPositionParams { owner, market_id, lower_limit, upper_limit, liquidity_delta }
 }

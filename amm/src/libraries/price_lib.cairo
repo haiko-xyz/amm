@@ -30,7 +30,7 @@ fn check_limits(
             && valid.max_lower == 0
             && valid.min_upper == 0
             && valid.max_upper == 0) {
-        assert(upper_limit <= max_limit, 'UpperLimitOverflow');
+        assert(upper_limit <= max_limit, 'UpperLimitOF');
     } else {
         assert(
             lower_limit >= valid.min_lower

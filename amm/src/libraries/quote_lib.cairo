@@ -7,7 +7,7 @@ use nullable::{match_nullable, FromNullableResult};
 // Local imports.
 use amm::libraries::tree;
 use amm::libraries::id;
-use amm::libraries::swap::{compute_swap_amounts, next_sqrt_price_input, next_sqrt_price_output};
+use amm::libraries::swap_lib::{compute_swap_amounts, next_sqrt_price_input, next_sqrt_price_output};
 use amm::libraries::math::{math, fee_math, price_math, liquidity_math};
 use amm::libraries::constants::{ONE, MAX_SQRT_PRICE};
 use amm::contracts::market_manager::MarketManager::ContractState;
@@ -18,8 +18,8 @@ use amm::contracts::market_manager::MarketManager::{
     positions::InternalContractMemberStateTrait as PositionStateTrait,
 };
 use amm::contracts::market_manager::MarketManager::MarketManagerInternalTrait;
-use amm::types::core::MarketState;
-use amm::types::i256::{i256, I256Trait};
+use amm::types::core::{MarketState, PositionInfo};
+use amm::types::i128::{i128, I128Trait};
 
 
 // Iteratively simulate swap up to next initialised limit price.
@@ -45,7 +45,7 @@ fn quote_iter(
     ref amount_rem: u256,
     ref amount_calc: u256,
     ref swap_fees: u256,
-    ref queued_deltas: Felt252Dict<Nullable<i256>>,
+    ref queued_deltas: Felt252Dict<Nullable<i128>>,
     target_limits: Span<u32>,
     threshold_sqrt_price: Option<u256>,
     fee_rate: u16,
@@ -125,7 +125,7 @@ fn quote_iter(
     if market_state.curr_sqrt_price == uncapped_target_sqrt_price {
         // Initiate cumulative liquidity delta. Unlike a regular swap, we need to apply both
         // sets of liquidity deltas. Updating liquidity directly can cause sub overflow.
-        let mut cumul_liquidity_delta = I256Trait::new(0, false);
+        let mut cumul_liquidity_delta = I128Trait::new(0, false);
 
         // Calculate liquidity deltas from queued strategy positions.
         let queued_delta = queued_deltas.get(target_limit.into());
@@ -226,4 +226,40 @@ fn next_limit(target_limits: Span<u32>, is_buy: bool, curr_limit: u32,) -> Optio
     } else {
         Option::None(())
     }
+}
+
+// Internal function used to populate two arrays used for tracking the liquidity deltas
+// and initialised limits for queued strategy positions updates. Used by `unsafe_quote`.
+//
+// # Arguments
+// * `queued_deltas` - ref to mapping of limit of liquidity deltas
+// * `target_limits` - ref to array of initialised limits
+// * `market_state` - ref to market state
+// * `positions` - list of queued positions to update
+// * `is_placed` - whether positions are placed or queued
+fn populate_limits(
+    ref queued_deltas: Felt252Dict<Nullable<i128>>,
+    ref target_limits: Array<u32>,
+    ref market_state: MarketState,
+    positions: Span<PositionInfo>,
+    is_placed: bool,
+) {
+    let mut i = 0;
+    let curr_limit = market_state.curr_limit;
+    loop {
+        if i >= positions.len() {
+            break;
+        }
+        let pos = *positions.at(i);
+        if pos.lower_limit <= curr_limit && pos.upper_limit > curr_limit {
+            market_state.liquidity -= pos.liquidity;
+        }
+        let lower_liq = nullable_from_box(BoxTrait::new(I128Trait::new(pos.liquidity, is_placed)));
+        let upper_liq = nullable_from_box(BoxTrait::new(I128Trait::new(pos.liquidity, !is_placed)));
+        queued_deltas.insert(pos.lower_limit.into(), lower_liq);
+        queued_deltas.insert(pos.upper_limit.into(), upper_liq);
+        target_limits.append(pos.lower_limit);
+        target_limits.append(pos.upper_limit);
+        i += 1;
+    };
 }

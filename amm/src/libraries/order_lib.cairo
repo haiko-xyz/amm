@@ -1,4 +1,6 @@
 use snforge_std::forge_print::PrintTrait;
+use core::traits::TryInto;
+use core::option::OptionTrait;
 // Core lib imports.
 use starknet::ContractAddress;
 use starknet::get_caller_address;
@@ -16,7 +18,7 @@ use amm::contracts::market_manager::MarketManager::{
     market_info::InternalContractMemberStateTrait as MarketInfoStateTrait,
 };
 use amm::types::core::{OrderBatch, LimitInfo};
-use amm::types::i256::{i256, I256Trait};
+use amm::types::i128::{i128, I128Trait};
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
@@ -61,7 +63,7 @@ fn fill_limits(
                     market_id,
                     limit,
                     limit + width,
-                    I256Trait::new(batch.liquidity, true),
+                    I128Trait::new(batch.liquidity, true),
                     true
                 );
 
@@ -69,8 +71,8 @@ fn fill_limits(
             // filled, the batch could have accrued swap fees in the opposite asset. Therefore, they
             // should be paid out to limit order placers. 
             batch.filled = true;
-            batch.base_amount = base_amount.val;
-            batch.quote_amount = quote_amount.val;
+            batch.base_amount = base_amount.val.try_into().expect('BatchBaseAmtOF');
+            batch.quote_amount = quote_amount.val.try_into().expect('BatchQuoteAmtOF');
             self.batches.write(batch_id, batch);
 
             // Update limit info. Limit info is changed by `modify_position` so must be refetched here.
@@ -125,22 +127,24 @@ fn fill_partial_limit(
     gas_before = testing::get_available_gas();
     // Otherwise, update for partial fill.
     // Fill
+    let amount_in_u128: u128 = amount_in.try_into().expect('AmountInU128OF');
+    let amount_out_u128: u128 = amount_out.try_into().expect('AmountOutU128OF');
     if is_buy != batch.is_bid {
         if batch.is_bid {
-            batch.quote_amount -= amount_out;
-            batch.base_amount += amount_in;
+            batch.quote_amount -= amount_out_u128;
+            batch.base_amount += amount_in_u128;
         } else {
-            batch.base_amount -= amount_out;
-            batch.quote_amount += amount_in;
+            batch.base_amount -= amount_out_u128;
+            batch.quote_amount += amount_in_u128;
         }
     } // Unfill 
     else {
         if batch.is_bid {
-            batch.quote_amount += amount_in;
-            batch.base_amount -= amount_out;
+            batch.quote_amount += amount_in_u128;
+            batch.base_amount -= amount_out_u128;
         } else {
-            batch.base_amount += amount_in;
-            batch.quote_amount -= amount_out;
+            batch.base_amount += amount_in_u128;
+            batch.quote_amount -= amount_out_u128;
         }
     }
 

@@ -1,13 +1,14 @@
-use integer::BoundedU256;
+use integer::BoundedU128;
 use debug::PrintTrait;
 
 use amm::libraries::math::price_math::limit_to_sqrt_price;
 use amm::libraries::math::liquidity_math::{
     add_delta, liquidity_to_quote, liquidity_to_base, base_to_liquidity, quote_to_liquidity,
-    liquidity_to_amounts
+    liquidity_to_amounts, max_liquidity_per_limit
 };
-use amm::libraries::constants::{ONE, OFFSET};
-use amm::tests::common::utils::{encode_sqrt_price, approx_eq};
+use amm::libraries::constants::{ONE, OFFSET, MAX_NUM_LIMITS, MAX_SCALED};
+use amm::tests::common::utils::{encode_sqrt_price, approx_eq, to_e28_u128};
+use amm::types::i128::I128Trait;
 use amm::types::i256::I256Trait;
 
 ////////////////////////////////
@@ -18,7 +19,7 @@ use amm::types::i256::I256Trait;
 struct TestCase {
     lower_sqrt_price: u256,
     upper_sqrt_price: u256,
-    liquidity: u256,
+    liquidity: u128,
     round_up: bool,
     base_amount: u256,
     quote_amount: u256,
@@ -32,43 +33,43 @@ struct TestCase {
 #[available_gas(2000000000)]
 fn test_add_delta_cases() {
     let mut liquidity = 0;
-    let mut delta = I256Trait::new(0, false);
+    let mut delta = I128Trait::new(0, false);
     add_delta(ref liquidity, delta);
     assert(liquidity == 0, '0 + 0');
 
     liquidity = 10;
-    delta = I256Trait::new(0, false);
+    delta = I128Trait::new(0, false);
     add_delta(ref liquidity, delta);
     assert(liquidity == 10, '10 + 0');
 
     liquidity = 0;
-    delta = I256Trait::new(10, false);
+    delta = I128Trait::new(10, false);
     add_delta(ref liquidity, delta);
     assert(liquidity == 10, '0 + 10');
 
     liquidity = 10;
-    delta = I256Trait::new(10, false);
+    delta = I128Trait::new(10, false);
     add_delta(ref liquidity, delta);
     assert(liquidity == 20, '10 + 10');
 
     liquidity = 10;
-    delta = I256Trait::new(10, true);
+    delta = I128Trait::new(10, true);
     add_delta(ref liquidity, delta);
     assert(liquidity == 0, '10 + -10');
 
-    let max = BoundedU256::max();
+    let max = BoundedU128::max();
     liquidity = max - 5;
-    delta = I256Trait::new(5, false);
+    delta = I128Trait::new(5, false);
     add_delta(ref liquidity, delta);
     assert(liquidity == max, 'max-5 + 5');
 }
 
 #[test]
-#[should_panic(expected: ('u256_sub Overflow',))]
+#[should_panic(expected: ('u128_sub Overflow',))]
 #[available_gas(2000000000)]
 fn test_add_delta_underflow() {
     let mut liquidity = 0;
-    let delta = I256Trait::new(1, true);
+    let delta = I128Trait::new(1, true);
     add_delta(ref liquidity, delta);
 }
 
@@ -77,6 +78,7 @@ fn test_add_delta_underflow() {
 /////////////////////////////////////
 
 fn test_cases_set1() -> Span<TestCase> {
+    let one: u128 = 10000000000000000000000000000;
     let cases: Span<TestCase> = array![
         TestCase {
             lower_sqrt_price: encode_sqrt_price(1, 1),
@@ -97,7 +99,7 @@ fn test_cases_set1() -> Span<TestCase> {
         TestCase {
             lower_sqrt_price: encode_sqrt_price(1, 2),
             upper_sqrt_price: encode_sqrt_price(50, 2),
-            liquidity: 100 * ONE,
+            liquidity: to_e28_u128(100),
             round_up: true,
             base_amount: 1214213562373095048801688724210,
             quote_amount: 4292893218813452475599155637896,
@@ -105,7 +107,7 @@ fn test_cases_set1() -> Span<TestCase> {
         TestCase {
             lower_sqrt_price: encode_sqrt_price(1, 2),
             upper_sqrt_price: encode_sqrt_price(50, 2),
-            liquidity: 100 * ONE,
+            liquidity: to_e28_u128(100),
             round_up: false,
             base_amount: 1214213562373095048801688724210,
             quote_amount: 4292893218813452475599155637896,
@@ -120,7 +122,7 @@ fn test_cases_set2() -> Span<TestCase> {
         TestCase {
             lower_sqrt_price: encode_sqrt_price(1685, 1),
             upper_sqrt_price: encode_sqrt_price(2015, 1),
-            liquidity: 33 * ONE,
+            liquidity: to_e28_u128(33),
             round_up: true,
             base_amount: 687713693369719147582043042,
             quote_amount: 1267199957555168349116319634523,
@@ -149,19 +151,10 @@ fn test_cases_set2() -> Span<TestCase> {
             base_amount: 1,
             quote_amount: 132290784888566048265477162000000000000000000000000000000
         },
-        TestCase {
-            lower_sqrt_price: 42045765511869000000000000000000,
-            upper_sqrt_price: 183131552704515000000000000000000,
-            liquidity: 474518159348736546111389172398901274095791231015231000000000000000000,
-            round_up: true,
-            base_amount: 86946211086165655591010015832212364180061819198653137971033493500,
-            quote_amount: 6694776804892192838968383171335234269706615406494047211195719122600000000,
-        }
     ]
         .span();
     cases
 }
-// 105324756*233337802229883332333378022298108/10^28*121639496252071918121639496252071/(233337802229883332333378022298108-121639496252071918121639496252071)
 
 /////////////////////////////////////
 // TESTS - liquidity_to_quote
@@ -191,7 +184,7 @@ fn test_liquidity_to_quote_cases(cases: Span<TestCase>) {
         let quote = liquidity_to_quote(
             case.lower_sqrt_price,
             case.upper_sqrt_price,
-            I256Trait::new(case.liquidity, false),
+            I128Trait::new(case.liquidity, false),
             case.round_up
         )
             .val;
@@ -228,7 +221,7 @@ fn test_liquidity_to_base_cases(cases: Span<TestCase>) {
         let base = liquidity_to_base(
             case.lower_sqrt_price,
             case.upper_sqrt_price,
-            I256Trait::new(case.liquidity, false),
+            I128Trait::new(case.liquidity, false),
             case.round_up
         )
             .val;
@@ -243,7 +236,7 @@ fn test_liquidity_to_base_cases(cases: Span<TestCase>) {
 fn test_base_amount_delta_start_price_0() {
     let start = 0;
     let end = encode_sqrt_price(2, 1);
-    let liq = I256Trait::new(100 * ONE, false);
+    let liq = I128Trait::new(to_e28_u128(100), false);
     liquidity_to_base(start, end, liq, true) == I256Trait::new(0, false);
 }
 
@@ -277,9 +270,9 @@ fn test_quote_to_liquidity_cases(cases: Span<TestCase>) {
             continue;
         }
         let liquidity = quote_to_liquidity(
-            case.lower_sqrt_price, case.upper_sqrt_price, case.quote_amount,
+            case.lower_sqrt_price, case.upper_sqrt_price, case.quote_amount, false
         );
-        assert(approx_eq(liquidity, case.liquidity, 100), 'q->l 00' + i.into());
+        assert(approx_eq(liquidity.into(), case.liquidity.into(), 100), 'q->l 00' + i.into());
         i += 1;
     };
 }
@@ -314,9 +307,9 @@ fn test_base_to_liquidity_cases(cases: Span<TestCase>) {
             continue;
         }
         let liquidity = base_to_liquidity(
-            case.lower_sqrt_price, case.upper_sqrt_price, case.base_amount,
+            case.lower_sqrt_price, case.upper_sqrt_price, case.base_amount, false
         );
-        assert(approx_eq(liquidity, case.liquidity, 10000), 'b->l 00' + i.into());
+        assert(approx_eq(liquidity.into(), case.liquidity.into(), 10000), 'b->l 00' + i.into());
         i += 1;
     };
 }
@@ -334,7 +327,7 @@ fn test_liquidity_to_amounts() {
     let curr_sqrt_price = limit_to_sqrt_price(curr_limit, width);
     let mut lower_sqrt_price = limit_to_sqrt_price(OFFSET + 85000, width);
     let mut upper_sqrt_price = limit_to_sqrt_price(OFFSET + 90000, width);
-    let liquidity = I256Trait::new(10000, false);
+    let liquidity = I128Trait::new(10000, false);
     let (mut base_amount, mut quote_amount) = liquidity_to_amounts(
         liquidity, curr_sqrt_price, lower_sqrt_price, upper_sqrt_price, width
     );
@@ -358,4 +351,16 @@ fn test_liquidity_to_amounts() {
     );
     assert(approx_eq(base_amount.val, 166, 1), 'wrap base');
     assert(quote_amount.val == 369, 'wrap quote');
+}
+
+#[test]
+#[available_gas(2000000000)]
+fn test_max_liquidity_per_limit() {
+    assert(max_liquidity_per_limit(1) == 21518811465203357833463505223041, 'max_liq(1)');
+
+    assert(max_liquidity_per_limit(10) == 215187992179309303371584738018453, 'max_liq(10)');
+
+    assert(max_liquidity_per_limit(250) == 5379618157285522867539991264295826, 'max_liq(250)');
+
+    assert(max_liquidity_per_limit(MAX_NUM_LIMITS) == BoundedU128::max(), 'max_liq(MAX)');
 }

@@ -5,7 +5,7 @@ use cmp::{min, max};
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::libraries::math::fee_math;
 use amm::types::core::{SwapParams, PositionInfo};
-use amm::types::i256::I256Trait;
+use amm::types::i128::I128Trait;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::interfaces::IStrategy::{IStrategyDispatcher, IStrategyDispatcherTrait};
 use amm::tests::snforge::helpers::{
@@ -317,7 +317,7 @@ fn test_fee_factor_invariants_replicating(
                 liquidity
             };
             let mut params = modify_position_params(
-                alice(), market_id, lower_limit, upper_limit, I256Trait::new(amount, is_remove)
+                alice(), market_id, lower_limit, upper_limit, I128Trait::new(amount, is_remove)
             );
             modify_position(market_manager, params);
         }

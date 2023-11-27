@@ -11,7 +11,7 @@ use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::interfaces::ILoanReceiver::ILoanReceiver;
 use amm::interfaces::ILoanReceiver::{ILoanReceiverDispatcher, ILoanReceiverDispatcherTrait};
-use amm::types::i256::{i256, I256Trait};
+use amm::types::i128::{i128, I128Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position
 };
@@ -21,7 +21,7 @@ use amm::tests::common::params::{
     owner, alice, treasury, default_token_params, default_market_params, modify_position_params
 };
 use amm::tests::common::contracts::flash_loan_receiver;
-use amm::tests::common::utils::{to_e28, to_e18};
+use amm::tests::common::utils::{to_e28, to_e18_u128};
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
@@ -86,7 +86,7 @@ fn test_flash_loan() {
     set_contract_address(alice());
     let mut lower_limit = OFFSET - 10000;
     let mut upper_limit = OFFSET + 10000;
-    let mut liquidity = I256Trait::new(to_e18(10000), false);
+    let mut liquidity = I128Trait::new(to_e18_u128(10000), false);
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
 
@@ -134,7 +134,7 @@ fn test_flash_loan_unreturned() {
     set_contract_address(alice());
     let mut lower_limit = OFFSET - 10000;
     let mut upper_limit = OFFSET + 10000;
-    let mut liquidity = I256Trait::new(to_e18(10000), false);
+    let mut liquidity = I128Trait::new(to_e18_u128(10000), false);
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
 

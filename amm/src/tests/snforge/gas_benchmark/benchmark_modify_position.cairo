@@ -7,9 +7,10 @@ use dict::{Felt252Dict, Felt252DictTrait};
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT};
 use amm::libraries::math::fee_math;
 use amm::libraries::id;
-use amm::libraries::liquidity as liquidity_helpers;
+use amm::libraries::liquidity_lib as liquidity_helpers;
 use amm::types::core::{MarketState, LimitInfo};
 use amm::types::i256::{i256, I256Trait, I256Zeroable};
+use amm::types::i128::{i128, I128Zeroable, I128Trait};
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::tests::snforge::helpers::{
     market_manager::{deploy_market_manager, create_market, modify_position, swap, swap_multiple},
@@ -19,7 +20,7 @@ use amm::tests::common::params::{
     owner, alice, bob, treasury, token_params, default_market_params, modify_position_params,
     swap_params, swap_multiple_params, default_token_params
 };
-use amm::tests::common::utils::{to_e28, to_e18, approx_eq};
+use amm::tests::common::utils::{to_e28, to_e18, to_e18_u128, approx_eq};
 
 // External imports.
 use snforge_std::{
@@ -88,7 +89,7 @@ fn test_create_position_uninitialised_limits() {
 
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let liquidity = I256Trait::new(to_e18(100000), false);
+    let liquidity = I128Trait::new(to_e18_u128(100000), false);
 
     let mut params = modify_position_params(
         alice(),
@@ -121,7 +122,7 @@ fn test_create_position_initialised_limits() {
 
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let liquidity = I256Trait::new(to_e18(100000), false);
+    let liquidity = I128Trait::new(to_e18_u128(100000), false);
 
     let mut params = modify_position_params(
         alice(),
@@ -158,7 +159,7 @@ fn test_add_liquidity_to_initialised_lower_unintialised_upper() {
 
     let lower_limit = OFFSET - MIN_LIMIT;
     let upper_limit = OFFSET;
-    let liquidity = I256Trait::new(to_e18(100000), false);
+    let liquidity = I128Trait::new(to_e18_u128(100000), false);
 
     let params_1 = modify_position_params(
         alice(),
@@ -203,7 +204,7 @@ fn test_collect_fee_from_single_position() {
 
     let lower_limit = OFFSET - MIN_LIMIT;
     let upper_limit = OFFSET;
-    let liquidity = I256Trait::new(to_e18(100000), false);
+    let liquidity = I128Trait::new(to_e18_u128(100000), false);
 
     let mut params = modify_position_params(
         alice(),
@@ -225,7 +226,7 @@ fn test_collect_fee_from_single_position() {
     gas::withdraw_gas().unwrap();
     let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
         .modify_position(
-            params.market_id, params.lower_limit, params.upper_limit, I256Trait::new(0, true),
+            params.market_id, params.lower_limit, params.upper_limit, I128Trait::new(0, true),
         );
     (gas_before - testing::get_available_gas()).print();
     'MPCF: end of test'.print();
@@ -241,8 +242,8 @@ fn test_remove_liquidity_no_fee_single_position() {
 
     let lower_limit = OFFSET - MIN_LIMIT;
     let upper_limit = OFFSET - MIN_LIMIT + market_manager.width(market_id);
-    let liquidity_to_add = I256Trait::new(to_e18(100000), false);
-    let liquidity_to_remove = I256Trait::new(to_e18(100000), true);
+    let liquidity_to_add = I128Trait::new(to_e18_u128(100000), false);
+    let liquidity_to_remove = I128Trait::new(to_e18_u128(100000), true);
 
     let mut params = modify_position_params(
         alice(),
@@ -280,8 +281,8 @@ fn test_remove_liquidity_accumulated_fee_single_position() {
 
     let lower_limit = OFFSET + MAX_LIMIT - market_manager.width(market_id);
     let upper_limit = OFFSET + MAX_LIMIT;
-    let liquidity_to_add = I256Trait::new(to_e18(100000), false);
-    let liquidity_to_remove = I256Trait::new(to_e18(100000), true);
+    let liquidity_to_add = I128Trait::new(to_e18_u128(100000), false);
+    let liquidity_to_remove = I128Trait::new(to_e18_u128(100000), true);
 
     let mut params = modify_position_params(
         alice(),
@@ -321,8 +322,8 @@ fn test_remove_liquidity_no_fee_other_position_exists() {
 
     let lower_limit = OFFSET + MAX_LIMIT - market_manager.width(market_id);
     let upper_limit = OFFSET + MAX_LIMIT;
-    let liquidity_to_add = I256Trait::new(to_e18(100000), false);
-    let liquidity_to_remove = I256Trait::new(to_e18(100000), true);
+    let liquidity_to_add = I128Trait::new(to_e18_u128(100000), false);
+    let liquidity_to_remove = I128Trait::new(to_e18_u128(100000), true);
 
     let mut params = modify_position_params(
         alice(),
@@ -366,8 +367,8 @@ fn test_remove_liquidity_accumulated_fee_other_position_exists() {
 
     let lower_limit = OFFSET;
     let upper_limit = OFFSET + MAX_LIMIT;
-    let liquidity_to_add = I256Trait::new(to_e18(100000), false);
-    let liquidity_to_remove = I256Trait::new(to_e18(100000), true);
+    let liquidity_to_add = I128Trait::new(to_e18_u128(100000), false);
+    let liquidity_to_remove = I128Trait::new(to_e18_u128(100000), true);
 
     let mut params = modify_position_params(
         alice(),

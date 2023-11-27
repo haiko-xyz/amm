@@ -1,7 +1,7 @@
 // Local imports.
 use amm::libraries::constants::OFFSET;
 use amm::libraries::math::{fee_math, price_math};
-use amm::types::i256::I256Trait;
+use amm::types::i128::I128Trait;
 use amm::contracts::market_manager::MarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::tests::snforge::helpers::{

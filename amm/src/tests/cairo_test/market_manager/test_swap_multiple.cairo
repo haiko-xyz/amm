@@ -5,7 +5,7 @@ use debug::PrintTrait;
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
-use amm::types::i256::I256Trait;
+use amm::types::i128::I128Trait;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position, swap, swap_multiple
@@ -15,7 +15,7 @@ use amm::tests::common::params::{
     owner, alice, treasury, token_params, default_market_params, modify_position_params,
     swap_params, swap_multiple_params
 };
-use amm::tests::common::utils::{to_e28, to_e18, approx_eq_pct};
+use amm::tests::common::utils::{to_e18_u128, to_e18, approx_eq};
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
@@ -91,7 +91,7 @@ fn test_swap_multiple() {
         eth_usdc_id,
         OFFSET + 730000,
         OFFSET + 740000,
-        I256Trait::new(to_e28(20000000), false)
+        I128Trait::new(to_e18_u128(20000000), false)
     );
     modify_position(market_manager, eth_usdc_position_params);
 
@@ -100,7 +100,7 @@ fn test_swap_multiple() {
         btc_usdc_id,
         OFFSET + 1010000,
         OFFSET + 1020000,
-        I256Trait::new(to_e28(1000000), false)
+        I128Trait::new(to_e18_u128(1000000), false)
     );
     modify_position(market_manager, btc_usdc_position_params);
 
@@ -118,7 +118,7 @@ fn test_swap_multiple() {
     let amount_out = swap_multiple(market_manager, swap_params);
 
     // Check amount out
-    assert(approx_eq_pct(amount_out, 61170203579856634, 14), 'Swap multiple: amount out');
+    assert(approx_eq(amount_out, 61169478269490904, 10), 'Swap multiple: amount out');
 }
 
 #[test]

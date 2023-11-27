@@ -7,7 +7,7 @@ use amm::libraries::constants::OFFSET;
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::interfaces::IFeeController::{IFeeControllerDispatcher, IFeeControllerDispatcherTrait};
-use amm::types::i256::{i256, I256Trait};
+use amm::types::i128::{i128, I128Trait};
 use amm::tests::cairo_test::helpers::fee_controller::deploy_fee_controller;
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position, swap
@@ -17,7 +17,7 @@ use amm::tests::common::params::{
     owner, alice, treasury, default_token_params, default_market_params, modify_position_params,
     swap_params
 };
-use amm::tests::common::utils::{to_e18, to_e28};
+use amm::tests::common::utils::{to_e18, to_e18_u128, to_e28};
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
@@ -82,7 +82,7 @@ fn test_fee_controller() {
     // Create position.
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let liquidity = I256Trait::new(to_e18(1000000), false);
+    let liquidity = I128Trait::new(to_e18_u128(1000000), false);
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
 
@@ -104,7 +104,7 @@ fn test_fee_controller() {
 }
 
 #[test]
-#[should_panic(expected: ('FeeRateOverflow', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('FeeRateOF', 'ENTRYPOINT_FAILED',))]
 #[available_gas(15000000000)]
 fn test_fee_controller_fee_rate_overflow() {
     let fee_rate = 10001;
@@ -113,7 +113,7 @@ fn test_fee_controller_fee_rate_overflow() {
     // Create position.
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let liquidity = I256Trait::new(to_e18(1000000), false);
+    let liquidity = I128Trait::new(to_e18_u128(1000000), false);
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
 

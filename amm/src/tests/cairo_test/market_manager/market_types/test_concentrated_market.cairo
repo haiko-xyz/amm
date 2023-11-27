@@ -9,13 +9,13 @@ use amm::libraries::constants::{OFFSET, MIN_LIMIT, MAX_LIMIT, MAX_WIDTH};
 use amm::types::core::MarketConfigs;
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
-use amm::types::i256::I256Trait;
+use amm::types::i128::I128Trait;
 use amm::tests::cairo_test::helpers::market_manager::{deploy_market_manager, create_market};
 use amm::tests::cairo_test::helpers::token::{deploy_token, fund, approve};
 use amm::tests::common::params::{
     owner, alice, default_token_params, default_market_params, valid_limits, config
 };
-use amm::tests::common::utils::{to_e18, to_e28};
+use amm::tests::common::utils::{to_e18_u128, to_e28};
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
@@ -74,7 +74,7 @@ fn test_enable_concentrated() {
     set_contract_address(alice());
     let lower_limit = OFFSET - MIN_LIMIT;
     let upper_limit = OFFSET + MAX_LIMIT;
-    let liquidity = I256Trait::new(to_e18(100000), false);
+    let liquidity = I128Trait::new(to_e18_u128(100000), false);
     market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
 
     // Enable concentrated by removing constraint.

@@ -193,7 +193,7 @@ fn test_create_market_base_token_undeployed() {
 
 #[test]
 #[available_gas(2000000000)]
-#[should_panic(expected: ('StartLimitOverflow', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('StartLimitOF', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_start_limit_overflow() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
@@ -226,7 +226,7 @@ fn test_create_market_width_zero() {
 
 #[test]
 #[available_gas(2000000000)]
-#[should_panic(expected: ('WidthOverflow', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('WidthOF', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_width_overflow() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
@@ -242,7 +242,7 @@ fn test_create_market_width_overflow() {
 
 #[test]
 #[available_gas(2000000000)]
-#[should_panic(expected: ('FeeRateOverflow', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('FeeRateOF', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_fee_rate_overflow() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
@@ -258,7 +258,7 @@ fn test_create_market_fee_rate_overflow() {
 
 #[test]
 #[available_gas(2000000000)]
-#[should_panic(expected: ('ProtocolShareOverflow', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('ProtocolShareOF', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_protocol_share_overflow() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();

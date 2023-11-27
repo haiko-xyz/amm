@@ -105,11 +105,9 @@ mod ReplicatingStrategy {
     use amm::types::core::{MarketState, SwapParams, PositionInfo};
     use amm::libraries::math::{math, price_math, liquidity_math, fee_math};
     use amm::libraries::id;
-    use amm::libraries::liquidity as liquidity_helpers;
-    use amm::libraries::constants::ONE;
     use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
     use amm::interfaces::IStrategy::IStrategy;
-    use amm::types::i256::{I256Trait, i256};
+    use amm::types::i128::{I128Trait, i128};
     use strategies::strategies::replicating::spread_math;
     use strategies::strategies::replicating::pragma_interfaces::{
         IOracleABIDispatcher, IOracleABIDispatcherTrait, AggregationMode, DataType, SimpleDataType,
@@ -127,6 +125,8 @@ mod ReplicatingStrategy {
     #[abi(embed_v0)]
     impl ERC20MetadataImpl = ERC20Component::ERC20MetadataImpl<ContractState>;
     impl ERC20InternalImpl = ERC20Component::InternalImpl<ContractState>;
+
+    use debug::PrintTrait;
 
     #[storage]
     struct Storage {
@@ -175,10 +175,10 @@ mod ReplicatingStrategy {
     struct UpdatePositions {
         bid_lower_limit: u32,
         bid_upper_limit: u32,
-        bid_liquidity: u256,
+        bid_liquidity: u128,
         ask_lower_limit: u32,
         ask_upper_limit: u32,
-        ask_liquidity: u256,
+        ask_liquidity: u128,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -306,6 +306,7 @@ mod ReplicatingStrategy {
                 .get_bid_ask();
 
             // Calculate amount of new liquidity to add.
+            // Token amounts rounded down as per convention when depositing liquidity.
             let base_amount = base_reserves + bid_base + ask_base;
             let base_liquidity = if base_amount == 0 || next_ask_lower
                 + strategy_params.range > price_math::max_limit(market_info.width) {
@@ -314,7 +315,8 @@ mod ReplicatingStrategy {
                 liquidity_math::base_to_liquidity(
                     price_math::limit_to_sqrt_price(next_ask_lower, market_info.width),
                     price_math::limit_to_sqrt_price(next_ask_upper, market_info.width),
-                    base_amount
+                    base_amount,
+                    false
                 )
             };
             let quote_amount = quote_reserves + bid_quote + ask_quote;
@@ -324,7 +326,8 @@ mod ReplicatingStrategy {
                 liquidity_math::quote_to_liquidity(
                     price_math::limit_to_sqrt_price(next_bid_lower, market_info.width),
                     price_math::limit_to_sqrt_price(next_bid_upper, market_info.width),
-                    quote_amount
+                    quote_amount,
+                    false
                 )
             };
 
@@ -610,7 +613,7 @@ mod ReplicatingStrategy {
 
             // Mint liquidity
             let liquidity = bid.liquidity + ask.liquidity;
-            self.erc20._mint(caller, liquidity);
+            self.erc20._mint(caller, liquidity.into());
 
             assert(base_amount >= base_leftover, 'BaseLeftover');
             assert(quote_amount >= quote_leftover, 'QuoteLeftover');
@@ -618,7 +621,7 @@ mod ReplicatingStrategy {
             // Emit event
             self.emit(Event::Deposit(Deposit { owner: caller, base_amount, quote_amount }));
 
-            (base_amount - base_leftover, quote_amount - quote_leftover, liquidity)
+            (base_amount - base_leftover, quote_amount - quote_leftover, liquidity.into())
         }
 
         // Deposit liquidity to strategy.
@@ -705,7 +708,7 @@ mod ReplicatingStrategy {
             let total_supply = self.erc20.total_supply();
             assert(total_supply != 0, 'NoSupply');
             assert(shares != 0, 'SharesZero');
-            assert(shares <= total_supply, 'SharesOverflow');
+            assert(shares <= total_supply, 'SharesOF');
             let caller = get_caller_address();
             let caller_balance = self.erc20.balance_of(caller);
             assert(caller_balance >= shares, 'InsufficientShares');
@@ -727,19 +730,29 @@ mod ReplicatingStrategy {
             // Calculate share of position liquidity to withdraw.
             let mut bid = self.bid.read();
             let mut ask = self.ask.read();
-            let bid_liquidity_delta = math::mul_div(bid.liquidity, shares, total_supply, false);
-            bid.liquidity -= bid_liquidity_delta;
-            let bid_liquidity_delta_i256 = I256Trait::new(bid_liquidity_delta, true);
+            let bid_liquidity_delta = math::mul_div(
+                bid.liquidity.into(), shares, total_supply, false
+            );
+            let bid_delta_i128 = bid_liquidity_delta.try_into().expect('BidLiquidityOF');
+            bid.liquidity -= bid_delta_i128;
             let (bid_base_rem, bid_quote_rem, bid_base_fees, bid_quote_fees) = market_manager
                 .modify_position(
-                    market_id, bid.lower_limit, bid.upper_limit, bid_liquidity_delta_i256
+                    market_id,
+                    bid.lower_limit,
+                    bid.upper_limit,
+                    I128Trait::new(bid_delta_i128, true)
                 );
-            let ask_liquidity_delta = math::mul_div(ask.liquidity, shares, total_supply, false);
-            ask.liquidity -= ask_liquidity_delta;
-            let ask_liquidity_delta_i256 = I256Trait::new(ask_liquidity_delta, true);
+            let ask_liquidity_delta = math::mul_div(
+                ask.liquidity.into(), shares, total_supply, false
+            );
+            let ask_delta_i128 = ask_liquidity_delta.try_into().expect('AskLiquidityOF');
+            ask.liquidity -= ask_delta_i128;
             let (ask_base_rem, ask_quote_rem, ask_base_fees, ask_quote_fees) = market_manager
                 .modify_position(
-                    market_id, ask.lower_limit, ask.upper_limit, ask_liquidity_delta_i256
+                    market_id,
+                    ask.lower_limit,
+                    ask.upper_limit,
+                    I128Trait::new(ask_delta_i128, true)
                 );
 
             // Withdrawal includes all fees in position, not only those belonging to caller.
@@ -807,7 +820,7 @@ mod ReplicatingStrategy {
                         market_id,
                         bid.lower_limit,
                         bid.upper_limit,
-                        I256Trait::new(bid.liquidity, true)
+                        I128Trait::new(bid.liquidity, true)
                     );
                 base_reserves += bid_base.val;
                 quote_reserves += bid_quote.val;
@@ -819,7 +832,7 @@ mod ReplicatingStrategy {
                         market_id,
                         ask.lower_limit,
                         ask.upper_limit,
-                        I256Trait::new(ask.liquidity, true)
+                        I128Trait::new(ask.liquidity, true)
                     );
                 base_reserves += ask_base.val;
                 quote_reserves += ask_quote.val;
@@ -950,7 +963,7 @@ mod ReplicatingStrategy {
                         market_id,
                         bid.lower_limit,
                         bid.upper_limit,
-                        I256Trait::new(bid.liquidity, true)
+                        I128Trait::new(bid.liquidity, true)
                     );
                 base_reserves += base_amount.val;
                 quote_reserves += quote_amount.val;
@@ -962,7 +975,7 @@ mod ReplicatingStrategy {
                         market_id,
                         ask.lower_limit,
                         ask.upper_limit,
-                        I256Trait::new(ask.liquidity, true)
+                        I128Trait::new(ask.liquidity, true)
                     );
                 base_reserves += base_amount.val;
                 quote_reserves += quote_amount.val;
@@ -976,7 +989,7 @@ mod ReplicatingStrategy {
                         market_id,
                         next_bid.lower_limit,
                         next_bid.upper_limit,
-                        I256Trait::new(next_bid.liquidity, false)
+                        I128Trait::new(next_bid.liquidity, false)
                     );
                 quote_reserves -= quote_amount.val;
                 bid = next_bid;
@@ -987,7 +1000,7 @@ mod ReplicatingStrategy {
                         market_id,
                         next_ask.lower_limit,
                         next_ask.upper_limit,
-                        I256Trait::new(next_ask.liquidity, false)
+                        I128Trait::new(next_ask.liquidity, false)
                     );
                 base_reserves -= base_amount.val;
                 ask = next_ask;

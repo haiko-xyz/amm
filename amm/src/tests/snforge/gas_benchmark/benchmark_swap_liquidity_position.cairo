@@ -8,9 +8,10 @@ use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::libraries::math::fee_math;
 use amm::types::core::{SwapParams, PositionInfo};
 use amm::libraries::id;
-use amm::libraries::liquidity as liquidity_helpers;
+use amm::libraries::liquidity_lib as liquidity_helpers;
 use amm::types::core::{MarketState, LimitInfo};
 use amm::types::i256::{i256, I256Trait, I256Zeroable};
+use amm::types::i128::{i128, I128Zeroable, I128Trait};
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::tests::snforge::helpers::{
     market_manager::{deploy_market_manager, create_market, modify_position, swap, swap_multiple},
@@ -20,7 +21,7 @@ use amm::tests::common::params::{
     owner, alice, bob, treasury, token_params, default_market_params, modify_position_params,
     swap_params, swap_multiple_params, default_token_params
 };
-use amm::tests::common::utils::{to_e28, to_e18, approx_eq};
+use amm::tests::common::utils::{to_e28, to_e28_u128, to_e18, to_e18_u128, approx_eq};
 
 // External imports.
 use snforge_std::{
@@ -99,7 +100,7 @@ fn test_swap_high_liquidity_no_limit_crossed() {
 
     let lower_limit = 0;
     let upper_limit = 1000;
-    let liquidity = I256Trait::new(to_e18(100000), false);
+    let liquidity = I128Trait::new(to_e18_u128(100000), false);
 
     let params = modify_position_params(
         alice(),
@@ -135,7 +136,7 @@ fn test_swap_high_liquidity_one_limit_crossed() {
 
     let lower_limit = 0;
     let upper_limit = 10000;
-    let liquidity = I256Trait::new(to_e18(1000000000), false);
+    let liquidity = I128Trait::new(to_e18_u128(1000000000), false);
 
     let params = modify_position_params(
         alice(),
@@ -172,7 +173,7 @@ fn test_swap_high_liquidity_four_limit_crossed() {
 
     let lower_limit = 0;
     let upper_limit = 1000;
-    let liquidity = I256Trait::new(to_e18(1000000000000000000), false);
+    let liquidity = I128Trait::new(to_e18_u128(10000000000000), false);
 
     let params_1 = modify_position_params(
         owner(),
@@ -233,7 +234,7 @@ fn test_swap_high_liquidity_nine_limit_crossed() {
 
     let lower_limit = 0;
     let upper_limit = 100;
-    let liquidity = I256Trait::new(to_e18(1000000000000000000), false);
+    let liquidity = I128Trait::new(to_e18_u128(10000000000000), false);
 
     let params_1 = modify_position_params(
         alice(),

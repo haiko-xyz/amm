@@ -10,7 +10,7 @@ use amm::types::core::{
     MarketInfo, MarketState, LimitInfo, OrderBatch, Position, LimitOrder, MarketConfigs, Config,
     ValidLimits, ConfigOption
 };
-use amm::types::i256::I256Trait;
+use amm::types::i128::I128Trait;
 
 
 ////////////////////////////////
@@ -127,7 +127,7 @@ fn test_store_packing_limit_info() {
 
     let limit_info = LimitInfo {
         liquidity: 9681239759960500123812389587123,
-        liquidity_delta: I256Trait::new(888887777777777666, true),
+        liquidity_delta: I128Trait::new(888887777777777666, true),
         quote_fee_factor: 7123981237891236712313,
         base_fee_factor: 3650171973094710571238267576572937,
         nonce: 500,

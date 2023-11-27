@@ -7,7 +7,7 @@ use amm::libraries::math::math;
 use amm::libraries::constants::OFFSET;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::types::core::{MarketState, OrderBatch};
-use amm::types::i256::{i256, I256Trait};
+use amm::types::i128::{i128, I128Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position
 };
@@ -15,7 +15,7 @@ use amm::tests::cairo_test::helpers::token::{deploy_token, fund, approve};
 use amm::tests::common::params::{
     owner, alice, treasury, default_token_params, default_market_params, modify_position_params
 };
-use amm::tests::common::utils::{to_e18, to_e28};
+use amm::tests::common::utils::{to_e18, to_e18_u128, to_e28};
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
@@ -71,7 +71,7 @@ fn test_collect_protocol_fees() {
     set_contract_address(alice());
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let liquidity = I256Trait::new(to_e18(100000), false);
+    let liquidity = I128Trait::new(to_e18_u128(100000), false);
     market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
 
     // Execute swap.
@@ -102,7 +102,7 @@ fn test_collect_protocol_fees_all_fees() {
     set_contract_address(alice());
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let liquidity = I256Trait::new(to_e18(100000), false);
+    let liquidity = I128Trait::new(to_e18_u128(100000), false);
     market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
 
     // Execute swap.
@@ -127,7 +127,7 @@ fn test_collect_protocol_fees_request_zero_amount() {
     set_contract_address(alice());
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let liquidity = I256Trait::new(to_e18(100000), false);
+    let liquidity = I128Trait::new(to_e18_u128(100000), false);
     market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
 
     // Execute swap.

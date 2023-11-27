@@ -5,6 +5,7 @@ use starknet::contract_address_const;
 // Local imports.
 use amm::libraries::constants::OFFSET;
 use amm::libraries::math::{fee_math, price_math, liquidity_math};
+use amm::types::i128::{I128Trait, I128Zeroable};
 use amm::types::i256::{I256Trait, I256Zeroable};
 use amm::contracts::market_manager::MarketManager;
 use amm::contracts::test::manual_strategy::{
@@ -19,7 +20,7 @@ use amm::tests::common::params::{
     owner, alice, treasury, token_params, default_market_params, default_token_params,
 };
 use amm::tests::snforge::helpers::strategy::{deploy_strategy, initialise_strategy};
-use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
+use amm::tests::common::utils::{to_e28, to_e18, to_e18_u128, encode_sqrt_price};
 
 // External imports.
 use snforge_std::{
@@ -131,14 +132,14 @@ fn before_strategy() -> (
 //  4. Swap with strategy, positions updated - should fire `Swap` and 2 x `ModifyPosition`
 
 #[test]
-fn test_swap_no_strategy_or_limit_orders_filled() {
+fn test_swap_events_no_strategy_or_limit_orders_filled() {
     let (market_manager, market_id, base_token, quote_token) = before();
 
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
 
     // Create position.
     market_manager
-        .modify_position(market_id, OFFSET, OFFSET + 10, I256Trait::new(to_e18(10000), false));
+        .modify_position(market_id, OFFSET, OFFSET + 10, I128Trait::new(to_e18_u128(10000), false));
 
     let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
 
@@ -177,7 +178,7 @@ fn test_swap_no_strategy_or_limit_orders_filled() {
 }
 
 #[test]
-fn test_swap_no_strategy_limit_orders_fully_filled() {
+fn test_swap_events_no_strategy_limit_orders_fully_filled() {
     let (market_manager, market_id, base_token, quote_token) = before();
 
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
@@ -185,7 +186,7 @@ fn test_swap_no_strategy_limit_orders_fully_filled() {
     // Create ask limit order.
     let limit = OFFSET + 100;
     let width = 1;
-    let liquidity = to_e18(10000);
+    let liquidity = to_e18_u128(10000);
     let order_id = market_manager.create_order(market_id, false, limit, liquidity);
     let order = market_manager.order(order_id);
 
@@ -212,7 +213,7 @@ fn test_swap_no_strategy_limit_orders_fully_filled() {
                             market_id,
                             lower_limit: limit,
                             upper_limit: limit + width,
-                            liquidity_delta: I256Trait::new(liquidity, true),
+                            liquidity_delta: I128Trait::new(liquidity, true),
                             base_amount: I256Zeroable::zero(),
                             quote_amount: I256Trait::new(50175106233504235, true),
                             base_fees: 0,
@@ -252,7 +253,7 @@ fn test_swap_no_strategy_limit_orders_partially_filled() {
     // Create ask limit order.
     let limit = OFFSET + 100;
     let width = 1;
-    let liquidity = to_e18(10000);
+    let liquidity = to_e18_u128(10000);
     let order_id = market_manager.create_order(market_id, false, limit, liquidity);
     let order = market_manager.order(order_id);
 
@@ -294,7 +295,7 @@ fn test_swap_no_strategy_limit_orders_partially_filled() {
 }
 
 #[test]
-fn test_swap_with_strategy() {
+fn test_swap_events_with_strategy() {
     let (market_manager, market_id, base_token, quote_token, strategy) = before_strategy();
 
     // Set positions and deposit liquidity.
@@ -314,12 +315,14 @@ fn test_swap_with_strategy() {
     let base_liquidity = liquidity_math::base_to_liquidity(
         price_math::limit_to_sqrt_price(ask_lower, width),
         price_math::limit_to_sqrt_price(ask_upper, width),
-        base_amount
+        base_amount,
+        false
     );
     let quote_liquidity = liquidity_math::quote_to_liquidity(
         price_math::limit_to_sqrt_price(bid_lower, width),
         price_math::limit_to_sqrt_price(bid_upper, width),
-        quote_amount
+        quote_amount,
+        false
     );
 
     // Execute swap as strategy. 
@@ -353,7 +356,7 @@ fn test_swap_with_strategy() {
                             market_id,
                             lower_limit: bid_lower,
                             upper_limit: bid_upper,
-                            liquidity_delta: I256Trait::new(quote_liquidity, false),
+                            liquidity_delta: I128Trait::new(quote_liquidity, false),
                             base_amount: I256Trait::new(0, false),
                             quote_amount: I256Trait::new(quote_amount, false),
                             base_fees: 0,
@@ -370,7 +373,7 @@ fn test_swap_with_strategy() {
                             market_id,
                             lower_limit: ask_lower,
                             upper_limit: ask_upper,
-                            liquidity_delta: I256Trait::new(base_liquidity, false),
+                            liquidity_delta: I128Trait::new(base_liquidity, false),
                             base_amount: I256Trait::new(base_amount, false),
                             quote_amount: I256Trait::new(0, false),
                             base_fees: 0,

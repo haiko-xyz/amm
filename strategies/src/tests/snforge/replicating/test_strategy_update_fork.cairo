@@ -3,7 +3,7 @@ use starknet::contract_address_const;
 use starknet::syscalls::call_contract_syscall;
 
 use amm::types::core::{SwapParams, Position};
-use amm::types::i256::I256Trait;
+use amm::types::i128::I128Trait;
 use amm::libraries::id;
 use amm::libraries::liquidity as liquidity_helpers;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
@@ -60,11 +60,11 @@ fn test_strategy_update_using_forked_state() {
     let ask = strategy.ask();
     market_manager
         .modify_position(
-            market_id, bid.lower_limit, bid.upper_limit, I256Trait::new(bid.liquidity, true)
+            market_id, bid.lower_limit, bid.upper_limit, I128Trait::new(bid.liquidity, true)
         );
     market_manager
         .modify_position(
-            market_id, ask.lower_limit, ask.upper_limit, I256Trait::new(ask.liquidity, true)
+            market_id, ask.lower_limit, ask.upper_limit, I128Trait::new(ask.liquidity, true)
         );
     'removed existing positions'.print();
 
@@ -72,7 +72,7 @@ fn test_strategy_update_using_forked_state() {
     let (bid_upper_limit, ask_lower_limit) = strategy.get_bid_ask();
     let bid_lower_limit = bid_upper_limit - 5000;
     // market_manager.modify_position(
-    //     market_id, bid_lower_limit, bid_upper_limit, I256Trait::new(bid.liquidity, false)
+    //     market_id, bid_lower_limit, bid_upper_limit, I128Trait::new(bid.liquidity, false)
     // );
     let position_id = id::position_id(
         market_id, strategy_addr.into(), bid_lower_limit, bid_upper_limit

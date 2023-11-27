@@ -8,9 +8,10 @@ use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::libraries::math::fee_math;
 use amm::types::core::{SwapParams, PositionInfo};
 use amm::libraries::id;
-use amm::libraries::liquidity as liquidity_helpers;
+use amm::libraries::liquidity_lib as liquidity_helpers;
 use amm::types::core::{MarketState, LimitInfo};
 use amm::types::i256::{i256, I256Trait, I256Zeroable};
+use amm::types::i128::{i128, I128Zeroable, I128Trait};
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::tests::snforge::helpers::{
     market_manager::{deploy_market_manager, create_market, modify_position, swap, swap_multiple},
@@ -20,7 +21,7 @@ use amm::tests::common::params::{
     owner, alice, treasury, token_params, default_market_params, modify_position_params,
     swap_params, swap_multiple_params, default_token_params
 };
-use amm::tests::common::utils::{to_e28, to_e18, approx_eq};
+use amm::tests::common::utils::{to_e28, to_e28_u128, to_e18, to_e18_u128, approx_eq};
 
 // External imports.
 use snforge_std::{
@@ -65,7 +66,7 @@ fn before(width: u32) -> (
     approve(quote_token, owner(), market_manager.contract_address, initial_quote_amount);
 
     // create order
-    let liquidity = to_e18(1000000000);
+    let liquidity = to_e18_u128(100);
     let limit = 10;
     let is_bid = false;
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
@@ -102,7 +103,7 @@ fn test_swap_limit_fully_filled() {
 fn test_swap_partially_filled() {
     let (market_manager, base_token, quote_token, market_id) = before(1);
 
-    let liquidity = to_e18(1000000000);
+    let liquidity = to_e18_u128(10000);
     let limit = 11;
     let is_bid = false;
     start_prank(CheatTarget::One(market_manager.contract_address), owner());
