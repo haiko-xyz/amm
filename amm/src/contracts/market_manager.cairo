@@ -2171,7 +2171,7 @@ mod MarketManager {
 
             // Handle fully filled limit orders. Must be done after state updates above.
             order_helpers::fill_limits(
-                ref self, market_id, market_info.width, fee_rate, filled_limits.span(),
+                ref self, market_id, market_info.width, fee_rate, ref filled_limits,
             );
 
             'SW: fill full limits [T]'.print();

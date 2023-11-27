@@ -1,3 +1,4 @@
+use core::option::OptionTrait;
 use snforge_std::forge_print::PrintTrait;
 // Core lib imports.
 use starknet::ContractAddress;
@@ -35,25 +36,35 @@ fn fill_limits(
     market_id: felt252,
     width: u32,
     fee_rate: u16,
-    filled_limits: Span<u32>,
+    ref filled_limits: Array<u32>,
 ) {
     let gas_before = testing::get_available_gas();
-    let mut i = filled_limits.len();
-    loop {
-        // Checkpoint: gas used in full iteration
+    fill_limit_itr(ref self, market_id, width, fee_rate, ref filled_limits);
+
+    'FL [TOTAL]'.print();
+    (gas_before - testing::get_available_gas()).print(); 
+}
+
+fn fill_limit_itr(
+    ref self: ContractState,
+    market_id: felt252,
+    width: u32,
+    fee_rate: u16,
+    ref filled_limits: Array<u32>,
+) {
         let mut gas_before_itr = testing::get_available_gas();
         let gas_before_total = testing::get_available_gas();
-        if i == 0 {
+        if filled_limits.len() == 0 {
             'FL (itr) check iterator [T]'.print();
             (gas_before_total - testing::get_available_gas()).print(); 
-            break;
+            return;
         }
         
         'FL (itr) check filled_limits'.print();
         (gas_before_total - testing::get_available_gas()).print(); 
         gas_before_itr = testing::get_available_gas();
         // Get batch info.
-        let limit = *filled_limits.at(i - 1);
+        let limit = filled_limits.pop_front().unwrap();
         let nonce = self.limit_info.read((market_id, limit)).nonce;
         let batch_id = id::batch_id(market_id, limit, nonce);
         let mut batch = self.batches.read(batch_id);
@@ -97,15 +108,9 @@ fn fill_limits(
             (gas_before_total - testing::get_available_gas()).print(); 
             gas_before_itr = testing::get_available_gas();
         }
-        i -= 1;
-        'FL (itr) update iterator'.print();
-        (gas_before_total - testing::get_available_gas()).print(); 
         'FL (itr) [T]'.print();
         (gas_before_total - testing::get_available_gas()).print(); 
-        // Checkpoint End
-    };
-    'FL [TOTAL]'.print();
-    (gas_before - testing::get_available_gas()).print(); 
+        return fill_limit_itr(ref self, market_id, width, fee_rate, ref filled_limits);
 }
 
 // Partially fill orders at the given limit.
