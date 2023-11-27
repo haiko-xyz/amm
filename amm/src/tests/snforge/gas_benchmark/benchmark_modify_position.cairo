@@ -232,7 +232,7 @@ fn test_collect_fee_from_single_position() {
 }
 
 #[test]
-fn test_remove_liquidity_no_fee() {
+fn test_remove_liquidity_no_fee_single_position() {
     let manager_class = declare('MarketManager');
     let erc20_class = declare_token();
     let (market_manager, market_id, base_token, quote_token) = before(
@@ -261,7 +261,7 @@ fn test_remove_liquidity_no_fee() {
     'MPRL01: start of test'.print();
     let gas_before = testing::get_available_gas();
     gas::withdraw_gas().unwrap();
-    let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
+    market_manager
         .modify_position(
             params.market_id, params.lower_limit, params.upper_limit, liquidity_to_remove,
         );
@@ -271,7 +271,7 @@ fn test_remove_liquidity_no_fee() {
 }
 
 #[test]
-fn test_remove_liquidity_accumulated_fee() {
+fn test_remove_liquidity_accumulated_fee_single_position() {
     let manager_class = declare('MarketManager');
     let erc20_class = declare_token();
     let (market_manager, market_id, base_token, quote_token) = before(
