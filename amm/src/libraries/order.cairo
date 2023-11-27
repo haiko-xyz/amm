@@ -37,13 +37,14 @@ fn fill_limits(
     fee_rate: u16,
     filled_limits: Span<u32>,
 ) {
+    let gas_before = testing::get_available_gas();
     let mut i = filled_limits.len();
     loop {
         if i == 0 {
             break;
         }
         // Checkpoint: gas used in full iteration
-        let mut gas_before = testing::get_available_gas();
+        let gas_before = testing::get_available_gas();
         
         // Get batch info.
         let limit = *filled_limits.at(i - 1);
@@ -82,6 +83,8 @@ fn fill_limits(
         (gas_before - testing::get_available_gas()).print(); 
         // Checkpoint End
     };
+    'fill_limits (itr) [T]'.print();
+    (gas_before - testing::get_available_gas()).print(); 
 }
 
 // Partially fill orders at the given limit.
