@@ -5,7 +5,7 @@ use starknet::testing::set_contract_address;
 // Local imports.
 use amm::libraries::constants::{OFFSET, MIN_LIMIT, MAX_LIMIT};
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
-use amm::types::i256::{i256, I256Trait};
+use amm::types::i128::{i128, I128Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position, swap
 };
@@ -89,7 +89,7 @@ fn before() -> (
 
     // Deposit to strategy.
     set_contract_address(owner());
-    strategy.deposit(to_e18(10000000), to_e18(11250000000000));
+    strategy.deposit(to_e18(100000), to_e18(11250000));
 
     (market_manager, base_token, quote_token, market_id, strategy)
 }

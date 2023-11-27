@@ -5,7 +5,7 @@ use debug::PrintTrait;
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
-use amm::types::i256::I256Trait;
+use amm::types::i128::I128Trait;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::interfaces::IQuoter::{IQuoterDispatcher, IQuoterDispatcherTrait};
 use amm::tests::cairo_test::helpers::market_manager::{
@@ -16,7 +16,7 @@ use amm::tests::common::params::{
     owner, alice, treasury, token_params, default_market_params, modify_position_params,
     swap_params, swap_multiple_params
 };
-use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
+use amm::tests::common::utils::{to_e18_u128, to_e18, encode_sqrt_price};
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
@@ -94,7 +94,7 @@ fn test_quote_multiple() {
         eth_usdc_market_id,
         OFFSET + 730000,
         OFFSET + 740000,
-        I256Trait::new(to_e28(20000000), false)
+        I128Trait::new(to_e18_u128(20000000), false)
     );
     modify_position(market_manager, eth_usdc_position_params);
 
@@ -103,7 +103,7 @@ fn test_quote_multiple() {
         btc_usdc_market_id,
         OFFSET + 1010000,
         OFFSET + 1020000,
-        I256Trait::new(to_e28(1000000), false)
+        I128Trait::new(to_e18_u128(1000000), false)
     );
     modify_position(market_manager, btc_usdc_position_params);
 

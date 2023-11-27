@@ -5,7 +5,7 @@ use starknet::contract_address_const;
 // Local imports.
 use amm::libraries::constants::OFFSET;
 use amm::libraries::math::{fee_math, price_math, liquidity_math};
-use amm::types::i256::{I256Trait, I256Zeroable};
+use amm::types::i128::{I128Trait, I128Zeroable};
 use amm::contracts::market_manager::MarketManager;
 use amm::contracts::test::manual_strategy::{
     ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
@@ -19,7 +19,7 @@ use amm::tests::common::params::{
     owner, alice, treasury, token_params, default_market_params, default_token_params,
 };
 use amm::tests::snforge::helpers::strategy::{deploy_strategy, initialise_strategy};
-use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
+use amm::tests::common::utils::{to_e28, to_e18, to_e18_u128, encode_sqrt_price};
 
 // External imports.
 use snforge_std::{
@@ -95,12 +95,18 @@ fn test_multi_swap_events() {
     // Create position in ETH / USDC market.
     market_manager
         .modify_position(
-            eth_usdc_id, OFFSET + 737000, OFFSET + 738000, I256Trait::new(to_e18(100000), false)
+            eth_usdc_id,
+            OFFSET + 737000,
+            OFFSET + 738000,
+            I128Trait::new(to_e18_u128(100000), false)
         );
     // Create position in BTC / USDC market.
     market_manager
         .modify_position(
-            btc_usdc_id, OFFSET + 1050000, OFFSET + 1060000, I256Trait::new(to_e18(100000), false)
+            btc_usdc_id,
+            OFFSET + 1050000,
+            OFFSET + 1060000,
+            I128Trait::new(to_e18_u128(100000), false)
         );
 
     let mut spy = spy_events(SpyOn::One(market_manager.contract_address));

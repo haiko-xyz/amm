@@ -82,28 +82,28 @@ fn test_mul_div_denominator_0_roundup() {
 
 #[test]
 #[available_gas(2000000000)]
-#[should_panic(expected: ('MulDivOverflow',))]
+#[should_panic(expected: ('MulDivOF',))]
 fn test_mul_div_numerator_overflow() {
     mul_div(BoundedU256::max(), BoundedU256::max(), 1, false);
 }
 
 #[test]
 #[available_gas(2000000000)]
-#[should_panic(expected: ('MulDivOverflow',))]
+#[should_panic(expected: ('MulDivOF',))]
 fn test_mul_div_numerator_overflow_roundup() {
     mul_div(BoundedU256::max(), BoundedU256::max(), 1, true);
 }
 
 #[test]
 #[available_gas(2000000000)]
-#[should_panic(expected: ('MulDivOverflow',))]
+#[should_panic(expected: ('MulDivOF',))]
 fn test_mul_div_result_overflow_roundup() {
     mul_div(BoundedU256::max() / 2 + 1, 2, 1, true);
 }
 
 #[test]
 #[available_gas(2000000000)]
-#[should_panic(expected: ('MulDivOverflow',))]
+#[should_panic(expected: ('MulDivOF',))]
 fn test_mul_div_result_overflow_roundup_alt() {
     mul_div(BoundedU256::max(), BoundedU256::max(), BoundedU256::max() - 1, true);
 }

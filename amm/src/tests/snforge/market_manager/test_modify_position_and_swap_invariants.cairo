@@ -8,7 +8,7 @@ use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::libraries::math::fee_math;
 use amm::libraries::id;
 use amm::types::core::{MarketState, LimitInfo};
-use amm::types::i256::{i256, I256Trait, I256Zeroable};
+use amm::types::i128::{i128, I128Trait, I128Zeroable};
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::tests::snforge::helpers::{
     market_manager::{deploy_market_manager, create_market, modify_position, swap, swap_multiple},
@@ -31,18 +31,18 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 #[derive(Drop, Copy)]
 struct State {
     curr_limit: u32,
-    liquidity: u256, // market liquidity
-    lower_liq: u256,
-    upper_liq: u256,
-    lower_liq_delta: i256,
-    upper_liq_delta: i256,
+    liquidity: u128, // market liquidity
+    lower_liq: u128,
+    upper_liq: u128,
+    lower_liq_delta: i128,
+    upper_liq_delta: i128,
 }
 
 #[derive(Drop, Copy)]
 struct Market {
     base_reserves: u256,
     quote_reserves: u256,
-    liquidity: u256,
+    liquidity: u128,
 }
 
 #[derive(Drop, Copy)]
@@ -152,19 +152,19 @@ fn test_modify_position_and_swap_invariants(
     // Initialise position params.
     let pos1_lower_limit = OFFSET - 32768 + min(pos1_limit1, pos1_limit2).into();
     let pos1_upper_limit = OFFSET - 32768 + max(pos1_limit1, pos1_limit2).into();
-    let pos1_liquidity: u256 = pos1_liquidity.into() * 1000000;
+    let pos1_liquidity: u128 = pos1_liquidity.into() * 1000000;
     let pos2_lower_limit = OFFSET - 32768 + min(pos2_limit1, pos2_limit2).into();
     let pos2_upper_limit = OFFSET - 32768 + max(pos2_limit1, pos2_limit2).into();
-    let pos2_liquidity: u256 = pos2_liquidity.into() * 1000000;
+    let pos2_liquidity: u128 = pos2_liquidity.into() * 1000000;
     let pos3_lower_limit = OFFSET - 32768 + min(pos3_limit1, pos3_limit2).into();
     let pos3_upper_limit = OFFSET - 32768 + max(pos3_limit1, pos3_limit2).into();
-    let pos3_liquidity: u256 = pos3_liquidity.into() * 1000000;
+    let pos3_liquidity: u128 = pos3_liquidity.into() * 1000000;
     let pos4_lower_limit = OFFSET - 32768 + min(pos4_limit1, pos4_limit2).into();
     let pos4_upper_limit = OFFSET - 32768 + max(pos4_limit1, pos4_limit2).into();
-    let pos4_liquidity: u256 = pos4_liquidity.into() * 1000000;
+    let pos4_liquidity: u128 = pos4_liquidity.into() * 1000000;
     let pos5_lower_limit = OFFSET - 32768 + min(pos5_limit1, pos5_limit2).into();
     let pos5_upper_limit = OFFSET - 32768 + max(pos5_limit1, pos5_limit2).into();
-    let pos5_liquidity: u256 = pos5_liquidity.into() * 1000000;
+    let pos5_liquidity: u128 = pos5_liquidity.into() * 1000000;
 
     let position_params = array![
         (pos1_lower_limit, pos1_upper_limit, pos1_liquidity),
@@ -215,7 +215,7 @@ fn test_modify_position_and_swap_invariants(
 // * `limits_span` - span of limits used for calculating cumulative liquidity delta
 // * `swap_amounts` - fuzz test cases for swaps
 fn test_invariants_set1(
-    position_params: Span<(u32, u32, u256)>, limits_span: Span<u16>, swap_amounts: Span<u32>,
+    position_params: Span<(u32, u32, u128)>, limits_span: Span<u16>, swap_amounts: Span<u32>,
 ) -> (ContractClass, ContractClass) {
     let manager_class = declare('MarketManager');
     let erc20_class = declare_token();
@@ -245,7 +245,7 @@ fn test_invariants_set1(
                 market_id,
                 lower_limit,
                 upper_limit,
-                I256Trait::new(liquidity.into(), false)
+                I128Trait::new(liquidity.into(), false)
             );
             modify_position(market_manager, params);
             let end_state = _snapshot_state(market_manager, market_id, lower_limit, upper_limit);
@@ -348,7 +348,7 @@ fn test_invariants_set1(
             // Remove liquidity.
             let start_state = _snapshot_state(market_manager, market_id, lower_limit, upper_limit);
             let mut params = modify_position_params(
-                alice(), market_id, lower_limit, upper_limit, I256Trait::new(liquidity, true)
+                alice(), market_id, lower_limit, upper_limit, I128Trait::new(liquidity, true)
             );
             let (base_amount, quote_amount, _, _) = modify_position(market_manager, params);
             let end_state = _snapshot_state(market_manager, market_id, lower_limit, upper_limit);
@@ -378,8 +378,8 @@ fn test_invariants_set1(
     assert(quote_diff >= quote_protocol_fees, 'Invariant 14: quote');
 
     // Sum liquidity delta over limits and check invariants.
-    let mut cumul_liquidity = I256Zeroable::zero();
-    let mut cumul_liquidity_below_curr = I256Zeroable::zero();
+    let mut cumul_liquidity = I128Zeroable::zero();
+    let mut cumul_liquidity_below_curr = I128Zeroable::zero();
     let mut n = 0;
     loop {
         if n >= limits_span.len() {
@@ -412,7 +412,7 @@ fn test_invariants_set1(
 // * `class` - contract class for deploying market manager
 // * `position_params` - fuzz test cases for positiions
 fn test_invariants_set2(
-    manager: ContractClass, token: ContractClass, position_params: Span<(u32, u32, u256)>
+    manager: ContractClass, token: ContractClass, position_params: Span<(u32, u32, u128)>
 ) {
     let (market_manager, market_id, base_token, quote_token) = before(manager, token, 30);
 
@@ -436,19 +436,19 @@ fn test_invariants_set2(
                 market_id,
                 lower_limit,
                 upper_limit,
-                I256Trait::new(liquidity.into(), false)
+                I128Trait::new(liquidity.into(), false)
             );
             modify_position(market_manager, params);
 
             // Call remove with 0 liquidity, snapshot intermediate state before / after and check invariant.
             let inter_before = _snapshot_market(market_manager, market_id, base_token, quote_token);
-            params.liquidity_delta = I256Zeroable::zero();
+            params.liquidity_delta = I128Zeroable::zero();
             modify_position(market_manager, params);
             let inter_after = _snapshot_market(market_manager, market_id, base_token, quote_token);
             assert(inter_after.liquidity == inter_before.liquidity, 'Invariant 16');
 
             // Finally, remove position.
-            params.liquidity_delta = I256Trait::new(liquidity.into(), true);
+            params.liquidity_delta = I128Trait::new(liquidity.into(), true);
             modify_position(market_manager, params);
 
             // Snapshot end state.
@@ -479,7 +479,7 @@ fn test_invariants_set2(
 fn test_invariants_set3(
     manager: ContractClass,
     token: ContractClass,
-    position_params: Span<(u32, u32, u256)>,
+    position_params: Span<(u32, u32, u128)>,
     swap_amounts: Span<u32>
 ) {
     let (market_manager, market_id, base_token, quote_token) = before(manager, token, 0);
@@ -500,7 +500,7 @@ fn test_invariants_set3(
                 market_id,
                 lower_limit,
                 upper_limit,
-                I256Trait::new(liquidity.into(), false)
+                I128Trait::new(liquidity.into(), false)
             );
             modify_position(market_manager, params);
         }

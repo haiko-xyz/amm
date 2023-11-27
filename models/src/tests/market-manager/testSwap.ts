@@ -241,7 +241,7 @@ const marketCasesComplex = [
     swapFeeRate: 0.0005,
     width: 1,
     startLimit: shiftLimit(0, 1),
-    startLiquidity: "250000000000000",
+    startLiquidity: "1000000000000",
     liquidityMapBuy: {
       "10": "0",
     },
@@ -316,7 +316,7 @@ const marketCasesComplex = [
 const testMarketCaseComplex = () => {
   Decimal.set({ precision: PRECISION, rounding: ROUNDING })
 
-  let marketCounter = 7
+  let marketCounter = 6
   for (const {
     swapFeeRate,
     width,
@@ -413,5 +413,5 @@ const testMarketCaseComplex = () => {
   }
 }
 
-// testMarketCaseSimple()
+testMarketCaseSimple()
 testMarketCaseComplex()

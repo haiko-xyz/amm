@@ -9,7 +9,7 @@ use amm::libraries::math::math;
 use amm::libraries::math::price_math;
 use amm::libraries::math::bit_math;
 use amm::types::i32::{i32, i32Trait, i32Zeroable};
-use amm::types::i256::{i256, I256Trait};
+use amm::types::i128::{i128, I128Trait};
 use amm::libraries::constants::{
     ONE, ONE_SQUARED, HALF, MAX_LIMIT, MIN_LIMIT, OFFSET, MAX_LIMIT_SHIFTED, Q128, MIN_SQRT_PRICE,
     MAX_SQRT_PRICE, LOG2_1_00001, MAX_WIDTH
@@ -29,7 +29,7 @@ use amm::libraries::constants::{
 // * `shifted_limit` - shifted limit
 fn shift_limit(limit: i32, width: u32) -> u32 {
     assert(limit >= i32Trait::new(MIN_LIMIT, true), 'ShiftLimitUnderflow');
-    assert(limit <= i32Trait::new(MAX_LIMIT, false), 'ShiftLimitOverflow');
+    assert(limit <= i32Trait::new(MAX_LIMIT, false), 'ShiftLimitOF');
     let shifted: i32 = limit + i32Trait::new(offset(width), false);
     shifted.val
 }
@@ -44,7 +44,7 @@ fn shift_limit(limit: i32, width: u32) -> u32 {
 // * `unshifted_limit` - unshifted limit
 fn unshift_limit(limit: u32, width: u32) -> i32 {
     let unshifted: i32 = i32Trait::new(limit, false) - i32Trait::new(offset(width), false);
-    assert(unshifted <= i32Trait::new(max_limit(width), false), 'UnshiftLimitOverflow');
+    assert(unshifted <= i32Trait::new(max_limit(width), false), 'UnshiftLimitOF');
     unshifted
 }
 
@@ -82,8 +82,8 @@ fn max_limit(width: u32) -> u32 {
 // * `sqrt_price` - sqrt price encoded as UD47x28
 fn limit_to_sqrt_price(limit: u32, width: u32) -> u256 {
     // Check limit ID is in range
-    assert(limit <= max_limit(width), 'LimitOverflow');
-    assert(width <= MAX_WIDTH, 'WidthOverflow');
+    assert(limit <= max_limit(width), 'LimitOF');
+    assert(width <= MAX_WIDTH, 'WidthOF');
 
     // Unshift limit
     let unshifted = unshift_limit(limit, width);
@@ -103,7 +103,7 @@ fn limit_to_sqrt_price(limit: u32, width: u32) -> u256 {
 // # Returns
 // * `limit` - shifted limit
 fn sqrt_price_to_limit(sqrt_price: u256, width: u32) -> u32 {
-    assert(sqrt_price >= MIN_SQRT_PRICE && sqrt_price <= MAX_SQRT_PRICE, 'SqrtPriceOverflow');
+    assert(sqrt_price >= MIN_SQRT_PRICE && sqrt_price <= MAX_SQRT_PRICE, 'SqrtPriceOF');
 
     // Handle special case
     if sqrt_price == MAX_SQRT_PRICE {

@@ -13,7 +13,7 @@ use amm::interfaces::IMarketManager::{
     IMarketManager, IMarketManagerDispatcher, IMarketManagerDispatcherTrait
 };
 use amm::interfaces::IStrategy::{IStrategyDispatcher, IStrategyDispatcherTrait};
-use amm::types::i256::{i256, I256Trait};
+use amm::types::i128::{i128, I128Trait};
 use amm::tests::cairo_test::helpers::{
     market_manager::{deploy_market_manager, create_market, modify_position},
     token::{deploy_token, fund, approve}, strategy::deploy_manual_strategy,
@@ -21,7 +21,7 @@ use amm::tests::cairo_test::helpers::{
 use amm::tests::common::params::{
     owner, alice, treasury, default_token_params, default_market_params
 };
-use amm::tests::common::utils::{encode_sqrt_price, to_e18, approx_eq_pct};
+use amm::tests::common::utils::{encode_sqrt_price, to_e18, approx_eq};
 use amm::tests::cairo_test::helpers::market_manager::swap;
 
 // External imports.
@@ -124,10 +124,10 @@ fn test_strategy() {
     let base_amount_exp = 5940973053462648;
     let quote_amount_exp = 9999939999999999999;
     assert(amount_in == amount, 'Amount in');
-    assert(approx_eq_pct(amount_out, base_amount_exp, 10), 'Amount out');
-    assert(approx_eq_pct(fees, 29999999999999999, 10), 'Fees');
-    assert(approx_eq_pct(bid.liquidity, 32164247211318427176429769, 22), 'Bid: liquidity');
-    assert(approx_eq_pct(ask.liquidity, 4304816299654341048944538, 22), 'Ask: liquidity');
+    assert(approx_eq(amount_out, base_amount_exp, 10), 'Amount out');
+    assert(approx_eq(fees, 29999999999999999, 10), 'Fees');
+    assert(approx_eq(bid.liquidity.into(), 32164247211318427176429769, 10), 'Bid: liquidity');
+    assert(approx_eq(ask.liquidity.into(), 4304816299654341048944538, 10), 'Ask: liquidity');
     assert(bid.lower_limit == OFFSET + 721930, 'Bid: lower limit');
     assert(bid.upper_limit == OFFSET + 741930, 'Bid: upper limit');
     assert(ask.lower_limit == OFFSET + 742550, 'Ask: lower limit');
@@ -142,11 +142,8 @@ fn test_strategy() {
     let quote_balance_end = quote_token.balance_of(owner());
 
     // Check balances.
+    assert(approx_eq(base_balance_start - base_balance_end, base_amount_exp, 10), 'Base balance');
     assert(
-        approx_eq_pct(base_balance_start - base_balance_end, base_amount_exp, 10), 'Base balance'
-    );
-    assert(
-        approx_eq_pct(quote_balance_end - quote_balance_start, quote_amount_exp, 10),
-        'Quote balance'
+        approx_eq(quote_balance_end - quote_balance_start, quote_amount_exp, 10), 'Quote balance'
     );
 }

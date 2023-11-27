@@ -13,7 +13,7 @@ use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT};
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::types::core::LimitInfo;
-use amm::types::i256::{i256, I256Trait};
+use amm::types::i128::{i128, I128Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position
 };
@@ -22,7 +22,7 @@ use amm::tests::common::utils::approx_eq;
 use amm::tests::common::params::{
     owner, alice, bob, treasury, default_token_params, default_market_params, modify_position_params
 };
-use amm::tests::common::utils::{to_e18, to_e28};
+use amm::tests::common::utils::{to_e18, to_e18_u128, to_e28};
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
@@ -75,7 +75,7 @@ fn test_mint_position() {
     // Create position
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let liquidity = I256Trait::new(to_e18(1000000), false);
+    let liquidity = I128Trait::new(to_e18_u128(1000000), false);
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
 
@@ -125,7 +125,7 @@ fn test_mint_position_not_owner() {
     set_contract_address(alice());
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let liquidity = I256Trait::new(to_e18(1000000), false);
+    let liquidity = I128Trait::new(to_e18_u128(1000000), false);
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
 
@@ -147,7 +147,7 @@ fn test_burn_position() {
     // Create position
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let liquidity = I256Trait::new(to_e18(1000000), false);
+    let liquidity = I128Trait::new(to_e18_u128(1000000), false);
     let mut params = modify_position_params(
         alice(), market_id, lower_limit, upper_limit, liquidity
     );
@@ -158,7 +158,7 @@ fn test_burn_position() {
     market_manager.mint(position_id);
 
     // Remove position.
-    params.liquidity_delta = I256Trait::new(to_e18(1000000), true);
+    params.liquidity_delta = I128Trait::new(to_e18_u128(1000000), true);
     modify_position(market_manager, params);
 
     // Fetch ERC721 position and check info.
@@ -186,7 +186,7 @@ fn test_burn_position_allowed_by_approved() {
     set_contract_address(alice());
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let liquidity = I256Trait::new(to_e18(1000000), false);
+    let liquidity = I128Trait::new(to_e18_u128(1000000), false);
     let mut params = modify_position_params(
         alice(), market_id, lower_limit, upper_limit, liquidity
     );
@@ -197,7 +197,7 @@ fn test_burn_position_allowed_by_approved() {
     market_manager.mint(position_id);
 
     // Remove position.
-    params.liquidity_delta = I256Trait::new(to_e18(1000000), true);
+    params.liquidity_delta = I128Trait::new(to_e18_u128(1000000), true);
     modify_position(market_manager, params);
 
     // Approve bob to burn position.
@@ -222,7 +222,7 @@ fn test_burn_position_not_owner() {
     set_contract_address(alice());
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let liquidity = I256Trait::new(to_e18(1000000), false);
+    let liquidity = I128Trait::new(to_e18_u128(1000000), false);
     let mut params = modify_position_params(
         alice(), market_id, lower_limit, upper_limit, liquidity
     );
@@ -233,7 +233,7 @@ fn test_burn_position_not_owner() {
     market_manager.mint(position_id);
 
     // Remove position.
-    params.liquidity_delta = I256Trait::new(to_e18(1000000), true);
+    params.liquidity_delta = I128Trait::new(to_e18_u128(1000000), true);
     modify_position(market_manager, params);
 
     // Burn position as bob.
@@ -250,7 +250,7 @@ fn test_burn_position_not_cleared() {
     // Create position
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let liquidity = I256Trait::new(to_e18(1000000), false);
+    let liquidity = I128Trait::new(to_e18_u128(1000000), false);
     let mut params = modify_position_params(
         alice(), market_id, lower_limit, upper_limit, liquidity
     );

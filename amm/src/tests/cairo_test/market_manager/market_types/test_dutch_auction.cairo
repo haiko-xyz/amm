@@ -5,14 +5,14 @@ use debug::PrintTrait;
 // Local imports.
 use amm::libraries::constants::OFFSET;
 use amm::types::core::{MarketConfigs, ConfigOption};
-use amm::types::i256::I256Trait;
+use amm::types::i128::I128Trait;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::tests::cairo_test::helpers::market_manager::{deploy_market_manager, create_market};
 use amm::tests::cairo_test::helpers::token::{deploy_token, fund, approve};
 use amm::tests::common::params::{
     owner, alice, default_token_params, default_market_params, valid_limits, config
 };
-use amm::tests::common::utils::{to_e18, to_e28};
+use amm::tests::common::utils::{to_e18, to_e18_u128, to_e28};
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
@@ -87,10 +87,12 @@ fn test_dutch_auction() {
 
     // Place some bids.
     set_contract_address(alice());
-    let id_1 = market_manager.create_order(market_id, true, 7906620 + 0, to_e18(10000)); // $1.0
-    let id_2 = market_manager.create_order(market_id, true, 7906620 + 91630, to_e18(50000)); // $2.5
+    let id_1 = market_manager
+        .create_order(market_id, true, 7906620 + 0, to_e18_u128(10000)); // $1.0
+    let id_2 = market_manager
+        .create_order(market_id, true, 7906620 + 91630, to_e18_u128(50000)); // $2.5
     let id_3 = market_manager
-        .create_order(market_id, true, 7906620 + 228240, to_e18(37000)); // $9.8
+        .create_order(market_id, true, 7906620 + 228240, to_e18_u128(37000)); // $9.8
 
     // Should be able to withdraw bids before auction ends.
     market_manager.collect_order(market_id, id_2);
@@ -145,7 +147,7 @@ fn test_dutch_auction_ask_order() {
     let (market_manager, base_token, quote_token, market_id) = before();
 
     set_contract_address(alice());
-    market_manager.create_order(market_id, false, 7906620 + 0, to_e18(10000));
+    market_manager.create_order(market_id, false, 7906620 + 0, to_e18_u128(10000));
 }
 
 #[test]
@@ -158,7 +160,7 @@ fn test_dutch_auction_liquidity_position() {
     set_contract_address(alice());
     market_manager
         .modify_position(
-            market_id, 7906620 + 0, 7906620 + 10, I256Trait::new(to_e18(10000), false)
+            market_id, 7906620 + 0, 7906620 + 10, I128Trait::new(to_e18_u128(10000), false)
         );
 }
 
@@ -175,7 +177,7 @@ fn test_dutch_auction_bid_after_auction_ends() {
     market_manager.set_market_configs(market_id, market_configs);
 
     set_contract_address(alice());
-    market_manager.create_order(market_id, true, 7906620 + 0, to_e18(10000));
+    market_manager.create_order(market_id, true, 7906620 + 0, to_e18_u128(10000));
 }
 
 #[test]

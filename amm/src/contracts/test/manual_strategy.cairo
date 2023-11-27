@@ -70,7 +70,7 @@ mod ManualStrategy {
     use amm::libraries::constants::ONE;
     use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
     use amm::interfaces::IStrategy::IStrategy;
-    use amm::types::i256::{I256Trait, i256};
+    use amm::types::i128::{I128Trait, i128};
 
     // External imports.
     use openzeppelin::token::erc20::interface::{ERC20ABI, IERC20Dispatcher, IERC20DispatcherTrait};
@@ -250,7 +250,7 @@ mod ManualStrategy {
                         market_id,
                         bid.lower_limit,
                         bid.upper_limit,
-                        I256Trait::new(bid.liquidity, true)
+                        I128Trait::new(bid.liquidity, true)
                     );
                 base_reserves += base_amount.val;
                 quote_reserves += quote_amount.val;
@@ -262,7 +262,7 @@ mod ManualStrategy {
                         market_id,
                         ask.lower_limit,
                         ask.upper_limit,
-                        I256Trait::new(ask.liquidity, true)
+                        I128Trait::new(ask.liquidity, true)
                     );
                 base_reserves += base_amount.val;
                 quote_reserves += quote_amount.val;
@@ -276,7 +276,7 @@ mod ManualStrategy {
                         market_id,
                         next_bid.lower_limit,
                         next_bid.upper_limit,
-                        I256Trait::new(next_bid.liquidity, false)
+                        I128Trait::new(next_bid.liquidity, false)
                     );
                 quote_reserves -= quote_amount.val;
                 bid = next_bid;
@@ -287,7 +287,7 @@ mod ManualStrategy {
                         market_id,
                         next_ask.lower_limit,
                         next_ask.upper_limit,
-                        I256Trait::new(next_ask.liquidity, false)
+                        I128Trait::new(next_ask.liquidity, false)
                     );
                 base_reserves -= base_amount.val;
                 ask = next_ask;
@@ -374,7 +374,7 @@ mod ManualStrategy {
 
             // Withdraw positions.
             if bid.liquidity != 0 {
-                let bid_liquidity: i256 = I256Trait::new(bid.liquidity, true);
+                let bid_liquidity: i128 = I128Trait::new(bid.liquidity, true);
                 let (bid_base, bid_quote, _, _) = market_manager
                     .modify_position(market_id, bid.lower_limit, bid.upper_limit, bid_liquidity);
                 base_reserves += bid_base.val;
@@ -382,7 +382,7 @@ mod ManualStrategy {
                 bid = Default::default();
             }
             if ask.liquidity != 0 {
-                let ask_liquidity: i256 = I256Trait::new(ask.liquidity, true);
+                let ask_liquidity: i128 = I128Trait::new(ask.liquidity, true);
                 let (ask_base, ask_quote, _, _) = market_manager
                     .modify_position(market_id, ask.lower_limit, ask.upper_limit, ask_liquidity);
                 base_reserves += ask_base.val;

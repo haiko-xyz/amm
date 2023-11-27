@@ -11,6 +11,7 @@ use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT, MAX_LIMIT_SHIFTED}
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::types::core::{LimitInfo, MarketConfigs, Config, ConfigOption};
+use amm::types::i128::{i128, I128Trait};
 use amm::types::i256::{i256, I256Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position
@@ -21,7 +22,7 @@ use amm::tests::common::params::{
     owner, alice, bob, treasury, default_token_params, default_market_params,
     modify_position_params, valid_limits, config
 };
-use amm::tests::common::utils::to_e28;
+use amm::tests::common::utils::{to_e28, to_e28_u128};
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
@@ -120,7 +121,7 @@ fn test_modify_position_above_curr_price_cases() {
     // Create position
     let mut lower_limit = OFFSET - 229760;
     let mut upper_limit = OFFSET - 0;
-    let mut liquidity = I256Trait::new(10000, false);
+    let mut liquidity = I128Trait::new(10000, false);
     let mut base_exp = I256Trait::new(21544, false);
     let mut quote_exp = I256Trait::new(0, false);
     _modify_position_and_run_checks(
@@ -139,7 +140,7 @@ fn test_modify_position_above_curr_price_cases() {
     // Create another position with different end limit
     lower_limit = OFFSET - 229760;
     upper_limit = OFFSET - 123000;
-    liquidity = I256Trait::new(10000, false);
+    liquidity = I128Trait::new(10000, false);
     base_exp = I256Trait::new(13048, false);
     quote_exp = I256Trait::new(0, false);
     _modify_position_and_run_checks(
@@ -158,7 +159,7 @@ fn test_modify_position_above_curr_price_cases() {
     // Create another position at different price range (max limit)
     lower_limit = OFFSET + MAX_LIMIT - 1;
     upper_limit = OFFSET + MAX_LIMIT;
-    liquidity = I256Trait::new(100000000000000000000000000000, false);
+    liquidity = I128Trait::new(100000000000000000000000000000, false);
     base_exp = I256Trait::new(3388729, false);
     quote_exp = I256Trait::new(0, false);
     _modify_position_and_run_checks(
@@ -177,7 +178,7 @@ fn test_modify_position_above_curr_price_cases() {
     // Remove partial liquidity from first position
     lower_limit = OFFSET - 229760;
     upper_limit = OFFSET - 0;
-    liquidity = I256Trait::new(5000, true);
+    liquidity = I128Trait::new(5000, true);
     base_exp = I256Trait::new(10771, true);
     quote_exp = I256Trait::new(0, false);
     _modify_position_and_run_checks(
@@ -196,7 +197,7 @@ fn test_modify_position_above_curr_price_cases() {
     // Remove remaining liquidity from first position, check end limit is empty
     lower_limit = OFFSET - 229760;
     upper_limit = OFFSET - 0;
-    liquidity = I256Trait::new(5000, true);
+    liquidity = I128Trait::new(5000, true);
     base_exp = I256Trait::new(10771, true);
     quote_exp = I256Trait::new(0, false);
     _modify_position_and_run_checks(
@@ -227,7 +228,7 @@ fn test_modify_position_above_curr_price_cases() {
     // Remove liquidity from second position, check start limit is empty
     lower_limit = OFFSET - 229760;
     upper_limit = OFFSET - 123000;
-    liquidity = I256Trait::new(10000, true);
+    liquidity = I128Trait::new(10000, true);
     base_exp = I256Trait::new(13047, true);
     quote_exp = I256Trait::new(0, false);
     _modify_position_and_run_checks(
@@ -260,7 +261,7 @@ fn test_modify_position_wraps_curr_price_cases() {
     // Create position
     let mut lower_limit = OFFSET - 236000;
     let mut upper_limit = OFFSET - 224000;
-    let mut liquidity = I256Trait::new(50000, false);
+    let mut liquidity = I128Trait::new(50000, false);
     let mut base_exp = I256Trait::new(4873, false);
     let mut quote_exp = I256Trait::new(448, false);
     _modify_position_and_run_checks(
@@ -279,7 +280,7 @@ fn test_modify_position_wraps_curr_price_cases() {
     // Create second position that spans entire range (min limit to max limit)
     lower_limit = OFFSET - MIN_LIMIT;
     upper_limit = OFFSET + MAX_LIMIT;
-    liquidity = I256Trait::new(50000, false);
+    liquidity = I128Trait::new(50000, false);
     base_exp = I256Trait::new(158115, false);
     quote_exp = I256Trait::new(15812, false);
     _modify_position_and_run_checks(
@@ -298,7 +299,7 @@ fn test_modify_position_wraps_curr_price_cases() {
     // Remove liquidity from second position, check start and end limits are empty
     lower_limit = OFFSET - MIN_LIMIT;
     upper_limit = OFFSET + MAX_LIMIT;
-    liquidity = I256Trait::new(50000, true);
+    liquidity = I128Trait::new(50000, true);
     base_exp = I256Trait::new(158114, true);
     quote_exp = I256Trait::new(15811, true);
     _modify_position_and_run_checks(
@@ -330,7 +331,7 @@ fn test_modify_position_below_curr_price_cases() {
     // Create position
     let mut lower_limit = OFFSET - 460000;
     let mut upper_limit = OFFSET - 235000;
-    let mut liquidity = I256Trait::new(20000, false);
+    let mut liquidity = I128Trait::new(20000, false);
     let mut base_exp = I256Trait::new(0, false);
     let mut quote_exp = I256Trait::new(4172, false);
     _modify_position_and_run_checks(
@@ -347,7 +348,7 @@ fn test_modify_position_below_curr_price_cases() {
     );
 
     // Create second position at exact same price range
-    liquidity = I256Trait::new(15000, false);
+    liquidity = I128Trait::new(15000, false);
     base_exp = I256Trait::new(0, false);
     quote_exp = I256Trait::new(3129, false);
     _modify_position_and_run_checks(
@@ -366,7 +367,7 @@ fn test_modify_position_below_curr_price_cases() {
     // Create third position at different price range (min limit)
     lower_limit = OFFSET - MIN_LIMIT;
     upper_limit = OFFSET - MIN_LIMIT + 1;
-    liquidity = I256Trait::new(100000000000000000000000000000, false);
+    liquidity = I128Trait::new(100000000000000000000000000000, false);
     base_exp = I256Trait::new(0, false);
     quote_exp = I256Trait::new(3388729, false);
     _modify_position_and_run_checks(
@@ -385,7 +386,7 @@ fn test_modify_position_below_curr_price_cases() {
     // Remove all liquidity from first and second positions, check start and end limits are empty
     lower_limit = OFFSET - 460000;
     upper_limit = OFFSET - 235000;
-    liquidity = I256Trait::new(35000, true);
+    liquidity = I128Trait::new(35000, true);
     base_exp = I256Trait::new(0, false);
     quote_exp = I256Trait::new(7299, true);
     _modify_position_and_run_checks(
@@ -419,7 +420,7 @@ fn test_modify_position_below_curr_price_cases() {
     // Remove liquidity from third position
     lower_limit = OFFSET - MIN_LIMIT;
     upper_limit = OFFSET - MIN_LIMIT + 1;
-    liquidity = I256Trait::new(40000000000000000000000000000, true);
+    liquidity = I128Trait::new(40000000000000000000000000000, true);
     base_exp = I256Trait::new(0, false);
     quote_exp = I256Trait::new(1355491, true);
     _modify_position_and_run_checks(
@@ -447,7 +448,7 @@ fn test_collect_fees() {
     set_contract_address(alice());
     let lower_limit = OFFSET - MIN_LIMIT;
     let upper_limit = OFFSET + MAX_LIMIT;
-    let liquidity = I256Trait::new(to_e28(1), false);
+    let liquidity = I128Trait::new(to_e28_u128(1), false);
     market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
 
     // Execute some swaps
@@ -478,7 +479,7 @@ fn test_collect_fees() {
 
     // Poke position to collect fees.
     let (base_amount, quote_amount, _, _) = market_manager
-        .modify_position(market_id, lower_limit, upper_limit, I256Trait::new(0, false));
+        .modify_position(market_id, lower_limit, upper_limit, I128Trait::new(0, false));
 
     // Run checks
     let base_fees_exp = 30000000000000000000000000;
@@ -503,7 +504,7 @@ fn test_collect_fees_multiple_lps() {
     set_contract_address(alice());
     let lower_limit = OFFSET - MIN_LIMIT;
     let upper_limit = OFFSET + MAX_LIMIT;
-    let liquidity = I256Trait::new(to_e28(1), false);
+    let liquidity = I128Trait::new(to_e28_u128(1), false);
     market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
 
     // Bob creates position at same range
@@ -539,7 +540,7 @@ fn test_collect_fees_multiple_lps() {
     // Alice collects fees.
     set_contract_address(alice());
     let (base_amount, quote_amount, _, _) = market_manager
-        .modify_position(market_id, lower_limit, upper_limit, I256Trait::new(0, false));
+        .modify_position(market_id, lower_limit, upper_limit, I128Trait::new(0, false));
 
     // Run checks
     let base_fees_exp = 15000000000000000000000000;
@@ -559,7 +560,7 @@ fn test_collect_fees_intermediate_withdrawal() {
     set_contract_address(alice());
     let lower_limit = OFFSET - MIN_LIMIT;
     let upper_limit = OFFSET + MAX_LIMIT;
-    let liquidity = I256Trait::new(to_e28(1), false);
+    let liquidity = I128Trait::new(to_e28_u128(1), false);
     market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
 
     // Bob creates position at same range
@@ -584,7 +585,7 @@ fn test_collect_fees_intermediate_withdrawal() {
     // Alice collects fees.
     set_contract_address(alice());
     let (base_amount_a1, quote_amount_a1, _, _) = market_manager
-        .modify_position(market_id, lower_limit, upper_limit, I256Trait::new(0, false));
+        .modify_position(market_id, lower_limit, upper_limit, I128Trait::new(0, false));
 
     // Execute swap 2.
     is_buy = false;
@@ -601,10 +602,10 @@ fn test_collect_fees_intermediate_withdrawal() {
 
     // Alice and Bob both collect fees.
     let (base_amount_a2, quote_amount_a2, _, _) = market_manager
-        .modify_position(market_id, lower_limit, upper_limit, I256Trait::new(0, false));
+        .modify_position(market_id, lower_limit, upper_limit, I128Trait::new(0, false));
     set_contract_address(bob());
     let (base_amount_b, quote_amount_b, _, _) = market_manager
-        .modify_position(market_id, lower_limit, upper_limit, I256Trait::new(0, false));
+        .modify_position(market_id, lower_limit, upper_limit, I128Trait::new(0, false));
 
     // Run checks
     let base_fees_exp = 30000000000000000000000000;
@@ -626,7 +627,7 @@ fn test_modify_position_accumulates_protocol_fees() {
     // Create position
     let lower_limit = OFFSET - MIN_LIMIT;
     let upper_limit = OFFSET + MAX_LIMIT;
-    let liquidity = I256Trait::new(to_e28(1), false);
+    let liquidity = I128Trait::new(to_e28_u128(1), false);
     market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
 
     // Execute some swaps
@@ -673,7 +674,7 @@ fn test_modify_position_zero_protocol_fees() {
     set_contract_address(alice());
     let lower_limit = OFFSET - MIN_LIMIT;
     let upper_limit = OFFSET + MAX_LIMIT;
-    let liquidity = I256Trait::new(to_e28(1), false);
+    let liquidity = I128Trait::new(to_e28_u128(1), false);
     market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
 
     // Execute some swaps
@@ -721,7 +722,7 @@ fn test_modify_position_clears_single_limit_if_other_active() {
     // Create position 1
     let lower_limit_1 = OFFSET + 1000;
     let upper_limit_1 = OFFSET + 2000;
-    let liquidity_add = I256Trait::new(to_e28(1), false);
+    let liquidity_add = I128Trait::new(to_e28_u128(1), false);
     market_manager.modify_position(market_id, lower_limit_1, upper_limit_1, liquidity_add);
 
     // Create position 2
@@ -730,7 +731,7 @@ fn test_modify_position_clears_single_limit_if_other_active() {
     market_manager.modify_position(market_id, lower_limit_2, upper_limit_2, liquidity_add);
 
     // Remove position 1 and check limits
-    let liquidity_rem = I256Trait::new(to_e28(1), true);
+    let liquidity_rem = I128Trait::new(to_e28_u128(1), true);
     market_manager.modify_position(market_id, lower_limit_1, upper_limit_1, liquidity_rem);
     assert(market_manager.is_limit_init(market_id, width, lower_limit_1), 'Case 1: lower');
     assert(!market_manager.is_limit_init(market_id, width, upper_limit_1), 'Case 1: upper');
@@ -761,7 +762,7 @@ fn test_modify_position_limits_unordered() {
     // Create position
     let lower_limit = OFFSET + 1235;
     let upper_limit = OFFSET - 1235;
-    let liquidity = I256Trait::new(20000, false);
+    let liquidity = I128Trait::new(20000, false);
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
 }
@@ -776,7 +777,7 @@ fn test_modify_position_lower_limit_not_multiple_of_width() {
     // Create position
     let lower_limit = OFFSET - 46;
     let upper_limit = OFFSET;
-    let liquidity = I256Trait::new(10000000000000000000000000000, false);
+    let liquidity = I128Trait::new(10000000000000000000000000000, false);
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
 }
@@ -791,53 +792,49 @@ fn test_modify_position_upper_limit_not_multiple_of_width() {
     // Create position
     let lower_limit = OFFSET;
     let upper_limit = OFFSET + 49;
-    let liquidity = I256Trait::new(10000000000000000000000000000, false);
+    let liquidity = I128Trait::new(10000000000000000000000000000, false);
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
 }
 
 #[test]
 #[available_gas(100000000)]
-#[should_panic(expected: ('UpperLimitOverflow', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('UpperLimitOF', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_upper_limit_overflow() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
     // Create position
     let lower_limit = OFFSET + 1235;
     let upper_limit = OFFSET + MAX_LIMIT + 1;
-    let liquidity = I256Trait::new(10000000000000000000000000000, false);
+    let liquidity = I128Trait::new(10000000000000000000000000000, false);
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
 }
 
 #[test]
 #[available_gas(100000000)]
-#[should_panic(expected: ('LimitLiqOverflow', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('LimitLiqOF', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_liq_at_limit_overflow_width_1() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
     // Create position
     let lower_limit = OFFSET + 1235;
     let upper_limit = OFFSET + 2500;
-    let liquidity = I256Trait::new(
-        7322472098704826441038024692625691444047146577616491639793587290046376, false
-    );
+    let liquidity = I128Trait::new(21518811465203357833463505223042, false);
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
 }
 
 #[test]
 #[available_gas(100000000)]
-#[should_panic(expected: ('LimitLiqOverflow', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('LimitLiqOF', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_liq_at_limit_overflow_width_25() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 25);
 
     // Create position
     let lower_limit = price_math::offset(25) - 25;
     let upper_limit = price_math::offset(25);
-    let liquidity = I256Trait::new(
-        183061524632494210439600565045330438908559398141182904931865132314326302, false
-    );
+    let liquidity = I128Trait::new(537969470146029939186181558582534, false);
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
 }
@@ -851,14 +848,14 @@ fn test_modify_position_remove_more_than_position() {
     // Create position
     let lower_limit = price_math::offset(25) - 25;
     let upper_limit = price_math::offset(25);
-    let mut liquidity = I256Trait::new(1000000000, false);
+    let mut liquidity = I128Trait::new(1000000000, false);
     let mut params = modify_position_params(
         alice(), market_id, lower_limit, upper_limit, liquidity
     );
     modify_position(market_manager, params);
 
     // Remove more than position.
-    liquidity = I256Trait::new(1000000001, true);
+    liquidity = I128Trait::new(1000000001, true);
     params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
 }
@@ -872,7 +869,7 @@ fn test_modify_position_in_positions_disabled_market() {
     // Create position
     let lower_limit = OFFSET - 25;
     let upper_limit = OFFSET;
-    let liquidity = I256Trait::new(100, false);
+    let liquidity = I128Trait::new(100, false);
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
 }
@@ -886,7 +883,7 @@ fn test_modify_position_concentrated_in_linear_market() {
     // Create position
     let lower_limit = OFFSET - 25;
     let upper_limit = OFFSET;
-    let liquidity = I256Trait::new(100, false);
+    let liquidity = I128Trait::new(100, false);
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
 }
@@ -902,7 +899,7 @@ fn _modify_position_and_run_checks(
     quote_token: ERC20ABIDispatcher,
     lower_limit: u32,
     upper_limit: u32,
-    liquidity: i256,
+    liquidity: i128,
     base_exp: i256,
     quote_exp: i256,
     n: felt252,
@@ -925,10 +922,12 @@ fn _modify_position_and_run_checks(
 
     // Run checks
     assert(
-        approx_eq(base_bal_aft, _add_delta(base_bal_bef, base_exp), 1), 'Create pos: base 0' + n
+        approx_eq(base_bal_aft, _add_delta_i256(base_bal_bef, base_exp), 1),
+        'Create pos: base 0' + n
     );
     assert(
-        approx_eq(quote_bal_aft, _add_delta(quote_bal_bef, quote_exp), 1), 'Create pos: quote 0' + n
+        approx_eq(quote_bal_aft, _add_delta_i256(quote_bal_bef, quote_exp), 1),
+        'Create pos: quote 0' + n
     );
     assert(
         lower_limit_aft.liquidity == _add_delta(lower_limit_bef.liquidity, liquidity),
@@ -964,7 +963,15 @@ fn _snapshot_state(
     (base_balance, quote_balance, lower_limit_info, upper_limit_info)
 }
 
-fn _add_delta(liquidity: u256, delta: i256) -> u256 {
+fn _add_delta_i256(liquidity: u256, delta: i256) -> u256 {
+    if delta.sign {
+        liquidity - delta.val
+    } else {
+        liquidity + delta.val
+    }
+}
+
+fn _add_delta(liquidity: u128, delta: i128) -> u128 {
     if delta.sign {
         liquidity - delta.val
     } else {

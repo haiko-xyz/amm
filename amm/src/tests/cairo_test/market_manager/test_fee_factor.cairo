@@ -11,7 +11,7 @@ use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT};
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::types::core::LimitInfo;
-use amm::types::i256::{i256, I256Trait};
+use amm::types::i128::{i128, I128Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position, swap
 };
@@ -75,7 +75,7 @@ fn test_reinitialise_fee_factor() {
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
     let liq_abs = 100000;
-    let mut liquidity = I256Trait::new(liq_abs, false);
+    let mut liquidity = I128Trait::new(liq_abs, false);
     let mut params = modify_position_params(
         alice(), market_id, lower_limit, upper_limit, liquidity
     );
@@ -114,13 +114,13 @@ fn test_reinitialise_fee_factor() {
     print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
 
     // Remove position.
-    liquidity = I256Trait::new(liq_abs, true);
+    liquidity = I128Trait::new(liq_abs, true);
     params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
     print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
 
     // Adding liquidity to same limits should re-initialise fee factors.
-    liquidity = I256Trait::new(liq_abs, false);
+    liquidity = I128Trait::new(liq_abs, false);
     params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
     print_fee_factors(market_manager, market_id, lower_limit, upper_limit);

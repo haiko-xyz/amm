@@ -5,7 +5,7 @@ use cmp::{min, max};
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::libraries::math::fee_math;
-use amm::types::i256::I256Trait;
+use amm::types::i128::I128Trait;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::tests::snforge::helpers::{
     market_manager::{deploy_market_manager, create_market, modify_position, swap, swap_multiple},
@@ -40,7 +40,7 @@ struct LimitState {
 
 #[derive(Drop, Copy)]
 struct PositionState {
-    liquidity: u256,
+    liquidity: u128,
     base_fee_factor: u256,
     quote_fee_factor: u256,
     base_fee_factor_last: u256,
@@ -126,23 +126,23 @@ fn test_fee_factor_invariants(
     // Initialise position params.
     let pos1_lower_limit = OFFSET - 32768 + min(pos1_limit1, pos1_limit2).into();
     let pos1_upper_limit = OFFSET - 32768 + max(pos1_limit1, pos1_limit2).into();
-    let pos1_liquidity: u256 = pos1_liquidity.into() * 1000000;
+    let pos1_liquidity: u128 = pos1_liquidity.into() * 1000000;
     let pos1_rem_liq = pos1_liquidity * pos1_rem_pct.into() / 256;
     let pos2_lower_limit = OFFSET - 32768 + min(pos2_limit1, pos2_limit2).into();
     let pos2_upper_limit = OFFSET - 32768 + max(pos2_limit1, pos2_limit2).into();
-    let pos2_liquidity: u256 = pos2_liquidity.into() * 1000000;
+    let pos2_liquidity: u128 = pos2_liquidity.into() * 1000000;
     let pos2_rem_liq = pos2_liquidity * pos2_rem_pct.into() / 256;
     let pos3_lower_limit = OFFSET - 32768 + min(pos3_limit1, pos3_limit2).into();
     let pos3_upper_limit = OFFSET - 32768 + max(pos3_limit1, pos3_limit2).into();
-    let pos3_liquidity: u256 = pos3_liquidity.into() * 1000000;
+    let pos3_liquidity: u128 = pos3_liquidity.into() * 1000000;
     let pos3_rem_liq = pos3_liquidity * pos3_rem_pct.into() / 256;
     let pos4_lower_limit = OFFSET - 32768 + min(pos4_limit1, pos4_limit2).into();
     let pos4_upper_limit = OFFSET - 32768 + max(pos4_limit1, pos4_limit2).into();
-    let pos4_liquidity: u256 = pos4_liquidity.into() * 1000000;
+    let pos4_liquidity: u128 = pos4_liquidity.into() * 1000000;
     let pos4_rem_liq = pos4_liquidity * pos4_rem_pct.into() / 256;
     let pos5_lower_limit = OFFSET - 32768 + min(pos5_limit1, pos5_limit2).into();
     let pos5_upper_limit = OFFSET - 32768 + max(pos5_limit1, pos5_limit2).into();
-    let pos5_liquidity: u256 = pos5_liquidity.into() * 1000000;
+    let pos5_liquidity: u128 = pos5_liquidity.into() * 1000000;
     let pos5_rem_liq = pos5_liquidity * pos5_rem_pct.into() / 256;
 
     let mut position_params = array![
@@ -170,7 +170,7 @@ fn test_fee_factor_invariants(
                 market_id,
                 lower_limit,
                 upper_limit,
-                I256Trait::new(liquidity.into(), false)
+                I128Trait::new(liquidity.into(), false)
             );
             modify_position(market_manager, params);
         }
@@ -282,7 +282,7 @@ fn test_fee_factor_invariants(
         // Skip fail case.
         if lower_limit != upper_limit && rem_liq != 0 {
             let mut params = modify_position_params(
-                alice(), market_id, lower_limit, upper_limit, I256Trait::new(rem_liq.into(), true)
+                alice(), market_id, lower_limit, upper_limit, I128Trait::new(rem_liq.into(), true)
             );
             modify_position(market_manager, params);
 
@@ -339,7 +339,7 @@ fn test_fee_factor_invariants(
 fn snapshot_all(
     market_manager: IMarketManagerDispatcher,
     market_id: felt252,
-    position_params: Span<(u32, u32, u256, u256)>
+    position_params: Span<(u32, u32, u128, u128)>
 ) -> (MarketState, Span<PositionState>) {
     // Fetch market state.
     let market_state_full = market_manager.market_state(market_id);

@@ -12,7 +12,7 @@ use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_SCALED, ONE};
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::types::core::MarketState;
-use amm::types::i256::{i256, I256Trait};
+use amm::types::i128::{i128, I128Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position, swap
 };
@@ -21,7 +21,9 @@ use amm::tests::common::params::{
     owner, alice, treasury, default_token_params, default_market_params, modify_position_params,
     swap_params
 };
-use amm::tests::common::utils::{to_e18, to_e28, encode_sqrt_price, approx_eq, approx_eq_pct};
+use amm::tests::common::utils::{
+    to_e18, to_e28, to_e28_u128, encode_sqrt_price, approx_eq, approx_eq_pct
+};
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
@@ -36,7 +38,7 @@ struct MarketStateCase {
     width: u32,
     swap_fee_rate: u16,
     start_limit: u32,
-    liquidity: u256, // used to calculate ratio of liquidity to amount
+    liquidity: u128, // used to calculate ratio of liquidity to amount
     positions: Span<Position>,
     skip_cases: Span<felt252>,
     exp: Span<(u256, u256, u256)>,
@@ -46,7 +48,7 @@ struct MarketStateCase {
 struct Position {
     lower_limit: u32,
     upper_limit: u32,
-    liquidity: i256,
+    liquidity: i128,
 }
 
 #[derive(Drop, Copy)]
@@ -95,12 +97,12 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 width: 1,
                 swap_fee_rate: 5,
                 start_limit: OFFSET + 0,
-                liquidity: to_e28(2),
+                liquidity: to_e28_u128(2),
                 positions: array![
                     Position {
                         lower_limit: 0,
                         upper_limit: OFFSET + MAX_LIMIT,
-                        liquidity: I256Trait::new(to_e28(2), false)
+                        liquidity: I128Trait::new(to_e28_u128(2), false)
                     }
                 ]
                     .span(),
@@ -143,12 +145,12 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) + 0,
-                liquidity: to_e28(2),
+                liquidity: to_e28_u128(2),
                 positions: array![
                     Position {
                         lower_limit: price_math::offset(10) - 7906620,
                         upper_limit: price_math::offset(10) + 7906620,
-                        liquidity: I256Trait::new(to_e28(2), false)
+                        liquidity: I128Trait::new(to_e28_u128(2), false)
                     }
                 ]
                     .span(),
@@ -191,12 +193,12 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 width: 100,
                 swap_fee_rate: 100,
                 start_limit: price_math::offset(100) + 0,
-                liquidity: to_e28(2),
+                liquidity: to_e28_u128(2),
                 positions: array![
                     Position {
                         lower_limit: price_math::offset(100) - 7906600,
                         upper_limit: price_math::offset(100) + 7906600,
-                        liquidity: I256Trait::new(to_e28(2), false)
+                        liquidity: I128Trait::new(to_e28_u128(2), false)
                     }
                 ]
                     .span(),
@@ -239,12 +241,12 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) + 230260,
-                liquidity: to_e28(20),
+                liquidity: to_e28_u128(20),
                 positions: array![
                     Position {
                         lower_limit: price_math::offset(10) - 7906620,
                         upper_limit: price_math::offset(10) + 7906620,
-                        liquidity: I256Trait::new(to_e28(20), false)
+                        liquidity: I128Trait::new(to_e28_u128(20), false)
                     }
                 ]
                     .span(),
@@ -287,12 +289,12 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 230260,
-                liquidity: to_e28(2),
+                liquidity: to_e28_u128(2),
                 positions: array![
                     Position {
                         lower_limit: price_math::offset(10) - 7906620,
                         upper_limit: price_math::offset(10) + 7906620,
-                        liquidity: I256Trait::new(to_e28(2), false)
+                        liquidity: I128Trait::new(to_e28_u128(2), false)
                     }
                 ]
                     .span(),
@@ -331,17 +333,17 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 0,
-                liquidity: to_e28(2),
+                liquidity: to_e28_u128(2),
                 positions: array![
                     Position {
                         lower_limit: price_math::offset(10) - 7906620,
                         upper_limit: price_math::offset(10) - 10,
-                        liquidity: I256Trait::new(to_e28(2), false)
+                        liquidity: I128Trait::new(to_e28_u128(2), false)
                     },
                     Position {
                         lower_limit: price_math::offset(10) + 10,
                         upper_limit: price_math::offset(10) + 7906620,
-                        liquidity: I256Trait::new(to_e28(2), false)
+                        liquidity: I128Trait::new(to_e28_u128(2), false)
                     }
                 ]
                     .span(),
@@ -384,22 +386,22 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 0,
-                liquidity: to_e28(2),
+                liquidity: to_e28_u128(2),
                 positions: array![
                     Position {
                         lower_limit: price_math::offset(10) - 7906620,
                         upper_limit: price_math::offset(10) + 7906620,
-                        liquidity: I256Trait::new(to_e28(2), false)
+                        liquidity: I128Trait::new(to_e28_u128(2), false)
                     },
                     Position {
                         lower_limit: price_math::offset(10) - 7906620,
                         upper_limit: price_math::offset(10) - 10,
-                        liquidity: I256Trait::new(to_e28(2), false)
+                        liquidity: I128Trait::new(to_e28_u128(2), false)
                     },
                     Position {
                         lower_limit: price_math::offset(10) + 10,
                         upper_limit: price_math::offset(10) + 7906620,
-                        liquidity: I256Trait::new(to_e28(2), false)
+                        liquidity: I128Trait::new(to_e28_u128(2), false)
                     }
                 ]
                     .span(),
@@ -442,38 +444,38 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 width: 1,
                 swap_fee_rate: 5,
                 start_limit: price_math::offset(1) - 0,
-                liquidity: to_e28(25000),
+                liquidity: to_e28_u128(100),
                 positions: array![
                     Position {
                         lower_limit: price_math::offset(1) - 10,
                         upper_limit: price_math::offset(1) + 10,
-                        liquidity: I256Trait::new(to_e28(25000), false)
+                        liquidity: I128Trait::new(to_e28_u128(100), false)
                     }
                 ]
                     .span(),
                 skip_cases: array![15, 16].span(),
                 exp: array![
-                    (1000000000000000000, 999499999999996003, 500000000000000),
-                    (1000000000000000000, 999499999999996003, 500000000000000),
-                    (1000500250125066533, 1000000000000000000, 500250125062533),
-                    (1000500250125066533, 999999999999999999, 500250125062533),
-                    (1000000000000000000, 999499999999996003, 500000000000000),
-                    (1000000000000000000, 999499999999996003, 500000000000000),
-                    (1000500250125066533, 1000000000000000000, 500250125062533),
-                    (1000500250125066533, 999999999999999999, 500250125062533),
+                    (1000000000000000001, 999499999999000999, 500000000000001),
+                    (1000000000000000000, 999499999999000999, 500000000000000),
+                    (1000500250126063032, 1000000000000000000, 500250125062533),
+                    (1000500250126063032, 999999999999999999, 500250125062533),
+                    (1000000000000000000, 999499999999000999, 500000000000000),
+                    (1000000000000000000, 999499999999000999, 500000000000000),
+                    (1000500250126063032, 1000000000000000000, 500250125063032),
+                    (1000500250126063032, 999999999999999999, 500250125063032),
+                    (100001, 99949, 51),
                     (100000, 99949, 50),
-                    (100000, 99949, 50),
-                    (100050, 100000, 50),
-                    (100050, 100000, 50),
+                    (100051, 100000, 50),
+                    (100051, 100000, 50),
                     (
-                        12506503254127076038044022011,
-                        12499625008749825003149947500,
-                        6253251627063538019022011
+                        50026013016508304152176089,
+                        49998500034999300012599790,
+                        25013006508254152076089
                     ),
                     (
-                        12506503254127076038044022011,
-                        12499625008749825003149947500,
-                        6253251627063538019022011
+                        50026013016508304152176089,
+                        49998500034999300012599790,
+                        25013006508254152076089
                     ),
                     (0, 0, 0), // 15 - skipped
                     (0, 0, 0), // 16 - skipped
@@ -490,12 +492,12 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 0,
-                liquidity: to_e28(20),
+                liquidity: to_e28_u128(20),
                 positions: array![
                     Position {
                         lower_limit: price_math::offset(10) - 20000,
                         upper_limit: price_math::offset(10) - 0,
-                        liquidity: I256Trait::new(to_e28(20), false)
+                        liquidity: I128Trait::new(to_e28_u128(20), false)
                     }
                 ]
                     .span(),
@@ -534,12 +536,12 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 0,
-                liquidity: to_e28(20),
+                liquidity: to_e28_u128(20),
                 positions: array![
                     Position {
                         lower_limit: price_math::offset(10) - 0,
                         upper_limit: price_math::offset(10) + 20000,
-                        liquidity: I256Trait::new(to_e28(20), false)
+                        liquidity: I128Trait::new(to_e28_u128(20), false)
                     }
                 ]
                     .span(),
@@ -578,12 +580,12 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) + 7906500,
-                liquidity: to_e28(2),
+                liquidity: to_e28_u128(2),
                 positions: array![
                     Position {
                         lower_limit: price_math::offset(10) - 7906620,
                         upper_limit: price_math::offset(10) + 7906620,
-                        liquidity: I256Trait::new(to_e28(2), false)
+                        liquidity: I128Trait::new(to_e28_u128(2), false)
                     }
                 ]
                     .span(),
@@ -640,12 +642,12 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 7906500,
-                liquidity: to_e28(2),
+                liquidity: to_e28_u128(2),
                 positions: array![
                     Position {
                         lower_limit: price_math::offset(10) - 7906620,
                         upper_limit: price_math::offset(10) + 7906620,
-                        liquidity: I256Trait::new(to_e28(2), false)
+                        liquidity: I128Trait::new(to_e28_u128(2), false)
                     }
                 ]
                     .span(),
@@ -707,7 +709,7 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                     Position {
                         lower_limit: price_math::offset(10) - 7906620,
                         upper_limit: price_math::offset(10) + 7906620,
-                        liquidity: I256Trait::new(
+                        liquidity: I128Trait::new(
                             liquidity_math::max_liquidity_per_limit(10), false
                         )
                     }
@@ -728,14 +730,14 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                     (100251, 100000, 251),
                     (100251, 100000, 251),
                     (
-                        42660355356906680216056386115876984620264026331300314,
-                        26913325799638093516111757964092930180611365088418625,
-                        106650888392266700540140965289692461550660065828251
+                        125367516815287783416687142135285,
+                        79091156098285756439692673096276,
+                        313418792038219458541717855338
                     ),
                     (
-                        42660355356906680215975163204511696931623586612278104,
-                        26913325799638093516079350022458180392843829640528763,
-                        106650888392266700539937908011279242329058966530696
+                        125367516815287783416687142135285,
+                        79091156098285756439692673096276,
+                        313418792038219458541717855338
                     ),
                     (0, 0, 0), // 15 - skipped
                     (0, 0, 0), // 16 - skipped
@@ -1025,7 +1027,7 @@ fn test_swap_cases() {
                 let PRECISION_PLACES = 8;
 
                 assert(
-                    if amount_in == 0 || market_case.liquidity / amount_in >= THRESHOLD {
+                    if amount_in == 0 || market_case.liquidity.into() / amount_in >= THRESHOLD {
                         if !swap_case.exact_input {
                             amount_in >= amount_in_exp
                         } else {
@@ -1037,7 +1039,7 @@ fn test_swap_cases() {
                     _print_index('amount in 01', swap_index)
                 );
                 assert(
-                    if amount_out == 0 || market_case.liquidity / amount_out >= THRESHOLD {
+                    if amount_out == 0 || market_case.liquidity.into() / amount_out >= THRESHOLD {
                         if swap_case.exact_input {
                             amount_out <= amount_out_exp
                         } else {
@@ -1049,7 +1051,7 @@ fn test_swap_cases() {
                     _print_index('amount out 01', swap_index)
                 );
                 assert(
-                    if amount_in == 0 || market_case.liquidity / amount_in >= THRESHOLD {
+                    if amount_in == 0 || market_case.liquidity.into() / amount_in >= THRESHOLD {
                         if swap_case.exact_input {
                             approx_eq(fees, fees_exp, MAX_DEVIATION)
                         } else {
@@ -1101,7 +1103,7 @@ fn _snapshot_state(
     market_id: felt252,
     base_token: ERC20ABIDispatcher,
     quote_token: ERC20ABIDispatcher,
-) -> (MarketState, u256, u256, u256, u32, u256) {
+) -> (MarketState, u256, u256, u128, u32, u256) {
     let market_state = market_manager.market_state(market_id);
     let base_balance = base_token.balance_of(market_manager.contract_address);
     let quote_balance = quote_token.balance_of(market_manager.contract_address);

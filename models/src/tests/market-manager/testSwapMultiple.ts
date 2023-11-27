@@ -11,7 +11,7 @@ const testSwapMultiple = () => {
   const swapFeeRate = 0.003
 
   // Calculate ETH -> USDC swap amounts (swap leg 1)
-  const liquidityEthUsdc = "200000000000000000"
+  const liquidityEthUsdc = "20000000"
   const startLimitEthUsdc = shiftLimit(737780, width)
   const netAmountEthUsdc = new Decimal(swapAmount).mul(1 - swapFeeRate)
   const isBuyEthUsdc = false
@@ -31,7 +31,7 @@ const testSwapMultiple = () => {
   )
 
   // Calculate USDC -> BTC swap amounts (swap leg 2)
-  const liquidityBtcUsdc = "10000000000000000"
+  const liquidityBtcUsdc = "1000000"
   const startLimitBtcUsdc = shiftLimit(1016590, width)
   const netAmountBtcUsdc = new Decimal(amountOutEthUsdc).mul(1 - swapFeeRate)
   const isBuyBtcUsdc = true

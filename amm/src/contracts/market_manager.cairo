@@ -26,7 +26,8 @@ mod MarketManager {
         MarketInfo, MarketConfigs, MarketState, OrderBatch, Position, LimitInfo, LimitOrder,
         ERC721PositionInfo, SwapParams, ConfigOption, Config
     };
-    use amm::types::i256::{i256, I256Zeroable, I256Trait};
+    use amm::types::i128::{i128, I128Zeroable, I128Trait};
+    use amm::types::i256::{i256, I256Trait};
     use amm::libraries::store_packing::{
         MarketInfoStorePacking, MarketStateStorePacking, MarketConfigsStorePacking,
         LimitInfoStorePacking, OrderBatchStorePacking, PositionStorePacking, LimitOrderStorePacking
@@ -143,7 +144,7 @@ mod MarketManager {
         market_id: felt252,
         lower_limit: u32,
         upper_limit: u32,
-        liquidity_delta: i256,
+        liquidity_delta: i128,
         base_amount: i256,
         quote_amount: i256,
         base_fees: u256,
@@ -195,7 +196,7 @@ mod MarketManager {
         fees: u256,
         end_limit: u32, // final limit reached after swap
         end_sqrt_price: u256, // final sqrt price reached after swap
-        market_liquidity: u256, // global liquidity after swap
+        market_liquidity: u128, // global liquidity after swap
         swap_id: u128,
     }
 
@@ -387,7 +388,7 @@ mod MarketManager {
             self.batches.read(batch_id)
         }
 
-        fn liquidity(self: @ContractState, market_id: felt252) -> u256 {
+        fn liquidity(self: @ContractState, market_id: felt252) -> u128 {
             self.market_state.read(market_id).liquidity
         }
 
@@ -456,12 +457,12 @@ mod MarketManager {
             market_id: felt252,
             lower_limit: u32,
             upper_limit: u32,
-            liquidity_delta: u256,
+            liquidity_delta: u128,
         ) -> (u256, u256) {
             let market_state = self.market_state.read(market_id);
             let market_info = self.market_info.read(market_id);
             let (base_amount, quote_amount) = liquidity_math::liquidity_to_amounts(
-                I256Trait::new(liquidity_delta, false),
+                I128Trait::new(liquidity_delta, false),
                 market_state.curr_sqrt_price,
                 price_math::limit_to_sqrt_price(lower_limit, market_info.width),
                 price_math::limit_to_sqrt_price(upper_limit, market_info.width),
@@ -482,7 +483,7 @@ mod MarketManager {
         // * `liquidity` - equivalent liquidity
         fn amount_to_liquidity(
             self: @ContractState, market_id: felt252, is_bid: bool, limit: u32, amount: u256,
-        ) -> u256 {
+        ) -> u128 {
             let width = self.width(market_id);
             let lower_sqrt_price = price_math::limit_to_sqrt_price(limit, width);
             let upper_sqrt_price = price_math::limit_to_sqrt_price(limit + width, width);
@@ -528,6 +529,7 @@ mod MarketManager {
                 strategy: market_info.strategy,
                 swap_fee_rate: market_info.swap_fee_rate,
                 fee_controller: market_info.fee_controller,
+                controller: market_info.controller,
                 liquidity: position.liquidity,
                 base_amount,
                 quote_amount,
@@ -573,10 +575,10 @@ mod MarketManager {
             // Validate inputs.
             assert(base_token.is_non_zero() && quote_token.is_non_zero(), 'TokensNull');
             assert(width != 0, 'WidthZero');
-            assert(width <= MAX_WIDTH, 'WidthOverflow');
-            assert(swap_fee_rate <= fee_math::MAX_FEE_RATE, 'FeeRateOverflow');
-            assert(protocol_share <= fee_math::MAX_FEE_RATE, 'ProtocolShareOverflow');
-            assert(start_limit < MAX_LIMIT_SHIFTED, 'StartLimitOverflow');
+            assert(width <= MAX_WIDTH, 'WidthOF');
+            assert(swap_fee_rate <= fee_math::MAX_FEE_RATE, 'FeeRateOF');
+            assert(protocol_share <= fee_math::MAX_FEE_RATE, 'ProtocolShareOF');
+            assert(start_limit < MAX_LIMIT_SHIFTED, 'StartLimitOF');
 
             // Check tokens exist.
             IERC20MetadataDispatcher { contract_address: base_token }.name();
@@ -677,7 +679,7 @@ mod MarketManager {
             market_id: felt252,
             lower_limit: u32,
             upper_limit: u32,
-            liquidity_delta: i256,
+            liquidity_delta: i128,
         ) -> (i256, i256, u256, u256) {
             // Run checks.
             let market_info = self.market_info.read(market_id);
@@ -715,7 +717,7 @@ mod MarketManager {
             market_id: felt252,
             is_bid: bool,
             limit: u32,
-            liquidity_delta: u256,
+            liquidity_delta: u128,
         ) -> felt252 {
             // Retrieve market info.
             let market_state = self.market_state.read(market_id);
@@ -752,7 +754,7 @@ mod MarketManager {
                     market_id,
                     limit,
                     limit + market_info.width,
-                    I256Trait::new(liquidity_delta, false),
+                    I128Trait::new(liquidity_delta, false),
                     true,
                 );
 
@@ -777,9 +779,9 @@ mod MarketManager {
             // Update batch amounts.
             batch.liquidity += liquidity_delta;
             if is_bid {
-                batch.quote_amount += quote_amount.val
+                batch.quote_amount += quote_amount.val.try_into().expect('BatchQuoteAmtOF');
             } else {
-                batch.base_amount += base_amount.val
+                batch.base_amount += base_amount.val.try_into().expect('BatchBaseAmtOF');
             };
 
             // Commit state updates.
@@ -851,25 +853,25 @@ mod MarketManager {
                         market_id,
                         batch.limit,
                         batch.limit + market_info.width,
-                        I256Trait::new(order.liquidity, true),
+                        I128Trait::new(order.liquidity, true),
                         true
                     );
                 (base_amount.val - base_fees, quote_amount.val - quote_fees)
             } else {
                 // Round down token amounts when withdrawing.
                 let base_amount = math::mul_div(
-                    batch.base_amount, order.liquidity, batch.liquidity, false
+                    batch.base_amount.into(), order.liquidity.into(), batch.liquidity.into(), false
                 );
                 let quote_amount = math::mul_div(
-                    batch.quote_amount, order.liquidity, batch.liquidity, false
+                    batch.quote_amount.into(), order.liquidity.into(), batch.liquidity.into(), false
                 );
                 (base_amount, quote_amount)
             };
 
             // Update order and batch.
             batch.liquidity -= order.liquidity;
-            batch.base_amount -= base_amount;
-            batch.quote_amount -= quote_amount;
+            batch.base_amount -= base_amount.try_into().expect('BatchBaseAmtOF');
+            batch.quote_amount -= quote_amount.try_into().expect('BatchQuoteAmtOF');
             order.liquidity = 0;
 
             // Commit state updates.
@@ -1130,7 +1132,7 @@ mod MarketManager {
             // removing liquidity from in-range placed positions and adding liquidity to in-range 
             // queued positions. Simultaneously, we extract a set of liquidity deltas and initialised
             // limits from the positions, which we use to augment liquidity when traversing limits. 
-            let mut queued_deltas: Felt252Dict<Nullable<i256>> = Default::default();
+            let mut queued_deltas: Felt252Dict<Nullable<i128>> = Default::default();
             let mut target_limits = ArrayTrait::<u32>::new();
             if market_info.strategy.is_non_zero() && !ignore_strategy {
                 let strategy = IStrategyDispatcher { contract_address: market_info.strategy };
@@ -1151,7 +1153,7 @@ mod MarketManager {
             } else {
                 let rate = IFeeControllerDispatcher { contract_address: market_info.fee_controller }
                     .swap_fee_rate();
-                assert(rate <= fee_math::MAX_FEE_RATE, 'FeeRateOverflow');
+                assert(rate <= fee_math::MAX_FEE_RATE, 'FeeRateOF');
                 rate
             };
 
@@ -1483,7 +1485,7 @@ mod MarketManager {
         // * `fee` - flash loan fee denominated in bps
         fn set_flash_loan_fee(ref self: ContractState, token: ContractAddress, fee: u16,) {
             self.assert_only_owner();
-            assert(fee <= fee_math::MAX_FEE_RATE, 'FeeOverflow');
+            assert(fee <= fee_math::MAX_FEE_RATE, 'FeeOF');
             self.flash_loan_fee.write(token, fee);
             self.emit(Event::ChangeFlashLoanFee(ChangeFlashLoanFee { token, fee }));
         }
@@ -1496,7 +1498,7 @@ mod MarketManager {
         // * `protocol_share` - protocol share
         fn set_protocol_share(ref self: ContractState, market_id: felt252, protocol_share: u16,) {
             self.assert_only_owner();
-            assert(protocol_share <= fee_math::MAX_FEE_RATE, 'ProtocolShareOverflow');
+            assert(protocol_share <= fee_math::MAX_FEE_RATE, 'ProtocolShareOF');
 
             let mut market_state = self.market_state.read(market_id);
             market_state.protocol_share = protocol_share;
@@ -1600,7 +1602,7 @@ mod MarketManager {
             market_id: felt252,
             lower_limit: u32,
             upper_limit: u32,
-            liquidity_delta: i256,
+            liquidity_delta: i128,
             is_limit_order: bool,
         ) -> (i256, i256, u256, u256) {
             // Fetch market info and caller.
@@ -1649,7 +1651,7 @@ mod MarketManager {
                     if base_amount.sign {
                         assert(base_reserves >= base_amount.val, 'ModifyPosBaseReserves');
                     }
-                    liquidity_math::add_delta(ref base_reserves, base_amount);
+                    liquidity_math::add_delta_u256(ref base_reserves, base_amount);
                     self.reserves.write(market_info.base_token, base_reserves);
                 }
                 if quote_amount.val != 0 {
@@ -1657,7 +1659,7 @@ mod MarketManager {
                     if quote_amount.sign {
                         assert(quote_reserves >= quote_amount.val, 'ModifyPosQuoteReserves');
                     }
-                    liquidity_math::add_delta(ref quote_reserves, quote_amount);
+                    liquidity_math::add_delta_u256(ref quote_reserves, quote_amount);
                     self.reserves.write(market_info.quote_token, quote_reserves);
                 }
 
@@ -1792,7 +1794,7 @@ mod MarketManager {
             } else {
                 let rate = IFeeControllerDispatcher { contract_address: market_info.fee_controller }
                     .swap_fee_rate();
-                assert(rate <= fee_math::MAX_FEE_RATE, 'FeeRateOverflow');
+                assert(rate <= fee_math::MAX_FEE_RATE, 'FeeRateOF');
                 rate
             };
 
