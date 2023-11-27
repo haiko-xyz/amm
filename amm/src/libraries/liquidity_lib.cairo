@@ -19,7 +19,8 @@ use amm::libraries::tree;
 use amm::libraries::id;
 use amm::types::core::{LimitInfo, MarketState, MarketInfo, Position};
 use amm::libraries::math::{liquidity_math, price_math, fee_math, math};
-use amm::types::i256::{I256Trait, i256, I256Zeroable};
+use amm::types::i128::{I128Trait, i128};
+use amm::types::i256::{i256, I256Trait, I256Zeroable};
 use amm::interfaces::IMarketManager::IMarketManager;
 
 ////////////////////////////////
@@ -48,7 +49,7 @@ fn update_liquidity(
     market_id: felt252,
     lower_limit: u32,
     upper_limit: u32,
-    liquidity_delta: i256,
+    liquidity_delta: i128,
 ) -> (i256, i256, u256, u256) {
     // Initialise state.
     let mut market_state = self.market_state.read(market_id);
@@ -141,7 +142,7 @@ fn update_limit(
     market_state: @MarketState,
     market_id: felt252,
     curr_limit: u32,
-    liquidity_delta: i256,
+    liquidity_delta: i128,
     is_start: bool,
     width: u32,
 ) -> LimitInfo {
@@ -157,14 +158,14 @@ fn update_limit(
     if is_start {
         limit_info.liquidity_delta += liquidity_delta;
     } else {
-        limit_info.liquidity_delta += I256Trait::new(liquidity_delta.val, !liquidity_delta.sign);
+        limit_info.liquidity_delta += I128Trait::new(liquidity_delta.val, !liquidity_delta.sign);
     }
 
     // Check for liquidity overflow.
     if !liquidity_delta.sign {
         assert(
             limit_info.liquidity.into() <= liquidity_math::max_liquidity_per_limit(width),
-            'LimitLiqOverflow'
+            'LimitLiqOF'
         );
     }
 
@@ -223,7 +224,7 @@ fn amounts_inside_position(
 
     // Calculate amounts inside position.
     let (base_amount, quote_amount) = liquidity_math::liquidity_to_amounts(
-        I256Trait::new(position.liquidity, true),
+        I128Trait::new(position.liquidity, true),
         market_state.curr_sqrt_price,
         price_math::limit_to_sqrt_price(position.lower_limit, market_info.width),
         price_math::limit_to_sqrt_price(position.upper_limit, market_info.width),

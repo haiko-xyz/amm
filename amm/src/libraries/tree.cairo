@@ -184,7 +184,7 @@ fn next_limit(
 // * `segment` - segment of the limit
 // * `position` - position of the limit within the segment
 fn _get_segment_and_position(limit: u32) -> (u32, u8) {
-    assert(limit <= MAX_LIMIT_SHIFTED, 'SegPosLimitOverflow');
+    assert(limit <= MAX_LIMIT_SHIFTED, 'SegPosLimitOF');
     let segment: u32 = limit / 251;
     let position: u8 = (limit % 251).try_into().unwrap();
     (segment, position)

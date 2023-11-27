@@ -5,6 +5,7 @@ use amm::types::core::{
     MarketInfo, MarketState, MarketConfigs, OrderBatch, Position, LimitInfo, LimitOrder,
     ERC721PositionInfo
 };
+use amm::types::i128::i128;
 use amm::types::i256::i256;
 
 #[starknet::interface]
@@ -68,7 +69,7 @@ trait IMarketManager<TContractState> {
     fn batch(self: @TContractState, batch_id: felt252) -> OrderBatch;
 
     // Get market liquidity.
-    fn liquidity(self: @TContractState, market_id: felt252) -> u256;
+    fn liquidity(self: @TContractState, market_id: felt252) -> u128;
 
     // Get market current limit.
     fn curr_limit(self: @TContractState, market_id: felt252) -> u32;
@@ -108,13 +109,13 @@ trait IMarketManager<TContractState> {
         market_id: felt252,
         lower_limit: u32,
         upper_limit: u32,
-        liquidity_delta: u256,
+        liquidity_delta: u128,
     ) -> (u256, u256);
 
     // Converts token amount to liquidity.
     fn amount_to_liquidity(
         self: @TContractState, market_id: felt252, is_bid: bool, limit: u32, amount: u256,
-    ) -> u256;
+    ) -> u128;
 
     // Returns information about ERC721 position.
     fn ERC721_position_info(self: @TContractState, token_id: felt252) -> ERC721PositionInfo;
@@ -173,7 +174,7 @@ trait IMarketManager<TContractState> {
         market_id: felt252,
         lower_limit: u32,
         upper_limit: u32,
-        liquidity_delta: i256,
+        liquidity_delta: i128,
     ) -> (i256, i256, u256, u256);
 
     // Create a new limit order.
@@ -192,7 +193,7 @@ trait IMarketManager<TContractState> {
         market_id: felt252,
         is_bid: bool,
         limit: u32,
-        liquidity_delta: u256,
+        liquidity_delta: u128,
     ) -> felt252;
 
     // Collect a limit order.

@@ -203,7 +203,7 @@ fn test_get_segment_and_position_cases() {
 
 #[test]
 #[available_gas(2000000000)]
-#[should_panic(expected: ('SegPosLimitOverflow',))]
+#[should_panic(expected: ('SegPosLimitOF',))]
 fn test_get_segment_and_position_overflow() {
     _get_segment_and_position(OFFSET + MAX_LIMIT + 1);
 }

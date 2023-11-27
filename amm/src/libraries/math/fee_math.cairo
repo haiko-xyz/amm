@@ -22,7 +22,7 @@ use amm::types::core::{LimitInfo, MarketState};
 // # Returns
 // * `fee` - The fee amount
 fn calc_fee(amount: u256, fee_rate: u16,) -> u256 {
-    assert(fee_rate <= MAX_FEE_RATE, 'FeeRateOverflow');
+    assert(fee_rate <= MAX_FEE_RATE, 'FeeRateOF');
     math::mul_div(amount, fee_rate.into(), MAX_FEE_RATE.into(), true)
 }
 
@@ -35,7 +35,7 @@ fn calc_fee(amount: u256, fee_rate: u16,) -> u256 {
 // # Returns
 // * `fee` - Fee amount
 fn net_to_fee(net_amount: u256, fee_rate: u16,) -> u256 {
-    assert(fee_rate <= MAX_FEE_RATE, 'FeeRateOverflow');
+    assert(fee_rate <= MAX_FEE_RATE, 'FeeRateOF');
     math::mul_div(net_amount, fee_rate.into(), MAX_FEE_RATE.into() - fee_rate.into(), false)
 }
 
@@ -48,7 +48,7 @@ fn net_to_fee(net_amount: u256, fee_rate: u16,) -> u256 {
 // # Returns
 // * `fee` - Fee amount
 fn net_to_gross(net_amount: u256, fee_rate: u16,) -> u256 {
-    assert(fee_rate <= MAX_FEE_RATE, 'FeeRateOverflow');
+    assert(fee_rate <= MAX_FEE_RATE, 'FeeRateOF');
     math::mul_div(net_amount, MAX_FEE_RATE.into(), MAX_FEE_RATE.into() - fee_rate.into(), false)
 }
 
@@ -62,7 +62,7 @@ fn net_to_gross(net_amount: u256, fee_rate: u16,) -> u256 {
 // # Returns
 // * `gross_amount` - Amount gross of fees
 fn gross_to_net(gross_amount: u256, fee_rate: u16) -> u256 {
-    assert(fee_rate <= MAX_FEE_RATE, 'FeeRateOverflow');
+    assert(fee_rate <= MAX_FEE_RATE, 'FeeRateOF');
     math::mul_div(gross_amount, (MAX_FEE_RATE - fee_rate).into(), MAX_FEE_RATE.into(), false)
 }
 
@@ -134,8 +134,8 @@ fn get_fee_inside(
         - I256Trait::new(position.base_fee_factor_last, false);
     let quote_diff = I256Trait::new(quote_fee_factor_inside, false)
         - I256Trait::new(position.quote_fee_factor_last, false);
-    let base_fees = math::mul_div(base_diff.val, position.liquidity, ONE, false);
-    let quote_fees = math::mul_div(quote_diff.val, position.liquidity, ONE, false);
+    let base_fees = math::mul_div(base_diff.val, position.liquidity.into(), ONE, false);
+    let quote_fees = math::mul_div(quote_diff.val, position.liquidity.into(), ONE, false);
 
     // Return accrued fes and fee factors.
     (base_fees, quote_fees, base_fee_factor_inside, quote_fee_factor_inside)

@@ -10,23 +10,22 @@ use amm::types::core::{
     OrderBatch, LimitOrder, PackedMarketInfo, PackedMarketState, PackedLimitInfo, PackedPosition,
     PackedOrderBatch, PackedLimitOrder, PackedMarketConfigs
 };
-use amm::types::i256::I256Trait;
+use amm::types::i128::I128Trait;
 
 ////////////////////////////////
 // CONSTANTS
 ////////////////////////////////
 
 const TWO_POW_4: felt252 = 0x10;
-const TWO_POW_8: felt252 = 0x100;
-const TWO_POW_12: felt252 = 0x1000;
-const TWO_POW_13: felt252 = 0x2000;
-const TWO_POW_14: felt252 = 0x4000;
+const TWO_POW_5: felt252 = 0x20;
+const TWO_POW_6: felt252 = 0x40;
 const TWO_POW_16: felt252 = 0x10000;
-const TWO_POW_17: felt252 = 0x20000;
 const TWO_POW_32: felt252 = 0x100000000;
-const TWO_POW_44: felt252 = 0x100000000000;
+const TWO_POW_38: felt252 = 0x4000000000;
+const TWO_POW_48: felt252 = 0x1000000000000;
 const TWO_POW_64: felt252 = 0x10000000000000000;
 const TWO_POW_96: felt252 = 0x1000000000000000000000000;
+const TWO_POW_124: felt252 = 0x10000000000000000000000000000000;
 const TWO_POW_128: felt252 = 0x100000000000000000000000000000000;
 const TWO_POW_132: felt252 = 0x1000000000000000000000000000000000;
 const TWO_POW_136: felt252 = 0x10000000000000000000000000000000000;
@@ -87,34 +86,31 @@ impl MarketInfoStorePacking of StorePacking<MarketInfo, PackedMarketInfo> {
 
 impl MarketStateStorePacking of StorePacking<MarketState, PackedMarketState> {
     fn pack(value: MarketState) -> PackedMarketState {
-        let slab0: felt252 = (value.liquidity / TWO_POW_4.into()).try_into().unwrap();
-        let slab1: felt252 = (value.curr_sqrt_price / TWO_POW_4.into()).try_into().unwrap();
-        let slab2: felt252 = (value.base_fee_factor / TWO_POW_4.into()).try_into().unwrap();
-        let slab3: felt252 = (value.quote_fee_factor / TWO_POW_4.into()).try_into().unwrap();
+        let curr_sqrt_price: felt252 = value.curr_sqrt_price.try_into().expect('CurrSqrtPriceOF');
+        let base_fee_factor: felt252 = value.base_fee_factor.try_into().expect('BaseFeeFactorOF');
+        let quote_fee_factor: felt252 = value
+            .quote_fee_factor
+            .try_into()
+            .expect('QuoteFeeFactorOF');
 
-        let mut slab4: u256 = (value.liquidity % TWO_POW_4.into());
-        slab4 += (value.curr_sqrt_price % TWO_POW_4.into()) * TWO_POW_4.into();
-        slab4 += (value.base_fee_factor % TWO_POW_4.into()) * TWO_POW_8.into();
-        slab4 += (value.quote_fee_factor % TWO_POW_4.into()) * TWO_POW_12.into();
-        slab4 += value.protocol_share.into() * TWO_POW_16.into();
-        slab4 += value.curr_limit.into() * TWO_POW_32.into();
+        let mut slab0: u256 = value.protocol_share.into();
+        slab0 += value.curr_limit.into() * TWO_POW_16.into();
+        slab0 += value.liquidity.into() * TWO_POW_48.into();
 
-        PackedMarketState { slab0, slab1, slab2, slab3, slab4: slab4.try_into().unwrap(), }
+        PackedMarketState {
+            curr_sqrt_price, base_fee_factor, quote_fee_factor, slab0: slab0.try_into().unwrap(),
+        }
     }
 
     fn unpack(value: PackedMarketState) -> MarketState {
-        let liquidity: u256 = value.slab0.into() * TWO_POW_4.into()
-            + (value.slab4.into() & MASK_4.into());
-        let curr_sqrt_price: u256 = value.slab1.into() * TWO_POW_4.into()
-            + ((value.slab4.into() / TWO_POW_4.into()) & MASK_4.into());
-        let base_fee_factor: u256 = value.slab2.into() * TWO_POW_4.into()
-            + ((value.slab4.into() / TWO_POW_8.into()) & MASK_4.into());
-        let quote_fee_factor: u256 = value.slab3.into() * TWO_POW_4.into()
-            + ((value.slab4.into() / TWO_POW_12.into()) & MASK_4.into());
-        let protocol_share: u16 = ((value.slab4.into() / TWO_POW_16.into()) & MASK_16.into())
+        let curr_sqrt_price: u256 = value.curr_sqrt_price.into();
+        let base_fee_factor: u256 = value.base_fee_factor.into();
+        let quote_fee_factor: u256 = value.quote_fee_factor.into();
+        let protocol_share: u16 = (value.slab0.into() & MASK_16.into()).try_into().unwrap();
+        let curr_limit: u32 = ((value.slab0.into() / TWO_POW_16.into()) & MASK_32.into())
             .try_into()
             .unwrap();
-        let curr_limit: u32 = ((value.slab4.into() / TWO_POW_32.into()) & MASK_32.into())
+        let liquidity: u128 = ((value.slab0.into() / TWO_POW_48.into()) & MASK_128.into())
             .try_into()
             .unwrap();
 
@@ -188,36 +184,35 @@ impl MarketConfigsStorePacking of StorePacking<MarketConfigs, PackedMarketConfig
 
 impl LimitInfoStorePacking of StorePacking<LimitInfo, PackedLimitInfo> {
     fn pack(value: LimitInfo) -> PackedLimitInfo {
-        let slab0: felt252 = (value.liquidity / TWO_POW_4.into()).try_into().unwrap();
-        let slab1: felt252 = (value.liquidity_delta.val / TWO_POW_4.into()).try_into().unwrap();
-        let slab2: felt252 = (value.base_fee_factor / TWO_POW_4.into()).try_into().unwrap();
-        let slab3: felt252 = (value.quote_fee_factor / TWO_POW_4.into()).try_into().unwrap();
+        let base_fee_factor: felt252 = value.base_fee_factor.try_into().unwrap();
+        let quote_fee_factor: felt252 = value.quote_fee_factor.try_into().unwrap();
+        let mut slab0: u256 = value.liquidity.into();
+        slab0 += (value.liquidity_delta.val.into() % TWO_POW_124.into()) * TWO_POW_128.into();
 
-        let mut slab4: u256 = (value.liquidity % TWO_POW_4.into());
-        slab4 += (value.liquidity_delta.val % TWO_POW_4.into()) * TWO_POW_4.into();
-        slab4 += (value.base_fee_factor % TWO_POW_4.into()) * TWO_POW_8.into();
-        slab4 += (value.quote_fee_factor % TWO_POW_4.into()) * TWO_POW_12.into();
-        slab4 += bool_to_u256(value.liquidity_delta.sign) * TWO_POW_16.into();
-        slab4 += value.nonce.into() * TWO_POW_17.into();
+        let mut slab1: u256 = value.liquidity_delta.val.into() / TWO_POW_124.into();
+        slab1 += bool_to_u256(value.liquidity_delta.sign) * TWO_POW_4.into();
+        slab1 += value.nonce.into() * TWO_POW_5.into();
 
-        PackedLimitInfo { slab0, slab1, slab2, slab3, slab4: slab4.try_into().unwrap(), }
+        PackedLimitInfo {
+            base_fee_factor,
+            quote_fee_factor,
+            slab0: slab0.try_into().unwrap(),
+            slab1: slab1.try_into().unwrap(),
+        }
     }
 
     fn unpack(value: PackedLimitInfo) -> LimitInfo {
-        let liquidity: u256 = value.slab0.into() * TWO_POW_4.into()
-            + (value.slab4.into() & MASK_4.into());
-        let abs_liquidity_delta: u256 = value.slab1.into() * TWO_POW_4.into()
-            + ((value.slab4.into() / TWO_POW_4.into()) & MASK_4.into());
-        let base_fee_factor: u256 = value.slab2.into() * TWO_POW_4.into()
-            + ((value.slab4.into() / TWO_POW_8.into()) & MASK_4.into());
-        let quote_fee_factor: u256 = value.slab3.into() * TWO_POW_4.into()
-            + ((value.slab4.into() / TWO_POW_12.into()) & MASK_4.into());
-        let sign: bool = ((value.slab4.into() / TWO_POW_16.into()) & MASK_1) == 1;
-        let nonce: u128 = ((value.slab4.into() / TWO_POW_17.into()) & MASK_128).try_into().unwrap();
+        let base_fee_factor: u256 = value.base_fee_factor.into();
+        let quote_fee_factor: u256 = value.quote_fee_factor.into();
+        let liquidity: u128 = (value.slab0.into() & MASK_128).try_into().unwrap();
+        let abs_liquidity_delta: u256 = (value.slab0.into() / TWO_POW_128.into())
+            + (value.slab1.into() & MASK_4) * TWO_POW_124.into();
+        let sign: bool = ((value.slab1.into() / TWO_POW_4.into()) & MASK_1) == 1;
+        let nonce: u128 = ((value.slab1.into() / TWO_POW_5.into()) & MASK_128).try_into().unwrap();
 
         LimitInfo {
             liquidity,
-            liquidity_delta: I256Trait::new(abs_liquidity_delta, sign),
+            liquidity_delta: I128Trait::new(abs_liquidity_delta.try_into().unwrap(), sign),
             base_fee_factor,
             quote_fee_factor,
             nonce,
@@ -227,30 +222,30 @@ impl LimitInfoStorePacking of StorePacking<LimitInfo, PackedLimitInfo> {
 
 impl OrderBatchStorePacking of StorePacking<OrderBatch, PackedOrderBatch> {
     fn pack(value: OrderBatch) -> PackedOrderBatch {
-        let slab0: felt252 = (value.liquidity / TWO_POW_4.into()).try_into().unwrap();
-        let slab1: felt252 = (value.base_amount / TWO_POW_4.into()).try_into().unwrap();
-        let slab2: felt252 = (value.quote_amount / TWO_POW_4.into()).try_into().unwrap();
+        let mut slab0: u256 = value.base_amount.into();
+        slab0 += (value.quote_amount.into() % TWO_POW_124.into()) * TWO_POW_128.into();
 
-        let mut slab3: u256 = (value.liquidity % TWO_POW_4.into());
-        slab3 += (value.base_amount % TWO_POW_4.into()) * TWO_POW_4.into();
-        slab3 += (value.quote_amount % TWO_POW_4.into()) * TWO_POW_8.into();
-        slab3 += bool_to_u256(value.filled) * TWO_POW_12.into();
-        slab3 += bool_to_u256(value.is_bid) * TWO_POW_13.into();
-        slab3 += value.limit.into() * TWO_POW_14.into();
+        let mut slab1: u256 = value.quote_amount.into() / TWO_POW_124.into();
+        slab1 += bool_to_u256(value.filled) * TWO_POW_4.into();
+        slab1 += bool_to_u256(value.is_bid) * TWO_POW_5.into();
+        slab1 += value.limit.into() * TWO_POW_6.into();
+        slab1 += value.liquidity.into() * TWO_POW_38.into();
 
-        PackedOrderBatch { slab0, slab1, slab2, slab3: slab3.try_into().unwrap(), }
+        PackedOrderBatch { slab0: slab0.try_into().unwrap(), slab1: slab1.try_into().unwrap(), }
     }
 
     fn unpack(value: PackedOrderBatch) -> OrderBatch {
-        let liquidity: u256 = value.slab0.into() * TWO_POW_4.into()
-            + (value.slab3.into() & MASK_4.into());
-        let base_amount: u256 = value.slab1.into() * TWO_POW_4.into()
-            + ((value.slab3.into() / TWO_POW_4.into()) & MASK_4.into());
-        let quote_amount: u256 = value.slab2.into() * TWO_POW_4.into()
-            + ((value.slab3.into() / TWO_POW_8.into()) & MASK_4.into());
-        let filled: bool = ((value.slab3.into() / TWO_POW_12.into()) & MASK_1) == 1;
-        let is_bid: bool = ((value.slab3.into() / TWO_POW_13.into()) & MASK_1) == 1;
-        let limit: u32 = ((value.slab3.into() / TWO_POW_14.into()) & MASK_32).try_into().unwrap();
+        let base_amount: u128 = (value.slab0.into() & MASK_128).try_into().unwrap();
+        let quote_amount: u128 = (value.slab0.into() / TWO_POW_128.into()
+            + (value.slab1.into() & MASK_4.into()) * TWO_POW_124.into())
+            .try_into()
+            .unwrap();
+        let filled: bool = ((value.slab1.into() / TWO_POW_4.into()) & MASK_1) == 1;
+        let is_bid: bool = ((value.slab1.into() / TWO_POW_5.into()) & MASK_1) == 1;
+        let limit: u32 = ((value.slab1.into() / TWO_POW_6.into()) & MASK_32).try_into().unwrap();
+        let liquidity: u128 = ((value.slab1.into() / TWO_POW_38.into()) & MASK_128)
+            .try_into()
+            .unwrap();
 
         OrderBatch { liquidity, filled, limit, is_bid, base_amount, quote_amount, }
     }
@@ -258,32 +253,36 @@ impl OrderBatchStorePacking of StorePacking<OrderBatch, PackedOrderBatch> {
 
 impl PositionStorePacking of StorePacking<Position, PackedPosition> {
     fn pack(value: Position) -> PackedPosition {
-        let slab0: felt252 = value.market_id;
-        let slab1: felt252 = (value.liquidity / TWO_POW_4.into()).try_into().unwrap();
-        let slab2: felt252 = (value.base_fee_factor_last / TWO_POW_4.into()).try_into().unwrap();
-        let slab3: felt252 = (value.quote_fee_factor_last / TWO_POW_4.into()).try_into().unwrap();
+        let base_fee_factor_last: felt252 = value
+            .base_fee_factor_last
+            .try_into()
+            .expect('BaseFeeFactorLastOF');
+        let quote_fee_factor_last: felt252 = value
+            .quote_fee_factor_last
+            .try_into()
+            .expect('QuoteFeeFactorLastOF');
 
-        let mut slab4: u256 = (value.liquidity % TWO_POW_4.into());
-        slab4 += (value.base_fee_factor_last % TWO_POW_4.into()) * TWO_POW_4.into();
-        slab4 += (value.quote_fee_factor_last % TWO_POW_4.into()) * TWO_POW_8.into();
-        slab4 += (value.lower_limit.into()) * TWO_POW_12.into();
-        slab4 += (value.upper_limit.into()) * TWO_POW_44.into();
+        let mut slab0: u256 = value.lower_limit.into();
+        slab0 += value.upper_limit.into() * TWO_POW_32.into();
+        slab0 += value.liquidity.into() * TWO_POW_64.into();
 
-        PackedPosition { slab0, slab1, slab2, slab3, slab4: slab4.try_into().unwrap() }
+        PackedPosition {
+            market_id: value.market_id,
+            base_fee_factor_last,
+            quote_fee_factor_last,
+            slab0: slab0.try_into().unwrap()
+        }
     }
 
     fn unpack(value: PackedPosition) -> Position {
-        let market_id = value.slab0;
-        let liquidity: u256 = value.slab1.into() * TWO_POW_4.into()
-            + (value.slab4.into() & MASK_4.into());
-        let base_fee_factor_last: u256 = value.slab2.into() * TWO_POW_4.into()
-            + ((value.slab4.into() / TWO_POW_4.into()) & MASK_4.into());
-        let quote_fee_factor_last: u256 = value.slab3.into() * TWO_POW_4.into()
-            + ((value.slab4.into() / TWO_POW_8.into()) & MASK_4.into());
-        let lower_limit: u32 = ((value.slab4.into() / TWO_POW_12.into()) & MASK_32)
+        let market_id = value.market_id;
+        let base_fee_factor_last: u256 = value.base_fee_factor_last.into();
+        let quote_fee_factor_last: u256 = value.quote_fee_factor_last.into();
+        let lower_limit: u32 = (value.slab0.into() & MASK_32).try_into().unwrap();
+        let upper_limit: u32 = ((value.slab0.into() / TWO_POW_32.into()) & MASK_32)
             .try_into()
             .unwrap();
-        let upper_limit: u32 = ((value.slab4.into() / TWO_POW_44.into()) & MASK_128)
+        let liquidity: u128 = ((value.slab0.into() / TWO_POW_64.into()) & MASK_128)
             .try_into()
             .unwrap();
 
@@ -300,13 +299,11 @@ impl PositionStorePacking of StorePacking<Position, PackedPosition> {
 
 impl LimitOrderStorePacking of StorePacking<LimitOrder, PackedLimitOrder> {
     fn pack(value: LimitOrder) -> PackedLimitOrder {
-        PackedLimitOrder {
-            batch_id: value.batch_id, liquidity: value.liquidity.try_into().unwrap(),
-        }
+        PackedLimitOrder { batch_id: value.batch_id, liquidity: value.liquidity.into(), }
     }
 
     fn unpack(value: PackedLimitOrder) -> LimitOrder {
-        LimitOrder { batch_id: value.batch_id, liquidity: value.liquidity.into(), }
+        LimitOrder { batch_id: value.batch_id, liquidity: value.liquidity.try_into().unwrap(), }
     }
 }
 

@@ -6,7 +6,7 @@ use debug::PrintTrait;
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::interfaces::IQuoter::{IQuoterDispatcher, IQuoterDispatcherTrait};
-use amm::types::i256::{i256, I256Trait};
+use amm::types::i128::{i128, I128Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position, swap
 };
@@ -14,7 +14,7 @@ use amm::tests::cairo_test::helpers::{token::{deploy_token, fund, approve}, quot
 use amm::tests::common::params::{
     owner, alice, default_token_params, default_market_params, modify_position_params, swap_params
 };
-use amm::tests::common::utils::{to_e18, to_e28, encode_sqrt_price};
+use amm::tests::common::utils::{to_e18, to_e18_u128, to_e28, encode_sqrt_price};
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
@@ -133,7 +133,11 @@ fn test_quote_cases() {
     // Mint positions.
     set_contract_address(alice());
     let mut params = modify_position_params(
-        alice(), market_id, OFFSET + 749000, OFFSET + 750000, I256Trait::new(to_e18(100000), false),
+        alice(),
+        market_id,
+        OFFSET + 749000,
+        OFFSET + 750000,
+        I128Trait::new(to_e18_u128(100000), false),
     );
     modify_position(market_manager, params);
 

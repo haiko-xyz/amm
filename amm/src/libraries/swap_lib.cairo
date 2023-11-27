@@ -17,7 +17,7 @@ use amm::contracts::market_manager::MarketManager::{
 };
 use amm::contracts::market_manager::MarketManager::MarketManagerInternalTrait;
 use amm::types::core::{MarketState, PartialFillInfo};
-use amm::types::i256::I256Trait;
+use amm::types::i128::I128Trait;
 
 // Iteratively execute swap up to next initialised limit price.
 //
@@ -118,7 +118,7 @@ fn swap_iter(
     // accrued over swaps.
     if market_state.liquidity != 0 && fee_iter != 0 {
         let fee_factor = math::mul_div(
-            fee_iter - protocol_fee_iter, ONE, market_state.liquidity, false
+            fee_iter - protocol_fee_iter, ONE, market_state.liquidity.into(), false
         );
         if is_buy {
             market_state.quote_fee_factor += fee_factor;
@@ -236,7 +236,7 @@ fn swap_iter(
 fn compute_swap_amounts(
     curr_sqrt_price: u256,
     target_sqrt_price: u256,
-    liquidity: u256,
+    liquidity: u128,
     amount_rem: u256,
     fee_rate: u16,
     exact_input: bool,
@@ -246,19 +246,19 @@ fn compute_swap_amounts(
 
     // Calculate amounts in and out.
     // We round up amounts in and round down amounts out to prevent protocol insolvency.
-    let liquidity_i256 = I256Trait::new(liquidity, false);
+    let liquidity_i128 = I128Trait::new(liquidity, false);
     let mut amount_in = if is_buy {
-        liquidity_math::liquidity_to_quote(curr_sqrt_price, target_sqrt_price, liquidity_i256, true)
+        liquidity_math::liquidity_to_quote(curr_sqrt_price, target_sqrt_price, liquidity_i128, true)
     } else {
-        liquidity_math::liquidity_to_base(target_sqrt_price, curr_sqrt_price, liquidity_i256, true)
+        liquidity_math::liquidity_to_base(target_sqrt_price, curr_sqrt_price, liquidity_i128, true)
     }
         .val;
 
     let mut amount_out = if is_buy {
-        liquidity_math::liquidity_to_base(curr_sqrt_price, target_sqrt_price, liquidity_i256, false)
+        liquidity_math::liquidity_to_base(curr_sqrt_price, target_sqrt_price, liquidity_i128, false)
     } else {
         liquidity_math::liquidity_to_quote(
-            target_sqrt_price, curr_sqrt_price, liquidity_i256, false
+            target_sqrt_price, curr_sqrt_price, liquidity_i128, false
         )
     }
         .val;
@@ -291,11 +291,11 @@ fn compute_swap_amounts(
             } else {
                 if is_buy {
                     liquidity_math::liquidity_to_quote(
-                        curr_sqrt_price, next_sqrt_price, liquidity_i256, true
+                        curr_sqrt_price, next_sqrt_price, liquidity_i128, true
                     )
                 } else {
                     liquidity_math::liquidity_to_base(
-                        next_sqrt_price, curr_sqrt_price, liquidity_i256, true
+                        next_sqrt_price, curr_sqrt_price, liquidity_i128, true
                     )
                 }
                     .val
@@ -306,11 +306,11 @@ fn compute_swap_amounts(
             } else {
                 if is_buy {
                     liquidity_math::liquidity_to_base(
-                        curr_sqrt_price, next_sqrt_price, liquidity_i256, false
+                        curr_sqrt_price, next_sqrt_price, liquidity_i128, false
                     )
                 } else {
                     liquidity_math::liquidity_to_quote(
-                        next_sqrt_price, curr_sqrt_price, liquidity_i256, false
+                        next_sqrt_price, curr_sqrt_price, liquidity_i128, false
                     )
                 }
                     .val
@@ -340,7 +340,7 @@ fn compute_swap_amounts(
 // # Returns
 // * `next_sqrt_price` - next sqrt price
 fn next_sqrt_price_input(
-    curr_sqrt_price: u256, liquidity: u256, amount_in: u256, is_buy: bool,
+    curr_sqrt_price: u256, liquidity: u128, amount_in: u256, is_buy: bool,
 ) -> u256 {
     // Input validation.
     assert(curr_sqrt_price != 0, 'PriceZero');
@@ -349,8 +349,8 @@ fn next_sqrt_price_input(
     if is_buy {
         // Buy case: sqrt_price + amount * ONE / liquidity.
         // Round down to avoid overflow near max price.
-        let next = curr_sqrt_price + math::mul_div(amount_in, ONE, liquidity, false);
-        assert(next <= MAX_SQRT_PRICE, 'PriceOverflow');
+        let next = curr_sqrt_price + math::mul_div(amount_in, ONE, liquidity.into(), false);
+        assert(next <= MAX_SQRT_PRICE, 'PriceOF');
         next
     } else {
         // Sell case: switches between a more precise and less precise formula depending on overflow.
@@ -363,14 +363,14 @@ fn next_sqrt_price_input(
             // Case 1 (more precise): 
             // liquidity * sqrt_price / (liquidity + (amount_in * sqrt_price / ONE))
             let product = u256 { low: product.limb0, high: product.limb1 };
-            math::mul_div(liquidity, curr_sqrt_price, liquidity + product / ONE, true)
+            math::mul_div(liquidity.into(), curr_sqrt_price, liquidity.into() + product / ONE, true)
         } else {
             // Case 2 (less precise): 
             // liquidity * ONE / ((liquidity * ONE / sqrt_price) + amount_in)   
             math::mul_div(
-                liquidity,
+                liquidity.into(),
                 ONE,
-                math::mul_div(liquidity, ONE, curr_sqrt_price, false) + amount_in,
+                math::mul_div(liquidity.into(), ONE, curr_sqrt_price, false) + amount_in,
                 true
             )
         }
@@ -389,7 +389,7 @@ fn next_sqrt_price_input(
 // # Returns
 // * `next_sqrt_price` - next sqrt price
 fn next_sqrt_price_output(
-    curr_sqrt_price: u256, liquidity: u256, amount_out: u256, is_buy: bool,
+    curr_sqrt_price: u256, liquidity: u128, amount_out: u256, is_buy: bool,
 ) -> u256 {
     // Input validation.
     assert(curr_sqrt_price != 0, 'PriceZero');
@@ -400,12 +400,12 @@ fn next_sqrt_price_output(
         let product_wide: u512 = u256_wide_mul(amount_out, curr_sqrt_price);
         let product = math::mul_div(amount_out, curr_sqrt_price, ONE, true);
         assert(
-            product_wide.limb2 == 0 && product_wide.limb3 == 0 && liquidity > product,
-            'PriceOverflow'
+            product_wide.limb2 == 0 && product_wide.limb3 == 0 && liquidity.into() > product,
+            'PriceOF'
         );
-        math::mul_div(liquidity, curr_sqrt_price, liquidity - product, true)
+        math::mul_div(liquidity.into(), curr_sqrt_price, liquidity.into() - product, true)
     } else {
         // Sell case: sqrt_price - amount * ONE / liquidity
-        curr_sqrt_price - math::mul_div(amount_out, ONE, liquidity, true)
+        curr_sqrt_price - math::mul_div(amount_out, ONE, liquidity.into(), true)
     }
 }

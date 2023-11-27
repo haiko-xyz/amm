@@ -1,7 +1,7 @@
 // Local imports.
 use amm::libraries::constants::OFFSET;
 use amm::libraries::math::{fee_math, price_math, liquidity_math};
-use amm::types::i256::I256Trait;
+use amm::types::i128::I128Trait;
 use amm::contracts::market_manager::MarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::tests::snforge::helpers::{
@@ -11,7 +11,7 @@ use amm::tests::snforge::helpers::{
 use amm::tests::common::params::{
     owner, alice, treasury, token_params, default_market_params, default_token_params,
 };
-use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
+use amm::tests::common::utils::{to_e28, to_e18, to_e18_u128, encode_sqrt_price};
 
 // External imports.
 use snforge_std::{
@@ -75,7 +75,7 @@ fn test_modify_position_events() {
     let width = 1;
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let mut liquidity_delta = I256Trait::new(to_e18(10000), false);
+    let mut liquidity_delta = I128Trait::new(to_e18_u128(10000), false);
     let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
         .modify_position(market_id, lower_limit, upper_limit, liquidity_delta);
 
@@ -106,7 +106,7 @@ fn test_modify_position_events() {
         );
 
     // Collect fees should fire an event.
-    liquidity_delta = I256Trait::new(0, false);
+    liquidity_delta = I128Trait::new(0, false);
     let (base_amount_2, quote_amount_2, base_fees_2, quote_fees_2) = market_manager
         .modify_position(market_id, lower_limit, upper_limit, liquidity_delta);
     events_exp
@@ -134,7 +134,7 @@ fn test_modify_position_events() {
     market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity_delta);
 
     // Removing liquidity should fire an event.
-    liquidity_delta = I256Trait::new(to_e18(10000), true);
+    liquidity_delta = I128Trait::new(to_e18_u128(10000), true);
     let (base_amount_3, quote_amount_3, base_fees_3, quote_fees_3) = market_manager
         .modify_position(market_id, lower_limit, upper_limit, liquidity_delta);
     events_exp

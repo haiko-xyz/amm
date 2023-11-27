@@ -9,7 +9,7 @@ use amm::libraries::constants::{
 };
 use amm::libraries::math::fee_math;
 use amm::types::core::SwapParams;
-use amm::types::i256::I256Trait;
+use amm::types::i128::I128Trait;
 use amm::interfaces::{
     IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait},
     IStrategy::{IStrategyDispatcher, IStrategyDispatcherTrait},

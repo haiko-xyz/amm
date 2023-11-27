@@ -7,7 +7,7 @@ use amm::libraries::math::math;
 use amm::libraries::math::liquidity_math::{liquidity_to_base, liquidity_to_quote};
 use amm::libraries::swap_lib::{compute_swap_amounts, next_sqrt_price_input, next_sqrt_price_output};
 use amm::libraries::constants::ONE;
-use amm::types::i256::I256Trait;
+use amm::types::i128::I128Trait;
 use amm::tests::common::utils::approx_eq;
 
 // External imports.
@@ -121,14 +121,14 @@ fn test_next_sqrt_price_input_invariants(curr_sqrt_price: u128, liquidity: u128,
     }
 
     // Invariant 2
-    let liquidity_i256 = I256Trait::new(liquidity.into(), false);
+    let liquidity_i128 = I128Trait::new(liquidity.into(), false);
     if is_buy {
         let quote = liquidity_to_quote(
-            curr_sqrt_price.into(), next_sqrt_price, liquidity_i256, true
+            curr_sqrt_price.into(), next_sqrt_price, liquidity_i128, true
         );
         assert(amount_in.into() >= quote.val, 'Invariant 2b');
     } else {
-        let base = liquidity_to_base(next_sqrt_price, curr_sqrt_price.into(), liquidity_i256, true);
+        let base = liquidity_to_base(next_sqrt_price, curr_sqrt_price.into(), liquidity_i128, true);
         assert(amount_in.into() >= base.val, 'Invariant 2a');
     }
 }
@@ -171,15 +171,15 @@ fn test_next_sqrt_price_output_invariants(
     }
 
     // Invariant 2
-    let liquidity_i256 = I256Trait::new(liquidity.into(), false);
+    let liquidity_i128 = I128Trait::new(liquidity.into(), false);
     if is_buy {
         let base = liquidity_to_base(
-            curr_sqrt_price.into(), next_sqrt_price, liquidity_i256, false
+            curr_sqrt_price.into(), next_sqrt_price, liquidity_i128, false
         );
         assert(amount_out.into() <= base.val, 'Invariant 2a');
     } else {
         let quote = liquidity_to_quote(
-            next_sqrt_price, curr_sqrt_price.into(), liquidity_i256, false
+            next_sqrt_price, curr_sqrt_price.into(), liquidity_i128, false
         );
         assert(amount_out.into() <= quote.val, 'Invariant 2b');
     }

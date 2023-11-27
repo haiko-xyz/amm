@@ -84,8 +84,8 @@ fn modify_position(
   market_id: felt252,
   lower_limit: u32,
   upper_limit: u32,
-  liquidity_delta: i256,
-) -> (i256, i256, u256, u256);
+  liquidity_delta: i128,
+) -> (i128, i128, u256, u256);
 ```
 
 ### Collecting fees
@@ -223,13 +223,22 @@ The `MarketManager` contract can be upgraded by the contract `owner` via the `up
 
 ## Custom types
 
-We define custom `i32` and `i256` types plus accompanying math libaries as signed integers are not yet fully supported on Starknet.
+We define custom `i32`, `i128` and `i256` types plus accompanying math libaries as signed integers are not yet fully supported on Starknet.
 
 ### `i32`
 
 ```rust
 struct i32 {
   val: u32,
+  sign: bool
+}
+```
+
+### `i128`
+
+```rust
+struct i128 {
+  val: u128,
   sign: bool
 }
 ```

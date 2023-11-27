@@ -4,6 +4,7 @@ use starknet::ContractAddress;
 // Local imports.
 use amm::libraries::constants::OFFSET;
 use amm::libraries::math::{fee_math, price_math, liquidity_math};
+use amm::types::i128::I128Trait;
 use amm::types::i256::I256Trait;
 use amm::contracts::market_manager::MarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
@@ -14,7 +15,7 @@ use amm::tests::snforge::helpers::{
 use amm::tests::common::params::{
     owner, alice, treasury, token_params, default_market_params, default_token_params,
 };
-use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
+use amm::tests::common::utils::{to_e28, to_e28_u128, to_e18, to_e18_u128, encode_sqrt_price};
 
 // External imports.
 use snforge_std::{
@@ -79,14 +80,14 @@ fn test_collect_unfilled_order_events() {
     let width = 1;
     let is_bid = true;
     let limit = OFFSET - 1000;
-    let liquidity_delta = to_e18(10000);
+    let liquidity_delta = to_e18_u128(10000);
     let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity_delta);
     let order = market_manager.order(order_id);
 
     let amount = liquidity_math::liquidity_to_quote(
         price_math::limit_to_sqrt_price(limit, width),
         price_math::limit_to_sqrt_price(limit + width, width),
-        I256Trait::new(liquidity_delta, false),
+        I128Trait::new(liquidity_delta, false),
         true
     );
 
@@ -115,7 +116,7 @@ fn test_collect_unfilled_order_events() {
                             market_id,
                             lower_limit: limit,
                             upper_limit: limit + width,
-                            liquidity_delta: I256Trait::new(liquidity_delta, false),
+                            liquidity_delta: I128Trait::new(liquidity_delta, false),
                             base_amount: I256Trait::new(0, false),
                             quote_amount: amount,
                             base_fees: 0,
@@ -140,7 +141,7 @@ fn test_collect_unfilled_order_events() {
                             market_id,
                             lower_limit: limit,
                             upper_limit: limit + width,
-                            liquidity_delta: I256Trait::new(liquidity_delta, true),
+                            liquidity_delta: I128Trait::new(liquidity_delta, true),
                             base_amount: I256Trait::new(0, false),
                             quote_amount: I256Trait::new(quote_amount, true),
                             base_fees: 0,
@@ -181,14 +182,14 @@ fn test_collect_partially_filled_order_events() {
     let width = 1;
     let is_bid = true;
     let limit = OFFSET - 1000;
-    let liquidity_delta = to_e28(10000);
+    let liquidity_delta = to_e18_u128(10000);
     let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity_delta);
     let order = market_manager.order(order_id);
 
     let amount = liquidity_math::liquidity_to_quote(
         price_math::limit_to_sqrt_price(limit, width),
         price_math::limit_to_sqrt_price(limit + width, width),
-        I256Trait::new(liquidity_delta, false),
+        I128Trait::new(liquidity_delta, false),
         true
     );
 
@@ -203,7 +204,7 @@ fn test_collect_partially_filled_order_events() {
                             market_id,
                             lower_limit: limit,
                             upper_limit: limit + width,
-                            liquidity_delta: I256Trait::new(liquidity_delta, false),
+                            liquidity_delta: I128Trait::new(liquidity_delta, false),
                             base_amount: I256Trait::new(0, false),
                             quote_amount: amount,
                             base_fees: 0,
@@ -265,16 +266,6 @@ fn test_collect_partially_filled_order_events() {
     let lower_limit_info = market_manager.limit_info(market_id, limit);
     let upper_limit_info = market_manager.limit_info(market_id, limit + width);
 
-    let (base_fees, quote_fees, _, _) = fee_math::get_fee_inside(
-        position,
-        lower_limit_info,
-        upper_limit_info,
-        limit,
-        limit + width,
-        market_state.curr_limit,
-        market_state.base_fee_factor,
-        market_state.quote_fee_factor,
-    );
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
     spy
         .assert_emitted(
@@ -287,12 +278,12 @@ fn test_collect_partially_filled_order_events() {
                             market_id,
                             lower_limit: limit,
                             upper_limit: limit + width,
-                            liquidity_delta: I256Trait::new(liquidity_delta, true),
+                            liquidity_delta: I128Trait::new(liquidity_delta, true),
                             // base amount is different because fees are forfeited for partial fills
-                            base_amount: I256Trait::new(999993999999996772, true),
+                            base_amount: I256Trait::new(base_amount, true),
                             quote_amount: I256Trait::new(quote_amount, true),
-                            base_fees,
-                            quote_fees,
+                            base_fees: 150901948087303,
+                            quote_fees: 0,
                             is_limit_order: true,
                         }
                     )
@@ -329,14 +320,14 @@ fn test_collect_fully_filled_order_events() {
     let width = 1;
     let is_bid = true;
     let limit = OFFSET - 1000;
-    let liquidity_delta = to_e18(10000);
+    let liquidity_delta = to_e18_u128(10000);
     let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity_delta);
     let order = market_manager.order(order_id);
 
     let amount = liquidity_math::liquidity_to_quote(
         price_math::limit_to_sqrt_price(limit, width),
         price_math::limit_to_sqrt_price(limit + width, width),
-        I256Trait::new(liquidity_delta, false),
+        I128Trait::new(liquidity_delta, false),
         true
     );
 
@@ -351,7 +342,7 @@ fn test_collect_fully_filled_order_events() {
                             market_id,
                             lower_limit: limit,
                             upper_limit: limit + width,
-                            liquidity_delta: I256Trait::new(liquidity_delta, false),
+                            liquidity_delta: I128Trait::new(liquidity_delta, false),
                             base_amount: I256Trait::new(0, false),
                             quote_amount: amount,
                             base_fees: 0,
@@ -398,7 +389,7 @@ fn test_collect_fully_filled_order_events() {
                             market_id,
                             lower_limit: limit,
                             upper_limit: limit + width,
-                            liquidity_delta: I256Trait::new(liquidity_delta, true),
+                            liquidity_delta: I128Trait::new(liquidity_delta, true),
                             base_amount: I256Trait::new(base_amount_exp, true),
                             quote_amount: I256Trait::new(0, true),
                             base_fees: fees - protocol_fees,

@@ -7,7 +7,7 @@ use amm::libraries::math::fee_math::{
 };
 use amm::tests::common::utils::approx_eq;
 use amm::types::core::{LimitInfo, Position};
-use amm::types::i256::I256Zeroable;
+use amm::types::i128::I128Zeroable;
 
 ////////////////////////////////
 // TESTS - calc_fee
@@ -45,7 +45,7 @@ fn test_calc_fee() {
 }
 
 #[test]
-#[should_panic(expected: ('FeeRateOverflow',))]
+#[should_panic(expected: ('FeeRateOF',))]
 #[available_gas(2000000000)]
 fn test_calc_fee_overflow() {
     calc_fee(50000, 10001);
@@ -90,7 +90,7 @@ fn test_gross_to_net() {
 }
 
 #[test]
-#[should_panic(expected: ('FeeRateOverflow',))]
+#[should_panic(expected: ('FeeRateOF',))]
 #[available_gas(2000000000)]
 fn test_gross_to_net_overflow() {
     gross_to_net(50000, 10001);
@@ -132,14 +132,14 @@ fn test_net_to_gross() {
 }
 
 #[test]
-#[should_panic(expected: ('FeeRateOverflow',))]
+#[should_panic(expected: ('FeeRateOF',))]
 #[available_gas(2000000000)]
 fn test_net_to_gross_fee_rate_overflow() {
     net_to_gross(50000, 10001);
 }
 
 #[test]
-#[should_panic(expected: ('MulDivOverflow',))]
+#[should_panic(expected: ('MulDivOF',))]
 #[available_gas(2000000000)]
 fn test_net_to_gross_amount_overflow() {
     net_to_gross(BoundedU256::max(), 10);
@@ -190,7 +190,7 @@ fn test_net_to_fee() {
 }
 
 #[test]
-#[should_panic(expected: ('FeeRateOverflow',))]
+#[should_panic(expected: ('FeeRateOF',))]
 #[available_gas(2000000000)]
 fn test_net_to_fee_overflow() {
     net_to_fee(50000, 10001);
@@ -258,7 +258,7 @@ fn test_get_fee_inside_cases() {
 fn empty_limit_info() -> LimitInfo {
     LimitInfo {
         liquidity: 0,
-        liquidity_delta: I256Zeroable::zero(),
+        liquidity_delta: I128Zeroable::zero(),
         quote_fee_factor: 0,
         base_fee_factor: 0,
         nonce: 0,
