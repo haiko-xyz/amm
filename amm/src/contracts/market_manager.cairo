@@ -1803,7 +1803,7 @@ mod MarketManager {
             let mut amount_calc = 0;
             let mut swap_fees = 0;
             let mut protocol_fees = 0;
-            let mut filled_limits: Array<u32> = array![];
+            let mut filled_limits: Array<(u32, felt252)> = array![];
 
             // Execute swap.
             // Market state must be fetched here after strategy execution.
@@ -1881,9 +1881,11 @@ mod MarketManager {
             self.reserves.write(out_token, out_reserves - amount_out);
 
             // Handle fully filled limit orders. Must be done after state updates above.
-            order_lib::fill_limits(
-                ref self, market_id, market_info.width, fee_rate, filled_limits.span(),
-            );
+            if filled_limits.len() != 0 {
+                order_lib::fill_limits(
+                    ref self, market_id, market_info.width, fee_rate, filled_limits.span(),
+                );
+            }
 
             // Handle partially filled limit order. Must be done after state updates above.
             if partial_fill_info.is_some() {

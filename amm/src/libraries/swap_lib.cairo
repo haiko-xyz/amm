@@ -28,6 +28,7 @@ use amm::types::i128::I128Trait;
 // * `amount_calc` - amount out if exact input or amount in if exact output
 // * `swap_fees` - swap fees
 // * `protocol_fees` - protocol fees
+// * `filled_limits` - array of limits filled during swap execution, plus associated batch id
 // * `threshold_sqrt_price` - price threshold
 // * `fee_rate` - fee rate
 // * `width` - limit width
@@ -44,7 +45,7 @@ fn swap_iter(
     ref amount_calc: u256,
     ref swap_fees: u256,
     ref protocol_fees: u256,
-    ref filled_limits: Array<u32>,
+    ref filled_limits: Array<(u32, felt252)>,
     threshold_sqrt_price: Option<u256>,
     fee_rate: u16,
     width: u32,
@@ -131,11 +132,13 @@ fn swap_iter(
     if market_state.curr_sqrt_price == uncapped_target_sqrt_price {
         // Update fully filled limits.
         if amount_in_iter != 0 {
-            if is_buy {
-                filled_limits.append(start_limit);
-            } else {
-                filled_limits.append(target_limit);
-            };
+            let limit_to_fill = if is_buy { start_limit } else { target_limit };
+            let nonce = self.limit_info.read((market_id, limit_to_fill)).nonce;
+            let batch_id = id::batch_id(market_id, limit_to_fill, nonce);
+            let batch = self.batches.read(batch_id);
+            if batch.liquidity != 0 {
+                filled_limits.append((limit_to_fill, batch_id));
+            }
         }
 
         // Update fee factors.
