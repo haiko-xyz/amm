@@ -1049,6 +1049,7 @@ fn test_limit_orders_misc_actions() {
         );
 
     // Collect a partially filled ask order at 900.
+    set_contract_address(bob());
     let (base_collect_2, quote_collect_2) = market_manager.collect_order(market_id, ask_bob_900);
 
     // Collect unfilled order at 1000.
@@ -1176,3 +1177,17 @@ fn test_create_order_zero_liquidity() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
     market_manager.create_order(market_id, true, OFFSET - 10, 0);
 }
+
+#[test]
+#[available_gas(100000000)]
+#[should_panic(expected: ('OrderOwnerOnly', 'ENTRYPOINT_FAILED',))]
+fn test_collect_order_wrong_owner() {
+    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+
+    set_contract_address(alice());
+    let order_id = market_manager.create_order(market_id, true, OFFSET - 10, to_e18_u128(1));
+
+    set_contract_address(bob());
+    market_manager.collect_order(market_id, order_id);
+}
+
