@@ -79,7 +79,7 @@ mod MarketManager {
         positions: LegacyMap::<felt252, Position>,
         // Indexed by batch_id = hash(market_id: felt252, limit: u32, nonce: u128)
         batches: LegacyMap::<felt252, OrderBatch>,
-        // Indexed by order_id = hash(market_id: felt252, nonce: u128, owner: ContractAddress)
+        // Indexed by order_id = hash(batch_id: felt252, owner: ContractAddress)
         orders: LegacyMap::<felt252, LimitOrder>,
         // Next assignable swap id
         swap_id: u128,
@@ -742,9 +742,9 @@ mod MarketManager {
             // Fetch order and batch info.
             let mut limit_info = self.limit_info.read((market_id, limit));
             let caller = get_caller_address();
-            let order_id = id::order_id(market_id, limit, limit_info.nonce, caller);
             let mut batch_id = id::batch_id(market_id, limit, limit_info.nonce);
             let mut batch = self.batches.read(batch_id);
+            let order_id = id::order_id(batch_id, caller);
 
             // Create liquidity position. 
             // Note this step also transfers tokens from caller to contract.
@@ -837,6 +837,9 @@ mod MarketManager {
                     market_configs.collect_order.value, @market_info, 'CollectOrderDisabled'
                 );
             assert(order.liquidity != 0, 'OrderCollected');
+            let caller = get_caller_address();
+            let order_id_exp = id::order_id(order.batch_id, caller);
+            assert(order_id == order_id_exp, 'OrderOwnerOnly');
 
             // Calculate withdraw amounts. User's share of batch is calculated based on
             // the liquidity of their order relative to the total liquidity of the batch.
@@ -893,7 +896,6 @@ mod MarketManager {
 
             // Transfer tokens to caller.
             let market_info = self.market_info.read(market_id);
-            let caller = get_caller_address();
             if base_amount > 0 {
                 let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
                 base_token.transfer(caller, base_amount);

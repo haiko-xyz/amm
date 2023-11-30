@@ -21,9 +21,7 @@ struct BatchIdInfo {
 }
 
 struct OrderIdInfo {
-    market_id: felt252,
-    limit: u32,
-    nonce: u128,
+    batch_id: felt252,
     owner: ContractAddress,
 }
 
@@ -171,33 +169,19 @@ fn test_batch_id() {
 #[available_gas(1000000000)]
 fn test_order_id() {
     // Define base order.
-    let mut order = OrderIdInfo {
-        market_id: 123, limit: 1000, nonce: 18, owner: contract_address_const::<0x777>(),
-    };
-    let mut order_id = id::order_id(order.market_id, order.limit, order.nonce, order.owner);
+    let mut order = OrderIdInfo { batch_id: 123, owner: contract_address_const::<0x777>(), };
+    let mut order_id = id::order_id(order.batch_id, order.owner);
 
     // Vary market id.
-    order.market_id = 456;
+    order.batch_id = 456;
     let mut last_order_id = order_id;
-    order_id = id::order_id(order.market_id, order.limit, order.nonce, order.owner);
+    order_id = id::order_id(order.batch_id, order.owner);
     assert(order_id != last_order_id, 'Order id: market id');
-
-    // Vary limit.
-    order.limit = 2000;
-    last_order_id = order_id;
-    order_id = id::order_id(order.market_id, order.limit, order.nonce, order.owner);
-    assert(order_id != last_order_id, 'Order id: limit');
-
-    // Vary nonce.
-    order.nonce = 19;
-    last_order_id = order_id;
-    order_id = id::order_id(order.market_id, order.limit, order.nonce, order.owner);
-    assert(order_id != last_order_id, 'Order id: nonce');
 
     // Vary owner.
     order.owner = contract_address_const::<0x888>();
     last_order_id = order_id;
-    order_id = id::order_id(order.market_id, order.limit, order.nonce, order.owner);
+    order_id = id::order_id(order.batch_id, order.owner);
     assert(order_id != last_order_id, 'Order id: owner');
 }
 
