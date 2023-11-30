@@ -132,7 +132,11 @@ fn swap_iter(
     if market_state.curr_sqrt_price == uncapped_target_sqrt_price {
         // Update fully filled limits.
         if amount_in_iter != 0 {
-            let limit_to_fill = if is_buy { start_limit } else { target_limit };
+            let limit_to_fill = if is_buy {
+                start_limit
+            } else {
+                target_limit
+            };
             let nonce = self.limit_info.read((market_id, limit_to_fill)).nonce;
             let batch_id = id::batch_id(market_id, limit_to_fill, nonce);
             let batch = self.batches.read(batch_id);
