@@ -56,6 +56,18 @@ trait IMarketManager<TContractState> {
     // Get order info.
     fn order(self: @TContractState, order_id: felt252) -> LimitOrder;
 
+    // Get market id.
+    fn market_id(
+        self: @TContractState,
+        base_token: ContractAddress,
+        quote_token: ContractAddress,
+        width: u32,
+        strategy: ContractAddress,
+        swap_fee_rate: u16,
+        fee_controller: ContractAddress,
+        controller: ContractAddress,
+    ) -> felt252;
+
     // Get market info (immutable).
     fn market_info(self: @TContractState, market_id: felt252) -> MarketInfo;
 

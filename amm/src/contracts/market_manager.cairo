@@ -372,6 +372,22 @@ mod MarketManager {
             self.orders.read(order_id)
         }
 
+        fn market_id(
+            self: @ContractState,
+            base_token: ContractAddress,
+            quote_token: ContractAddress,
+            width: u32,
+            strategy: ContractAddress,
+            swap_fee_rate: u16,
+            fee_controller: ContractAddress,
+            controller: ContractAddress,
+        ) -> felt252 {
+            let market_info = MarketInfo {
+                base_token, quote_token, width, strategy, swap_fee_rate, fee_controller, controller,
+            };
+            id::market_id(market_info)
+        }
+
         fn market_info(self: @ContractState, market_id: felt252) -> MarketInfo {
             self.market_info.read(market_id)
         }
