@@ -384,7 +384,7 @@ trait IMarketManager<TContractState> {
     //
     // # Arguments
     // * `market_id` - market id
-    fn whitelist(ref self: TContractState, market_id: felt252);
+    fn whitelist(ref self: TContractState, market_ids: Array<felt252>);
 
     // Collect protocol fees.
     // Callable by owner only.

@@ -1356,24 +1356,33 @@ mod MarketManager {
             self.erc721._burn(position_id.into());
         }
 
-        // Whitelist a token for market creation.
+        // Whitelist tokens for market creation.
         // Callable by owner only.
         //
         // # Arguments
         // * `market_id` - market id
-        fn whitelist(ref self: ContractState, market_id: felt252) {
+        fn whitelist(ref self: ContractState, market_ids: Array<felt252>) {
             // Validate caller and inputs.
             self.assert_only_owner();
 
-            // Check not already whitelisted.
-            let whitelisted = self.whitelist.read(market_id);
-            assert(!whitelisted, 'AlreadyWhitelisted');
+            // Whitelist markets.
+            let mut i = 0;
+            loop {
+                if i == market_ids.len() {
+                    break;
+                }
+                // Check not already whitelisted.
+                let market_id = *market_ids.at(i);
+                let whitelisted = self.whitelist.read(market_id);
+                assert(!whitelisted, 'AlreadyWhitelisted');
 
-            // Update whitelist.
-            self.whitelist.write(market_id, true);
+                // Update whitelist.
+                self.whitelist.write(market_id, true);
 
-            // Emit event.
-            self.emit(Event::Whitelist(Whitelist { market_id }));
+                // Emit event.
+                self.emit(Event::Whitelist(Whitelist { market_id }));
+                i += 1;
+            }
         }
 
         // Collect protocol fees.
