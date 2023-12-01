@@ -1136,8 +1136,8 @@ mod MarketManager {
             let mut target_limits = ArrayTrait::<u32>::new();
             if market_info.strategy.is_non_zero() && !ignore_strategy {
                 let strategy = IStrategyDispatcher { contract_address: market_info.strategy };
-                let placed_positions = strategy.placed_positions();
-                let queued_positions = strategy.queued_positions();
+                let placed_positions = strategy.placed_positions(market_id);
+                let queued_positions = strategy.queued_positions(market_id);
                 quote_lib::populate_limits(
                     ref queued_deltas, ref target_limits, ref market_state, placed_positions, true
                 );
@@ -1783,6 +1783,7 @@ mod MarketManager {
             if market_info.strategy.is_non_zero() {
                 IStrategyDispatcher { contract_address: market_info.strategy }
                     .update_positions(
+                        market_id, 
                         SwapParams { is_buy, amount, exact_input, threshold_sqrt_price, deadline }
                     );
             }
@@ -1906,7 +1907,7 @@ mod MarketManager {
 
             // Execute strategy cleanup.
             if market_info.strategy.is_non_zero() && caller != market_info.strategy {
-                IStrategyDispatcher { contract_address: market_info.strategy }.cleanup();
+                IStrategyDispatcher { contract_address: market_info.strategy }.cleanup(market_id);
             }
 
             // Emit event.

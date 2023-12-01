@@ -1,4 +1,6 @@
-mod pragma_interfaces;
 mod replicating_strategy;
-mod mock_pragma_oracle;
+mod interface;
+mod types;
 mod spread_math;
+mod pragma;
+mod test;

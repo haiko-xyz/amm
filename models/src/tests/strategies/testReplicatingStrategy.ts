@@ -12,6 +12,7 @@ import {
 import { baseToLiquidity, liquidityToQuote, quoteToLiquidity } from "../../math/liquidityMath"
 import { computeSwapAmount, nextSqrtPriceAmountIn } from "../../libraries/swap"
 import { calcFee } from "../../math/feeMath"
+import { LOG_2_100001 } from "../../constants"
 
 type Position = {
   lowerLimit: number
@@ -78,7 +79,7 @@ const calcBidAsk = (
   let bidSpread = minSpread + bidDelta
   let askSpread = minSpread + askDelta
   let rawBidLimit = bidSpread > newLimit || currLimit < width ? 0 : Math.min(currLimit, newLimit - bidSpread)
-  let rawAskLimit = Math.min(Math.max(newLimit + width + askSpread, currLimit + width), Number(maxLimit(width)))
+  let rawAskLimit = Math.min(Math.max(newLimit + askSpread, currLimit + width), Number(maxLimit(width)))
 
   let bidLimit = rawBidLimit - (rawBidLimit % width)
   let askLimit = rawAskLimit + (rawAskLimit % width === 0 ? 0 : width - (rawAskLimit % width))
@@ -98,6 +99,16 @@ const deltaSpread = (maxDelta: number, baseAmount: Decimal.Value, quoteAmount: D
   const bidSpread = isBidDelta ? spread : new Decimal(0)
   const askSpread = isBidDelta ? new Decimal(0) : spread
   return { bidSpread, askSpread }
+}
+
+const rebalanceConditionMet = (currLimit: number, newLimit: number, isBuy: boolean, swapFeeRate: number) => {
+  let thresholdLimits = Decimal.log2(1 + swapFeeRate)
+    .div(LOG_2_100001)
+    .round()
+    .toNumber()
+  const rebalance = isBuy ? newLimit - currLimit > thresholdLimits : currLimit - newLimit > thresholdLimits
+  console.log({ currLimit, newLimit, thresholdLimits, rebalance })
+  return rebalance
 }
 
 // Tests
@@ -153,19 +164,25 @@ const testReplicatingStrategyUpdatePositions = () => {
   const width = 10
   let currLimit = Number(shiftLimit(741930, width))
   const startLimit = currLimit
-  let price = 1672.5
-  const newLimit = Number(priceToLimit(price, width))
+  let price = 1668.78
+  let newLimit = Number(priceToLimit(price, width))
   const maxDelta = 200
   const minSpread = 10
   const range = 20000
 
+  // Rebalancing condition.
+  if (rebalanceConditionMet(currLimit, newLimit, true, 0.003)) {
+    price = 1672.5
+    newLimit = Number(priceToLimit(price, width))
+  }
+
   // Deposit initial.
+  const isBuy = true
+  const swapFeeRate = 0.003
   const { bid, ask } = getBidAsk(maxDelta, baseAmount, quoteAmount, price, width, currLimit, newLimit, minSpread, range)
 
   // Execute swap.
   const swapAmount = 500000
-  const swapFeeRate = 0.003
-  const isBuy = true
   const netAmount = new Decimal(swapAmount).mul(1 - swapFeeRate)
   const nextSqrtPrice = nextSqrtPriceAmountIn(limitToSqrtPrice(ask.lowerLimit, width), ask.liquidity, netAmount, isBuy)
   currLimit = Number(sqrtPriceToLimit(nextSqrtPrice, width))
@@ -189,20 +206,28 @@ const testReplicatingStrategyMultipleSwaps = () => {
   const width = 10
   const currLimit = Number(shiftLimit(741930, width))
   const startLimit = currLimit
-  let price = 1632.775
-  const newLimit = Number(priceToLimit(price, width))
+  let price = 1667
+  let newLimit = Number(priceToLimit(price, width))
+  let oraclePrice = 1632.775
+  let oracleLimit = Number(priceToLimit(oraclePrice, width))
   const maxDelta = 200
   const minSpread = 10
   const range = 20000
+
+  // Check rebalancing condition.
+  let isBuy = true
+  const swapFeeRate = 0.003
+  if (rebalanceConditionMet(currLimit, oracleLimit, isBuy, swapFeeRate)) {
+    price = 1632.775
+    newLimit = Number(priceToLimit(price, width))
+  }
 
   // Deposit initial.
   const { bid, ask } = getBidAsk(maxDelta, baseAmount, quoteAmount, price, width, currLimit, newLimit, minSpread, range)
 
   // Execute swap 1.
   const swapAmount = 100
-  const swapFeeRate = 0.003
   const protocolShare = 0.002
-  let isBuy = true
   const netAmount = new Decimal(swapAmount).mul(1 - swapFeeRate)
   const nextSqrtPrice1 = nextSqrtPriceAmountIn(limitToSqrtPrice(ask.lowerLimit, width), ask.liquidity, netAmount, isBuy)
   const nextLimit1 = Number(sqrtPriceToLimit(nextSqrtPrice1, width))
@@ -230,6 +255,13 @@ const testReplicatingStrategyMultipleSwaps = () => {
   const baseAmount2 = new Decimal(baseAmount).sub(amountOut)
   const quoteAmount2 = new Decimal(quoteAmount).add(grossAmountIn1)
 
+  // Check rebalancing condition.
+  isBuy = false
+  if (rebalanceConditionMet(currLimit, oracleLimit, isBuy, swapFeeRate)) {
+    price = 1632.775
+    newLimit = Number(priceToLimit(price, width))
+  }
+
   // Execute swap 2.
   const { bid: bid2, ask: ask2 } = getBidAsk(
     maxDelta,
@@ -242,7 +274,6 @@ const testReplicatingStrategyMultipleSwaps = () => {
     minSpread,
     range
   )
-  isBuy = false
   const nextSqrtPrice2 = nextSqrtPriceAmountIn(
     limitToSqrtPrice(bid2.upperLimit, width),
     bid2.liquidity,
@@ -374,7 +405,7 @@ const testReplicatingStrategyWithdraw = () => {
   const baseAmountEnd = new Decimal(baseAmount).add(grossAmountInLessPfee)
   const quoteAmountEnd = new Decimal(quoteAmount).sub(amountOut)
 
-  const sharesWithdraw = new Decimal("357836860926552620905707312").div(1e18)
+  const sharesWithdraw = new Decimal(bidLiquidity).add(askLiquidity).div(2)
   const baseWithdraw = new Decimal(sharesWithdraw).mul(baseAmountEnd).div(shares)
   const quoteWithdraw = new Decimal(sharesWithdraw).mul(quoteAmountEnd).div(shares)
 

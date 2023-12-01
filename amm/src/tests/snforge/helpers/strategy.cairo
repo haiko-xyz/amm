@@ -20,10 +20,11 @@ fn initialise_strategy(
     owner: ContractAddress,
     name: felt252,
     symbol: felt252,
+    version: felt252,
     market_manager: ContractAddress,
     market_id: felt252
 ) {
     start_prank(CheatTarget::One(strategy.contract_address), owner);
-    strategy.initialise(name, symbol, market_manager, market_id,);
+    strategy.initialise(name, symbol, version, market_manager, market_id,);
     stop_prank(CheatTarget::One(strategy.contract_address));
 }

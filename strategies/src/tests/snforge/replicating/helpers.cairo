@@ -5,8 +5,8 @@ use starknet::testing::set_contract_address;
 
 // Local imports.
 use strategies::strategies::replicating::{
-    replicating_strategy::{ReplicatingStrategy, IReplicatingStrategyDispatcher},
-    mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
+    replicating_strategy::ReplicatingStrategy, interface::IReplicatingStrategyDispatcher,
+    test::mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
 };
 
 // External imports.
