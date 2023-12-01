@@ -121,7 +121,6 @@ mod ManualStrategy {
     #[constructor]
     fn constructor(ref self: ContractState, owner: ContractAddress) {
         self.owner.write(owner);
-
     }
 
     ////////////////////////////////

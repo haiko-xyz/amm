@@ -1783,7 +1783,7 @@ mod MarketManager {
             if market_info.strategy.is_non_zero() {
                 IStrategyDispatcher { contract_address: market_info.strategy }
                     .update_positions(
-                        market_id, 
+                        market_id,
                         SwapParams { is_buy, amount, exact_input, threshold_sqrt_price, deadline }
                     );
             }

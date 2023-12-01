@@ -64,11 +64,7 @@ fn before() -> (
     // Initialise strategy.
     strategy
         .initialise(
-            'Manual Strategy',
-            'MANU',
-            '1.0.0',
-            market_manager.contract_address,
-            market_id,
+            'Manual Strategy', 'MANU', '1.0.0', market_manager.contract_address, market_id,
         );
 
     // Fund owner with initial token balances and approve strategy and market manager as spenders.
