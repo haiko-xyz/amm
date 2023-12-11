@@ -5,8 +5,8 @@ use starknet::testing::set_contract_address;
 
 // Local imports.
 use strategies::strategies::replicating::{
-    replicating_strategy::{ReplicatingStrategy, IReplicatingStrategyDispatcher},
-    mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
+    replicating_strategy::ReplicatingStrategy, interface::IReplicatingStrategyDispatcher,
+    test::mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
 };
 
 // External imports.
@@ -19,8 +19,22 @@ fn deploy_mock_pragma_oracle(owner: ContractAddress,) -> IMockPragmaOracleDispat
     IMockPragmaOracleDispatcher { contract_address }
 }
 
-fn deploy_replicating_strategy(owner: ContractAddress,) -> IReplicatingStrategyDispatcher {
+fn deploy_replicating_strategy(
+    owner: ContractAddress,
+    market_manager: ContractAddress,
+    oracle: ContractAddress,
+    oracle_summary: ContractAddress,
+) -> IReplicatingStrategyDispatcher {
     let contract = declare('ReplicatingStrategy');
-    let contract_address = contract.deploy(@array![owner.into()]).unwrap();
+    let calldata = array![
+        owner.into(),
+        'Replicating',
+        'REPL',
+        '1.0.0',
+        market_manager.into(),
+        oracle.into(),
+        oracle_summary.into()
+    ];
+    let contract_address = contract.deploy(@calldata).unwrap();
     IReplicatingStrategyDispatcher { contract_address }
 }

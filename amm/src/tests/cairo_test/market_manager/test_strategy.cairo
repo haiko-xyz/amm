@@ -64,10 +64,7 @@ fn before() -> (
     // Initialise strategy.
     strategy
         .initialise(
-            'ETH-USDC Manual 1 0.3%',
-            'ETH-USDC MANU-1-0.3%',
-            market_manager.contract_address,
-            market_id,
+            'Manual Strategy', 'MANU', '1.0.0', market_manager.contract_address, market_id,
         );
 
     // Fund owner with initial token balances and approve strategy and market manager as spenders.
@@ -117,7 +114,7 @@ fn test_strategy() {
 
     // Check swap amounts and position.
     let placed_positions = IStrategyDispatcher { contract_address: strategy.contract_address }
-        .placed_positions();
+        .placed_positions(market_id);
     let bid = *placed_positions.at(0);
     let ask = *placed_positions.at(1);
 

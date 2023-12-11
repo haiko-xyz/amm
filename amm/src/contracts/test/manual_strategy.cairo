@@ -19,6 +19,7 @@ trait IManualStrategy<TContractState> {
         ref self: TContractState,
         name: felt252,
         symbol: felt252,
+        version: felt252,
         market_manager: ContractAddress,
         market_id: felt252,
     );
@@ -81,6 +82,7 @@ mod ManualStrategy {
         owner: ContractAddress,
         name: felt252,
         symbol: felt252,
+        version: felt252,
         market_manager: IMarketManagerDispatcher,
         market_id: felt252,
         // Strategy state
@@ -139,29 +141,29 @@ mod ManualStrategy {
             self.market_manager.read().contract_address
         }
 
-        // Get market id
-        fn market_id(self: @ContractState) -> felt252 {
-            self.market_id.read()
-        }
-
         // Get strategy name
-        fn strategy_name(self: @ContractState) -> felt252 {
+        fn name(self: @ContractState) -> felt252 {
             self.name.read()
         }
 
         // Get strategy symbol
-        fn strategy_symbol(self: @ContractState) -> felt252 {
+        fn symbol(self: @ContractState) -> felt252 {
             self.symbol.read()
         }
 
+        // Get strategy symbol
+        fn version(self: @ContractState) -> felt252 {
+            self.version.read()
+        }
+
         // Get placed positions.
-        fn placed_positions(self: @ContractState) -> Span<PositionInfo> {
+        fn placed_positions(self: @ContractState, market_id: felt252) -> Span<PositionInfo> {
             let mut positions = array![self.bid.read(), self.ask.read()];
             positions.span()
         }
 
         // Get queued positions.
-        fn queued_positions(self: @ContractState) -> Span<PositionInfo> {
+        fn queued_positions(self: @ContractState, market_id: felt252) -> Span<PositionInfo> {
             // Fetch strategy state.
             let mut bid = self.bid.read();
             let mut ask = self.ask.read();
@@ -222,7 +224,7 @@ mod ManualStrategy {
         }
 
         // Updates positions. Called by MarketManager upon swap.
-        fn update_positions(ref self: ContractState, params: SwapParams) {
+        fn update_positions(ref self: ContractState, market_id: felt252, params: SwapParams) {
             // Run checks
             let market_manager = self.market_manager.read();
             assert(get_caller_address() == market_manager.contract_address, 'OnlyMarketManager');
@@ -236,7 +238,7 @@ mod ManualStrategy {
             let mut ask = self.ask.read();
 
             // Fetch new bid and ask positions.
-            let queued_positions = self.queued_positions();
+            let queued_positions = self.queued_positions(market_id);
             let next_bid = *queued_positions.at(0);
             let next_ask = *queued_positions.at(1);
             let update_bid: bool = next_bid != bid;
@@ -299,10 +301,6 @@ mod ManualStrategy {
             self.bid.write(bid);
             self.ask.write(ask);
         }
-
-        fn cleanup(ref self: ContractState) {
-            return ();
-        }
     }
 
     #[external(v0)]
@@ -318,12 +316,14 @@ mod ManualStrategy {
             ref self: ContractState,
             name: felt252,
             symbol: felt252,
+            version: felt252,
             market_manager: ContractAddress,
             market_id: felt252,
         ) {
             self.assert_only_owner();
             self.name.write(name);
             self.symbol.write(symbol);
+            self.version.write(version);
             self
                 .market_manager
                 .write(IMarketManagerDispatcher { contract_address: market_manager });
