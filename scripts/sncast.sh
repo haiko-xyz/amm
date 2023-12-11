@@ -1,9 +1,11 @@
 # Set environment variables
 export STARKNET_RPC=https://starknet-goerli.g.alchemy.com/v2/KDQIvQ6ANSkhkuP-9WP0P6f_eJLW6kHj
-export DEPLOYER=0x01d589e33d4e8976725d62f8cb8bf99d1a1fb2789c79d76072625a4a556535d7
+# export DEPLOYER_OLD=0x01d589e33d4e8976725d62f8cb8bf99d1a1fb2789c79d76072625a4a556535d7
+export DEPLOYER=0x01c7df715e5f640e4eb0e0e56859dc861f1c714c19e032ce34d4ee495f64eddf
 export OWNER=0x2afc579c1a02e4e36b2717bb664bee705d749d581e150d1dd16311e3b3bb057
 export STARKNET_KEYSTORE=~/.starkli-wallets/deployer/testnet_deployer_keystore.json
-export STARKNET_ACCOUNT=~/.starkli-wallets/deployer/testnet_deployer_account_starkli.json
+# export STARKNET_ACCOUNT_OLD=~/.starkli-wallets/deployer/testnet_deployer_account_starkli.json
+export STARKNET_ACCOUNT=~/.starkli-wallets/deployer/testnet_deployer_account_starkli_2.json
 export PRAGMA_ORACLE=0x620a609f88f612eb5773a6f4084f7b33be06a6fed7943445aebce80d6a146ba
 
 # Declare contract classes
@@ -16,8 +18,11 @@ sncast --url $STARKNET_RPC --keystore $STARKNET_KEYSTORE --account $STARKNET_ACC
 
 
 # Deployments
-# Staging (24 Nov 2023)
-export MARKET_MANAGER_CLASS_HASH=0x2d37d8852150e3b97b9af0416f45f9ff5bf591c5c538b7494102b1e4a89b4d0
+# Staging (8 Dec 2023)
+export MARKET_MANAGER=
+
+# Staging (1 Dec 2023)
+export MARKET_MANAGER_CLASS_HASH=0x6fba1113794f5b96314f9bdcdde897d844142e22153d463a5d337ae11cea8a0
 
 # Staging (9 Nov 2023)
 export MARKET_MANAGER_CLASS_HASH=0x64247169ce4f624d0e8724a10a49e66e52a3eb74ec252b7a34b005fa6a70255
