@@ -126,8 +126,6 @@ mod ReplicatingStrategy {
     impl ERC20MetadataImpl = ERC20Component::ERC20MetadataImpl<ContractState>;
     impl ERC20InternalImpl = ERC20Component::InternalImpl<ContractState>;
 
-    use debug::PrintTrait;
-
     #[storage]
     struct Storage {
         // Immutables

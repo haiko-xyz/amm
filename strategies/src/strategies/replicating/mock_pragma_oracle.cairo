@@ -26,7 +26,6 @@ trait IMockPragmaOracle<TContractState> {
 #[starknet::contract]
 mod MockPragmaOracle {
     use super::IMockPragmaOracle;
-    use debug::PrintTrait;
 
     use strategies::strategies::replicating::pragma_interfaces::{
         PragmaPricesResponse, DataType, AggregationMode, SimpleDataType
