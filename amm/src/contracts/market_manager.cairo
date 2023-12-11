@@ -1904,12 +1904,7 @@ mod MarketManager {
             IERC20Dispatcher { contract_address: in_token }
                 .transfer_from(caller, contract, amount_in);
             IERC20Dispatcher { contract_address: out_token }.transfer(caller, amount_out);
-
-            // Execute strategy cleanup.
-            if market_info.strategy.is_non_zero() && caller != market_info.strategy {
-                IStrategyDispatcher { contract_address: market_info.strategy }.cleanup(market_id);
-            }
-
+            
             // Emit event.
             self
                 .emit(

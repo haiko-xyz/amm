@@ -301,10 +301,6 @@ mod ManualStrategy {
             self.bid.write(bid);
             self.ask.write(ask);
         }
-
-        fn cleanup(ref self: ContractState, market_id: felt252) {
-            return ();
-        }
     }
 
     #[external(v0)]

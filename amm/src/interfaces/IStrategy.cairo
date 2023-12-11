@@ -36,7 +36,4 @@ trait IStrategy<TContractState> {
     // Called by `MarketManager` before swap to replace `placed_positions` with `queued_positions`.
     // If the two lists are equal, no positions will be updated.
     fn update_positions(ref self: TContractState, market_id: felt252, params: SwapParams);
-
-    // Called by `MarketManager` after swap to execute any cleanup operations.
-    fn cleanup(ref self: TContractState, market_id: felt252);
 }

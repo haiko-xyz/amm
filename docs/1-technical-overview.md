@@ -37,7 +37,6 @@ trait IStrategy<TContractState> {
   fn queued_positions(self: @TContractState) -> Span<PositionInfo>;
   // External
   fn update_positions(ref self: TContractState, params: SwapParams);
-  fn cleanup(ref self: TContractState);
 }
 ```
 
@@ -115,7 +114,6 @@ If the market is deployed with a strategy, this complicates the call logic somew
 
 - The swap will first call the `update_positions()` function of the `Strategy` contract. This can include instructions to place or remove liquidity positions or limit orders from the market, which may involve further `modify_position` calls to the `MarketManager` contract.
 - Once executed, the call returns to the `MarketManager` context and executes the swap.
-- Finally, the `cleanup()` function of the `Strategy` contract is called to perform residual updates, if any.
 
 The diagram below summarises the execution flow:
 
