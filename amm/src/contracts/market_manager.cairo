@@ -1904,7 +1904,7 @@ mod MarketManager {
             IERC20Dispatcher { contract_address: in_token }
                 .transfer_from(caller, contract, amount_in);
             IERC20Dispatcher { contract_address: out_token }.transfer(caller, amount_out);
-            
+
             // Emit event.
             self
                 .emit(
