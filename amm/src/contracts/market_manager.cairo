@@ -79,7 +79,7 @@ mod MarketManager {
         positions: LegacyMap::<felt252, Position>,
         // Indexed by batch_id = hash(market_id: felt252, limit: u32, nonce: u128)
         batches: LegacyMap::<felt252, OrderBatch>,
-        // Indexed by order_id = hash(market_id: felt252, nonce: u128, owner: ContractAddress)
+        // Indexed by order_id = hash(batch_id: felt252, owner: ContractAddress)
         orders: LegacyMap::<felt252, LimitOrder>,
         // Next assignable swap id
         swap_id: u128,
@@ -370,6 +370,22 @@ mod MarketManager {
 
         fn order(self: @ContractState, order_id: felt252) -> LimitOrder {
             self.orders.read(order_id)
+        }
+
+        fn market_id(
+            self: @ContractState,
+            base_token: ContractAddress,
+            quote_token: ContractAddress,
+            width: u32,
+            strategy: ContractAddress,
+            swap_fee_rate: u16,
+            fee_controller: ContractAddress,
+            controller: ContractAddress,
+        ) -> felt252 {
+            let market_info = MarketInfo {
+                base_token, quote_token, width, strategy, swap_fee_rate, fee_controller, controller,
+            };
+            id::market_id(market_info)
         }
 
         fn market_info(self: @ContractState, market_id: felt252) -> MarketInfo {
@@ -742,9 +758,9 @@ mod MarketManager {
             // Fetch order and batch info.
             let mut limit_info = self.limit_info.read((market_id, limit));
             let caller = get_caller_address();
-            let order_id = id::order_id(market_id, limit, limit_info.nonce, caller);
             let mut batch_id = id::batch_id(market_id, limit, limit_info.nonce);
             let mut batch = self.batches.read(batch_id);
+            let order_id = id::order_id(batch_id, caller);
 
             // Create liquidity position. 
             // Note this step also transfers tokens from caller to contract.
@@ -837,6 +853,9 @@ mod MarketManager {
                     market_configs.collect_order.value, @market_info, 'CollectOrderDisabled'
                 );
             assert(order.liquidity != 0, 'OrderCollected');
+            let caller = get_caller_address();
+            let order_id_exp = id::order_id(order.batch_id, caller);
+            assert(order_id == order_id_exp, 'OrderOwnerOnly');
 
             // Calculate withdraw amounts. User's share of batch is calculated based on
             // the liquidity of their order relative to the total liquidity of the batch.
@@ -893,7 +912,6 @@ mod MarketManager {
 
             // Transfer tokens to caller.
             let market_info = self.market_info.read(market_id);
-            let caller = get_caller_address();
             if base_amount > 0 {
                 let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
                 base_token.transfer(caller, base_amount);
@@ -1338,24 +1356,33 @@ mod MarketManager {
             self.erc721._burn(position_id.into());
         }
 
-        // Whitelist a token for market creation.
+        // Whitelist tokens for market creation.
         // Callable by owner only.
         //
         // # Arguments
         // * `market_id` - market id
-        fn whitelist(ref self: ContractState, market_id: felt252) {
+        fn whitelist(ref self: ContractState, market_ids: Array<felt252>) {
             // Validate caller and inputs.
             self.assert_only_owner();
 
-            // Check not already whitelisted.
-            let whitelisted = self.whitelist.read(market_id);
-            assert(!whitelisted, 'AlreadyWhitelisted');
+            // Whitelist markets.
+            let mut i = 0;
+            loop {
+                if i == market_ids.len() {
+                    break;
+                }
+                // Check not already whitelisted.
+                let market_id = *market_ids.at(i);
+                let whitelisted = self.whitelist.read(market_id);
+                assert(!whitelisted, 'AlreadyWhitelisted');
 
-            // Update whitelist.
-            self.whitelist.write(market_id, true);
+                // Update whitelist.
+                self.whitelist.write(market_id, true);
 
-            // Emit event.
-            self.emit(Event::Whitelist(Whitelist { market_id }));
+                // Emit event.
+                self.emit(Event::Whitelist(Whitelist { market_id }));
+                i += 1;
+            }
         }
 
         // Collect protocol fees.
@@ -1804,7 +1831,7 @@ mod MarketManager {
             let mut amount_calc = 0;
             let mut swap_fees = 0;
             let mut protocol_fees = 0;
-            let mut filled_limits: Array<u32> = array![];
+            let mut filled_limits: Array<(u32, felt252)> = array![];
 
             // Execute swap.
             // Market state must be fetched here after strategy execution.
@@ -1882,9 +1909,11 @@ mod MarketManager {
             self.reserves.write(out_token, out_reserves - amount_out);
 
             // Handle fully filled limit orders. Must be done after state updates above.
-            order_lib::fill_limits(
-                ref self, market_id, market_info.width, fee_rate, filled_limits.span(),
-            );
+            if filled_limits.len() != 0 {
+                order_lib::fill_limits(
+                    ref self, market_id, market_info.width, fee_rate, filled_limits.span(),
+                );
+            }
 
             // Handle partially filled limit order. Must be done after state updates above.
             if partial_fill_info.is_some() {

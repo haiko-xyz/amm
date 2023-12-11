@@ -83,7 +83,7 @@ fn test_whitelist_not_owner() {
     let (market_manager, base_token, quote_token) = before();
 
     set_contract_address(alice());
-    market_manager.whitelist(123);
+    market_manager.whitelist(array![123]);
 }
 
 #[test]
@@ -99,5 +99,5 @@ fn test_whitelist_twice() {
     params.quote_token = quote_token.contract_address;
     let market_id = create_market(market_manager, params);
 
-    market_manager.whitelist(market_id);
+    market_manager.whitelist(array![market_id]);
 }

@@ -75,21 +75,17 @@ fn batch_id(market_id: felt252, limit: u32, nonce: u128,) -> felt252 {
 }
 
 // Compute order id.
-//   Poseidon(market_id, limit, nonce, owner)
+//   Poseidon(batch_id, owner)
 // 
 // # Arguments
-// * `market_id` - id of market where order is placed
-// * `limit` - limit ID where order is placed
-// * `nonce` - nonce of the order
+// * `batch_id` - id of batch where order is placed
 // * `owner` - owner of the order
 //
 // # Returns
 // * `order_id` - The order ID
-fn order_id(market_id: felt252, limit: u32, nonce: u128, owner: ContractAddress,) -> felt252 {
+fn order_id(batch_id: felt252, owner: ContractAddress,) -> felt252 {
     let mut input = ArrayTrait::<felt252>::new();
-    market_id.serialize(ref input);
-    limit.serialize(ref input);
-    nonce.serialize(ref input);
+    batch_id.serialize(ref input);
     owner.serialize(ref input);
     poseidon_hash_span(input.span())
 }

@@ -50,7 +50,7 @@ fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketP
     );
     let whitelisted = market_manager.is_whitelisted(market_id);
     if !whitelisted {
-        market_manager.whitelist(market_id);
+        market_manager.whitelist(array![market_id]);
     }
     market_manager
         .create_market(
