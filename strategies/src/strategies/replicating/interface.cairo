@@ -19,18 +19,22 @@ trait IReplicatingStrategy<TContractState> {
     fn ask(self: @TContractState, market_id: felt252) -> PositionInfo;
     fn base_reserves(self: @TContractState, market_id: felt252) -> u256;
     fn quote_reserves(self: @TContractState, market_id: felt252) -> u256;
+    fn user_deposits(self: @TContractState, market_id: felt252, owner: ContractAddress) -> u256;
+    fn total_deposits(self: @TContractState, market_id: felt252) -> u256;
+
     fn get_oracle_price(self: @TContractState, market_id: felt252) -> u256;
-    fn get_oracle_vol(self: @TContractState, market_id: felt252) -> u256;
+    // fn get_oracle_vol(self: @TContractState, market_id: felt252) -> u256;
     fn get_balances(self: @TContractState, market_id: felt252) -> (u256, u256);
     fn get_bid_ask(self: @TContractState, market_id: felt252) -> (u32, u32, u32, u32);
 
-    fn initialise(
+    fn add_market(
         ref self: TContractState,
         market_id: felt252,
         owner: ContractAddress,
         base_currency_id: felt252,
         quote_currency_id: felt252,
         pair_id: felt252,
+        max_oracle_dev: u32,
         min_spread: Limits,
         range: Limits,
         max_delta: u32,
@@ -45,7 +49,7 @@ trait IReplicatingStrategy<TContractState> {
     ) -> (u256, u256, u256);
     fn withdraw(ref self: TContractState, market_id: felt252, shares: u256) -> (u256, u256);
     fn collect_and_pause(ref self: TContractState, market_id: felt252);
-    fn change_strategy_params(
+    fn set_params(
         ref self: TContractState,
         market_id: felt252,
         min_spread: Limits,

@@ -11,10 +11,11 @@ use amm::types::core::PositionInfo;
 //    * `base` (u32) - base number of limits
 //    * `default_value` (u128) - the default volatility for the market
 //    * `multiplier` (u32) - sensitivity of number of limits to volatility (denominator of 10000)
+//    * `is_min_base` (bool) - whether number of limits is floored at `base` as minimum
 #[derive(Drop, Copy, Serde, PartialEq, starknet::Store)]
 enum Limits {
     Fixed: u32,
-    Vol: (u32, u128, u32),
+    Vol: (u32, u128, u32, bool),
 }
 
 #[derive(Drop, Copy, Serde, PartialEq, starknet::Store)]
@@ -39,6 +40,9 @@ struct OracleParams {
     quote_currency_id: felt252,
     // Pragma pair id
     pair_id: felt252,
+    // Oracle price guard - maximum difference in limits between oracle price and market price 
+    // before strategy is automatically paused
+    max_oracle_dev: u32,
 }
 
 #[derive(Drop, Copy, Serde, Default, starknet::Store)]

@@ -37,12 +37,6 @@ mod ReplicatingStrategy {
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
     ////////////////////////////////
-    // CONSTANTS
-    ///////////////////////////////
-
-    const DENOMINATOR: u256 = 10000;
-
-    ////////////////////////////////
     // STORAGE
     ///////////////////////////////
 
@@ -80,7 +74,7 @@ mod ReplicatingStrategy {
         // Indexed by market id
         total_deposits: LegacyMap::<felt252, u256>,
         // Indexed by (market_id: felt252, depositor: ContractAddress)
-        deposits: LegacyMap::<(felt252, ContractAddress), u256>,
+        user_deposits: LegacyMap::<(felt252, ContractAddress), u256>,
     }
 
     ////////////////////////////////
@@ -90,7 +84,7 @@ mod ReplicatingStrategy {
     #[event]
     #[derive(Drop, starknet::Event)]
     enum Event {
-        Initialise: Initialise,
+        AddMarket: AddMarket,
         Deposit: Deposit,
         Withdraw: Withdraw,
         UpdatePositions: UpdatePositions,
@@ -104,7 +98,7 @@ mod ReplicatingStrategy {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Initialise {
+    struct AddMarket {
         market_id: felt252
     }
 
@@ -151,6 +145,7 @@ mod ReplicatingStrategy {
         base_currency_id: felt252,
         quote_currency_id: felt252,
         pair_id: felt252,
+        max_oracle_dev: u32,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -228,22 +223,22 @@ mod ReplicatingStrategy {
 
     #[external(v0)]
     impl Strategy of IStrategy<ContractState> {
-        // Get market manager contract address
+        // Get market manager contract address.
         fn market_manager(self: @ContractState) -> ContractAddress {
             self.market_manager.read().contract_address
         }
 
-        // Get strategy name
+        // Get strategy name.
         fn name(self: @ContractState) -> felt252 {
             self.name.read()
         }
 
-        // Get strategy symbol
+        // Get strategy symbol.
         fn symbol(self: @ContractState) -> felt252 {
             self.symbol.read()
         }
 
-        // Get strategy version
+        // Get strategy version.
         fn version(self: @ContractState) -> felt252 {
             self.version.read()
         }
@@ -289,7 +284,7 @@ mod ReplicatingStrategy {
             // Calculate amount of new liquidity to add.
             // Token amounts rounded down as per convention when depositing liquidity.
             let base_amount = state.base_reserves + bid_base + ask_base;
-            let range = self.unpack_range(market_id, params.range, false, market_info.width);
+            let range = self._unpack_limits(params.range, market_id);
             let base_liquidity = if base_amount == 0 || next_ask_lower == 0 || next_ask_upper == 0 {
                 0
             } else {
@@ -338,36 +333,39 @@ mod ReplicatingStrategy {
                 return ();
             }
 
-            // Check LVR condition. If expected LVR from filling the swap at current price is lower
-            // than expected fees, then do not update position. We evaluate LVR at the current price
-            // (i.e. assuming 0 slippage) to be conservative, and to simplify calcs.
+            // Oracle price guard. 
+            // If oracle price and market price deviate by more than max threshold, pause strategy.
             let price = self.get_oracle_price(market_id);
             let width = market_manager.width(market_id);
             let curr_limit = market_manager.curr_limit(market_id);
-            let fee_rate = market_manager.swap_fee_rate(market_id);
+            let oracle_limit = price_math::price_to_limit(price, width, true);
+            let max_oracle_dev = self.oracle_params.read(market_id).max_oracle_dev;
+            if max(curr_limit, oracle_limit) - min(curr_limit, oracle_limit) >= max_oracle_dev {
+                self._collect_and_pause(market_id);
+            }
 
-            // Calculate threshold limits as log(1.00001, 1 + fee_rate)
+            // Run rebalancing condition. 
+            // If expected LVR from filling the swap at current price is lower than expected fees, 
+            // then do not update position. We evaluate LVR at the inside quote to simplify calculations.
+            // The inside quote is:
+            //   - max(curr price, ask lower price) if buying
+            //   - min(curr price, bid upper price) if selling
+            // LVR is calculated as:
+            //   - (oracle price / inside quote - 1) * amount if buying
+            //   - (inside quote / oracle price - 1) * amount if selling
+            // We rebalance only if LVR is greater than expected fees.
+            let fee_rate = market_manager.swap_fee_rate(market_id);
             let fee_rate_scaled = math::mul_div(fee_rate.into(), ONE, MAX_FEE_RATE.into(), false);
             let log2: u256 = price_math::_log2(ONE + fee_rate_scaled);
             let threshold_limits: u32 = (log2 / LOG2_1_00001).try_into().unwrap();
-            let oracle_limit = price_math::price_to_limit(price, width, true);
-
-            // Setup rebalancing condition.
             let rebalance = if params.is_buy {
                 oracle_limit > max(curr_limit, state.ask.lower_limit) + threshold_limits
             } else {
                 min(curr_limit, state.bid.upper_limit) > oracle_limit + threshold_limits
             };
-
-            // Update positions if condition fails.
             if rebalance {
                 self._update_positions(market_id);
             }
-        }
-
-        // Called by `MarketManager` after swap to execute any cleanup operations.
-        fn cleanup(ref self: ContractState, market_id: felt252) {
-            return ();
         }
     }
 
@@ -383,12 +381,12 @@ mod ReplicatingStrategy {
             self.strategy_owner.read(market_id)
         }
 
-        // Strategy owner
+        // Strategy parameters
         fn strategy_params(self: @ContractState, market_id: felt252) -> StrategyParams {
             self.strategy_params.read(market_id)
         }
 
-        // Strategy owner
+        // Strategy state
         fn strategy_state(self: @ContractState, market_id: felt252) -> StrategyState {
             self.strategy_state.read(market_id)
         }
@@ -423,6 +421,16 @@ mod ReplicatingStrategy {
             self.strategy_state.read(market_id).quote_reserves
         }
 
+        // Get user deposits for a given market.
+        fn user_deposits(self: @ContractState, market_id: felt252, owner: ContractAddress) -> u256 {
+            self.user_deposits.read((market_id, owner))
+        }
+
+        // Get total deposits for a given market.
+        fn total_deposits(self: @ContractState, market_id: felt252) -> u256 {
+            self.total_deposits.read(market_id)
+        }
+
         // Get price from oracle feed.
         // 
         // # Returns
@@ -443,28 +451,33 @@ mod ReplicatingStrategy {
         }
 
         // Get volatility from oracle feed.
+        // Note: checkpoints are not currently set by Pragma, so this will fail if called.
+        // For now, use fixed strategy params rather than variable ones.
+        // 
+        // # Arguments
+        // * `market_id` - market id
         // 
         // # Returns
         // * `volatility` - oracle volatility
-        fn get_oracle_vol(self: @ContractState, market_id: felt252) -> u256 {
-            let oracle_params = self.oracle_params.read(market_id);
-            let strategy_params = self.strategy_params.read(market_id);
-            let num_samples = 200; // limited by Starknet computation
-            let now = get_block_timestamp();
-            let start_tick = now - strategy_params.vol_period;
-            let end_tick = now;
-            let data_type = DataType::SpotEntry(oracle_params.pair_id);
-            let aggregation_mode = AggregationMode::Median(());
+        // fn get_oracle_vol(self: @ContractState, market_id: felt252) -> u256 {
+        //     let oracle_params = self.oracle_params.read(market_id);
+        //     let strategy_params = self.strategy_params.read(market_id);
+        //     let num_samples = 200; // limited by Starknet computation
+        //     let now = get_block_timestamp();
+        //     let start_tick = now - strategy_params.vol_period;
+        //     let end_tick = now;
+        //     let data_type = DataType::SpotEntry(oracle_params.pair_id);
+        //     let aggregation_mode = AggregationMode::Median(());
 
-            let oracle_summary = self.oracle_summary.read();
-            let (volatility, decimals) = oracle_summary
-                .calculate_volatility(
-                    data_type, start_tick, end_tick, num_samples, aggregation_mode
-                );
+        //     let oracle_summary = self.oracle_summary.read();
+        //     let (volatility, decimals) = oracle_summary
+        //         .calculate_volatility(
+        //             data_type, start_tick, end_tick, num_samples, aggregation_mode
+        //         );
 
-            let scaling_factor = math::pow(10, 28 - decimals.into());
-            volatility.into() * scaling_factor
-        }
+        //     let scaling_factor = math::pow(10, 28 - decimals.into());
+        //     volatility.into() * scaling_factor
+        // }
 
         // Get total tokens held in strategy, whether in reserves or in positions.
         // 
@@ -527,16 +540,15 @@ mod ReplicatingStrategy {
 
             // Calculate new bid and ask limits.
             let (base_amount, quote_amount) = self.get_balances(market_id);
-            let min_spread: u32 = self.unpack_range(market_id, params.min_spread, true, width);
-            let range: u32 = self.unpack_range(market_id, params.range, false, width);
+            let min_spread: u32 = self._unpack_limits(params.min_spread, market_id);
+            let range: u32 = self._unpack_limits(params.range, market_id);
             let inv_delta = spread_math::delta_spread(
-                params.max_delta, base_amount, quote_amount, price, width
+                params.max_delta, base_amount, quote_amount, price
             );
             spread_math::calc_bid_ask(curr_limit, limit, min_spread, range, inv_delta, width)
         }
 
-
-        // Initialise strategy.
+        // Initialise strategy for market.
         // At the moment, only callable by contract owner to prevent unwanted claiming of strategies. 
         //
         // # Arguments
@@ -545,18 +557,20 @@ mod ReplicatingStrategy {
         // * `base_currency_id` - base currency id for oracle
         // * `quote_currency_id` - quote currency id for oracle
         // * `pair_id` - pair id for oracle
+        // * `max_oracle_dev` - max deviation in limits between oracle and market price before strategy is automatically paused
         // * `min_spread` - minimum spread to between reference price and bid/ask price
         // * `range` - range parameter (width, in limits, of bid and ask liquidity positions)
         // * `max_delta` - max inv_delta parameter (additional single-sided spread based on portfolio imbalance)
-        // * `vol_period` - lookback period for calculating realised volatility (in seconds)
+        // * `vol_period` - lookback period for calculating realised volatility in seconds (or 0 if none)
         // * `allow_deposits` - whether deposits are allowed
-        fn initialise(
+        fn add_market(
             ref self: ContractState,
             market_id: felt252,
             owner: ContractAddress,
             base_currency_id: felt252,
             quote_currency_id: felt252,
             pair_id: felt252,
+            max_oracle_dev: u32,
             min_spread: Limits,
             range: Limits,
             max_delta: u32,
@@ -567,9 +581,8 @@ mod ReplicatingStrategy {
             self.assert_owner();
             let state = self.strategy_state.read(market_id);
             assert(!state.is_initialised, 'Initialised');
-            let width = self.market_manager.read().width(market_id);
-            let min_spread_u32 = self.unpack_range(market_id, min_spread, true, width);
-            let range_u32 = self.unpack_range(market_id, range, false, width);
+            let min_spread_u32 = self._unpack_limits(min_spread, market_id);
+            let range_u32 = self._unpack_limits(range, market_id);
             assert(range_u32 > 0, 'RangeZero');
 
             // Set strategy owner.
@@ -582,7 +595,9 @@ mod ReplicatingStrategy {
             self.strategy_params.write(market_id, strategy_params);
 
             // Set oracle params.
-            let oracle_params = OracleParams { base_currency_id, quote_currency_id, pair_id };
+            let oracle_params = OracleParams {
+                base_currency_id, quote_currency_id, pair_id, max_oracle_dev
+            };
             self.oracle_params.write(market_id, oracle_params);
 
             // Initialise strategy state.
@@ -591,12 +606,14 @@ mod ReplicatingStrategy {
             self.strategy_state.write(market_id, state);
 
             // Emit events.
-            self.emit(Event::Initialise(Initialise { market_id }));
+            self.emit(Event::AddMarket(AddMarket { market_id }));
 
             self
                 .emit(
                     Event::SetOracleParams(
-                        SetOracleParams { market_id, base_currency_id, quote_currency_id, pair_id }
+                        SetOracleParams {
+                            market_id, base_currency_id, quote_currency_id, pair_id, max_oracle_dev
+                        }
                     )
                 );
             self
@@ -671,7 +688,7 @@ mod ReplicatingStrategy {
 
             // Mint liquidity
             let shares: u256 = (state.bid.liquidity + state.ask.liquidity).into();
-            self.deposits.write((market_id, caller), shares);
+            self.user_deposits.write((market_id, caller), shares);
             self.total_deposits.write(market_id, shares);
             assert(base_amount >= state.base_reserves, 'BaseLeftover');
             assert(quote_amount >= state.quote_reserves, 'QuoteLeftover');
@@ -738,7 +755,7 @@ mod ReplicatingStrategy {
             self.strategy_state.write(market_id, state);
 
             // Update deposits.
-            self.deposits.write((market_id, caller), shares);
+            self.user_deposits.write((market_id, caller), shares);
             self.total_deposits.write(market_id, total_deposits + shares);
 
             // Emit event.
@@ -772,7 +789,7 @@ mod ReplicatingStrategy {
             assert(shares != 0, 'SharesZero');
             assert(shares <= total_deposits, 'SharesOF');
             let caller = get_caller_address();
-            let caller_deposits = self.deposits.read((market_id, caller));
+            let caller_deposits = self.user_deposits.read((market_id, caller));
             assert(caller_deposits >= shares, 'InsuffShares');
 
             // Fetch current market state
@@ -795,7 +812,7 @@ mod ReplicatingStrategy {
             let bid_liquidity_delta = math::mul_div(
                 state.bid.liquidity.into(), shares, total_deposits, false
             );
-            let bid_delta_i128 = bid_liquidity_delta.try_into().expect('BidLiquidityOF');
+            let bid_delta_i128 = bid_liquidity_delta.try_into().expect('BidLiqOF');
             state.bid.liquidity -= bid_delta_i128;
             let (bid_base_rem, bid_quote_rem, bid_base_fees, bid_quote_fees) = market_manager
                 .modify_position(
@@ -807,7 +824,7 @@ mod ReplicatingStrategy {
             let ask_liquidity_delta = math::mul_div(
                 state.ask.liquidity.into(), shares, total_deposits, false
             );
-            let ask_delta_i128 = ask_liquidity_delta.try_into().expect('AskLiquidityOF');
+            let ask_delta_i128 = ask_liquidity_delta.try_into().expect('AskLiqOF');
             state.ask.liquidity -= ask_delta_i128;
             let (ask_base_rem, ask_quote_rem, ask_base_fees, ask_quote_fees) = market_manager
                 .modify_position(
@@ -830,7 +847,7 @@ mod ReplicatingStrategy {
             state.quote_reserves += quote_fees_excess;
 
             // Burn shares.
-            self.deposits.write((market_id, caller), 0);
+            self.user_deposits.write((market_id, caller), 0);
             self.total_deposits.write(market_id, total_deposits - shares);
 
             // Transfer tokens to caller.
@@ -865,44 +882,10 @@ mod ReplicatingStrategy {
         }
 
         // Manually trigger contract to collect all outstanding positions and pause the contract.
-        // Only callable by contract owner.
+        // Only callable by strategy owner.
         fn collect_and_pause(ref self: ContractState, market_id: felt252) {
             self.assert_strategy_owner(market_id);
-            let mut state = self.strategy_state.read(market_id);
-            assert(state.is_initialised, 'NotInitialised');
-
-            let market_manager = self.market_manager.read();
-
-            if state.bid.liquidity != 0 {
-                let (bid_base, bid_quote, _, _) = market_manager
-                    .modify_position(
-                        market_id,
-                        state.bid.lower_limit,
-                        state.bid.upper_limit,
-                        I128Trait::new(state.bid.liquidity, true)
-                    );
-                state.base_reserves += bid_base.val;
-                state.quote_reserves += bid_quote.val;
-                state.bid = Default::default();
-            }
-            if state.ask.liquidity != 0 {
-                let (ask_base, ask_quote, _, _) = market_manager
-                    .modify_position(
-                        market_id,
-                        state.ask.lower_limit,
-                        state.ask.upper_limit,
-                        I128Trait::new(state.ask.liquidity, true)
-                    );
-                state.base_reserves += ask_base.val;
-                state.quote_reserves += ask_quote.val;
-                state.ask = Default::default();
-            }
-
-            // Commit state updates
-            state.is_paused = true;
-            self.strategy_state.write(market_id, state);
-
-            self.emit(Event::Pause(Pause { market_id }));
+            self._collect_and_pause(market_id);
         }
 
         // Change the parameters of the strategy.
@@ -913,7 +896,7 @@ mod ReplicatingStrategy {
         // * `max_delta` - max inv_delta parameter (additional single-sided spread based on portfolio imbalance)
         // * `vol_period` - lookback period for calculating realised volatility (in seconds)
         // * `allow_deposits` - whether deposits are allowed
-        fn change_strategy_params(
+        fn set_params(
             ref self: ContractState,
             market_id: felt252,
             min_spread: Limits,
@@ -1144,41 +1127,70 @@ mod ReplicatingStrategy {
             (state.bid, state.ask)
         }
 
-        // Unpack `Limits` enum into number of limits.
-        // If range is Fixed, it is taken as is. If range is Variable, the number of limits is computed as:
-        //    base * (vol / default_vol) * multiplier                   (if is_min_base = false)
-        //    base * max(vol, default_vol) / default_vol * multiplier   (if is_min_base = true)
-        //
+
+        // Internal function to fetch volatility and unpack limits.
+        // Note: Volatility-based limits are currently disabled as they are not fully supported by the oracle.
+        // 
         // # Arguments
+        // * `limits` - `Limits` enum to unpack
         // * `market_id` - market id
-        // * `range` - Limits enum defining parameters for number of limits
-        // * `is_min_base` - whether number of limits should be floored at `base` as minimum value 
-        // * `width` - width of market
-        fn unpack_range(
-            self: @ContractState, market_id: felt252, range: Limits, is_min_base: bool, width: u32
-        ) -> u32 {
-            match range {
-                Limits::Fixed(v) => v / width * width,
-                Limits::Vol((
-                    base, default_vol, multiplier
-                )) => {
-                    let vol = self.get_oracle_vol(market_id);
-                    let numerator = if is_min_base {
-                        max(vol, default_vol.into())
-                    } else {
-                        vol
-                    };
-                    let coefficient = math::mul_div(numerator, default_vol.into(), ONE, false);
-                    let total_multiplier = math::mul_div(
-                        coefficient, multiplier.into(), DENOMINATOR, false
-                    );
-                    let limit = min(
-                        math::mul_div(base.into(), total_multiplier, ONE, false),
-                        price_math::max_limit(width).into()
-                    );
-                    (limit / width.into() * width.into()).try_into().unwrap()
+        //
+        // # Returns
+        // * `limits` - unpacked number of limits
+        fn _unpack_limits(self: @ContractState, limits: Limits, market_id: felt252) -> u32 {
+            match limits {
+                Limits::Fixed(x) => x,
+                Limits::Vol(_) => {
+                    assert(false, 'VolLimitsUnsupported');
+                    0
+                // let vol = self.get_oracle_vol(market_id);
+                // let width = self.market_manager.read().width(market_id);
+                // spread_math::unpack_limits(limits, vol, width)
                 }
             }
+        }
+
+        // Internal function to collect all outstanding positions and pause the contract.
+        // 
+        // # Arguments
+        // * `market_id` - market id
+        fn _collect_and_pause(ref self: ContractState, market_id: felt252) {
+            let mut state = self.strategy_state.read(market_id);
+            assert(state.is_initialised, 'NotInitialised');
+            assert(!state.is_paused, 'AlreadyPaused');
+
+            let market_manager = self.market_manager.read();
+
+            if state.bid.liquidity != 0 {
+                let (bid_base, bid_quote, _, _) = market_manager
+                    .modify_position(
+                        market_id,
+                        state.bid.lower_limit,
+                        state.bid.upper_limit,
+                        I128Trait::new(state.bid.liquidity, true)
+                    );
+                state.base_reserves += bid_base.val;
+                state.quote_reserves += bid_quote.val;
+                state.bid = Default::default();
+            }
+            if state.ask.liquidity != 0 {
+                let (ask_base, ask_quote, _, _) = market_manager
+                    .modify_position(
+                        market_id,
+                        state.ask.lower_limit,
+                        state.ask.upper_limit,
+                        I128Trait::new(state.ask.liquidity, true)
+                    );
+                state.base_reserves += ask_base.val;
+                state.quote_reserves += ask_quote.val;
+                state.ask = Default::default();
+            }
+
+            // Commit state updates
+            state.is_paused = true;
+            self.strategy_state.write(market_id, state);
+
+            self.emit(Event::Pause(Pause { market_id }));
         }
     }
 }

@@ -1,7 +1,7 @@
 // Core lib imports.
 use starknet::ContractAddress;
 use starknet::testing::set_contract_address;
-use integer::{BoundedU128, BoundedU256};
+use integer::{BoundedU32, BoundedU128, BoundedU256};
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_SCALED};
@@ -87,14 +87,15 @@ fn before() -> (
     params.strategy = strategy.contract_address;
     let market_id = create_market(market_manager, params);
 
-    // Initialise strategy.
+    // Add market to strategy.
     strategy
-        .initialise(
+        .add_market(
             market_id,
             owner,
             'ETH/USD',
             'USDC/USD',
             'ETH/USDC',
+            40000, // ~50% deviation
             Limits::Fixed(10), // ~0.01% min spread
             Limits::Fixed(20000), // ~20% range
             200, // ~0.2% delta
@@ -141,18 +142,17 @@ fn test_replicating_strategy_deposit_initial() {
     let initial_quote_amount = to_e18(1112520000);
     let (base_amount, quote_amount, shares) = strategy
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
-// let base_liquidity_exp = 429406775392817428992841450;
-// let quote_liquidity_exp = 286266946460287812818573174;
-// let shares_exp = quote_liquidity_exp + base_liquidity_exp;
+    let base_liquidity_exp = 429406775392817428992841450;
+    let quote_liquidity_exp = 286266946460287812818573174;
+    let shares_exp = quote_liquidity_exp + base_liquidity_exp;
 
-// assert(approx_eq(base_amount, initial_base_amount, 10), 'Deposit initial: base');
-// assert(approx_eq(quote_amount, initial_quote_amount, 10), 'Deposit initial: quote');
-// assert(approx_eq_pct(shares, shares_exp, 20), 'Deposit initial: shares');
-// let strategy_token = ERC20ABIDispatcher { contract_address: strategy.contract_address };
-// assert(
-//     approx_eq_pct(strategy_token.balance_of(owner()), shares_exp, 20),
-//     'Deposit initial: balance'
-// );
+    assert(approx_eq(base_amount, initial_base_amount, 10), 'Deposit initial: base');
+    assert(approx_eq(quote_amount, initial_quote_amount, 10), 'Deposit initial: quote');
+    assert(approx_eq_pct(shares, shares_exp, 20), 'Deposit initial: shares');
+    assert(
+        approx_eq_pct(strategy.user_deposits(market_id, owner()), shares_exp, 20),
+        'Deposit initial: balance'
+    );
 }
 
 #[test]
@@ -183,16 +183,15 @@ fn test_replicating_strategy_update_positions() {
 
     assert(bid.lower_limit == 7906620 + 721930, 'Bid: lower limit');
     assert(bid.upper_limit == 7906620 + 741930, 'Bid: upper limit');
-    assert(ask.lower_limit == 7906620 + 742040, 'Ask: lower limit');
-    assert(ask.upper_limit == 7906620 + 762040, 'Ask: upper limit');
+    assert(ask.lower_limit == 7906620 + 742050, 'Ask: lower limit');
+    assert(ask.upper_limit == 7906620 + 762050, 'Ask: upper limit');
     assert(approx_eq_pct(bid.liquidity.into(), 286266946460287812818573174, 20), 'Bid: liquidity');
-    assert(approx_eq_pct(ask.liquidity.into(), 429385305698142922274058535, 20), 'Ask: liquidity');
+    assert(approx_eq_pct(ask.liquidity.into(), 429406775392817428992841450, 20), 'Ask: liquidity');
     assert(
-        approx_eq(market_state.curr_sqrt_price, 408623810489007077093540842912, 100),
+        approx_eq(market_state.curr_sqrt_price, 408644240927203282685139153875, 100),
         'Market: curr sqrt price'
     );
-    market_state.curr_limit.print();
-    assert(market_state.curr_limit == 7906620 + 742045, 'Market: curr sqrt price');
+    assert(market_state.curr_limit == 7906620 + 742055, 'Market: curr sqrt price');
 }
 
 #[test]
@@ -286,9 +285,9 @@ fn test_replicating_strategy_deposit() {
     let state = strategy.strategy_state(market_id);
 
     let bid_init_shares_exp = 286266946460287812818573174;
-    let ask_init_shares_exp = 429385305698142922274058535;
+    let ask_init_shares_exp = 429406775392817428992841450;
     let bid_new_shares_exp = 143133473230143906409286;
-    let ask_new_shares_exp = 214692652849071461137029;
+    let ask_new_shares_exp = 214703387696408714496420;
 
     assert(base_amount == base_amount_req, 'Deposit: base');
     assert(quote_amount == to_e18(556260), 'Deposit: quote');
@@ -319,9 +318,9 @@ fn test_replicating_strategy_withdraw() {
     let (amount_in, amount_out, fees) = market_manager
         .swap(market_id, false, amount, true, Option::None(()), Option::None(()), Option::None(()));
 
-    // // Withdraw from strategy.
-    let shares_init = 286266946460287812818573174 + 429385305698142922274058535;
-    let shares_req = 357826126079215367546315854;
+    // Withdraw from strategy.
+    let shares_init = 286266946460287812818573174 + 429406775392817428992841450;
+    let shares_req = 357836860926552620905707312;
     let (base_amount, quote_amount) = strategy.withdraw(market_id, shares_req);
     let market_state = market_manager.market_state(market_id);
     let state = strategy.strategy_state(market_id);
@@ -334,14 +333,14 @@ fn test_replicating_strategy_withdraw() {
     assert(amount_in == amount, 'Withdraw: amount in');
     assert(approx_eq_pct(amount_out, 8308093186237340625293077, 20), 'Withdraw: amount out');
     assert(fees == to_e18(15), 'Withdraw: fees');
-    assert(approx_eq_pct(base_amount, 502499984999999999999999, 20), 'Withdraw: base amount');
-    assert(approx_eq_pct(quote_amount, 552105953406881329687353460, 20), 'Withdraw: quote amount');
+    assert(approx_eq_pct(base_amount, 502499985000000000000000, 20), 'Withdraw: base amount');
+    assert(approx_eq_pct(quote_amount, 552105953406881329687353461, 20), 'Withdraw: quote amount');
     assert(
         approx_eq_pct(state.bid.liquidity.into(), 143133473230143906409286587, 20),
         'Withdraw: bid liquidity'
     );
     assert(
-        approx_eq_pct(state.ask.liquidity.into(), 214692652849071461137029267, 20),
+        approx_eq_pct(state.ask.liquidity.into(), 214703387696408714496420725, 20),
         'Withdraw: ask liquidity'
     );
     assert(approx_eq(state.base_reserves, 7485000000000000000, 10), 'Withdraw: base reserves');
@@ -377,6 +376,194 @@ fn test_replicating_strategy_collect_and_pause() {
     assert(
         approx_eq(state.quote_reserves, initial_quote_amount, 10), 'Collect pause: quote reserves'
     );
+}
+
+#[test]
+#[available_gas(1000000000)]
+#[should_panic(expected: ('DepositDisabled', 'ENTRYPOINT_FAILED'))]
+fn test_replicating_strategy_disable_deposits() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Set price.
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000);
+
+    // Deposit initial.
+    set_contract_address(owner());
+    let initial_base_amount = 1000000;
+    let initial_quote_amount = 1000000;
+    let (base_amount_init, quote_amount_init, shares_init) = strategy
+        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+
+    // Disable deposits.
+    let params = strategy.strategy_params(market_id);
+    strategy
+        .set_params(
+            market_id, params.min_spread, params.range, params.max_delta, params.vol_period, false
+        );
+
+    // Try to deposit.
+    set_contract_address(alice());
+    strategy.deposit(market_id, to_e18(500), to_e18(700000));
+}
+
+#[test]
+#[available_gas(1000000000)]
+fn test_replicating_strategy_reenable_deposits() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Set price.
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000);
+
+    // Deposit initial.
+    set_contract_address(owner());
+    let initial_base_amount = 1000000;
+    let initial_quote_amount = 1000000;
+    let (base_amount_init, quote_amount_init, shares_init) = strategy
+        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+
+    // Disable deposits.
+    let params = strategy.strategy_params(market_id);
+    strategy
+        .set_params(
+            market_id, params.min_spread, params.range, params.max_delta, params.vol_period, false
+        );
+
+    // Enable deposits.
+    strategy
+        .set_params(
+            market_id, params.min_spread, params.range, params.max_delta, params.vol_period, true
+        );
+
+    // Deposit.
+    set_contract_address(alice());
+    strategy.deposit(market_id, to_e18(500), to_e18(700000));
+}
+
+#[test]
+#[available_gas(1000000000)]
+fn test_replicating_strategy_oracle_guard() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Update price.
+    set_contract_address(owner());
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166800000000);
+
+    // Deposit initial.
+    let initial_base_amount = to_e18(1000000);
+    let initial_quote_amount = to_e18(1112520000);
+    let (base_amount, quote_amount, shares) = strategy
+        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+
+    // Lower price beyond threshold.
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 70000000000);
+
+    // Swap.
+    let amount = to_e18(500000);
+    market_manager
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Check strategy was paused and positions withdrawn.
+    assert(strategy.is_paused(market_id), 'Oracle guard: paused');
+    let bid = strategy.bid(market_id);
+    let ask = strategy.ask(market_id);
+    assert(bid.liquidity == 0, 'Oracle guard: bid liquidity');
+    assert(ask.liquidity == 0, 'Oracle guard: ask liquidity');
+
+    // Manually unpause and reset price.
+    strategy.unpause(market_id);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166800000000);
+
+    // Increase price beyond threshold.
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 340000000000);
+
+    // Swap.
+    market_manager
+        .swap(market_id, false, amount, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Check strategy was paused again and positions withdrawn.
+    assert(strategy.is_paused(market_id), 'Oracle guard: pause 2');
+}
+
+#[test]
+#[available_gas(1000000000)]
+fn test_replicating_strategy_lvr_rebalance_condition() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Update price.
+    set_contract_address(owner());
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166780000000);
+
+    // Deposit initial.
+    let initial_base_amount = to_e18(1000000);
+    let initial_quote_amount = to_e18(1112520000);
+    let (base_amount, quote_amount, shares) = strategy
+        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+
+    // Update price to within LVR rebalance threshold.
+    set_contract_address(owner());
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 167300000000);
+
+    let bid_before = strategy.bid(market_id);
+    let ask_before = strategy.ask(market_id);
+
+    // Swap and check positions not updated.
+    let amount = to_e18(500000);
+    market_manager
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+    let mut bid_after = strategy.bid(market_id);
+    let mut ask_after = strategy.ask(market_id);
+    assert(bid_before == bid_after, 'LVR rebalance: bid 1');
+    assert(ask_before == ask_after, 'LVR rebalance: ask 1');
+
+    // Update price again.
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166400000000);
+    market_manager
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+    bid_after = strategy.bid(market_id);
+    ask_after = strategy.ask(market_id);
+    assert(bid_before == bid_after, 'LVR rebalance: bid 2');
+    assert(ask_before == ask_after, 'LVR rebalance: ask 2');
+}
+
+#[test]
+#[available_gas(1000000000)]
+fn test_replicating_strategy_set_strategy_params() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(owner());
+    let params = strategy.strategy_params(market_id);
+    let min_spread = Limits::Fixed(0);
+    let range = Limits::Fixed(3000);
+    let max_delta = 0;
+    let vol_period = 0;
+    let allow_deposits = true;
+    strategy.set_params(market_id, min_spread, range, max_delta, vol_period, allow_deposits);
+
+    let params = strategy.strategy_params(market_id);
+    assert(params.min_spread == Limits::Fixed(0), 'Set params: min spread');
+    assert(params.range == Limits::Fixed(3000), 'Set params: range');
+    assert(params.max_delta == 0, 'Set params: max delta');
+    assert(params.vol_period == 0, 'Set params: vol period');
+    assert(params.allow_deposits == true, 'Set params: allow deposits');
+}
+
+#[test]
+#[available_gas(1000000000)]
+#[should_panic(expected: ('ParamsUnchanged', 'ENTRYPOINT_FAILED'))]
+fn test_replicating_strategy_set_strategy_params_unchanged() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(owner());
+    let params = strategy.strategy_params(market_id);
+    strategy
+        .set_params(
+            market_id,
+            params.min_spread,
+            params.range,
+            params.max_delta,
+            params.vol_period,
+            params.allow_deposits
+        );
 }
 
 fn swap_test_cases(width: u32) -> Array<SwapCase> {
@@ -422,40 +609,39 @@ fn swap_test_cases(width: u32) -> Array<SwapCase> {
         SwapCase {
             is_buy: true, exact_input: false, amount: 100000, threshold_sqrt_price: Option::None(())
         },
-    // // Large amount.
-    // TODO: Currently disabled as overflows liquidity. To fix tests.
-    // SwapCase {
-    //     is_buy: true,
-    //     exact_input: true,
-    //     amount: to_e18(100000),
-    //     threshold_sqrt_price: Option::Some(
-    //         price_math::limit_to_sqrt_price(7906620 + 746000, width)
-    //     )
-    // },
-    // SwapCase {
-    //     is_buy: false,
-    //     exact_input: true,
-    //     amount: to_e18(1000000000),
-    //     threshold_sqrt_price: Option::Some(
-    //         price_math::limit_to_sqrt_price(7906620 + 736000, width)
-    //     )
-    // },
-    // SwapCase {
-    //     is_buy: false,
-    //     exact_input: false,
-    //     amount: to_e18(1000000000),
-    //     threshold_sqrt_price: Option::Some(
-    //         price_math::limit_to_sqrt_price(7906620 + 734000, width)
-    //     )
-    // },
-    // SwapCase {
-    //     is_buy: true,
-    //     exact_input: false,
-    //     amount: to_e18(1000000000),
-    //     threshold_sqrt_price: Option::Some(
-    //         price_math::limit_to_sqrt_price(7906620 + 746000, width)
-    //     )
-    // }
+        // Large amount.
+        SwapCase {
+            is_buy: true,
+            exact_input: true,
+            amount: to_e18(100000),
+            threshold_sqrt_price: Option::Some(
+                price_math::limit_to_sqrt_price(7906620 + 760000, width)
+            )
+        },
+        SwapCase {
+            is_buy: false,
+            exact_input: true,
+            amount: to_e18(1000000000),
+            threshold_sqrt_price: Option::Some(
+                price_math::limit_to_sqrt_price(7906620 + 734000, width)
+            )
+        },
+        SwapCase {
+            is_buy: true,
+            exact_input: false,
+            amount: to_e18(1000000000),
+            threshold_sqrt_price: Option::Some(
+                price_math::limit_to_sqrt_price(7906620 + 760000, width)
+            )
+        },
+        SwapCase {
+            is_buy: false,
+            exact_input: false,
+            amount: to_e18(1000000000),
+            threshold_sqrt_price: Option::Some(
+                price_math::limit_to_sqrt_price(7906620 + 734000, width)
+            )
+        },
     ];
 
     cases
@@ -470,18 +656,14 @@ fn oracle_prices() -> Array<u128> {
         172500000000,
         174500000000,
         172800000000,
-        1728000,
-    // BoundedU128::max(),
-    // 256,
-    // 1,
-    // 123891238192312789312,
+        172800000000,
+        172800000000,
+        172800000000,
+        172800000000,
+        172800000000,
     ];
     prices
 }
-
-////////////////////////////////
-// TESTS
-////////////////////////////////
 
 #[test]
 #[available_gas(15000000000)]

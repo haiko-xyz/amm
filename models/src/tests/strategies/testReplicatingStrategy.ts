@@ -77,7 +77,7 @@ const calcBidAsk = (
   width: number
 ) => {
   let bidSpread = minSpread + bidDelta
-  let askSpread = minSpread + askDelta
+  let askSpread = minSpread + width + askDelta
   let rawBidLimit = bidSpread > newLimit || currLimit < width ? 0 : Math.min(currLimit, newLimit - bidSpread)
   let rawAskLimit = Math.min(Math.max(newLimit + askSpread, currLimit + width), Number(maxLimit(width)))
 
