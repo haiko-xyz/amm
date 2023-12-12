@@ -31,7 +31,7 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 ////////////////////////////////
 
 fn before(
-    return_funds: bool
+    fund_lp: bool, use_stealer: bool,
 ) -> (
     IMarketManagerDispatcher,
     ERC20ABIDispatcher,
@@ -51,7 +51,7 @@ fn before(
     let quote_token = deploy_token(quote_token_params);
 
     // Deploy loan receiver.
-    let loan_receiver = deploy_loan_receiver(market_manager.contract_address, return_funds);
+    let loan_receiver = deploy_loan_receiver(market_manager.contract_address, use_stealer);
 
     // Create market.
     let mut params = default_market_params();
@@ -67,8 +67,10 @@ fn before(
     fund(quote_token, alice(), initial_quote_amount);
     approve(base_token, alice(), market_manager.contract_address, initial_base_amount);
     approve(quote_token, alice(), market_manager.contract_address, initial_quote_amount);
-    fund(base_token, loan_receiver.contract_address, initial_base_amount);
-    fund(quote_token, loan_receiver.contract_address, initial_quote_amount);
+    if fund_lp {
+        fund(base_token, loan_receiver.contract_address, initial_base_amount);
+        fund(quote_token, loan_receiver.contract_address, initial_quote_amount);
+    }
 
     (market_manager, base_token, quote_token, market_id, loan_receiver)
 }
@@ -80,7 +82,7 @@ fn before(
 #[test]
 #[available_gas(1000000000)]
 fn test_flash_loan() {
-    let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true);
+    let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true, false);
 
     // Create position.
     set_contract_address(alice());
@@ -118,17 +120,17 @@ fn test_flash_loan() {
 #[should_panic(expected: ('LoanInsufficient', 'ENTRYPOINT_FAILED',))]
 #[available_gas(1000000000)]
 fn test_flash_loan_no_liquidity() {
-    let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true);
+    let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true, false);
 
     set_contract_address(loan_receiver.contract_address);
     market_manager.flash_loan(base_token.contract_address, 10000000000);
 }
 
 #[test]
-#[should_panic(expected: ('LoanNotReturned', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('u256_sub Overflow', 'ENTRYPOINT_FAILED', 'ENTRYPOINT_FAILED',))]
 #[available_gas(1000000000)]
-fn test_flash_loan_unreturned() {
-    let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(false);
+fn test_flash_loan_insufficient_balance() {
+    let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(false, false);
 
     // Create position.
     set_contract_address(alice());
@@ -138,16 +140,59 @@ fn test_flash_loan_unreturned() {
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
 
+    // Set flash loan fee.
+    set_contract_address(owner());
+    market_manager.set_flash_loan_fee(base_token.contract_address, 10);
+    market_manager.set_flash_loan_fee(quote_token.contract_address, 25);
+
     // Flash loan and don't return amount.
     set_contract_address(loan_receiver.contract_address);
     market_manager.flash_loan(base_token.contract_address, 10000000000);
 }
 
+// This test case tests a now patched attack vector using flash loans. Previously, a borrower
+// was able to borrow funds from the market and deposit the same funds as liquidity to the market.
+// Because the market implemented checks on its token balance before and after the loan, the borrower
+// was able to withdraw the borrowed funds without returning them. This is no longer possible as 
+// `flash_loan` now uses an explicit `transfer_from` operation to retrieve borrowed funds + fees.
+#[test]
+#[should_panic(
+    expected: (
+        'u256_sub Overflow',
+        'ENTRYPOINT_FAILED',
+        'ENTRYPOINT_FAILED',
+        'ENTRYPOINT_FAILED',
+        'ENTRYPOINT_FAILED'
+    )
+)]
+#[available_gas(1000000000)]
+fn test_flash_loan_stealer() {
+    let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true, true);
+
+    // Create position.
+    set_contract_address(alice());
+    let mut lower_limit = OFFSET - 10000;
+    let mut upper_limit = OFFSET + 10000;
+    let mut liquidity = I128Trait::new(to_e18_u128(10000), false);
+    let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
+    modify_position(market_manager, params);
+
+    // Set flash loan fee.
+    set_contract_address(owner());
+    market_manager.set_flash_loan_fee(base_token.contract_address, 10);
+    market_manager.set_flash_loan_fee(quote_token.contract_address, 25);
+
+    // Flash loan and try to deposit the amount as liquidity.
+    set_contract_address(loan_receiver.contract_address);
+    market_manager.flash_loan(base_token.contract_address, 10000000000);
+}
+
+
 #[test]
 #[should_panic(expected: ('LoanAmtZero', 'ENTRYPOINT_FAILED',))]
 #[available_gas(1000000000)]
 fn test_flash_loan_amount_zero() {
-    let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true);
+    let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true, false);
 
     set_contract_address(loan_receiver.contract_address);
     market_manager.flash_loan(base_token.contract_address, 0);
@@ -157,7 +202,7 @@ fn test_flash_loan_amount_zero() {
 #[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
 #[available_gas(1000000000)]
 fn test_set_flash_loan_fee_not_owner() {
-    let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true);
+    let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true, false);
 
     set_contract_address(loan_receiver.contract_address);
     market_manager.set_flash_loan_fee(base_token.contract_address, 10);

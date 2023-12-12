@@ -1286,21 +1286,20 @@ mod MarketManager {
             // Snapshot balance before. Check sufficient tokens to finance loan.
             let token_contract = IERC20Dispatcher { contract_address: token };
             let contract = get_contract_address();
-            let balance_before = token_contract.balance_of(contract);
-            assert(amount <= balance_before, 'LoanInsufficient');
+            let balance = token_contract.balance_of(contract);
+            assert(amount <= balance, 'LoanInsufficient');
 
             // Transfer tokens to caller.
             let borrower = get_caller_address();
             token_contract.transfer(borrower, amount);
 
-            // Ping callback function to return tokens.
+            // Ping callback function to execute actions.
             // Borrower must be smart contract that implements `ILoanReceiver` interface.
             ILoanReceiverDispatcher { contract_address: borrower }
                 .on_flash_loan(token, amount, fees);
 
-            // Check balances correctly returned.
-            let balance_after = token_contract.balance_of(contract);
-            assert(balance_after >= balance_before + fees, 'LoanNotReturned');
+            // Return balance with fees.
+            token_contract.transfer_from(borrower, contract, amount + fees);
 
             // Update reserves.
             let reserves = self.reserves.read(token);
