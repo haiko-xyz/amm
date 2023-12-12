@@ -111,7 +111,6 @@ mod MarketManager {
         MultiSwap: MultiSwap,
         FlashLoan: FlashLoan,
         Whitelist: Whitelist,
-        EnableConcentrated: EnableConcentrated,
         CollectProtocolFee: CollectProtocolFee,
         Sweep: Sweep,
         ChangeOwner: ChangeOwner,
@@ -216,11 +215,6 @@ mod MarketManager {
 
     #[derive(Drop, starknet::Event)]
     struct Whitelist {
-        market_id: felt252
-    }
-
-    #[derive(Drop, starknet::Event)]
-    struct EnableConcentrated {
         market_id: felt252
     }
 
