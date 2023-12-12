@@ -185,30 +185,30 @@ fn update_limit(
     limit_info
 }
 
+use debug::PrintTrait;
+
 // Get token amounts inside a position.
 //
 // # Arguments
-// * `market_id` - market id
 // * `position_id` - position id
-// * `lower_limit` - lower limit of position
-// * `upper_limit` - upper limit of position
 //
 // # Returns
 // * `base_amount` - base tokens in position, including accrued fees
 // * `quote_amount` - quote tokens in position, including accrued fees
-fn amounts_inside_position(
-    self: @ContractState,
-    market_id: felt252,
-    position_id: felt252,
-    lower_limit: u32,
-    upper_limit: u32,
-) -> (u256, u256) {
-    // Fetch state.
-    let market_state = self.market_state.read(market_id);
-    let market_info = self.market_info.read(market_id);
+fn amounts_inside_position(self: @ContractState, position_id: felt252,) -> (u256, u256) {
+    // Fetch position.
     let position = self.positions.read(position_id);
-    let lower_limit_info = self.limit_info.read((market_id, lower_limit));
-    let upper_limit_info = self.limit_info.read((market_id, upper_limit));
+
+    // Handle uninitialised position.
+    if position.market_id == 0 {
+        return (0, 0);
+    }
+
+    // Fetch market state.
+    let market_state = self.market_state.read(position.market_id);
+    let market_info = self.market_info.read(position.market_id);
+    let lower_limit_info = self.limit_info.read((position.market_id, position.lower_limit));
+    let upper_limit_info = self.limit_info.read((position.market_id, position.upper_limit));
 
     // Get fee factors and calculate accrued fees.
     let (base_fees, quote_fees, _, _) = fee_math::get_fee_inside(

@@ -70,7 +70,7 @@ impl MarketInfoStorePacking of StorePacking<MarketInfo, PackedMarketInfo> {
     fn unpack(value: PackedMarketInfo) -> MarketInfo {
         let slab0: u256 = value.slab0.into();
         let width: u32 = (slab0 & MASK_32).try_into().unwrap();
-        let swap_fee_rate: u16 = ((slab0 / MASK_32.into()) & MASK_16).try_into().unwrap();
+        let swap_fee_rate: u16 = ((slab0 / TWO_POW_32.into()) & MASK_16).try_into().unwrap();
 
         MarketInfo {
             base_token: value.base_token.try_into().unwrap(),

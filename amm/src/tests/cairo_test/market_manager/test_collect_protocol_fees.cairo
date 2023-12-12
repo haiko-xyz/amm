@@ -71,7 +71,7 @@ fn test_collect_protocol_fees() {
     set_contract_address(alice());
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let liquidity = I128Trait::new(to_e18_u128(100000), false);
+    let mut liquidity = I128Trait::new(to_e18_u128(100000), false);
     market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
 
     // Execute swap.
@@ -79,6 +79,11 @@ fn test_collect_protocol_fees() {
         .swap(
             market_id, true, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
         );
+
+    // LP collects fees.
+    set_contract_address(alice());
+    liquidity = I128Trait::new(to_e18_u128(100000), true);
+    market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
 
     // Collect protocol fees.
     set_contract_address(owner());
@@ -102,7 +107,7 @@ fn test_collect_protocol_fees_all_fees() {
     set_contract_address(alice());
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let liquidity = I128Trait::new(to_e18_u128(100000), false);
+    let mut liquidity = I128Trait::new(to_e18_u128(100000), false);
     market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
 
     // Execute swap.
@@ -110,6 +115,11 @@ fn test_collect_protocol_fees_all_fees() {
         .swap(
             market_id, true, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
         );
+
+    // LP collects fees.
+    set_contract_address(alice());
+    liquidity = I128Trait::new(to_e18_u128(100000), true);
+    market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
 
     // Collect protocol fees.
     set_contract_address(owner());

@@ -111,7 +111,6 @@ mod MarketManager {
         MultiSwap: MultiSwap,
         FlashLoan: FlashLoan,
         Whitelist: Whitelist,
-        EnableConcentrated: EnableConcentrated,
         CollectProtocolFee: CollectProtocolFee,
         Sweep: Sweep,
         ChangeOwner: ChangeOwner,
@@ -126,13 +125,21 @@ mod MarketManager {
 
     #[derive(Drop, starknet::Event)]
     struct CreateMarket {
+        #[key]
         market_id: felt252,
+        #[key]
         base_token: ContractAddress,
+        #[key]
         quote_token: ContractAddress,
+        #[key]
         width: u32,
+        #[key]
         strategy: ContractAddress,
+        #[key]
         swap_fee_rate: u16,
+        #[key]
         fee_controller: ContractAddress,
+        #[key]
         controller: ContractAddress,
         start_limit: u32,
         start_sqrt_price: u256,
@@ -140,36 +147,53 @@ mod MarketManager {
 
     #[derive(Drop, starknet::Event)]
     struct ModifyPosition {
+        #[key]
         caller: ContractAddress,
+        #[key]
         market_id: felt252,
+        #[key]
         lower_limit: u32,
+        #[key]
         upper_limit: u32,
+        #[key]
+        is_limit_order: bool,
         liquidity_delta: i128,
         base_amount: i256,
         quote_amount: i256,
         base_fees: u256,
         quote_fees: u256,
-        is_limit_order: bool,
     }
 
     #[derive(Drop, starknet::Event)]
     struct CreateOrder {
+        #[key]
         caller: ContractAddress,
+        #[key]
         market_id: felt252,
+        #[key]
         order_id: felt252,
+        #[key]
         limit: u32, // start limit
+        #[key]
         batch_id: felt252,
+        #[key]
         is_bid: bool,
         amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
     struct CollectOrder {
+        #[key]
         caller: ContractAddress,
+        #[key]
         market_id: felt252,
+        #[key]
         order_id: felt252,
+        #[key]
         limit: u32,
+        #[key]
         batch_id: felt252,
+        #[key]
         is_bid: bool,
         base_amount: u256,
         quote_amount: u256,
@@ -177,9 +201,13 @@ mod MarketManager {
 
     #[derive(Drop, starknet::Event)]
     struct MultiSwap {
+        #[key]
         caller: ContractAddress,
+        #[key]
         swap_id: u128,
+        #[key]
         in_token: ContractAddress,
+        #[key]
         out_token: ContractAddress,
         amount_in: u256,
         amount_out: u256,
@@ -187,70 +215,83 @@ mod MarketManager {
 
     #[derive(Drop, starknet::Event)]
     struct Swap {
+        #[key]
         caller: ContractAddress,
+        #[key]
         market_id: felt252,
+        #[key]
         is_buy: bool,
+        #[key]
         exact_input: bool,
+        #[key]
+        swap_id: u128,
         amount_in: u256,
         amount_out: u256,
         fees: u256,
         end_limit: u32, // final limit reached after swap
         end_sqrt_price: u256, // final sqrt price reached after swap
         market_liquidity: u128, // global liquidity after swap
-        swap_id: u128,
     }
 
     #[derive(Drop, starknet::Event)]
     struct FlashLoan {
+        #[key]
         borrower: ContractAddress,
+        #[key]
         token: ContractAddress,
         amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
     struct CollectProtocolFee {
+        #[key]
         receiver: ContractAddress,
+        #[key]
         token: ContractAddress,
         amount: u256
     }
 
     #[derive(Drop, starknet::Event)]
     struct Whitelist {
-        market_id: felt252
-    }
-
-    #[derive(Drop, starknet::Event)]
-    struct EnableConcentrated {
+        #[key]
         market_id: felt252
     }
 
     #[derive(Drop, starknet::Event)]
     struct Sweep {
+        #[key]
         receiver: ContractAddress,
+        #[key]
         token: ContractAddress,
         amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
     struct ChangeOwner {
+        #[key]
         old: ContractAddress,
+        #[key]
         new: ContractAddress
     }
 
     #[derive(Drop, starknet::Event)]
     struct ChangeFlashLoanFee {
+        #[key]
         token: ContractAddress,
         fee: u16,
     }
 
     #[derive(Drop, starknet::Event)]
     struct ChangeProtocolShare {
+        #[key]
         market_id: felt252,
         protocol_share: u16,
     }
 
     #[derive(Drop, starknet::Event)]
     struct SetMarketConfigs {
+        #[key]
+        market_id: felt252,
         min_lower: u32,
         max_lower: u32,
         min_upper: u32,
@@ -445,16 +486,8 @@ mod MarketManager {
         // * `position_id` - position id (see `id` library)
         // * `lower_limit` - lower limit of position
         // * `upper_limit` - upper limit of position
-        fn amounts_inside_position(
-            self: @ContractState,
-            market_id: felt252,
-            position_id: felt252,
-            lower_limit: u32,
-            upper_limit: u32,
-        ) -> (u256, u256) {
-            liquidity_lib::amounts_inside_position(
-                self, market_id, position_id, lower_limit, upper_limit
-            )
+        fn amounts_inside_position(self: @ContractState, position_id: felt252,) -> (u256, u256) {
+            liquidity_lib::amounts_inside_position(self, position_id)
         }
 
         // Returns the token amounts to be transferred for creating a liquidity position.
@@ -535,7 +568,7 @@ mod MarketManager {
             let position = self.positions.read(token_id);
             let market_info = self.market_info.read(position.market_id);
             let (base_amount, quote_amount) = liquidity_lib::amounts_inside_position(
-                self, position.market_id, token_id, position.lower_limit, position.upper_limit
+                self, token_id
             );
 
             ERC721PositionInfo {
@@ -659,6 +692,7 @@ mod MarketManager {
                     .emit(
                         Event::SetMarketConfigs(
                             SetMarketConfigs {
+                                market_id,
                                 min_lower: configs.limits.value.min_lower,
                                 max_lower: configs.limits.value.max_lower,
                                 min_upper: configs.limits.value.min_upper,
@@ -749,7 +783,10 @@ mod MarketManager {
             };
             self.enforce_status(config, @market_info, err_msg);
             if is_bid {
-                assert(limit < market_state.curr_limit, 'NotLimitOrder');
+                // In markets with `width` > 1, it is possible that the current limit lies
+                // between a width interval. Therefore, we need to check that the upper limit
+                // of the order, i.e. `limit + width`, is below the current limit.
+                assert(limit + market_info.width < market_state.curr_limit, 'NotLimitOrder');
             } else {
                 assert(limit > market_state.curr_limit, 'NotLimitOrder');
             }
@@ -1039,9 +1076,10 @@ mod MarketManager {
             amount_out
         }
 
-        // Obtain quote for a swap between tokens (returned as error message).
+        // Obtain quote for a swap between tokens (returned as panic message).
         // This is the safest way to obtain a quote as it does not rely on the strategy to
         // correctly report its queued and placed positions.
+        // The first entry in the returned array is 'Quote' to distinguish it from other errors.
         //
         // # Arguments
         // * `market_id` - market id
@@ -1050,7 +1088,7 @@ mod MarketManager {
         // * `exact_input` - true if `amount` is exact input, or false if exact output
         // * `threshold_sqrt_price` - maximum sqrt price to swap at for buys, minimum for sells
         // 
-        // # Returns (as error message)
+        // # Returns (as panic message)
         // * `amount` - amount out (if exact input) or amount in (if exact output)
         fn quote(
             ref self: ContractState,
@@ -1077,13 +1115,14 @@ mod MarketManager {
             } else {
                 amount_in
             };
-            // Return amount as error message.
-            assert(false, quote.try_into().unwrap());
+            // Return amount via panic.
+            panic(array!['quote', quote.low.into(), quote.high.into()]);
         }
 
         // Obtain quote for a swap across multiple markets in a multi-hop route.
         // Returned as error message. This is the safest way to obtain a quote as it does not rely on
         // the strategy to correctly report its queued and placed positions.
+        // The first entry in the returned array is 'quote_multiple' to distinguish it from other errors.
         // 
         // # Arguments
         // * `in_token` - in token address
@@ -1102,7 +1141,8 @@ mod MarketManager {
         ) {
             let amount_out = self
                 ._swap_multiple(in_token, out_token, amount, route, Option::None(()), true);
-            assert(false, amount_out.try_into().unwrap());
+            // Return amount via panic.
+            panic(array!['quote_multiple', amount_out.low.into(), amount_out.high.into()]);
         }
 
         // Obtain quote for a single swap.
@@ -1577,6 +1617,7 @@ mod MarketManager {
                 .emit(
                     Event::SetMarketConfigs(
                         SetMarketConfigs {
+                            market_id,
                             min_lower: new_configs.limits.value.min_lower,
                             max_lower: new_configs.limits.value.max_lower,
                             min_upper: new_configs.limits.value.min_upper,
@@ -1648,24 +1689,6 @@ mod MarketManager {
                 liquidity_lib::update_liquidity(
                 ref self, owner, @market_info, market_id, lower_limit, upper_limit, liquidity_delta
             );
-
-            // Calculate and update protocol fee amounts.
-            if base_fees > 0 || quote_fees > 0 {
-                let protocol_share: u256 = market_state.protocol_share.into();
-                let max_fee_rate: u256 = fee_math::MAX_FEE_RATE.into();
-                if base_fees > 0 {
-                    let mut base_protocol_fees = self.protocol_fees.read(market_info.base_token);
-                    base_protocol_fees +=
-                        math::mul_div(base_fees, protocol_share, max_fee_rate, false);
-                    self.protocol_fees.write(market_info.base_token, base_protocol_fees);
-                }
-                if quote_fees > 0 {
-                    let mut quote_protocol_fees = self.protocol_fees.read(market_info.quote_token);
-                    quote_protocol_fees +=
-                        math::mul_div(quote_fees, protocol_share, max_fee_rate, false);
-                    self.protocol_fees.write(market_info.quote_token, quote_protocol_fees);
-                }
-            }
 
             // Update reserves and transfer tokens.
             // That is, unless modifying liquidity as part of a limit order. In this case, do nothing

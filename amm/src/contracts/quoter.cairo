@@ -111,8 +111,11 @@ mod Quoter {
                     return 0;
                 },
                 Result::Err(error) => {
-                    let quote = *error.at(0);
-                    return quote.into();
+                    let quote_msg = *error.at(0);
+                    assert(quote_msg == 'quote', 'QuoteInvalid');
+                    let low: u128 = (*error.at(1)).try_into().expect('QuoteLowOF');
+                    let high: u128 = (*error.at(2)).try_into().expect('QuoteHighOF');
+                    u256 { low, high }
                 },
             }
         }
@@ -164,8 +167,11 @@ mod Quoter {
                     return 0;
                 },
                 Result::Err(error) => {
-                    let quote = *error.at(0);
-                    return quote.into();
+                    let quote_msg = *error.at(0);
+                    assert(quote_msg == 'quote_multiple', 'QuoteInvalid');
+                    let low: u128 = (*error.at(1)).try_into().expect('QuoteLowOF');
+                    let high: u128 = (*error.at(2)).try_into().expect('QuoteHighOF');
+                    u256 { low, high }
                 },
             }
         }

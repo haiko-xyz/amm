@@ -107,13 +107,7 @@ trait IMarketManager<TContractState> {
     fn protocol_fees(self: @TContractState, asset: ContractAddress) -> u256;
 
     // Snapshots base and quote token amounts accumulated inside position.
-    fn amounts_inside_position(
-        self: @TContractState,
-        market_id: felt252,
-        position_id: felt252,
-        lower_limit: u32,
-        upper_limit: u32,
-    ) -> (u256, u256);
+    fn amounts_inside_position(self: @TContractState, position_id: felt252,) -> (u256, u256);
 
     // Converts liquidity to base and quote token amounts.
     fn liquidity_to_amounts(
@@ -270,7 +264,10 @@ trait IMarketManager<TContractState> {
         deadline: Option<u64>,
     ) -> u256;
 
-    // Obtain quote for a swap between tokens (returned as error message).
+    // Obtain quote for a swap between tokens (returned as panic message).
+    // This is the safest way to obtain a quote as it does not rely on the strategy to
+    // correctly report its queued and placed positions.
+    // The first entry in the returned array is 'Quote' to distinguish it from other errors.
     //
     // # Arguments
     // * `market_id` - market id
@@ -279,7 +276,7 @@ trait IMarketManager<TContractState> {
     // * `exact_input` - true if `amount` is exact input, or false if exact output
     // * `threshold_sqrt_price` - maximum sqrt price to swap at for buys, minimum for sells
     // 
-    // # Returns (as error message)
+    // # Returns (as panic message)
     // * `amount` - amount out (if exact input) or amount in (if exact output)
     fn quote(
         ref self: TContractState,
@@ -291,7 +288,9 @@ trait IMarketManager<TContractState> {
     );
 
     // Obtain quote for a swap across multiple markets in a multi-hop route.
-    // Returned as error message.
+    // Returned as error message. This is the safest way to obtain a quote as it does not rely on
+    // the strategy to correctly report its queued and placed positions.
+    // The first entry in the returned array is 'quote_multiple' to distinguish it from other errors.
     // 
     // # Arguments
     // * `in_token` - in token address
