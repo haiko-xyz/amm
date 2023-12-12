@@ -1074,9 +1074,10 @@ mod MarketManager {
             amount_out
         }
 
-        // Obtain quote for a swap between tokens (returned as error message).
+        // Obtain quote for a swap between tokens (returned as panic message).
         // This is the safest way to obtain a quote as it does not rely on the strategy to
         // correctly report its queued and placed positions.
+        // The first entry in the returned array is 'Quote' to distinguish it from other errors.
         //
         // # Arguments
         // * `market_id` - market id
@@ -1085,7 +1086,7 @@ mod MarketManager {
         // * `exact_input` - true if `amount` is exact input, or false if exact output
         // * `threshold_sqrt_price` - maximum sqrt price to swap at for buys, minimum for sells
         // 
-        // # Returns (as error message)
+        // # Returns (as panic message)
         // * `amount` - amount out (if exact input) or amount in (if exact output)
         fn quote(
             ref self: ContractState,
@@ -1112,13 +1113,14 @@ mod MarketManager {
             } else {
                 amount_in
             };
-            // Return amount as error message.
-            assert(false, quote.try_into().unwrap());
+            // Return amount via panic.
+            panic(array!['quote', quote.low.into(), quote.high.into()]);
         }
 
         // Obtain quote for a swap across multiple markets in a multi-hop route.
         // Returned as error message. This is the safest way to obtain a quote as it does not rely on
         // the strategy to correctly report its queued and placed positions.
+        // The first entry in the returned array is 'quote_multiple' to distinguish it from other errors.
         // 
         // # Arguments
         // * `in_token` - in token address
@@ -1137,7 +1139,8 @@ mod MarketManager {
         ) {
             let amount_out = self
                 ._swap_multiple(in_token, out_token, amount, route, Option::None(()), true);
-            assert(false, amount_out.try_into().unwrap());
+            // Return amount via panic.
+            panic(array!['quote_multiple', amount_out.low.into(), amount_out.high.into()]);
         }
 
         // Obtain quote for a single swap.
