@@ -214,13 +214,11 @@ struct LimitOrder {
 // * `limit` - limit price
 // * `amount_in` - amount swapped in from partial fill, inclusive of fees
 // * `amount_out` - amount swapped out from partial fill
-// * `is_buy` - whether partial fill is buy or sell
 #[derive(Copy, Drop, Serde)]
 struct PartialFillInfo {
     limit: u32,
     amount_in: u256,
     amount_out: u256,
-    is_buy: bool,
 }
 
 // Information about a swap.

@@ -216,7 +216,6 @@ fn swap_iter(
                     limit: curr_limit,
                     amount_in: amount_in_iter + fee_iter - protocol_fee_iter,
                     amount_out: amount_out_iter,
-                    is_buy,
                 }
             );
         }
