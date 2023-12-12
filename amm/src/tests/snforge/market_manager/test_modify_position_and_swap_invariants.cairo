@@ -342,7 +342,8 @@ fn test_invariants_set1(
         if lower_limit != upper_limit && liquidity != 0 {
             // Calculate amount inside position.
             let position_id = id::position_id(market_id, alice().into(), lower_limit, upper_limit);
-            let (base_amount_exp, quote_amount_exp) = market_manager.amounts_inside_position(position_id);
+            let (base_amount_exp, quote_amount_exp) = market_manager
+                .amounts_inside_position(position_id);
 
             // Remove liquidity.
             let start_state = _snapshot_state(market_manager, market_id, lower_limit, upper_limit);

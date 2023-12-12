@@ -567,7 +567,9 @@ mod MarketManager {
         fn ERC721_position_info(self: @ContractState, token_id: felt252) -> ERC721PositionInfo {
             let position = self.positions.read(token_id);
             let market_info = self.market_info.read(position.market_id);
-            let (base_amount, quote_amount) = liquidity_lib::amounts_inside_position(self, token_id);
+            let (base_amount, quote_amount) = liquidity_lib::amounts_inside_position(
+                self, token_id
+            );
 
             ERC721PositionInfo {
                 base_token: market_info.base_token,
