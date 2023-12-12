@@ -1946,7 +1946,7 @@ mod MarketManager {
                     partial_fill_info.limit,
                     partial_fill_info.amount_in,
                     partial_fill_info.amount_out,
-                    partial_fill_info.is_buy,
+                    is_buy,
                 );
             }
 
