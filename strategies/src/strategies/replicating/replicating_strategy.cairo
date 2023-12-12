@@ -346,8 +346,12 @@ mod ReplicatingStrategy {
             // If expected LVR from filling the swap at current price is lower than expected fees, 
             // then do not update position. We evaluate LVR at the inside quote to simplify calculations.
             // The inside quote is:
-            //   - max(curr price, ask lower price) if buying
-            //   - min(curr price, bid upper price) if selling
+            //   - For buys:
+            //      - max(curr price, ask lower price) if curr price > bid upper price
+            //      - max(curr price, bid lower price) if curr price <= bid upper price
+            //   - For sells:
+            //      - min(curr price, bid upper price) if curr price < ask lower price
+            //      - min(curr price, ask upper price) if curr price < ask lower price
             // LVR is calculated as:
             //   - (oracle price / inside quote - 1) * amount if buying
             //   - (inside quote / oracle price - 1) * amount if selling
@@ -357,9 +361,19 @@ mod ReplicatingStrategy {
             let log2: u256 = price_math::_log2(ONE + fee_rate_scaled);
             let threshold_limits: u32 = (log2 / LOG2_1_00001).try_into().unwrap();
             let rebalance = if params.is_buy {
-                oracle_limit > max(curr_limit, state.ask.lower_limit) + threshold_limits
+                let exec_price = if curr_limit > state.bid.upper_limit {
+                    max(curr_limit, state.ask.lower_limit)
+                } else {
+                    max(curr_limit, state.bid.lower_limit)
+                };
+                oracle_limit > exec_price + threshold_limits
             } else {
-                min(curr_limit, state.bid.upper_limit) > oracle_limit + threshold_limits
+                let exec_price = if curr_limit < state.ask.lower_limit {
+                    min(curr_limit, state.bid.upper_limit)
+                } else {
+                    min(curr_limit, state.ask.upper_limit)
+                };
+                exec_price > oracle_limit + threshold_limits
             };
             if rebalance {
                 self._update_positions(market_id);
