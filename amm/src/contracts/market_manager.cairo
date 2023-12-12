@@ -749,7 +749,10 @@ mod MarketManager {
             };
             self.enforce_status(config, @market_info, err_msg);
             if is_bid {
-                assert(limit < market_state.curr_limit, 'NotLimitOrder');
+                // In markets with `width` > 1, it is possible that the current limit lies
+                // between a width interval. Therefore, we need to check that the upper limit
+                // of the order, i.e. `limit + width`, is below the current limit.
+                assert(limit + market_info.width < market_state.curr_limit, 'NotLimitOrder');
             } else {
                 assert(limit > market_state.curr_limit, 'NotLimitOrder');
             }

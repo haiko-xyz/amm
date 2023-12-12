@@ -891,11 +891,15 @@ fn test_fill_bid_advances_batch_nonce() {
 fn test_fill_ask_advances_batch_nonce() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
-    // Create first (ask) limit order.
+    // Create first limit order (ask).
     set_contract_address(bob());
     let is_bid = false;
     let limit = OFFSET + 1000;
-    market_manager.create_order(market_id, is_bid, limit, to_e18_u128(500000));
+    market_manager.create_order(market_id, is_bid, limit, to_e18_u128(500));
+
+    // Add second fallback limit order (ask).
+    let fallback_limit = OFFSET + 1100;
+    market_manager.create_order(market_id, is_bid, fallback_limit, to_e18_u128(1000000));
 
     // Snapshot batch nonce before.
     let nonce_before = market_manager.limit_info(market_id, limit).nonce;
@@ -905,14 +909,14 @@ fn test_fill_ask_advances_batch_nonce() {
         .swap(
             market_id,
             !is_bid,
-            to_e18(6),
+            to_e18(10),
             true,
             Option::None(()),
             Option::None(()),
             Option::None(())
         );
 
-    // Create second (ask) limit order.
+    // Create third limit order (bid).
     set_contract_address(bob());
     let is_bid = true;
     market_manager.create_order(market_id, is_bid, limit, to_e18_u128(1000000));
