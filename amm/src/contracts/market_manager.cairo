@@ -1685,24 +1685,6 @@ mod MarketManager {
                 ref self, owner, @market_info, market_id, lower_limit, upper_limit, liquidity_delta
             );
 
-            // Calculate and update protocol fee amounts.
-            if base_fees > 0 || quote_fees > 0 {
-                let protocol_share: u256 = market_state.protocol_share.into();
-                let max_fee_rate: u256 = fee_math::MAX_FEE_RATE.into();
-                if base_fees > 0 {
-                    let mut base_protocol_fees = self.protocol_fees.read(market_info.base_token);
-                    base_protocol_fees +=
-                        math::mul_div(base_fees, protocol_share, max_fee_rate, false);
-                    self.protocol_fees.write(market_info.base_token, base_protocol_fees);
-                }
-                if quote_fees > 0 {
-                    let mut quote_protocol_fees = self.protocol_fees.read(market_info.quote_token);
-                    quote_protocol_fees +=
-                        math::mul_div(quote_fees, protocol_share, max_fee_rate, false);
-                    self.protocol_fees.write(market_info.quote_token, quote_protocol_fees);
-                }
-            }
-
             // Update reserves and transfer tokens.
             // That is, unless modifying liquidity as part of a limit order. In this case, do nothing
             // because tokens are transferred only when the order is collected.
