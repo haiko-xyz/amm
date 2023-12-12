@@ -272,10 +272,8 @@ mod ReplicatingStrategy {
             let contract: felt252 = get_contract_address().into();
             let bid_pos_id = id::position_id(market_id, contract, bid.lower_limit, bid.upper_limit);
             let ask_pos_id = id::position_id(market_id, contract, ask.lower_limit, ask.upper_limit);
-            let (bid_base, bid_quote) = market_manager
-                .amounts_inside_position(market_id, bid_pos_id, bid.lower_limit, bid.upper_limit);
-            let (ask_base, ask_quote) = market_manager
-                .amounts_inside_position(market_id, ask_pos_id, ask.lower_limit, ask.upper_limit);
+            let (bid_base, bid_quote) = market_manager.amounts_inside_position(bid_pos_id);
+            let (ask_base, ask_quote) = market_manager.amounts_inside_position(ask_pos_id);
 
             // Fetch new optimal bid and ask positions.
             let (next_bid_lower, next_bid_upper, next_ask_lower, next_ask_upper) = self
@@ -500,10 +498,8 @@ mod ReplicatingStrategy {
             let ask_pos_id = id::position_id(market_id, contract, ask.lower_limit, ask.upper_limit);
 
             // Calculate base and quote amounts inside strategy, either in reserves or in positions.
-            let (bid_base, bid_quote) = market_manager
-                .amounts_inside_position(market_id, bid_pos_id, bid.lower_limit, bid.upper_limit,);
-            let (ask_base, ask_quote) = market_manager
-                .amounts_inside_position(market_id, ask_pos_id, ask.lower_limit, ask.upper_limit,);
+            let (bid_base, bid_quote) = market_manager.amounts_inside_position(bid_pos_id);
+            let (ask_base, ask_quote) = market_manager.amounts_inside_position(ask_pos_id);
 
             // Return total amounts.
             let base_amount = state.base_reserves + bid_base + ask_base;

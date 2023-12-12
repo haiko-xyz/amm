@@ -180,10 +180,8 @@ mod ManualStrategy {
             let market_manager = self.market_manager.read();
             let bid_pos_id = id::position_id(market_id, contract, bid.lower_limit, bid.upper_limit);
             let ask_pos_id = id::position_id(market_id, contract, ask.lower_limit, ask.upper_limit);
-            let (bid_base, bid_quote) = market_manager
-                .amounts_inside_position(market_id, bid_pos_id, bid.lower_limit, bid.upper_limit);
-            let (ask_base, ask_quote) = market_manager
-                .amounts_inside_position(market_id, ask_pos_id, ask.lower_limit, ask.upper_limit);
+            let (bid_base, bid_quote) = market_manager.amounts_inside_position(bid_pos_id);
+            let (ask_base, ask_quote) = market_manager.amounts_inside_position(ask_pos_id);
 
             // Calculate liquidity.
             let width = market_manager.width(market_id);

@@ -107,13 +107,7 @@ trait IMarketManager<TContractState> {
     fn protocol_fees(self: @TContractState, asset: ContractAddress) -> u256;
 
     // Snapshots base and quote token amounts accumulated inside position.
-    fn amounts_inside_position(
-        self: @TContractState,
-        market_id: felt252,
-        position_id: felt252,
-        lower_limit: u32,
-        upper_limit: u32,
-    ) -> (u256, u256);
+    fn amounts_inside_position(self: @TContractState, position_id: felt252,) -> (u256, u256);
 
     // Converts liquidity to base and quote token amounts.
     fn liquidity_to_amounts(

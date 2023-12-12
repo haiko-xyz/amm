@@ -486,16 +486,8 @@ mod MarketManager {
         // * `position_id` - position id (see `id` library)
         // * `lower_limit` - lower limit of position
         // * `upper_limit` - upper limit of position
-        fn amounts_inside_position(
-            self: @ContractState,
-            market_id: felt252,
-            position_id: felt252,
-            lower_limit: u32,
-            upper_limit: u32,
-        ) -> (u256, u256) {
-            liquidity_lib::amounts_inside_position(
-                self, market_id, position_id, lower_limit, upper_limit
-            )
+        fn amounts_inside_position(self: @ContractState, position_id: felt252,) -> (u256, u256) {
+            liquidity_lib::amounts_inside_position(self, position_id)
         }
 
         // Returns the token amounts to be transferred for creating a liquidity position.
@@ -575,9 +567,7 @@ mod MarketManager {
         fn ERC721_position_info(self: @ContractState, token_id: felt252) -> ERC721PositionInfo {
             let position = self.positions.read(token_id);
             let market_info = self.market_info.read(position.market_id);
-            let (base_amount, quote_amount) = liquidity_lib::amounts_inside_position(
-                self, position.market_id, token_id, position.lower_limit, position.upper_limit
-            );
+            let (base_amount, quote_amount) = liquidity_lib::amounts_inside_position(self, token_id);
 
             ERC721PositionInfo {
                 base_token: market_info.base_token,
