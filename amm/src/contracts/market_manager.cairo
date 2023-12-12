@@ -125,13 +125,21 @@ mod MarketManager {
 
     #[derive(Drop, starknet::Event)]
     struct CreateMarket {
+        #[key]
         market_id: felt252,
+        #[key]
         base_token: ContractAddress,
+        #[key]
         quote_token: ContractAddress,
+        #[key]
         width: u32,
+        #[key]
         strategy: ContractAddress,
+        #[key]
         swap_fee_rate: u16,
+        #[key]
         fee_controller: ContractAddress,
+        #[key]
         controller: ContractAddress,
         start_limit: u32,
         start_sqrt_price: u256,
@@ -139,36 +147,53 @@ mod MarketManager {
 
     #[derive(Drop, starknet::Event)]
     struct ModifyPosition {
+        #[key]
         caller: ContractAddress,
+        #[key]
         market_id: felt252,
+        #[key]
         lower_limit: u32,
+        #[key]
         upper_limit: u32,
+        #[key]
+        is_limit_order: bool,
         liquidity_delta: i128,
         base_amount: i256,
         quote_amount: i256,
         base_fees: u256,
         quote_fees: u256,
-        is_limit_order: bool,
     }
 
     #[derive(Drop, starknet::Event)]
     struct CreateOrder {
+        #[key]
         caller: ContractAddress,
+        #[key]
         market_id: felt252,
+        #[key]
         order_id: felt252,
+        #[key]
         limit: u32, // start limit
+        #[key]
         batch_id: felt252,
+        #[key]
         is_bid: bool,
         amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
     struct CollectOrder {
+        #[key]
         caller: ContractAddress,
+        #[key]
         market_id: felt252,
+        #[key]
         order_id: felt252,
+        #[key]
         limit: u32,
+        #[key]
         batch_id: felt252,
+        #[key]
         is_bid: bool,
         base_amount: u256,
         quote_amount: u256,
@@ -176,9 +201,13 @@ mod MarketManager {
 
     #[derive(Drop, starknet::Event)]
     struct MultiSwap {
+        #[key]
         caller: ContractAddress,
+        #[key]
         swap_id: u128,
+        #[key]
         in_token: ContractAddress,
+        #[key]
         out_token: ContractAddress,
         amount_in: u256,
         amount_out: u256,
@@ -186,65 +215,83 @@ mod MarketManager {
 
     #[derive(Drop, starknet::Event)]
     struct Swap {
+        #[key]
         caller: ContractAddress,
+        #[key]
         market_id: felt252,
+        #[key]
         is_buy: bool,
+        #[key]
         exact_input: bool,
+        #[key]
+        swap_id: u128,
         amount_in: u256,
         amount_out: u256,
         fees: u256,
         end_limit: u32, // final limit reached after swap
         end_sqrt_price: u256, // final sqrt price reached after swap
         market_liquidity: u128, // global liquidity after swap
-        swap_id: u128,
     }
 
     #[derive(Drop, starknet::Event)]
     struct FlashLoan {
+        #[key]
         borrower: ContractAddress,
+        #[key]
         token: ContractAddress,
         amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
     struct CollectProtocolFee {
+        #[key]
         receiver: ContractAddress,
+        #[key]
         token: ContractAddress,
         amount: u256
     }
 
     #[derive(Drop, starknet::Event)]
     struct Whitelist {
+        #[key]
         market_id: felt252
     }
 
     #[derive(Drop, starknet::Event)]
     struct Sweep {
+        #[key]
         receiver: ContractAddress,
+        #[key]
         token: ContractAddress,
         amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
     struct ChangeOwner {
+        #[key]
         old: ContractAddress,
+        #[key]
         new: ContractAddress
     }
 
     #[derive(Drop, starknet::Event)]
     struct ChangeFlashLoanFee {
+        #[key]
         token: ContractAddress,
         fee: u16,
     }
 
     #[derive(Drop, starknet::Event)]
     struct ChangeProtocolShare {
+        #[key]
         market_id: felt252,
         protocol_share: u16,
     }
 
     #[derive(Drop, starknet::Event)]
     struct SetMarketConfigs {
+        #[key]
+        market_id: felt252,
         min_lower: u32,
         max_lower: u32,
         min_upper: u32,
@@ -653,6 +700,7 @@ mod MarketManager {
                     .emit(
                         Event::SetMarketConfigs(
                             SetMarketConfigs {
+                                market_id,
                                 min_lower: configs.limits.value.min_lower,
                                 max_lower: configs.limits.value.max_lower,
                                 min_upper: configs.limits.value.min_upper,
@@ -1574,6 +1622,7 @@ mod MarketManager {
                 .emit(
                     Event::SetMarketConfigs(
                         SetMarketConfigs {
+                            market_id,
                             min_lower: new_configs.limits.value.min_lower,
                             max_lower: new_configs.limits.value.max_lower,
                             min_upper: new_configs.limits.value.min_upper,
