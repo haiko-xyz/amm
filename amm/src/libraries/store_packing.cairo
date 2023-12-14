@@ -27,18 +27,20 @@ const TWO_POW_64: felt252 = 0x10000000000000000;
 const TWO_POW_96: felt252 = 0x1000000000000000000000000;
 const TWO_POW_124: felt252 = 0x10000000000000000000000000000000;
 const TWO_POW_128: felt252 = 0x100000000000000000000000000000000;
-const TWO_POW_132: felt252 = 0x1000000000000000000000000000000000;
-const TWO_POW_136: felt252 = 0x10000000000000000000000000000000000;
-const TWO_POW_140: felt252 = 0x100000000000000000000000000000000000;
-const TWO_POW_144: felt252 = 0x1000000000000000000000000000000000000;
-const TWO_POW_148: felt252 = 0x10000000000000000000000000000000000000;
-const TWO_POW_152: felt252 = 0x100000000000000000000000000000000000000;
-const TWO_POW_153: felt252 = 0x200000000000000000000000000000000000000;
-const TWO_POW_154: felt252 = 0x400000000000000000000000000000000000000;
-const TWO_POW_155: felt252 = 0x800000000000000000000000000000000000000;
-const TWO_POW_156: felt252 = 0x1000000000000000000000000000000000000000;
-const TWO_POW_157: felt252 = 0x2000000000000000000000000000000000000000;
-const TWO_POW_158: felt252 = 0x4000000000000000000000000000000000000000;
+const TWO_POW_160: felt252 = 0x10000000000000000000000000000000000000000;
+const TWO_POW_192: felt252 = 0x1000000000000000000000000000000000000000000000000;
+const TWO_POW_196: felt252 = 0x10000000000000000000000000000000000000000000000000;
+const TWO_POW_200: felt252 = 0x100000000000000000000000000000000000000000000000000;
+const TWO_POW_204: felt252 = 0x1000000000000000000000000000000000000000000000000000;
+const TWO_POW_208: felt252 = 0x10000000000000000000000000000000000000000000000000000;
+const TWO_POW_212: felt252 = 0x100000000000000000000000000000000000000000000000000000;
+const TWO_POW_216: felt252 = 0x1000000000000000000000000000000000000000000000000000000;
+const TWO_POW_217: felt252 = 0x2000000000000000000000000000000000000000000000000000000;
+const TWO_POW_218: felt252 = 0x4000000000000000000000000000000000000000000000000000000;
+const TWO_POW_219: felt252 = 0x8000000000000000000000000000000000000000000000000000000;
+const TWO_POW_220: felt252 = 0x10000000000000000000000000000000000000000000000000000000;
+const TWO_POW_221: felt252 = 0x20000000000000000000000000000000000000000000000000000000;
+const TWO_POW_222: felt252 = 0x40000000000000000000000000000000000000000000000000000000;
 
 const MASK_1: u256 = 0x1;
 const MASK_2: u256 = 0x3;
@@ -131,19 +133,21 @@ impl MarketConfigsStorePacking of StorePacking<MarketConfigs, PackedMarketConfig
         slab += value.limits.value.max_lower.into() * TWO_POW_32.into();
         slab += value.limits.value.min_upper.into() * TWO_POW_64.into();
         slab += value.limits.value.max_upper.into() * TWO_POW_96.into();
-        slab += status_to_u256(value.add_liquidity.value) * TWO_POW_128.into();
-        slab += status_to_u256(value.remove_liquidity.value) * TWO_POW_132.into();
-        slab += status_to_u256(value.create_bid.value) * TWO_POW_136.into();
-        slab += status_to_u256(value.create_ask.value) * TWO_POW_140.into();
-        slab += status_to_u256(value.collect_order.value) * TWO_POW_144.into();
-        slab += status_to_u256(value.swap.value) * TWO_POW_148.into();
-        slab += bool_to_u256(value.limits.fixed) * TWO_POW_152.into();
-        slab += bool_to_u256(value.add_liquidity.fixed) * TWO_POW_153.into();
-        slab += bool_to_u256(value.remove_liquidity.fixed) * TWO_POW_154.into();
-        slab += bool_to_u256(value.create_bid.fixed) * TWO_POW_155.into();
-        slab += bool_to_u256(value.create_ask.fixed) * TWO_POW_156.into();
-        slab += bool_to_u256(value.collect_order.fixed) * TWO_POW_157.into();
-        slab += bool_to_u256(value.swap.fixed) * TWO_POW_158.into();
+        slab += value.limits.value.min_width.into() * TWO_POW_128.into();
+        slab += value.limits.value.max_width.into() * TWO_POW_160.into();
+        slab += status_to_u256(value.add_liquidity.value) * TWO_POW_192.into();
+        slab += status_to_u256(value.remove_liquidity.value) * TWO_POW_196.into();
+        slab += status_to_u256(value.create_bid.value) * TWO_POW_200.into();
+        slab += status_to_u256(value.create_ask.value) * TWO_POW_204.into();
+        slab += status_to_u256(value.collect_order.value) * TWO_POW_208.into();
+        slab += status_to_u256(value.swap.value) * TWO_POW_212.into();
+        slab += bool_to_u256(value.limits.fixed) * TWO_POW_216.into();
+        slab += bool_to_u256(value.add_liquidity.fixed) * TWO_POW_217.into();
+        slab += bool_to_u256(value.remove_liquidity.fixed) * TWO_POW_218.into();
+        slab += bool_to_u256(value.create_bid.fixed) * TWO_POW_219.into();
+        slab += bool_to_u256(value.create_ask.fixed) * TWO_POW_220.into();
+        slab += bool_to_u256(value.collect_order.fixed) * TWO_POW_221.into();
+        slab += bool_to_u256(value.swap.fixed) * TWO_POW_222.into();
 
         PackedMarketConfigs { slab: slab.try_into().unwrap() }
     }
@@ -154,21 +158,24 @@ impl MarketConfigsStorePacking of StorePacking<MarketConfigs, PackedMarketConfig
         let max_lower: u32 = ((slab / TWO_POW_32.into()) & MASK_32).try_into().unwrap();
         let min_upper: u32 = ((slab / TWO_POW_64.into()) & MASK_32).try_into().unwrap();
         let max_upper: u32 = ((slab / TWO_POW_96.into()) & MASK_32).try_into().unwrap();
-        let add_liquidity: ConfigOption = u256_to_status((slab / TWO_POW_128.into()) & MASK_2);
-        let remove_liquidity: ConfigOption = u256_to_status((slab / TWO_POW_132.into()) & MASK_2);
-        let create_bid: ConfigOption = u256_to_status((slab / TWO_POW_136.into()) & MASK_2);
-        let create_ask: ConfigOption = u256_to_status((slab / TWO_POW_140.into()) & MASK_2);
-        let collect_order: ConfigOption = u256_to_status((slab / TWO_POW_144.into()) & MASK_2);
-        let swap: ConfigOption = u256_to_status((slab / TWO_POW_148.into()) & MASK_2);
-        let limits_fixed: bool = u256_to_bool((slab / TWO_POW_152.into()) & MASK_1);
-        let add_liquidity_fixed: bool = u256_to_bool((slab / TWO_POW_153.into()) & MASK_1);
-        let remove_liquidity_fixed: bool = u256_to_bool((slab / TWO_POW_154.into()) & MASK_1);
-        let create_bid_fixed: bool = u256_to_bool((slab / TWO_POW_155.into()) & MASK_1);
-        let create_ask_fixed: bool = u256_to_bool((slab / TWO_POW_156.into()) & MASK_1);
-        let collect_order_fixed: bool = u256_to_bool((slab / TWO_POW_157.into()) & MASK_1);
-        let swap_fixed: bool = u256_to_bool((slab / TWO_POW_158.into()) & MASK_1);
-
-        let limits = ValidLimits { min_lower, max_lower, min_upper, max_upper };
+        let min_width: u32 = ((slab / TWO_POW_128.into()) & MASK_32).try_into().unwrap();
+        let max_width: u32 = ((slab / TWO_POW_160.into()) & MASK_32).try_into().unwrap();
+        let add_liquidity: ConfigOption = u256_to_status((slab / TWO_POW_192.into()) & MASK_2);
+        let remove_liquidity: ConfigOption = u256_to_status((slab / TWO_POW_196.into()) & MASK_2);
+        let create_bid: ConfigOption = u256_to_status((slab / TWO_POW_200.into()) & MASK_2);
+        let create_ask: ConfigOption = u256_to_status((slab / TWO_POW_204.into()) & MASK_2);
+        let collect_order: ConfigOption = u256_to_status((slab / TWO_POW_208.into()) & MASK_2);
+        let swap: ConfigOption = u256_to_status((slab / TWO_POW_212.into()) & MASK_2);
+        let limits_fixed: bool = u256_to_bool((slab / TWO_POW_216.into()) & MASK_1);
+        let add_liquidity_fixed: bool = u256_to_bool((slab / TWO_POW_217.into()) & MASK_1);
+        let remove_liquidity_fixed: bool = u256_to_bool((slab / TWO_POW_218.into()) & MASK_1);
+        let create_bid_fixed: bool = u256_to_bool((slab / TWO_POW_219.into()) & MASK_1);
+        let create_ask_fixed: bool = u256_to_bool((slab / TWO_POW_220.into()) & MASK_1);
+        let collect_order_fixed: bool = u256_to_bool((slab / TWO_POW_221.into()) & MASK_1);
+        let swap_fixed: bool = u256_to_bool((slab / TWO_POW_222.into()) & MASK_1);
+        let limits = ValidLimits {
+            min_lower, max_lower, min_upper, max_upper, min_width, max_width
+        };
 
         MarketConfigs {
             limits: Config { value: limits, fixed: limits_fixed },

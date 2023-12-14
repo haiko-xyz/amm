@@ -8,7 +8,7 @@ use starknet::StorePacking;
 use option::Option;
 
 // Local imports.
-use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_LIMIT_SHIFTED};
+use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_LIMIT_SHIFTED, MAX_WIDTH};
 use amm::types::i128::i128;
 
 ////////////////////////////////
@@ -97,12 +97,16 @@ struct Config<T> {
 // * `max_lower` - maximum lower limit
 // * `min_upper` - minimum upper limit
 // * `max_upper` - maximum upper limit
+// * `min_width` - minimum width
+// * `max_width` - maximum width
 #[derive(Copy, Drop, Serde, PartialEq)]
 struct ValidLimits {
     min_lower: u32,
     max_lower: u32,
     min_upper: u32,
     max_upper: u32,
+    min_width: u32,
+    max_width: u32,
 }
 
 // Default valid limits.
@@ -110,7 +114,12 @@ struct ValidLimits {
 impl DefaultValidLimits of Default<ValidLimits> {
     fn default() -> ValidLimits {
         ValidLimits {
-            min_lower: 0, max_lower: MAX_LIMIT_SHIFTED, min_upper: 0, max_upper: MAX_LIMIT_SHIFTED,
+            min_lower: 0,
+            max_lower: MAX_LIMIT_SHIFTED,
+            min_upper: 0,
+            max_upper: MAX_LIMIT_SHIFTED,
+            min_width: 1,
+            max_width: MAX_WIDTH,
         }
     }
 }

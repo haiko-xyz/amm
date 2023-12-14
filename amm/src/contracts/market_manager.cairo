@@ -296,6 +296,8 @@ mod MarketManager {
         max_lower: u32,
         min_upper: u32,
         max_upper: u32,
+        min_width: u32,
+        max_width: u32,
         add_liquidity: ConfigOption,
         remove_liquidity: ConfigOption,
         create_bid: ConfigOption,
@@ -697,6 +699,8 @@ mod MarketManager {
                                 max_lower: configs.limits.value.max_lower,
                                 min_upper: configs.limits.value.min_upper,
                                 max_upper: configs.limits.value.max_upper,
+                                min_width: configs.limits.value.min_width,
+                                max_width: configs.limits.value.max_width,
                                 add_liquidity: configs.add_liquidity.value,
                                 remove_liquidity: configs.remove_liquidity.value,
                                 create_bid: configs.create_bid.value,
@@ -733,13 +737,21 @@ mod MarketManager {
         ) -> (i256, i256, u256, u256) {
             // Run checks.
             let market_info = self.market_info.read(market_id);
-            let market_configs = self.market_configs.read(market_id);
-            let (config, err_msg) = if liquidity_delta.sign {
-                (market_configs.remove_liquidity.value, 'RemLiqDisabled')
-            } else {
-                (market_configs.add_liquidity.value, 'AddLiqDisabled')
-            };
-            self.enforce_status(config, @market_info, err_msg);
+            if market_info.controller.is_non_zero() {
+                let market_configs = self.market_configs.read(market_id);
+                let (config, err_msg) = if liquidity_delta.sign {
+                    (market_configs.remove_liquidity.value, 'RemLiqDisabled')
+                } else {
+                    // If adding liquidity, we check that the width of the position is legal.
+                    // This check isn't applied when removing liquidity to prevent market
+                    // config changes from inadvertently preventing withdrawals.
+                    let width = upper_limit - lower_limit;
+                    assert(width >= market_configs.limits.value.min_width, 'AddLiqWidthUF');
+                    assert(width <= market_configs.limits.value.max_width, 'AddLiqWidthOF');
+                    (market_configs.add_liquidity.value, 'AddLiqDisabled')
+                };
+                self.enforce_status(config, @market_info, err_msg);
+            }
 
             // The caller of `_modify_position` can either be a user address (formatted as felt252) or 
             // a `batch_id` if it is being modified as part of a limit order. Here, we are dealing with
@@ -772,16 +784,18 @@ mod MarketManager {
             // Retrieve market info.
             let market_state = self.market_state.read(market_id);
             let market_info = self.market_info.read(market_id);
-            let market_configs = self.market_configs.read(market_id);
 
             // Run checks.
             assert(market_info.width != 0, 'MarketNull');
-            let (config, err_msg) = if is_bid {
-                (market_configs.create_bid.value, 'CreateBidDisabled')
-            } else {
-                (market_configs.create_ask.value, 'CreateAskDisabled')
-            };
-            self.enforce_status(config, @market_info, err_msg);
+            if market_info.controller.is_non_zero() {
+                let market_configs = self.market_configs.read(market_id);
+                let (config, err_msg) = if is_bid {
+                    (market_configs.create_bid.value, 'CreateBidDisabled')
+                } else {
+                    (market_configs.create_ask.value, 'CreateAskDisabled')
+                };
+                self.enforce_status(config, @market_info, err_msg);
+            }
             if is_bid {
                 // In markets with `width` > 1, it is possible that the current limit lies
                 // between a width interval. Therefore, we need to check that the upper limit
@@ -882,13 +896,15 @@ mod MarketManager {
             let market_info = self.market_info.read(market_id);
             let market_state = self.market_state.read(market_id);
             let mut order = self.orders.read(order_id);
-            let market_configs = self.market_configs.read(market_id);
 
             // Run checks.
-            self
-                .enforce_status(
-                    market_configs.collect_order.value, @market_info, 'CollectOrderDisabled'
-                );
+            if market_info.controller.is_non_zero() {
+                let market_configs = self.market_configs.read(market_id);
+                self
+                    .enforce_status(
+                        market_configs.collect_order.value, @market_info, 'CollectOrderDisabled'
+                    );
+            }
             assert(order.liquidity != 0, 'OrderCollected');
             let caller = get_caller_address();
             let order_id_exp = id::order_id(order.batch_id, caller);
@@ -1173,10 +1189,12 @@ mod MarketManager {
             // Fetch market info and state.
             let market_info = self.market_info.read(market_id);
             let mut market_state = self.market_state.read(market_id);
-            let market_configs = self.market_configs.read(market_id);
 
             // Run checks.
-            self.enforce_status(market_configs.swap.value, @market_info, 'SwapDisabled');
+            if market_info.controller.is_non_zero() {
+                let market_configs = self.market_configs.read(market_id);
+                self.enforce_status(market_configs.swap.value, @market_info, 'SwapDisabled');
+            }
             assert(market_info.quote_token.is_non_zero(), 'MarketNull');
             assert(amount > 0, 'AmtZero');
             if threshold_sqrt_price.is_some() {
@@ -1622,6 +1640,8 @@ mod MarketManager {
                             max_lower: new_configs.limits.value.max_lower,
                             min_upper: new_configs.limits.value.min_upper,
                             max_upper: new_configs.limits.value.max_upper,
+                            min_width: new_configs.limits.value.min_width,
+                            max_width: new_configs.limits.value.max_width,
                             add_liquidity: new_configs.add_liquidity.value,
                             remove_liquidity: new_configs.remove_liquidity.value,
                             create_bid: new_configs.create_bid.value,
@@ -1808,10 +1828,12 @@ mod MarketManager {
             // Fetch market info and state.
             let market_info = self.market_info.read(market_id);
             let mut market_state = self.market_state.read(market_id);
-            let market_configs = self.market_configs.read(market_id);
 
             // Run checks.
-            self.enforce_status(market_configs.swap.value, @market_info, 'SwapDisabled');
+            if market_info.controller.is_non_zero() {
+                let market_configs = self.market_configs.read(market_id);
+                self.enforce_status(market_configs.swap.value, @market_info, 'SwapDisabled');
+            }
             assert(market_info.quote_token.is_non_zero(), 'MarketNull');
             assert(amount > 0, 'AmtZero');
             if threshold_sqrt_price.is_some() {
