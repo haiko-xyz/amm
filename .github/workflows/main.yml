@@ -8,7 +8,7 @@ on:
 
 env:
   SCARB_VERSION: 2.3.1
-  SNFORGE_VERSION: 0.11.0
+  SNFORGE_VERSION: 0.12.0
 
 jobs:
   build:
