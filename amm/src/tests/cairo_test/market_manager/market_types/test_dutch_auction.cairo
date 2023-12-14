@@ -3,7 +3,7 @@ use starknet::testing::set_contract_address;
 use debug::PrintTrait;
 
 // Local imports.
-use amm::libraries::constants::OFFSET;
+use amm::libraries::constants::{OFFSET, MAX_WIDTH};
 use amm::types::core::{MarketConfigs, ConfigOption};
 use amm::types::i128::I128Trait;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
@@ -45,37 +45,35 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
     // Create dutch action market.
     // Set valid price range of $0.5 (-69310) to $20 (299570).
     let mut params = default_market_params();
-
     let valid_limits = valid_limits(
-        7906620 - 69310, 7906620 + 299570, 7906620 - 69310, 7906620 + 299570
+        7906620 - 69310, 7906620 + 299570, 7906620 - 69310, 7906620 + 299570, 10, 10
     );
+    
     let market_configs = MarketConfigs {
         limits: config(valid_limits, true),
-        add_liquidity: config(ConfigOption::Disabled, true),
-        remove_liquidity: config(ConfigOption::Disabled, true),
+        add_liquidity: config(ConfigOption::Enabled, false),
+        remove_liquidity: config(ConfigOption::Enabled, false),
         // make this upgradeable so we can disable bids after auction ends
-        create_bid: config(ConfigOption::Enabled, false),
+        create_bid: config(ConfigOption::Disabled, true),
         create_ask: config(ConfigOption::Disabled, true),
         // make this upgradeable so we can disable order collection during order fill period
-        collect_order: config(ConfigOption::Enabled, false),
+        collect_order: config(ConfigOption::Disabled, true),
         swap: config(ConfigOption::OnlyOwner, false),
     };
+
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
     params.width = 10;
     params.swap_fee_rate = 0; // disable swap fees
     params.market_configs = Option::Some(market_configs);
     params.controller = owner();
-
     let market_id = create_market(market_manager, params);
 
     (market_manager, base_token, quote_token, market_id)
 }
-
 ////////////////////////////////
 // TESTS
 ////////////////////////////////
-
 #[test]
 #[available_gas(1000000000)]
 fn test_dutch_auction() {
@@ -87,23 +85,31 @@ fn test_dutch_auction() {
 
     // Place some bids.
     set_contract_address(alice());
-    let id_1 = market_manager
-        .create_order(market_id, true, 7906620 + 0, to_e18_u128(10000)); // $1.0
-    let id_2 = market_manager
-        .create_order(market_id, true, 7906620 + 91630, to_e18_u128(50000)); // $2.5
-    let id_3 = market_manager
-        .create_order(market_id, true, 7906620 + 228240, to_e18_u128(37000)); // $9.8
+    market_manager
+        .modify_position(
+            market_id, 7906620 + 0, 7906620 + 10, I128Trait::new(to_e18_u128(10000), false)
+        ); // $1.0
+    market_manager
+        .modify_position(
+            market_id, 7906620 + 91630, 7906620 + 91640, I128Trait::new(to_e18_u128(50000), false)
+        ); // $2.5
+    market_manager
+        .modify_position(
+            market_id, 7906620 + 228240, 7906620 + 228250, I128Trait::new(to_e18_u128(37000), false)
+        ); // $9.8
+    // Should be able to withdraw bid before auction ends.
+    market_manager
+        .modify_position(
+            market_id, 7906620 + 91630, 7906620 + 91640, I128Trait::new(to_e18_u128(50000), true)
+        );
 
-    // Should be able to withdraw bids before auction ends.
-    market_manager.collect_order(market_id, id_2);
-
-    // Market owner closes auction by disabling further bids and temporarily disabling collections.
+    // Market owner closes auction by disabling further bids and temporarily disabling withdrawals.
     // Top bids are filled by swapping sale tokens. If the gas burden is too high, this can be done
     // across multiple swap transactions.
     set_contract_address(owner());
     let mut market_configs = market_manager.market_configs(market_id);
-    market_configs.create_bid = config(ConfigOption::Disabled, true);
-    market_configs.collect_order = config(ConfigOption::Disabled, false);
+    market_configs.add_liquidity = config(ConfigOption::Disabled, true);
+    market_configs.remove_liquidity = config(ConfigOption::Disabled, false);
     market_manager.set_market_configs(market_id, market_configs);
     let (amount_in, amount_out, _) = market_manager
         .swap(
@@ -115,14 +121,20 @@ fn test_dutch_auction() {
             Option::None(()),
             Option::None(())
         );
-    market_configs.collect_order = config(ConfigOption::Enabled, true);
+    market_configs.remove_liquidity = config(ConfigOption::Enabled, true);
     market_configs.swap = config(ConfigOption::Disabled, true);
     market_manager.set_market_configs(market_id, market_configs);
 
     // Bidders withdraw sale tokens.
     set_contract_address(alice());
-    market_manager.collect_order(market_id, id_1);
-    market_manager.collect_order(market_id, id_3);
+    market_manager
+        .modify_position(
+            market_id, 7906620 + 0, 7906620 + 10, I128Trait::new(to_e18_u128(10000), true)
+        );
+    market_manager
+        .modify_position(
+            market_id, 7906620 + 228240, 7906620 + 228250, I128Trait::new(to_e18_u128(37000), true)
+        );
 }
 
 #[test]
@@ -140,6 +152,31 @@ fn test_dutch_auction_swap_by_bidder() {
 }
 
 #[test]
+#[should_panic(expected: ('AddLiqWidthOF', 'ENTRYPOINT_FAILED',))]
+#[available_gas(1000000000)]
+fn test_dutch_auction_range_position() {
+    // Deploy market manager and tokens.
+    let (market_manager, base_token, quote_token, market_id) = before();
+
+    set_contract_address(alice());
+    market_manager
+        .modify_position(
+            market_id, 7906620 + 0, 7906620 + 20, I128Trait::new(to_e18_u128(10000), false)
+        );
+}
+
+#[test]
+#[should_panic(expected: ('CreateBidDisabled', 'ENTRYPOINT_FAILED',))]
+#[available_gas(1000000000)]
+fn test_dutch_auction_bid_order() {
+    // Deploy market manager and tokens.
+    let (market_manager, base_token, quote_token, market_id) = before();
+
+    set_contract_address(alice());
+    market_manager.create_order(market_id, true, 7906620 + 0, to_e18_u128(10000));
+}
+
+#[test]
 #[should_panic(expected: ('CreateAskDisabled', 'ENTRYPOINT_FAILED',))]
 #[available_gas(1000000000)]
 fn test_dutch_auction_ask_order() {
@@ -153,31 +190,20 @@ fn test_dutch_auction_ask_order() {
 #[test]
 #[should_panic(expected: ('AddLiqDisabled', 'ENTRYPOINT_FAILED',))]
 #[available_gas(1000000000)]
-fn test_dutch_auction_liquidity_position() {
-    // Deploy market manager and tokens.
+fn test_dutch_auction_bid_after_auction_ends() {
     let (market_manager, base_token, quote_token, market_id) = before();
+
+    set_contract_address(owner());
+    let mut market_configs = market_manager.market_configs(market_id);
+    market_configs.add_liquidity = config(ConfigOption::Disabled, true);
+    market_configs.remove_liquidity = config(ConfigOption::Disabled, false);
+    market_manager.set_market_configs(market_id, market_configs);
 
     set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, 7906620 + 0, 7906620 + 10, I128Trait::new(to_e18_u128(10000), false)
         );
-}
-
-#[test]
-#[should_panic(expected: ('CreateBidDisabled', 'ENTRYPOINT_FAILED',))]
-#[available_gas(1000000000)]
-fn test_dutch_auction_bid_after_auction_ends() {
-    let (market_manager, base_token, quote_token, market_id) = before();
-
-    set_contract_address(owner());
-    let mut market_configs = market_manager.market_configs(market_id);
-    market_configs.create_bid = config(ConfigOption::Disabled, true);
-    market_configs.collect_order = config(ConfigOption::Disabled, false);
-    market_manager.set_market_configs(market_id, market_configs);
-
-    set_contract_address(alice());
-    market_manager.create_order(market_id, true, 7906620 + 0, to_e18_u128(10000));
 }
 
 #[test]
@@ -188,8 +214,9 @@ fn test_dutch_auction_swap_by_bidder_after_sale_ends() {
 
     set_contract_address(owner());
     let mut market_configs = market_manager.market_configs(market_id);
-    market_configs.create_bid = config(ConfigOption::Disabled, true);
-    market_configs.collect_order = config(ConfigOption::Disabled, false);
+    market_configs.add_liquidity = config(ConfigOption::Disabled, false);
+    market_configs.remove_liquidity = config(ConfigOption::Disabled, false);
+    market_configs.swap = config(ConfigOption::Disabled, false);
     market_manager.set_market_configs(market_id, market_configs);
 
     set_contract_address(alice());

@@ -7,7 +7,7 @@ use debug::PrintTrait;
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
 use amm::libraries::math::price_math;
-use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT, MAX_LIMIT_SHIFTED};
+use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT, MAX_LIMIT_SHIFTED, MAX_WIDTH};
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::types::core::{LimitInfo, MarketConfigs, Config, ConfigOption};
@@ -71,7 +71,7 @@ fn _before(
         params.controller = owner();
     }
     if !is_concentrated {
-        let valid_limits = valid_limits(0, 0, MAX_LIMIT_SHIFTED, MAX_LIMIT_SHIFTED);
+        let valid_limits = valid_limits(0, 0, MAX_LIMIT_SHIFTED, MAX_LIMIT_SHIFTED, 1, MAX_WIDTH);
         market_configs.limits = config(valid_limits, true);
         params.market_configs = Option::Some(market_configs);
         params.controller = owner();

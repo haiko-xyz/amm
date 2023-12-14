@@ -152,8 +152,10 @@ fn default_market_params() -> CreateMarketParams {
     }
 }
 
-fn valid_limits(min_lower: u32, max_lower: u32, min_upper: u32, max_upper: u32) -> ValidLimits {
-    ValidLimits { min_lower, max_lower, min_upper, max_upper }
+fn valid_limits(
+    min_lower: u32, max_lower: u32, min_upper: u32, max_upper: u32, min_width: u32, max_width: u32
+) -> ValidLimits {
+    ValidLimits { min_lower, max_lower, min_upper, max_upper, min_width, max_width }
 }
 
 fn config<T>(value: T, fixed: bool) -> Config<T> {
