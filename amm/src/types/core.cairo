@@ -114,9 +114,9 @@ struct ValidLimits {
 impl DefaultValidLimits of Default<ValidLimits> {
     fn default() -> ValidLimits {
         ValidLimits {
-            min_lower: 0, 
-            max_lower: MAX_LIMIT_SHIFTED, 
-            min_upper: 0, 
+            min_lower: 0,
+            max_lower: MAX_LIMIT_SHIFTED,
+            min_upper: 0,
             max_upper: MAX_LIMIT_SHIFTED,
             min_width: 1,
             max_width: MAX_WIDTH,

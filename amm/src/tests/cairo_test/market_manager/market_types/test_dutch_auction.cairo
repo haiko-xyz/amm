@@ -48,7 +48,7 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
     let valid_limits = valid_limits(
         7906620 - 69310, 7906620 + 299570, 7906620 - 69310, 7906620 + 299570, 10, 10
     );
-    
+
     let market_configs = MarketConfigs {
         limits: config(valid_limits, true),
         add_liquidity: config(ConfigOption::Enabled, false),
