@@ -780,7 +780,8 @@ mod ReplicatingStrategy {
             self.strategy_state.write(market_id, state);
 
             // Update deposits.
-            self.user_deposits.write((market_id, caller), shares);
+            let user_deposits = self.user_deposits.read((market_id, caller));
+            self.user_deposits.write((market_id, caller), user_deposits + shares);
             self.total_deposits.write(market_id, total_deposits + shares);
 
             // Emit event.

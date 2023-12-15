@@ -362,11 +362,17 @@ fn test_replicating_strategy_deposit() {
     // Run checks.
     let market_state = market_manager.market_state(market_id);
     let state = strategy.strategy_state(market_id);
+    let user_deposits = strategy.user_deposits(market_id, alice());
+    let total_deposits = strategy.total_deposits(market_id);
 
     let bid_init_shares_exp = 286266946460287812818573174;
     let ask_init_shares_exp = 429406775392817428992841450;
     let bid_new_shares_exp = 143133473230143906409286;
     let ask_new_shares_exp = 214703387696408714496420;
+    let total_shares_exp = bid_init_shares_exp
+        + ask_init_shares_exp
+        + bid_new_shares_exp
+        + ask_new_shares_exp;
 
     assert(base_amount == base_amount_req, 'Deposit: base');
     assert(quote_amount == to_e18(556260), 'Deposit: quote');
@@ -375,6 +381,55 @@ fn test_replicating_strategy_deposit() {
     assert(
         approx_eq_pct(new_shares, bid_new_shares_exp + ask_new_shares_exp, 20), 'Deposit: shares'
     );
+    assert(
+        approx_eq_pct(user_deposits, bid_new_shares_exp + ask_new_shares_exp, 20),
+        'Deposit: user shares'
+    );
+    assert(approx_eq_pct(total_deposits, total_shares_exp, 20), 'Deposit: total shares');
+}
+
+#[test]
+#[available_gas(1000000000)]
+fn test_replicating_strategy_deposit_multiple() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Set price.
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000);
+
+    // Deposit initial.
+    set_contract_address(owner());
+    let initial_base_amount = to_e18(1000000);
+    let initial_quote_amount = to_e18(1112520000);
+    strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+
+    // Deposit once.
+    set_contract_address(alice());
+    let base_amount_req = to_e18(500);
+    let quote_amount_req = to_e18(700000); // Contains extra, should be partially refunded
+    strategy.deposit(market_id, base_amount_req, quote_amount_req);
+
+    // Deposit again.
+    strategy.deposit(market_id, base_amount_req, quote_amount_req);
+
+    // Run checks.
+    let market_state = market_manager.market_state(market_id);
+    let state = strategy.strategy_state(market_id);
+
+    let bid_init_shares_exp = 286266946460287812818573174;
+    let ask_init_shares_exp = 429406775392817428992841450;
+    let bid_new_shares_exp = 286266946460287812818572;
+    let ask_new_shares_exp = 429406775392817428992840;
+    let total_shares_exp = bid_init_shares_exp
+        + ask_init_shares_exp
+        + bid_new_shares_exp
+        + ask_new_shares_exp;
+
+    let user_shares = strategy.user_deposits(market_id, alice());
+    let total_shares = strategy.total_deposits(market_id);
+    assert(
+        approx_eq_pct(user_shares, bid_new_shares_exp + ask_new_shares_exp, 20), 'Deposit: shares'
+    );
+    assert(approx_eq_pct(total_shares, total_shares_exp, 20), 'Deposit: total shares');
 }
 
 #[test]
@@ -390,7 +445,8 @@ fn test_replicating_strategy_withdraw() {
     set_contract_address(owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let shares_init = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares_init = strategy
+        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Execute swap sell.
     let amount = to_e18(5000);
@@ -439,7 +495,8 @@ fn test_replicating_strategy_collect_and_pause() {
     set_contract_address(owner());
     let initial_base_amount = 1000000;
     let initial_quote_amount = 1000000;
-    let shares_init = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares_init = strategy
+        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Collect and pause.
     set_contract_address(owner());
@@ -471,7 +528,8 @@ fn test_replicating_strategy_disable_deposits() {
     set_contract_address(owner());
     let initial_base_amount = 1000000;
     let initial_quote_amount = 1000000;
-    let shares_init = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares_init = strategy
+        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Disable deposits.
     let params = strategy.strategy_params(market_id);
@@ -498,7 +556,8 @@ fn test_replicating_strategy_reenable_deposits() {
     set_contract_address(owner());
     let initial_base_amount = 1000000;
     let initial_quote_amount = 1000000;
-    let shares_init = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares_init = strategy
+        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Disable deposits.
     let params = strategy.strategy_params(market_id);
@@ -714,7 +773,8 @@ fn test_replicating_strategy_swap_cases() {
     set_contract_address(owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let shares_init = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares_init = strategy
+        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Fetch test cases.
     let prices = oracle_prices();
