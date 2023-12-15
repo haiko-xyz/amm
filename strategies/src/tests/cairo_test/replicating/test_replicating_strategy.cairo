@@ -222,8 +222,7 @@ fn test_replicating_strategy_update_positions_num_sources_too_low() {
     // Deposit initial.
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let (base_amount, quote_amount, shares) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Update price with sources below threshold.
     set_block_timestamp(1010);
@@ -253,8 +252,7 @@ fn test_replicating_strategy_update_positions_price_stale() {
     // Deposit initial.
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let (base_amount, quote_amount, shares) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Update price with price age above threshold.
     set_block_timestamp(1600);
@@ -394,7 +392,7 @@ fn test_replicating_strategy_deposit_multiple() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 5);
 
     // Deposit initial.
     set_contract_address(owner());
@@ -434,7 +432,53 @@ fn test_replicating_strategy_deposit_multiple() {
 
 #[test]
 #[available_gas(1000000000)]
-fn test_replicating_strategy_withdraw() {
+fn test_replicating_strategy_withdraw_all() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Set price.
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 5);
+
+    // Deposit initial.
+    set_contract_address(owner());
+    let initial_base_amount = to_e18(1000000);
+    let initial_quote_amount = to_e18(1112520000);
+    let shares_init = strategy
+        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+
+    // Execute swap sell.
+    let amount = to_e18(5000);
+    let (amount_in, amount_out, fees) = market_manager
+        .swap(market_id, false, amount, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Withdraw from strategy.
+    let mut user_deposits = strategy.user_deposits(market_id, owner());
+    let (base_amount, quote_amount) = strategy.withdraw(market_id, user_deposits);
+    let market_state = market_manager.market_state(market_id);
+    let state = strategy.strategy_state(market_id);
+    
+    // Refetch deposits.
+    user_deposits = strategy.user_deposits(market_id, owner());
+    let total_deposits = strategy.total_deposits(market_id);
+
+    // Run checks.
+    assert(
+        approx_eq_pct((state.bid.liquidity + state.ask.liquidity).into(), 0, 20),
+        'Withdraw: liquidity'
+    );
+    assert(amount_in == amount, 'Withdraw: amount in');
+    assert(approx_eq_pct(amount_out, 8308093186237340625293077, 20), 'Withdraw: amount out');
+    assert(fees == to_e18(15), 'Withdraw: fees');
+    assert(approx_eq_pct(base_amount, 1004999970000000000000000, 20), 'Withdraw: base amount');
+    assert(approx_eq_pct(quote_amount, 1104211906813762659374706922, 20), 'Withdraw: quote amount');
+    assert(approx_eq(state.base_reserves, 0, 10), 'Withdraw: base reserves');
+    assert(approx_eq(state.quote_reserves, 0, 10), 'Withdraw: quote reserves');
+    assert(approx_eq_pct(user_deposits, 0, 20), 'Withdraw: user shares');
+    assert(approx_eq_pct(total_deposits, 0, 20), 'Withdraw: total shares');
+}
+
+#[test]
+#[available_gas(1000000000)]
+fn test_replicating_strategy_withdraw_partial() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
@@ -453,12 +497,14 @@ fn test_replicating_strategy_withdraw() {
     let (amount_in, amount_out, fees) = market_manager
         .swap(market_id, false, amount, true, Option::None(()), Option::None(()), Option::None(()));
 
-    // Withdraw from strategy.
+    // Withdraw partial from strategy.
     let shares_init = 286266946460287812818573174 + 429406775392817428992841450;
     let shares_req = 357836860926552620905707312;
     let (base_amount, quote_amount) = strategy.withdraw(market_id, shares_req);
     let market_state = market_manager.market_state(market_id);
     let state = strategy.strategy_state(market_id);
+    let user_deposits = strategy.user_deposits(market_id, owner());
+    let total_deposits = strategy.total_deposits(market_id);
 
     // Run checks.
     assert(
@@ -480,6 +526,8 @@ fn test_replicating_strategy_withdraw() {
     );
     assert(approx_eq(state.base_reserves, 7485000000000000000, 10), 'Withdraw: base reserves');
     assert(approx_eq(state.quote_reserves, 0, 10), 'Withdraw: quote reserves');
+    assert(approx_eq_pct(user_deposits, shares_init - shares_req, 20), 'Withdraw: user shares');
+    assert(approx_eq_pct(total_deposits, shares_init - shares_req, 20), 'Withdraw: total shares');
 }
 
 #[test]

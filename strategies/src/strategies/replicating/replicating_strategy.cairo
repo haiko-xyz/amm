@@ -815,8 +815,8 @@ mod ReplicatingStrategy {
             assert(shares != 0, 'SharesZero');
             assert(shares <= total_deposits, 'SharesOF');
             let caller = get_caller_address();
-            let caller_deposits = self.user_deposits.read((market_id, caller));
-            assert(caller_deposits >= shares, 'InsuffShares');
+            let user_deposits = self.user_deposits.read((market_id, caller));
+            assert(user_deposits >= shares, 'InsuffShares');
 
             // Fetch current market state
             let market_manager = self.market_manager.read();
@@ -873,7 +873,7 @@ mod ReplicatingStrategy {
             state.quote_reserves += quote_fees_excess;
 
             // Burn shares.
-            self.user_deposits.write((market_id, caller), 0);
+            self.user_deposits.write((market_id, caller), user_deposits - shares);
             self.total_deposits.write(market_id, total_deposits - shares);
 
             // Transfer tokens to caller.
