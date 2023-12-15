@@ -40,9 +40,10 @@ struct OracleParams {
     quote_currency_id: felt252,
     // Pragma pair id
     pair_id: felt252,
-    // Oracle price guard - maximum difference in limits between oracle price and market price 
-    // before strategy is automatically paused
-    max_oracle_dev: u32,
+    // Minimum number of data sources aggregated
+    min_sources: u32,
+    // Maximum age of quoted price
+    max_age: u64,
 }
 
 #[derive(Drop, Copy, Serde, Default, starknet::Store)]

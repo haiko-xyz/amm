@@ -1,6 +1,6 @@
 // Core lib imports.
 use starknet::ContractAddress;
-use starknet::testing::set_contract_address;
+use starknet::testing::{set_contract_address, set_block_timestamp};
 use integer::{BoundedU32, BoundedU128, BoundedU256};
 
 // Local imports.
@@ -95,7 +95,8 @@ fn before() -> (
             'ETH/USD',
             'USDC/USD',
             'ETH/USDC',
-            40000, // ~50% deviation
+            3, // minimum sources
+            600, // 10 minutes max age 
             Limits::Fixed(10), // ~0.01% min spread
             Limits::Fixed(20000), // ~20% range
             200, // ~0.2% delta
@@ -134,7 +135,8 @@ fn test_replicating_strategy_deposit_initial() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000); // 1668.78
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 5); // 1668.78
 
     // Deposit initial.
     set_contract_address(owner());
@@ -156,12 +158,28 @@ fn test_replicating_strategy_deposit_initial() {
 }
 
 #[test]
+#[should_panic(expected: ('DepositInitialZero', 'ENTRYPOINT_FAILED'))]
+#[available_gas(100000000)]
+fn test_replicating_strategy_deposit_initial_invalid_oracle_price() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Set price.
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 2);
+
+    // Deposit initial should revert if oracle price is invalid.
+    set_contract_address(owner());
+    strategy.deposit_initial(market_id, to_e18(1000000), to_e18(1112520000));
+}
+
+#[test]
 #[available_gas(1000000000)]
 fn test_replicating_strategy_update_positions() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000); // 1668.78
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 5); // 1668.78
 
     // Deposit initial.
     set_contract_address(owner());
@@ -171,7 +189,8 @@ fn test_replicating_strategy_update_positions() {
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Update price.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 167250000000); // 1672.5
+    set_block_timestamp(1010);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 167250000000, 1005, 5); // 1672.5
 
     // Execute swap and check positions updated.
     let amount = to_e18(500000);
@@ -196,11 +215,74 @@ fn test_replicating_strategy_update_positions() {
 
 #[test]
 #[available_gas(1000000000)]
+fn test_replicating_strategy_update_positions_num_sources_too_low() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Update price.
+    set_block_timestamp(1000);
+    set_contract_address(owner());
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166800000000, 999, 5);
+
+    // Deposit initial.
+    let initial_base_amount = to_e18(1000000);
+    let initial_quote_amount = to_e18(1112520000);
+    let (base_amount, quote_amount, shares) = strategy
+        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+
+    // Update price with sources below threshold.
+    set_block_timestamp(1010);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 70000000000, 1005, 2);
+
+    // Execute swap.
+    market_manager
+        .swap(market_id, true, 1000, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Check strategy paused and positions withdrawn.
+    let state = strategy.strategy_state(market_id);
+    assert(state.is_paused, 'Paused');
+    assert(state.bid.liquidity == 0, 'Bid liquidity');
+    assert(state.ask.liquidity == 0, 'Ask liquidity');
+}
+
+#[test]
+#[available_gas(1000000000)]
+fn test_replicating_strategy_update_positions_price_stale() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Update price.
+    set_block_timestamp(1000);
+    set_contract_address(owner());
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166800000000, 999, 5);
+
+    // Deposit initial.
+    let initial_base_amount = to_e18(1000000);
+    let initial_quote_amount = to_e18(1112520000);
+    let (base_amount, quote_amount, shares) = strategy
+        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+
+    // Update price with price age above threshold.
+    set_block_timestamp(1600);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 70000000000, 999, 2);
+
+    // Execute swap.
+    market_manager
+        .swap(market_id, true, 1000, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Check strategy paused and positions withdrawn.
+    let state = strategy.strategy_state(market_id);
+    assert(state.is_paused, 'Paused');
+    assert(state.bid.liquidity == 0, 'Bid liquidity');
+    assert(state.ask.liquidity == 0, 'Ask liquidity');
+}
+
+#[test]
+#[available_gas(1000000000)]
 fn test_replicating_strategy_multiple_swaps() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166700000000);
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166700000000, 999, 5);
 
     // Deposit initial.
     set_contract_address(owner());
@@ -210,7 +292,8 @@ fn test_replicating_strategy_multiple_swaps() {
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Update price.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 163277500000);
+    set_block_timestamp(1010);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 163277500000, 1005, 5);
 
     // Execute swap 1 and check positions updated.
     let amount = to_e18(100);
@@ -265,7 +348,8 @@ fn test_replicating_strategy_deposit() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000);
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 5);
 
     // Deposit initial.
     set_contract_address(owner());
@@ -304,7 +388,8 @@ fn test_replicating_strategy_withdraw() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000);
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 5);
 
     // Deposit initial.
     set_contract_address(owner());
@@ -353,7 +438,8 @@ fn test_replicating_strategy_collect_and_pause() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 100100000);
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 100100000, 999, 5);
 
     // Deposit initial.
     set_contract_address(owner());
@@ -385,7 +471,8 @@ fn test_replicating_strategy_disable_deposits() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000);
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 5);
 
     // Deposit initial.
     set_contract_address(owner());
@@ -412,7 +499,8 @@ fn test_replicating_strategy_reenable_deposits() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000);
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 5);
 
     // Deposit initial.
     set_contract_address(owner());
@@ -441,57 +529,13 @@ fn test_replicating_strategy_reenable_deposits() {
 
 #[test]
 #[available_gas(1000000000)]
-fn test_replicating_strategy_oracle_guard() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
-
-    // Update price.
-    set_contract_address(owner());
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166800000000);
-
-    // Deposit initial.
-    let initial_base_amount = to_e18(1000000);
-    let initial_quote_amount = to_e18(1112520000);
-    let (base_amount, quote_amount, shares) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
-
-    // Lower price beyond threshold.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 70000000000);
-
-    // Swap.
-    let amount = to_e18(500000);
-    market_manager
-        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
-
-    // Check strategy was paused and positions withdrawn.
-    assert(strategy.is_paused(market_id), 'Oracle guard: paused');
-    let bid = strategy.bid(market_id);
-    let ask = strategy.ask(market_id);
-    assert(bid.liquidity == 0, 'Oracle guard: bid liquidity');
-    assert(ask.liquidity == 0, 'Oracle guard: ask liquidity');
-
-    // Manually unpause and reset price.
-    strategy.unpause(market_id);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166800000000);
-
-    // Increase price beyond threshold.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 340000000000);
-
-    // Swap.
-    market_manager
-        .swap(market_id, false, amount, true, Option::None(()), Option::None(()), Option::None(()));
-
-    // Check strategy was paused again and positions withdrawn.
-    assert(strategy.is_paused(market_id), 'Oracle guard: pause 2');
-}
-
-#[test]
-#[available_gas(1000000000)]
 fn test_replicating_strategy_lvr_rebalance_condition() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Update price.
     set_contract_address(owner());
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166780000000);
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166780000000, 999, 5);
 
     // Deposit initial.
     let initial_base_amount = to_e18(1000000);
@@ -501,7 +545,8 @@ fn test_replicating_strategy_lvr_rebalance_condition() {
 
     // Update price to within LVR rebalance threshold.
     set_contract_address(owner());
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 167300000000);
+    set_block_timestamp(1010);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 167300000000, 1005, 5);
 
     let bid_before = strategy.bid(market_id);
     let ask_before = strategy.ask(market_id);
@@ -516,7 +561,8 @@ fn test_replicating_strategy_lvr_rebalance_condition() {
     assert(ask_before == ask_after, 'LVR rebalance: ask 1');
 
     // Update price again.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166400000000);
+    set_block_timestamp(1020);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166400000000, 1015, 5);
     market_manager
         .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
     bid_after = strategy.bid(market_id);
@@ -671,7 +717,8 @@ fn test_replicating_strategy_swap_cases() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set oracle price.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000);
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 5);
 
     // Deposit initial.
     set_contract_address(owner());
@@ -691,7 +738,7 @@ fn test_replicating_strategy_swap_cases() {
         }
         // Set oracle price.
         let price = *prices[index];
-        oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', price);
+        oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', price, 999, 5);
 
         if index < 9 {
             ('*** PRICE 01' + index.into()).print();

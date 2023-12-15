@@ -145,7 +145,8 @@ mod ReplicatingStrategy {
         base_currency_id: felt252,
         quote_currency_id: felt252,
         pair_id: felt252,
-        max_oracle_dev: u32,
+        min_sources: u32,
+        max_age: u64,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -331,16 +332,18 @@ mod ReplicatingStrategy {
                 return ();
             }
 
-            // Oracle price guard. 
-            // If oracle price and market price deviate by more than max threshold, pause strategy.
-            let price = self.get_oracle_price(market_id);
+            // Fetch oracle price.
+            // If oracle price is invalid, collect positions and pause strategy. Return early.
+            let (price, is_valid) = self.get_oracle_price(market_id);
+            if !is_valid {
+                self._collect_and_pause(market_id);
+                return;
+            }
+
+            // Fetch strategy info.
             let width = market_manager.width(market_id);
             let curr_limit = market_manager.curr_limit(market_id);
             let oracle_limit = price_math::price_to_limit(price, width, true);
-            let max_oracle_dev = self.oracle_params.read(market_id).max_oracle_dev;
-            if max(curr_limit, oracle_limit) - min(curr_limit, oracle_limit) >= max_oracle_dev {
-                self._collect_and_pause(market_id);
-            }
 
             // Run rebalancing condition. 
             // If expected LVR from filling the swap at current price is lower than expected fees, 
@@ -447,9 +450,13 @@ mod ReplicatingStrategy {
         // 
         // # Returns
         // * `price` - oracle price
-        fn get_oracle_price(self: @ContractState, market_id: felt252) -> u256 {
+        // * `is_valid` - whether oracle price passes validity checks re number of sources and age
+        fn get_oracle_price(self: @ContractState, market_id: felt252) -> (u256, bool) {
+            // Get oracle parameters.
             let oracle = self.oracle.read();
             let oracle_params = self.oracle_params.read(market_id);
+
+            // Fetch oracle price.
             let output: PragmaPricesResponse = oracle
                 .get_data_with_USD_hop(
                     oracle_params.base_currency_id,
@@ -458,8 +465,16 @@ mod ReplicatingStrategy {
                     SimpleDataType::SpotEntry(()),
                     Option::None(())
                 );
+
+            // Validate number of sources and age of oracle price.
+            // If either is invalid, collect positions and pause strategy.
+            let now = get_block_timestamp();
+            let is_valid = (output.num_sources_aggregated >= oracle_params.min_sources)
+                && (output.last_updated_timestamp + oracle_params.max_age >= now);
+
+            // Calculate and return scaled price.
             let scaling_factor = math::pow(10, 28 - output.decimals.into());
-            output.price.into() * scaling_factor
+            (output.price.into() * scaling_factor, is_valid)
         }
 
         // Get volatility from oracle feed.
@@ -545,10 +560,15 @@ mod ReplicatingStrategy {
             let curr_limit = market_manager.curr_limit(market_id);
 
             // Calculate new optimal price.
-            let price: u256 = self.get_oracle_price(market_id);
-            let limit = price_math::price_to_limit(price, width, false);
+            let (price, is_valid) = self.get_oracle_price(market_id);
+
+            // If oracle price is invalid, return null positions.
+            if !is_valid {
+                return (0, 0, 0, 0);
+            }
 
             // Calculate new bid and ask limits.
+            let limit = price_math::price_to_limit(price, width, false);
             let (base_amount, quote_amount) = self.get_balances(market_id);
             let min_spread: u32 = self._unpack_limits(params.min_spread, market_id);
             let range: u32 = self._unpack_limits(params.range, market_id);
@@ -567,7 +587,8 @@ mod ReplicatingStrategy {
         // * `base_currency_id` - base currency id for oracle
         // * `quote_currency_id` - quote currency id for oracle
         // * `pair_id` - pair id for oracle
-        // * `max_oracle_dev` - max deviation in limits between oracle and market price before strategy is automatically paused
+        // * `min_sources` - minimum number of sources required for oracle price (automatically paused if fails)
+        // * `max_age` - maximum age of oracle price in seconds (automatically paused if fails)
         // * `min_spread` - minimum spread to between reference price and bid/ask price
         // * `range` - range parameter (width, in limits, of bid and ask liquidity positions)
         // * `max_delta` - max inv_delta parameter (additional single-sided spread based on portfolio imbalance)
@@ -580,7 +601,8 @@ mod ReplicatingStrategy {
             base_currency_id: felt252,
             quote_currency_id: felt252,
             pair_id: felt252,
-            max_oracle_dev: u32,
+            min_sources: u32,
+            max_age: u64,
             min_spread: Limits,
             range: Limits,
             max_delta: u32,
@@ -606,7 +628,7 @@ mod ReplicatingStrategy {
 
             // Set oracle params.
             let oracle_params = OracleParams {
-                base_currency_id, quote_currency_id, pair_id, max_oracle_dev
+                base_currency_id, quote_currency_id, pair_id, min_sources, max_age
             };
             self.oracle_params.write(market_id, oracle_params);
 
@@ -622,7 +644,12 @@ mod ReplicatingStrategy {
                 .emit(
                     Event::SetOracleParams(
                         SetOracleParams {
-                            market_id, base_currency_id, quote_currency_id, pair_id, max_oracle_dev
+                            market_id,
+                            base_currency_id,
+                            quote_currency_id,
+                            pair_id,
+                            min_sources,
+                            max_age
                         }
                     )
                 );
@@ -678,6 +705,10 @@ mod ReplicatingStrategy {
             base_token.approve(market_manager.contract_address, BoundedU256::max());
             quote_token.approve(market_manager.contract_address, BoundedU256::max());
             let (bid, ask) = self._update_positions(market_id);
+
+            // Check that at least 1 position is placed. If oracle price is invalid, this will fail
+            // and revert the deposit.
+            assert(bid.liquidity + ask.liquidity != 0, 'DepositInitialZero');
 
             // Refetch strategy state after placing positions to find leftover token amounts.
             state = self.strategy_state.read(market_id);
