@@ -23,8 +23,7 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::{to_e18, to_e28, approx_eq, approx_eq_pct};
 use strategies::strategies::replicating::{
     interface::{IReplicatingStrategyDispatcher, IReplicatingStrategyDispatcherTrait},
-    pragma::{DataType, PragmaPricesResponse}, 
-    types::{Limits, StrategyParams},
+    pragma::{DataType, PragmaPricesResponse}, types::{Limits, StrategyParams},
     test::mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
 };
 use strategies::tests::cairo_test::replicating::helpers::{
@@ -500,7 +499,7 @@ fn test_replicating_strategy_withdraw_all() {
     let (base_amount, quote_amount) = strategy.withdraw(market_id, user_deposits);
     let market_state = market_manager.market_state(market_id);
     let state = strategy.strategy_state(market_id);
-    
+
     // Refetch deposits.
     user_deposits = strategy.user_deposits(market_id, owner());
     let total_deposits = strategy.total_deposits(market_id);
@@ -650,7 +649,7 @@ fn test_replicating_strategy_reenable_deposits() {
     let shares_init = strategy
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
-   // Disable deposits.
+    // Disable deposits.
     let mut params = strategy.strategy_params(market_id);
     params.allow_deposits = false;
     strategy.set_params(market_id, params);

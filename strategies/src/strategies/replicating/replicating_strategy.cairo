@@ -935,7 +935,7 @@ mod ReplicatingStrategy {
                 .emit(
                     Event::SetStrategyParams(
                         SetStrategyParams {
-                            market_id, 
+                            market_id,
                             min_spread: params.min_spread,
                             range: params.range,
                             max_delta: params.max_delta,

@@ -50,11 +50,7 @@ trait IReplicatingStrategy<TContractState> {
     ) -> (u256, u256, u256);
     fn withdraw(ref self: TContractState, market_id: felt252, shares: u256) -> (u256, u256);
     fn collect_and_pause(ref self: TContractState, market_id: felt252);
-    fn set_params(
-        ref self: TContractState,
-        market_id: felt252,
-        params: StrategyParams,
-    );
+    fn set_params(ref self: TContractState, market_id: felt252, params: StrategyParams,);
     fn change_oracle(
         ref self: TContractState, oracle: ContractAddress, oracle_summary: ContractAddress,
     );
