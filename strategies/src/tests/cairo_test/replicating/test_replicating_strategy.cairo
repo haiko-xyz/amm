@@ -23,7 +23,8 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::{to_e18, to_e28, approx_eq, approx_eq_pct};
 use strategies::strategies::replicating::{
     interface::{IReplicatingStrategyDispatcher, IReplicatingStrategyDispatcherTrait},
-    pragma::{DataType, PragmaPricesResponse}, types::Limits,
+    pragma::{DataType, PragmaPricesResponse}, 
+    types::{Limits, StrategyParams},
     test::mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
 };
 use strategies::tests::cairo_test::replicating::helpers::{
@@ -166,6 +167,50 @@ fn test_replicating_strategy_deposit_initial_invalid_oracle_price() {
 
     // Deposit initial should revert if oracle price is invalid.
     set_contract_address(owner());
+    strategy.deposit_initial(market_id, to_e18(1000000), to_e18(1112520000));
+}
+
+#[test]
+#[should_panic(expected: ('Paused', 'ENTRYPOINT_FAILED'))]
+#[available_gas(100000000)]
+fn test_replicating_strategy_deposit_initial_paused() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Set price.
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 5); // 1668.78
+
+    // Pause strategy.
+    set_contract_address(owner());
+    strategy.pause(market_id);
+
+    // Deposit initial should revert if paused.
+    strategy.deposit_initial(market_id, to_e18(1000000), to_e18(1112520000));
+}
+
+#[test]
+#[should_panic(expected: ('NotInitialised', 'ENTRYPOINT_FAILED'))]
+#[available_gas(100000000)]
+fn test_replicating_strategy_deposit_initial_market_not_initialised() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Deposit initial should revert if not market not initialised.
+    strategy.deposit_initial(1, to_e18(1000000), to_e18(1112520000));
+}
+
+#[test]
+#[should_panic(expected: ('DepositDisabled', 'ENTRYPOINT_FAILED'))]
+#[available_gas(100000000)]
+fn test_replicating_strategy_deposit_initial_deposit_disabled() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Disable deposits.
+    set_contract_address(owner());
+    let mut params = strategy.strategy_params(market_id);
+    params.allow_deposits = false;
+    strategy.set_params(market_id, params);
+
+    // Deposit initial should revert if deposits disabled.
     strategy.deposit_initial(market_id, to_e18(1000000), to_e18(1112520000));
 }
 
@@ -580,11 +625,9 @@ fn test_replicating_strategy_disable_deposits() {
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Disable deposits.
-    let params = strategy.strategy_params(market_id);
-    strategy
-        .set_params(
-            market_id, params.min_spread, params.range, params.max_delta, params.vol_period, false
-        );
+    let mut params = strategy.strategy_params(market_id);
+    params.allow_deposits = false;
+    strategy.set_params(market_id, params);
 
     // Try to deposit.
     set_contract_address(alice());
@@ -607,18 +650,14 @@ fn test_replicating_strategy_reenable_deposits() {
     let shares_init = strategy
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
-    // Disable deposits.
-    let params = strategy.strategy_params(market_id);
-    strategy
-        .set_params(
-            market_id, params.min_spread, params.range, params.max_delta, params.vol_period, false
-        );
+   // Disable deposits.
+    let mut params = strategy.strategy_params(market_id);
+    params.allow_deposits = false;
+    strategy.set_params(market_id, params);
 
     // Enable deposits.
-    strategy
-        .set_params(
-            market_id, params.min_spread, params.range, params.max_delta, params.vol_period, true
-        );
+    params.allow_deposits = true;
+    strategy.set_params(market_id, params);
 
     // Deposit.
     set_contract_address(alice());
@@ -674,13 +713,14 @@ fn test_replicating_strategy_set_strategy_params() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     set_contract_address(owner());
-    let params = strategy.strategy_params(market_id);
-    let min_spread = Limits::Fixed(0);
-    let range = Limits::Fixed(3000);
-    let max_delta = 0;
-    let vol_period = 0;
-    let allow_deposits = true;
-    strategy.set_params(market_id, min_spread, range, max_delta, vol_period, allow_deposits);
+    let params = StrategyParams {
+        min_spread: Limits::Fixed(0),
+        range: Limits::Fixed(3000),
+        max_delta: 0,
+        vol_period: 0,
+        allow_deposits: true,
+    };
+    strategy.set_params(market_id, params);
 
     let params = strategy.strategy_params(market_id);
     assert(params.min_spread == Limits::Fixed(0), 'Set params: min spread');
@@ -698,15 +738,7 @@ fn test_replicating_strategy_set_strategy_params_unchanged() {
 
     set_contract_address(owner());
     let params = strategy.strategy_params(market_id);
-    strategy
-        .set_params(
-            market_id,
-            params.min_spread,
-            params.range,
-            params.max_delta,
-            params.vol_period,
-            params.allow_deposits
-        );
+    strategy.set_params(market_id, params);
 }
 
 fn swap_test_cases(width: u32) -> Array<SwapCase> {

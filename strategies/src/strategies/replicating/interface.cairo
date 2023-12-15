@@ -53,11 +53,7 @@ trait IReplicatingStrategy<TContractState> {
     fn set_params(
         ref self: TContractState,
         market_id: felt252,
-        min_spread: Limits,
-        range: Limits,
-        max_delta: u32,
-        vol_period: u64,
-        allow_deposits: bool,
+        params: StrategyParams,
     );
     fn change_oracle(
         ref self: TContractState, oracle: ContractAddress, oracle_summary: ContractAddress,

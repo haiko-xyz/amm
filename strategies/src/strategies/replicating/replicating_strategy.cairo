@@ -683,6 +683,8 @@ mod ReplicatingStrategy {
             let mut state = self.strategy_state.read(market_id);
             assert(!state.is_paused, 'Paused');
             assert(state.is_initialised, 'NotInitialised');
+            let params = self.strategy_params.read(market_id);
+            assert(params.allow_deposits, 'DepositDisabled');
 
             // Initialise state
             let market_manager = self.market_manager.read();
@@ -922,29 +924,23 @@ mod ReplicatingStrategy {
         // * `max_delta` - max inv_delta parameter (additional single-sided spread based on portfolio imbalance)
         // * `vol_period` - lookback period for calculating realised volatility (in seconds)
         // * `allow_deposits` - whether deposits are allowed
-        fn set_params(
-            ref self: ContractState,
-            market_id: felt252,
-            min_spread: Limits,
-            range: Limits,
-            max_delta: u32,
-            vol_period: u64,
-            allow_deposits: bool,
-        ) {
+        fn set_params(ref self: ContractState, market_id: felt252, params: StrategyParams) {
             self.assert_strategy_owner(market_id);
             let market_manager = self.market_manager.read();
             let width = market_manager.width(market_id);
             let old_params = self.strategy_params.read(market_id);
-            let new_params = StrategyParams {
-                min_spread, range, max_delta, vol_period, allow_deposits
-            };
-            assert(old_params != new_params, 'ParamsUnchanged');
-            self.strategy_params.write(market_id, new_params);
+            assert(old_params != params, 'ParamsUnchanged');
+            self.strategy_params.write(market_id, params);
             self
                 .emit(
                     Event::SetStrategyParams(
                         SetStrategyParams {
-                            market_id, min_spread, range, max_delta, vol_period, allow_deposits
+                            market_id, 
+                            min_spread: params.min_spread,
+                            range: params.range,
+                            max_delta: params.max_delta,
+                            vol_period: params.vol_period,
+                            allow_deposits: params.allow_deposits,
                         }
                     )
                 );
