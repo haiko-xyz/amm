@@ -36,6 +36,8 @@ mod ReplicatingStrategy {
     // External imports.
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
+    use debug::PrintTrait;
+
     ////////////////////////////////
     // STORAGE
     ///////////////////////////////
@@ -667,16 +669,14 @@ mod ReplicatingStrategy {
         //
         // # Arguments
         // * `market_id` - market id
-        // * `base_amount` - base asset requested
-        // * `quote_amount` - quote asset requested
-        //
-        // # Returns
         // * `base_amount` - base asset to deposit
         // * `quote_amount` - quote asset to deposit
-        // * `shares` - pool shares minted in the form of liquidity, which is always denominated in base asset
+        //
+        // # Returns
+        // * `shares` - pool shares minted in the form of liquidity
         fn deposit_initial(
             ref self: ContractState, market_id: felt252, base_amount: u256, quote_amount: u256
-        ) -> (u256, u256, u256) {
+        ) -> u256 {
             // Run checks
             assert(self.total_deposits.read(market_id) == 0, 'UseDeposit');
             assert(base_amount != 0 && quote_amount != 0, 'AmountZero');
@@ -713,31 +713,15 @@ mod ReplicatingStrategy {
             // Refetch strategy state after placing positions to find leftover token amounts.
             state = self.strategy_state.read(market_id);
 
-            // Transfer leftover back to caller
-            if state.base_reserves != 0 {
-                assert(base_token.balance_of(contract) >= state.base_reserves, 'BaseRemTransfer');
-                base_token.transfer(caller, state.base_reserves);
-                state.base_reserves = 0;
-            }
-            if state.quote_reserves != 0 {
-                assert(
-                    quote_token.balance_of(contract) >= state.quote_reserves, 'QuoteRemTransfer'
-                );
-                quote_token.transfer(caller, state.quote_reserves);
-                state.quote_reserves = 0;
-            }
-
             // Mint liquidity
             let shares: u256 = (state.bid.liquidity + state.ask.liquidity).into();
             self.user_deposits.write((market_id, caller), shares);
             self.total_deposits.write(market_id, shares);
-            assert(base_amount >= state.base_reserves, 'BaseLeftover');
-            assert(quote_amount >= state.quote_reserves, 'QuoteLeftover');
 
             // Emit event
             self.emit(Event::Deposit(Deposit { market_id, caller, base_amount, quote_amount }));
 
-            (base_amount - state.base_reserves, quote_amount - state.quote_reserves, shares)
+            shares
         }
 
         // Deposit liquidity to strategy.

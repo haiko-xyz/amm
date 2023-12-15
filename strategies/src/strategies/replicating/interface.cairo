@@ -44,7 +44,7 @@ trait IReplicatingStrategy<TContractState> {
     );
     fn deposit_initial(
         ref self: TContractState, market_id: felt252, base_amount: u256, quote_amount: u256
-    ) -> (u256, u256, u256);
+    ) -> u256;
     fn deposit(
         ref self: TContractState, market_id: felt252, base_amount: u256, quote_amount: u256
     ) -> (u256, u256, u256);

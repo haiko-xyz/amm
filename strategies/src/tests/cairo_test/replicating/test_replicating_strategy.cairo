@@ -142,14 +142,11 @@ fn test_replicating_strategy_deposit_initial() {
     set_contract_address(owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let (base_amount, quote_amount, shares) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
     let base_liquidity_exp = 429406775392817428992841450;
     let quote_liquidity_exp = 286266946460287812818573174;
     let shares_exp = quote_liquidity_exp + base_liquidity_exp;
 
-    assert(approx_eq(base_amount, initial_base_amount, 10), 'Deposit initial: base');
-    assert(approx_eq(quote_amount, initial_quote_amount, 10), 'Deposit initial: quote');
     assert(approx_eq_pct(shares, shares_exp, 20), 'Deposit initial: shares');
     assert(
         approx_eq_pct(strategy.user_deposits(market_id, owner()), shares_exp, 20),
@@ -185,8 +182,7 @@ fn test_replicating_strategy_update_positions() {
     set_contract_address(owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let (base_amount, quote_amount, shares) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Update price.
     set_block_timestamp(1010);
@@ -288,8 +284,7 @@ fn test_replicating_strategy_multiple_swaps() {
     set_contract_address(owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let (base_amount, quote_amount, shares) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Update price.
     set_block_timestamp(1010);
@@ -395,8 +390,7 @@ fn test_replicating_strategy_withdraw() {
     set_contract_address(owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let (base_amount_init, quote_amount_init, shares_init) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares_init = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Execute swap sell.
     let amount = to_e18(5000);
@@ -445,8 +439,7 @@ fn test_replicating_strategy_collect_and_pause() {
     set_contract_address(owner());
     let initial_base_amount = 1000000;
     let initial_quote_amount = 1000000;
-    let (base_amount_init, quote_amount_init, shares_init) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares_init = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Collect and pause.
     set_contract_address(owner());
@@ -478,8 +471,7 @@ fn test_replicating_strategy_disable_deposits() {
     set_contract_address(owner());
     let initial_base_amount = 1000000;
     let initial_quote_amount = 1000000;
-    let (base_amount_init, quote_amount_init, shares_init) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares_init = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Disable deposits.
     let params = strategy.strategy_params(market_id);
@@ -506,8 +498,7 @@ fn test_replicating_strategy_reenable_deposits() {
     set_contract_address(owner());
     let initial_base_amount = 1000000;
     let initial_quote_amount = 1000000;
-    let (base_amount_init, quote_amount_init, shares_init) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares_init = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Disable deposits.
     let params = strategy.strategy_params(market_id);
@@ -540,8 +531,7 @@ fn test_replicating_strategy_lvr_rebalance_condition() {
     // Deposit initial.
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let (base_amount, quote_amount, shares) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Update price to within LVR rebalance threshold.
     set_contract_address(owner());
@@ -724,8 +714,7 @@ fn test_replicating_strategy_swap_cases() {
     set_contract_address(owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let (base_amount_init, quote_amount_init, shares_init) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares_init = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Fetch test cases.
     let prices = oracle_prices();
