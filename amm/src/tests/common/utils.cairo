@@ -45,8 +45,10 @@ fn approx_eq_pct(x: u256, y: u256, precision: u256) -> bool {
         return true;
     }
     if x > y {
+        assert(y != 0, 'approx_eq_pct: y is 0');
         (math::mul_div(x, ONE, y, false) - ONE) / math::pow(10, 28 - precision) == 0
     } else {
+        assert(x != 0, 'approx_eq_pct: x is 0');
         (math::mul_div(y, ONE, x, false) - ONE) / math::pow(10, 28 - precision) == 0
     }
 }

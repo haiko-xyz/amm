@@ -17,9 +17,17 @@ trait IMockPragmaOracle<TContractState> {
         base_currency_id: felt252,
         quote_currency_id: felt252,
         price: u128,
+        last_updated_timestamp: u64,
+        num_sources_aggregated: u32,
     );
     fn get_data_median(self: @TContractState, data_type: DataType) -> PragmaPricesResponse;
-    fn set_data_median(ref self: TContractState, data_type: DataType, price: u128);
+    fn set_data_median(
+        ref self: TContractState,
+        data_type: DataType,
+        price: u128,
+        last_updated_timestamp: u64,
+        num_sources_aggregated: u32,
+    );
     fn calculate_volatility(
         self: @TContractState,
         data_type: DataType,
@@ -41,8 +49,8 @@ mod MockPragmaOracle {
 
     #[storage]
     struct Storage {
-        usd_prices: LegacyMap::<felt252, u128>,
-        prices: LegacyMap::<(felt252, felt252), u128>,
+        usd_prices: LegacyMap::<felt252, (u128, u64, u32)>,
+        prices: LegacyMap::<(felt252, felt252), (u128, u64, u32)>,
         volatility: LegacyMap::<felt252, (u128, u32)>,
     }
 
@@ -56,12 +64,14 @@ mod MockPragmaOracle {
             typeof: SimpleDataType,
             expiration_timestamp: Option<u64>,
         ) -> PragmaPricesResponse {
-            let price = self.prices.read((base_currency_id, quote_currency_id));
+            let (price, last_updated_timestamp, num_sources_aggregated) = self
+                .prices
+                .read((base_currency_id, quote_currency_id));
             PragmaPricesResponse {
                 price,
                 decimals: 8,
-                last_updated_timestamp: 1,
-                num_sources_aggregated: 1,
+                last_updated_timestamp,
+                num_sources_aggregated,
                 expiration_timestamp: Option::None(()),
             }
         }
@@ -71,12 +81,19 @@ mod MockPragmaOracle {
             base_currency_id: felt252,
             quote_currency_id: felt252,
             price: u128,
+            last_updated_timestamp: u64,
+            num_sources_aggregated: u32,
         ) {
-            self.prices.write((base_currency_id, quote_currency_id), price);
+            self
+                .prices
+                .write(
+                    (base_currency_id, quote_currency_id),
+                    (price, last_updated_timestamp, num_sources_aggregated)
+                );
         }
 
         fn get_data_median(self: @ContractState, data_type: DataType) -> PragmaPricesResponse {
-            let price = match data_type {
+            let (price, last_updated_timestamp, num_sources_aggregated) = match data_type {
                 DataType::SpotEntry(x) => self.usd_prices.read(x),
                 DataType::FutureEntry((x, y)) => self.usd_prices.read(x),
                 DataType::GenericEntry(x) => self.usd_prices.read(x),
@@ -84,17 +101,24 @@ mod MockPragmaOracle {
             PragmaPricesResponse {
                 price,
                 decimals: 8,
-                last_updated_timestamp: 1,
-                num_sources_aggregated: 1,
+                last_updated_timestamp,
+                num_sources_aggregated,
                 expiration_timestamp: Option::None(()),
             }
         }
 
-        fn set_data_median(ref self: ContractState, data_type: DataType, price: u128) {
+        fn set_data_median(
+            ref self: ContractState,
+            data_type: DataType,
+            price: u128,
+            last_updated_timestamp: u64,
+            num_sources_aggregated: u32,
+        ) {
+            let data = (price, last_updated_timestamp, num_sources_aggregated);
             match data_type {
-                DataType::SpotEntry(x) => self.usd_prices.write(x, price),
-                DataType::FutureEntry((x, y)) => self.usd_prices.write(x, price),
-                DataType::GenericEntry(x) => self.usd_prices.write(x, price),
+                DataType::SpotEntry(x) => self.usd_prices.write(x, data),
+                DataType::FutureEntry((x, y)) => self.usd_prices.write(x, data),
+                DataType::GenericEntry(x) => self.usd_prices.write(x, data),
             }
         }
 

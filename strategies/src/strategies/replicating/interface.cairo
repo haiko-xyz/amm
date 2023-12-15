@@ -22,7 +22,7 @@ trait IReplicatingStrategy<TContractState> {
     fn user_deposits(self: @TContractState, market_id: felt252, owner: ContractAddress) -> u256;
     fn total_deposits(self: @TContractState, market_id: felt252) -> u256;
 
-    fn get_oracle_price(self: @TContractState, market_id: felt252) -> u256;
+    fn get_oracle_price(self: @TContractState, market_id: felt252) -> (u256, bool);
     // fn get_oracle_vol(self: @TContractState, market_id: felt252) -> u256;
     fn get_balances(self: @TContractState, market_id: felt252) -> (u256, u256);
     fn get_bid_ask(self: @TContractState, market_id: felt252) -> (u32, u32, u32, u32);
@@ -34,7 +34,8 @@ trait IReplicatingStrategy<TContractState> {
         base_currency_id: felt252,
         quote_currency_id: felt252,
         pair_id: felt252,
-        max_oracle_dev: u32,
+        min_sources: u32,
+        max_age: u64,
         min_spread: Limits,
         range: Limits,
         max_delta: u32,
