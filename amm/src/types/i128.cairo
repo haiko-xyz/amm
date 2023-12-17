@@ -56,26 +56,6 @@ impl I128Impl of I128Trait {
     }
 }
 
-impl I128IntoFelt252 of Into<i128, felt252> {
-    #[inline(always)]
-    fn into(self: i128) -> felt252 {
-        let mag_felt: felt252 = self.val.into();
-        if self.sign {
-            mag_felt * -1
-        } else {
-            mag_felt
-        }
-    }
-}
-
-impl Felt252TryIntoI128 of TryInto<felt252, i128> {
-    #[inline(always)]
-    fn try_into(self: felt252) -> Option<i128> {
-        let abs: u128 = self.try_into().unwrap();
-        Option::Some(I128Trait::new(abs, false))
-    }
-}
-
 impl I128PartialOrd of PartialOrd<i128> {
     #[inline(always)]
     fn le(lhs: i128, rhs: i128) -> bool {
@@ -135,13 +115,6 @@ impl I128PartialEq of PartialEq<i128> {
     #[inline(always)]
     fn ne(lhs: @i128, rhs: @i128) -> bool {
         lhs.sign != rhs.sign || lhs.val != rhs.val
-    }
-}
-
-impl LegacyHashI128 of LegacyHash<i128> {
-    #[inline(always)]
-    fn hash(state: felt252, value: i128) -> felt252 {
-        LegacyHash::<felt252>::hash(state, value.into())
     }
 }
 
