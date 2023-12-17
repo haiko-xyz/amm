@@ -36,8 +36,6 @@ mod ReplicatingStrategy {
     // External imports.
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
-    use debug::PrintTrait;
-
     ////////////////////////////////
     // STORAGE
     ///////////////////////////////
@@ -708,9 +706,11 @@ mod ReplicatingStrategy {
             quote_token.approve(market_manager.contract_address, BoundedU256::max());
             let (bid, ask) = self._update_positions(market_id);
 
-            // Check that at least 1 position is placed. If oracle price is invalid, this will fail
-            // and revert the deposit.
-            assert(bid.liquidity + ask.liquidity != 0, 'DepositInitialZero');
+            // Check that both positions are placed. If neither position is placed, for example if the
+            // oracle price is invalid, this will cause `deposit` to fail. Further, if the oracle price
+            // is too high or low, only single-sided liquidity may be placed. This is extremely unlikely
+            // and would cause severe portfolio skew, so we simply revert the transaction.
+            assert(bid.liquidity != 0 && ask.liquidity != 0, 'DepositInitialZero');
 
             // Refetch strategy state after placing positions to find leftover token amounts.
             state = self.strategy_state.read(market_id);
@@ -754,13 +754,21 @@ mod ReplicatingStrategy {
             let (base_balance, quote_balance) = self.get_balances(market_id);
 
             // Calculate shares to mint.
-            let base_deposit = min(
-                base_amount, math::mul_div(quote_amount, base_balance, quote_balance, false)
-            );
-            let quote_deposit = min(
-                quote_amount, math::mul_div(base_amount, quote_balance, base_balance, false)
-            );
-            let shares = math::mul_div(total_deposits, base_deposit, base_balance, false);
+            let base_deposit = if quote_amount == 0 || quote_balance == 0 {
+                base_amount
+            } else {
+                min(base_amount, math::mul_div(quote_amount, base_balance, quote_balance, false))
+            };
+            let quote_deposit = if base_amount == 0 || base_balance == 0 {
+                quote_amount
+            } else {
+                min(quote_amount, math::mul_div(base_amount, quote_balance, base_balance, false))
+            };
+            let shares = if base_balance == 0 {
+                math::mul_div(total_deposits, quote_deposit, quote_balance, false)
+            } else {
+                math::mul_div(total_deposits, base_deposit, base_balance, false)
+            };
 
             // Transfer tokens into contract.
             let caller = get_caller_address();
