@@ -1,5 +1,6 @@
 // Core lib imports.
 use starknet::ContractAddress;
+use starknet::contract_address_const;
 use starknet::testing::{set_contract_address, set_block_timestamp};
 use integer::{BoundedU32, BoundedU128, BoundedU256};
 
@@ -18,7 +19,7 @@ use amm::tests::cairo_test::helpers::{
     token::{deploy_token, fund, approve},
 };
 use amm::tests::common::params::{
-    owner, alice, treasury, default_token_params, default_market_params, modify_position_params,
+    owner, alice, bob, treasury, default_token_params, default_market_params, modify_position_params,
     swap_params
 };
 use amm::tests::common::utils::{to_e18, to_e18_u128, to_e28, approx_eq, approx_eq_pct};
@@ -873,6 +874,112 @@ fn test_set_strategy_params_unchanged() {
     set_contract_address(owner());
     let params = strategy.strategy_params(market_id);
     strategy.set_params(market_id, params);
+}
+
+#[test]
+#[available_gas(100000000)]
+fn test_transfer_and_accept_owner() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(owner());
+    strategy.transfer_owner(alice());
+    assert(strategy.owner() == owner(), 'Transfer owner: owner');
+
+    set_contract_address(alice());
+    strategy.accept_owner();
+    assert(strategy.owner() == alice(), 'Accept owner: owner');
+    assert(strategy.queued_owner() == contract_address_const::<0x0>(), 'Accept owner: queued owner');
+}
+
+#[test]
+#[available_gas(100000000)]
+fn test_transfer_then_update_owner_before_accepting() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(owner());
+    strategy.transfer_owner(alice());
+
+    strategy.transfer_owner(bob());
+    assert(strategy.owner() == owner(), 'Transfer owner: owner');
+    assert(strategy.queued_owner() == bob(), 'Transfer owner: queued owner');
+
+    set_contract_address(bob());
+    strategy.accept_owner();
+    assert(strategy.owner() == bob(), 'Accept owner: owner');
+    assert(strategy.queued_owner() == contract_address_const::<0x0>(), 'Accept owner: queued owner');
+}
+
+#[test]
+#[available_gas(100000000)]
+#[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
+fn test_transfer_owner_not_owner() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(alice());
+    strategy.transfer_owner(alice());
+}
+
+#[test]
+#[available_gas(100000000)]
+#[should_panic(expected: ('OnlyNewOwner', 'ENTRYPOINT_FAILED',))]
+fn test_accept_owner_not_transferred() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(alice());
+    strategy.accept_owner();
+}
+
+#[test]
+#[available_gas(100000000)]
+fn test_transfer_and_accept_strategy_owner() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(owner());
+    strategy.transfer_strategy_owner(market_id, alice());
+    assert(strategy.strategy_owner(market_id) == owner(), 'Transfer owner: owner');
+
+    set_contract_address(alice());
+    strategy.accept_strategy_owner(market_id);
+    assert(strategy.strategy_owner(market_id) == alice(), 'Accept owner: owner');
+    assert(strategy.queued_strategy_owner(market_id) == contract_address_const::<0x0>(), 'Accept owner: queued owner');
+}
+
+#[test]
+#[available_gas(100000000)]
+fn test_transfer_then_update_strategy_owner_before_accepting() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(owner());
+    strategy.transfer_strategy_owner(market_id, alice());
+
+    strategy.transfer_strategy_owner(market_id, bob());
+    assert(strategy.strategy_owner(market_id) == owner(), 'Transfer owner: owner');
+    assert(strategy.queued_strategy_owner(market_id) == bob(), 'Transfer owner: queued owner');
+
+    set_contract_address(bob());
+    strategy.accept_strategy_owner(market_id);
+    assert(strategy.strategy_owner(market_id) == bob(), 'Accept owner: owner');
+    assert(strategy.queued_strategy_owner(market_id) == contract_address_const::<0x0>(), 'Accept owner: queued owner');
+}
+
+#[test]
+#[available_gas(100000000)]
+#[should_panic(expected: ('OnlyStrategyOwner', 'ENTRYPOINT_FAILED',))]
+fn test_transfer_strategy_owner_not_owner() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(alice());
+    strategy.transfer_strategy_owner(market_id, alice());
+}
+
+#[test]
+#[available_gas(100000000)]
+#[should_panic(expected: ('OnlyNewOwner', 'ENTRYPOINT_FAILED',))]
+fn test_accept_strategy_owner_not_transferred() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(alice());
+    strategy.accept_strategy_owner(market_id);
 }
 
 fn swap_test_cases(width: u32) -> Array<SwapCase> {
