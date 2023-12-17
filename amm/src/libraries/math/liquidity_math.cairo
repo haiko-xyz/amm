@@ -77,7 +77,7 @@ fn liquidity_to_base(
     // Switch between formulas depending on magnitude of price, to maintain precision.
     // Case 1: used for larger sqrt prices
     let liquidity: u256 = liquidity_delta.val.into();
-    let abs_base_amount = if lower_sqrt_price > ONE || upper_sqrt_price > ONE {
+    let abs_base_amount = if upper_sqrt_price - lower_sqrt_price > ONE {
         math::mul_div(
             math::mul_div(
                 liquidity, upper_sqrt_price - lower_sqrt_price, lower_sqrt_price, round_up
