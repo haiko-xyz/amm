@@ -25,7 +25,7 @@ mod ReplicatingStrategy {
     use amm::types::i128::{I128Trait, i128};
     use strategies::strategies::replicating::{
         spread_math, interface::IReplicatingStrategy,
-        types::{StrategyParams, OracleParams, StrategyState, Limits},
+        types::{StrategyParams, OracleParams, StrategyState},
         pragma::{
             IOracleABIDispatcher, IOracleABIDispatcherTrait, AggregationMode, DataType,
             SimpleDataType, PragmaPricesResponse, ISummaryStatsABIDispatcher,
@@ -132,8 +132,8 @@ mod ReplicatingStrategy {
     #[derive(Drop, starknet::Event)]
     struct SetStrategyParams {
         market_id: felt252,
-        min_spread: Limits,
-        range: Limits,
+        min_spread: u32,
+        range: u32,
         max_delta: u32,
         vol_period: u64,
         allow_deposits: bool,
@@ -283,7 +283,6 @@ mod ReplicatingStrategy {
             // Calculate amount of new liquidity to add.
             // Token amounts rounded down as per convention when depositing liquidity.
             let base_amount = state.base_reserves + bid_base + ask_base;
-            let range = self._unpack_limits(params.range, market_id);
             let base_liquidity = if base_amount == 0 || next_ask_lower == 0 || next_ask_upper == 0 {
                 0
             } else {
@@ -579,12 +578,12 @@ mod ReplicatingStrategy {
             // Calculate new bid and ask limits.
             let limit = price_math::price_to_limit(price, width, false);
             let (base_amount, quote_amount) = self.get_balances(market_id);
-            let min_spread: u32 = self._unpack_limits(params.min_spread, market_id);
-            let range: u32 = self._unpack_limits(params.range, market_id);
             let inv_delta = spread_math::delta_spread(
                 params.max_delta, base_amount, quote_amount, price
             );
-            spread_math::calc_bid_ask(curr_limit, limit, min_spread, range, inv_delta, width)
+            spread_math::calc_bid_ask(
+                curr_limit, limit, params.min_spread, params.range, inv_delta, width
+            )
         }
 
         // Initialise strategy for market.
@@ -612,8 +611,8 @@ mod ReplicatingStrategy {
             pair_id: felt252,
             min_sources: u32,
             max_age: u64,
-            min_spread: Limits,
-            range: Limits,
+            min_spread: u32,
+            range: u32,
             max_delta: u32,
             vol_period: u64,
             allow_deposits: bool,
@@ -622,9 +621,7 @@ mod ReplicatingStrategy {
             self.assert_owner();
             let state = self.strategy_state.read(market_id);
             assert(!state.is_initialised, 'Initialised');
-            let min_spread_u32 = self._unpack_limits(min_spread, market_id);
-            let range_u32 = self._unpack_limits(range, market_id);
-            assert(range_u32 > 0, 'RangeZero');
+            assert(range > 0, 'RangeZero');
 
             // Set strategy owner.
             self.strategy_owner.write(market_id, get_caller_address());
@@ -947,6 +944,7 @@ mod ReplicatingStrategy {
             let width = market_manager.width(market_id);
             let old_params = self.strategy_params.read(market_id);
             assert(old_params != params, 'ParamsUnchanged');
+            assert(params.range != 0, 'RangeZero');
             self.strategy_params.write(market_id, params);
             self
                 .emit(
@@ -1166,28 +1164,25 @@ mod ReplicatingStrategy {
             (state.bid, state.ask)
         }
 
-
-        // Internal function to fetch volatility and unpack limits.
         // Note: Volatility-based limits are currently disabled as they are not fully supported by the oracle.
-        // 
-        // # Arguments
-        // * `limits` - `Limits` enum to unpack
-        // * `market_id` - market id
-        //
-        // # Returns
-        // * `limits` - unpacked number of limits
-        fn _unpack_limits(self: @ContractState, limits: Limits, market_id: felt252) -> u32 {
-            match limits {
-                Limits::Fixed(x) => x,
-                Limits::Vol(_) => {
-                    assert(false, 'VolLimitsUnsupported');
-                    0
-                // let vol = self.get_oracle_vol(market_id);
-                // let width = self.market_manager.read().width(market_id);
-                // spread_math::unpack_limits(limits, vol, width)
-                }
-            }
-        }
+        // // Internal function to fetch volatility and unpack limits.
+        // // 
+        // // # Arguments
+        // // * `limits` - `Limits` enum to unpack
+        // // * `market_id` - market id
+        // //
+        // // # Returns
+        // // * `limits` - unpacked number of limits
+        // fn _unpack_limits(self: @ContractState, limits: Limits, market_id: felt252) -> u32 {
+        //     match limits {
+        //         Limits::Fixed(x) => x,
+        //         Limits::Vol(_) => {
+        //             let vol = self.get_oracle_vol(market_id);
+        //             let width = self.market_manager.read().width(market_id);
+        //             spread_math::unpack_limits(limits, vol, width)
+        //         }
+        //     }
+        // }
 
         // Internal function to collect all outstanding positions and pause the contract.
         // 

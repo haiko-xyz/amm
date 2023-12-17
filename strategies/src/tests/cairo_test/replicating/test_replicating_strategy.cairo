@@ -25,7 +25,7 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::{to_e18, to_e18_u128, to_e28, approx_eq, approx_eq_pct};
 use strategies::strategies::replicating::{
     interface::{IReplicatingStrategyDispatcher, IReplicatingStrategyDispatcherTrait},
-    pragma::{DataType, PragmaPricesResponse}, types::{Limits, StrategyParams},
+    pragma::{DataType, PragmaPricesResponse}, types::StrategyParams,
     test::mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
 };
 use strategies::tests::cairo_test::replicating::helpers::{
@@ -99,8 +99,8 @@ fn before() -> (
             'ETH/USDC',
             3, // minimum sources
             600, // 10 minutes max age 
-            Limits::Fixed(10), // ~0.01% min spread
-            Limits::Fixed(20000), // ~20% range
+            10, // ~0.01% min spread
+            20000, // ~20% range
             200, // ~0.2% delta
             259200, // volatility lookback period of 3 days
             true,
@@ -173,7 +173,7 @@ fn test_deposit_initial_single_sided_bid_liquidity_correctly_reverts() {
     // Set range to overflow upper bounds so only bid liquidity is placed.
     set_contract_address(owner());
     let mut params = strategy.strategy_params(market_id);
-    params.range = Limits::Fixed(2000000);
+    params.range = 2000000;
     strategy.set_params(market_id, params);
 
     // Deposit initial.
@@ -199,7 +199,7 @@ fn test_deposit_initial_single_sided_ask_liquidity_correctly_reverts() {
     // Set range to overflow upper bounds so only ask liquidity is placed.
     set_contract_address(owner());
     let mut params = strategy.strategy_params(market_id);
-    params.range = Limits::Fixed(1000);
+    params.range = 1000;
     strategy.set_params(market_id, params);
 
     // Deposit initial.
@@ -849,8 +849,8 @@ fn test_set_strategy_params() {
 
     set_contract_address(owner());
     let params = StrategyParams {
-        min_spread: Limits::Fixed(0),
-        range: Limits::Fixed(3000),
+        min_spread: 0,
+        range: 3000,
         max_delta: 0,
         vol_period: 0,
         allow_deposits: true,
@@ -858,8 +858,8 @@ fn test_set_strategy_params() {
     strategy.set_params(market_id, params);
 
     let params = strategy.strategy_params(market_id);
-    assert(params.min_spread == Limits::Fixed(0), 'Set params: min spread');
-    assert(params.range == Limits::Fixed(3000), 'Set params: range');
+    assert(params.min_spread == 0, 'Set params: min spread');
+    assert(params.range == 3000, 'Set params: range');
     assert(params.max_delta == 0, 'Set params: max delta');
     assert(params.vol_period == 0, 'Set params: vol period');
     assert(params.allow_deposits == true, 'Set params: allow deposits');
@@ -873,6 +873,18 @@ fn test_set_strategy_params_unchanged() {
 
     set_contract_address(owner());
     let params = strategy.strategy_params(market_id);
+    strategy.set_params(market_id, params);
+}
+
+#[test]
+#[available_gas(1000000000)]
+#[should_panic(expected: ('RangeZero', 'ENTRYPOINT_FAILED'))]
+fn test_set_strategy_params_zero_range() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(owner());
+    let mut params = strategy.strategy_params(market_id);
+    params.range = 0;
     strategy.set_params(market_id, params);
 }
 
