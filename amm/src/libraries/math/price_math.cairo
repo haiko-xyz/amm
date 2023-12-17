@@ -44,7 +44,7 @@ fn shift_limit(limit: i32, width: u32) -> u32 {
 // * `unshifted_limit` - unshifted limit
 fn unshift_limit(limit: u32, width: u32) -> i32 {
     let unshifted: i32 = I32Trait::new(limit, false) - I32Trait::new(offset(width), false);
-    assert(unshifted <= I32Trait::new(max_limit(width), false), 'UnshiftLimitOF');
+    assert(unshifted.val <= MAX_LIMIT / width * width, 'UnshiftLimitOF');
     unshifted
 }
 
