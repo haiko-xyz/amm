@@ -10,7 +10,9 @@ use strategies::strategies::replicating::types::{StrategyParams, StrategyState, 
 #[starknet::interface]
 trait IReplicatingStrategy<TContractState> {
     fn owner(self: @TContractState) -> ContractAddress;
+    fn queued_owner(self: @TContractState) -> ContractAddress;
     fn strategy_owner(self: @TContractState, market_id: felt252) -> ContractAddress;
+    fn queued_strategy_owner(self: @TContractState, market_id: felt252) -> ContractAddress;
     fn oracle(self: @TContractState) -> ContractAddress;
     fn strategy_params(self: @TContractState, market_id: felt252) -> StrategyParams;
     fn strategy_state(self: @TContractState, market_id: felt252) -> StrategyState;

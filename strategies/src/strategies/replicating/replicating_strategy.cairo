@@ -391,9 +391,18 @@ mod ReplicatingStrategy {
             self.owner.read()
         }
 
+        // Queued contract owner, used for ownership transfers
+        fn queued_owner(self: @ContractState) -> ContractAddress {
+            self.queued_owner.read()
+        }
+
         // Strategy owner
         fn strategy_owner(self: @ContractState, market_id: felt252) -> ContractAddress {
             self.strategy_owner.read(market_id)
+        }
+        // Queued strategy owner, used for ownership transfers
+        fn queued_strategy_owner(self: @ContractState, market_id: felt252) -> ContractAddress {
+            self.queued_strategy_owner.read(market_id)
         }
 
         // Strategy parameters
@@ -1005,7 +1014,7 @@ mod ReplicatingStrategy {
             self.assert_strategy_owner(market_id);
             let old_owner = self.strategy_owner.read(market_id);
             assert(new_owner != old_owner, 'SameOwner');
-            self.strategy_owner.write(market_id, new_owner);
+            self.queued_strategy_owner.write(market_id, new_owner);
         }
 
         // Called by new owner to accept ownership of a strategy.
