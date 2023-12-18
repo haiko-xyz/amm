@@ -1,19 +1,19 @@
 // Core lib imports.
 use starknet::ContractAddress;
 use starknet::contract_address_const;
-use starknet::testing::{set_contract_address, set_block_timestamp};
 use integer::{BoundedU32, BoundedU128, BoundedU256};
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_SCALED};
 use amm::libraries::math::{fee_math, price_math, liquidity_math};
 use amm::libraries::id;
-use amm::interfaces::IMarketManager::{
-    IMarketManager, IMarketManagerDispatcher, IMarketManagerDispatcherTrait
+use amm::interfaces::{
+    IMarketManager::{IMarketManager, IMarketManagerDispatcher, IMarketManagerDispatcherTrait},
+    IStrategy::{IStrategyDispatcher, IStrategyDispatcherTrait},
 };
 use amm::types::core::{MarketState};
 use amm::types::i128::{i128, I128Trait};
-use amm::tests::cairo_test::helpers::{
+use amm::tests::snforge::helpers::{
     market_manager::{deploy_market_manager, create_market, modify_position, swap},
     token::{deploy_token, fund, approve},
 };
@@ -27,14 +27,11 @@ use strategies::strategies::replicating::{
     pragma::{DataType, PragmaPricesResponse}, types::StrategyParams,
     test::mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
 };
-use strategies::tests::cairo_test::replicating::helpers::{
-    deploy_replicating_strategy, deploy_mock_pragma_oracle
-};
+use strategies::tests::replicating::helpers::{deploy_replicating_strategy, deploy_mock_pragma_oracle};
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
-
-use debug::PrintTrait;
+use snforge_std::{declare, start_warp, start_prank, stop_prank, CheatTarget, PrintTrait};
 
 ////////////////////////////////
 // TYPES
@@ -64,12 +61,14 @@ fn before() -> (
     let owner = owner();
 
     // Deploy market manager.
-    let market_manager = deploy_market_manager(owner);
+    let manager_class = declare('MarketManager');
+    let market_manager = deploy_market_manager(manager_class, owner);
 
     // Deploy tokens.
     let (treasury, base_token_params, quote_token_params) = default_token_params();
-    let base_token = deploy_token(base_token_params);
-    let quote_token = deploy_token(quote_token_params);
+    let erc20_class = declare('ERC20');
+    let base_token = deploy_token(erc20_class, base_token_params);
+    let quote_token = deploy_token(erc20_class, quote_token_params);
 
     // Deploy oracle contract.
     let oracle = deploy_mock_pragma_oracle(owner);
@@ -89,6 +88,7 @@ fn before() -> (
     let market_id = create_market(market_manager, params);
 
     // Add market to strategy.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy
         .add_market(
             market_id,
@@ -121,6 +121,14 @@ fn before() -> (
     approve(base_token, alice(), strategy.contract_address, base_amount);
     approve(quote_token, alice(), strategy.contract_address, quote_amount);
 
+    // Fund strategy with initial token balances and approve market manager as spender.
+    // This is due to a limitation with `snforge` pranks that requires the strategy to be the 
+    // address executing swaps for checks to pass.
+    fund(base_token, strategy.contract_address, base_amount);
+    fund(quote_token, strategy.contract_address, quote_amount);
+    approve(base_token, strategy.contract_address, market_manager.contract_address, base_amount);
+    approve(quote_token, strategy.contract_address, market_manager.contract_address, quote_amount);
+
     (market_manager, base_token, quote_token, market_id, oracle, strategy)
 }
 
@@ -129,16 +137,145 @@ fn before() -> (
 ////////////////////////////////
 
 #[test]
-#[available_gas(100000000)]
-fn test_deposit_initial() {
+fn test_get_bid_ask() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5); // 1668.78
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 150000000000, 8, 999, 5); // 1500
 
     // Deposit initial.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let initial_base_amount = to_e18(1);
+    let initial_quote_amount = to_e18(2000);
+    strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+
+    // Get bid and ask.
+    // Expect inventory delta of 1/7 * 200 = 30 (rounded up).
+    // Expect bid to be placed at 7906620 + 731320 (oracle) - 10 (min spread) - 30 (inv delta).
+    // Expect ask to be placed at 7906620 + 741930 (curr price) + 10 (min spread).
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id);
+    assert(bid_upper == 7906620 + 731320 - 10 - 30, 'Bid upper');
+    assert(bid_lower == bid_upper - 20000, 'Bid lower');
+    assert(ask_lower == 7906620 + 741930 + 10, 'Ask lower');
+    assert(ask_upper == ask_lower + 20000, 'Ask upper');
+}
+
+#[test]
+fn test_queued_and_placed_positions() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Set price.
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
+
+    // Deposit initial.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let initial_base_amount = to_e18(1);
+    let initial_quote_amount = to_e18(2000);
+    strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+
+    // Update price.
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 180000000000, 8, 999, 5);
+    
+    // Get queued position.
+    let strategy_alt = IStrategyDispatcher{ contract_address: strategy.contract_address };
+    let queued_positions = strategy_alt.queued_positions(market_id);
+    let next_bid = *queued_positions.at(0);
+    let next_ask = *queued_positions.at(1);
+
+    // Swap to update positions.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    market_manager
+        .swap(market_id, true, to_e18(1000), true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Get placed positions.
+    let placed_positions = strategy_alt.placed_positions(market_id);
+    let bid = *placed_positions.at(0);
+    let ask = *placed_positions.at(1);
+
+    // Run checks.
+    assert(next_bid == bid, 'Queued positions: bid');
+    assert(next_ask == ask, 'Queued positions: ask');
+}
+
+#[test]
+fn test_queued_positions_uninitialised_market() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Set price.
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
+
+    // Fetch queued positions for uninitialised market.
+    let strategy_alt = IStrategyDispatcher{ contract_address: strategy.contract_address };
+    let queued_positions = strategy_alt.queued_positions(1);
+    let next_bid = *queued_positions.at(0);
+    let next_ask = *queued_positions.at(1);
+
+    // Run checks.
+    assert(next_bid.lower_limit == 0, 'Queued pos: bid lower limit');
+    assert(next_bid.upper_limit == 0, 'Queued pos: bid upper limit');
+    assert(next_bid.liquidity == 0, 'Queued pos: bid liquidity');
+    assert(next_ask.lower_limit == 0, 'Queued pos: ask lower limit');
+    assert(next_ask.upper_limit == 0, 'Queued pos: ask upper limit');
+    assert(next_ask.liquidity == 0, 'Queued pos: ask liquidity');
+}
+
+#[test]
+#[should_panic(expected: ('MarketNull',))]
+fn test_add_market_market_null() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    
+    // Register null market.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    strategy.add_market(1, owner(), 'ETH', 'USDC', 3, 600, 10, 20000, 200, true);
+}
+
+#[test]
+#[should_panic(expected: ('Initialised',))]
+fn test_add_market_already_initialised() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    
+    // Register null market.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    strategy.add_market(market_id, owner(), 'ETH', 'USDC', 3, 600, 10, 20000, 200, true);
+}
+
+#[test]
+#[should_panic(expected: ('BaseIdNull',))]
+fn test_add_market_base_id_null() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    
+    // Technically this market id does not exist but because this check is run before the
+    // market null check, it catches the error correctly.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    strategy.add_market(1, owner(), 0, 'USDC', 3, 600, 10, 20000, 200, true);
+}
+
+#[test]
+#[should_panic(expected: ('BaseIdNull',))]
+fn test_add_market_quote_id_null() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    
+    // Technically this market id does not exist but because this check is run before the
+    // market null check, it catches the error correctly.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    strategy.add_market(1, owner(), 0, 'USDC', 3, 600, 10, 20000, 200, true);
+}
+
+#[test]
+fn test_deposit_initial_success() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Set price.
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5); // 1668.78
+
+    // Deposit initial.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
     let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
@@ -154,8 +291,7 @@ fn test_deposit_initial() {
 }
 
 #[test]
-#[should_panic(expected: ('DepositInitialZero', 'ENTRYPOINT_FAILED'))]
-#[available_gas(100000000)]
+#[should_panic(expected: ('DepositInitialZero',))]
 fn test_deposit_initial_single_sided_bid_liquidity_correctly_reverts() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
@@ -163,11 +299,11 @@ fn test_deposit_initial_single_sided_bid_liquidity_correctly_reverts() {
     // liquidity is placed. This should be correctly handled when depositing initial liquidity.
 
     // Set price.
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 1, 28, 999, 5); // Limit = -6447270
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 1, 28, 999, 5); // Limit = -6447270
 
     // Set range to overflow upper bounds so only bid liquidity is placed.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let mut params = strategy.strategy_params(market_id);
     params.range = 2000000;
     strategy.set_params(market_id, params);
@@ -179,8 +315,7 @@ fn test_deposit_initial_single_sided_bid_liquidity_correctly_reverts() {
 }
 
 #[test]
-#[should_panic(expected: ('DepositInitialZero', 'ENTRYPOINT_FAILED'))]
-#[available_gas(100000000)]
+#[should_panic(expected: ('DepositInitialZero',))]
 fn test_deposit_initial_single_sided_ask_liquidity_correctly_reverts() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
@@ -188,14 +323,14 @@ fn test_deposit_initial_single_sided_ask_liquidity_correctly_reverts() {
     // liquidity is placed. This should be correctly handled when depositing initial liquidity.
 
     // Set price.
-    set_block_timestamp(1000);
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
     oracle
         .set_data_with_USD_hop(
-            'ETH/USD', 'USDC/USD', 21764856978905781477192766323629261, 0, 999, 5
+            'ETH', 'USDC', 21764856978905781477192766323629261, 0, 999, 5
         ); // Limit = 7906600
 
     // Set range to overflow upper bounds so only ask liquidity is placed.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let mut params = strategy.strategy_params(market_id);
     params.range = 1000;
     strategy.set_params(market_id, params);
@@ -207,32 +342,30 @@ fn test_deposit_initial_single_sided_ask_liquidity_correctly_reverts() {
 }
 
 #[test]
-#[should_panic(expected: ('DepositInitialZero', 'ENTRYPOINT_FAILED'))]
-#[available_gas(100000000)]
+#[should_panic(expected: ('DepositInitialZero',))]
 fn test_deposit_initial_invalid_oracle_price() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 2);
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 2);
 
     // Deposit initial should revert if oracle price is invalid.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.deposit_initial(market_id, to_e18(1000000), to_e18(1112520000));
 }
 
 #[test]
-#[should_panic(expected: ('Paused', 'ENTRYPOINT_FAILED'))]
-#[available_gas(100000000)]
+#[should_panic(expected: ('Paused',))]
 fn test_deposit_initial_paused() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5); // 1668.78
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5); // 1668.78
 
     // Pause strategy.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.pause(market_id);
 
     // Deposit initial should revert if paused.
@@ -240,8 +373,7 @@ fn test_deposit_initial_paused() {
 }
 
 #[test]
-#[should_panic(expected: ('NotInitialised', 'ENTRYPOINT_FAILED'))]
-#[available_gas(100000000)]
+#[should_panic(expected: ('NotInitialised',))]
 fn test_deposit_initial_market_not_initialised() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
@@ -250,42 +382,44 @@ fn test_deposit_initial_market_not_initialised() {
 }
 
 #[test]
-#[should_panic(expected: ('DepositDisabled', 'ENTRYPOINT_FAILED'))]
-#[available_gas(100000000)]
+#[should_panic(expected: ('DepositDisabled',))]
 fn test_deposit_initial_deposit_disabled() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Disable deposits.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let mut params = strategy.strategy_params(market_id);
     params.allow_deposits = false;
     strategy.set_params(market_id, params);
 
     // Deposit initial should revert if deposits disabled.
-    set_contract_address(alice());
+    start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.deposit_initial(market_id, to_e18(1000000), to_e18(1112520000));
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_update_positions() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5); // 1668.78
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5); // 1668.78
 
     // Deposit initial.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
     let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Update price.
-    set_block_timestamp(1010);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 167250000000, 8, 1005, 5); // 1672.5
+    start_warp(CheatTarget::One(oracle.contract_address), 1010);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 167250000000, 8, 1005, 5); // 1672.5
 
-    // Execute swap and check positions updated.
+    // Execute swap as strategy and check positions updated.
+    // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
+    // non-strategy caller.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     let amount = to_e18(500000);
     let (amount_in, amount_out, fees) = market_manager
         .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
@@ -307,25 +441,28 @@ fn test_update_positions() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_update_positions_num_sources_too_low() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Update price.
-    set_block_timestamp(1000);
-    set_contract_address(owner());
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166800000000, 8, 999, 5);
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166800000000, 8, 999, 5);
 
     // Deposit initial.
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Update price with sources below threshold.
-    set_block_timestamp(1010);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 70000000000, 8, 1005, 2);
+    start_warp(CheatTarget::One(oracle.contract_address), 1010);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 70000000000, 8, 1005, 2);
 
-    // Execute swap.
+    // Execute swap as strategy. 
+    // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
+    // non-strategy caller.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     market_manager
         .swap(market_id, true, 1000, true, Option::None(()), Option::None(()), Option::None(()));
 
@@ -337,25 +474,28 @@ fn test_update_positions_num_sources_too_low() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_update_positions_price_stale() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Update price.
-    set_block_timestamp(1000);
-    set_contract_address(owner());
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166800000000, 8, 999, 5);
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166800000000, 8, 999, 5);
 
     // Deposit initial.
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
+    start_prank(CheatTarget::One(oracle.contract_address), owner());
     let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Update price with price age above threshold.
-    set_block_timestamp(1600);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 70000000000, 8, 999, 2);
+    start_warp(CheatTarget::One(oracle.contract_address), 1600);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 70000000000, 8, 999, 2);
 
-    // Execute swap.
+    // Execute swap as strategy. 
+    // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
+    // non-strategy caller.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     market_manager
         .swap(market_id, true, 1000, true, Option::None(()), Option::None(()), Option::None(()));
 
@@ -367,28 +507,33 @@ fn test_update_positions_price_stale() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_update_positions_multiple_swaps() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166700000000, 8, 999, 5);
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166700000000, 8, 999, 5);
 
     // Deposit initial.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(oracle.contract_address), owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
     let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Update price.
-    set_block_timestamp(1010);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 163277500000, 8, 1005, 5);
+    start_warp(CheatTarget::One(oracle.contract_address), 1010);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 163277500000, 8, 1005, 5);
 
-    // Execute swap 1 and check positions updated.
+    // Execute swap 1 as strategy. 
+    // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
+    // non-strategy caller.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     let amount = to_e18(100);
     market_manager
         .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Run checks.
     let bid = strategy.bid(market_id);
     let ask = strategy.ask(market_id);
     let market_state = market_manager.market_state(market_id);
@@ -409,9 +554,15 @@ fn test_update_positions_multiple_swaps() {
     assert(market_state.curr_limit == 7906620 + 741940, 'Swap 1: end limit');
     let (base_amount, quote_amount) = strategy.get_balances(market_id);
 
-    // Execute swap 2 and check positions updated.
+    // Execute swap 2 as strategy and check positions updated. 
+    // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
+    // non-strategy caller.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     market_manager
         .swap(market_id, false, amount, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Run checks.
     let bid_2 = strategy.bid(market_id);
     let ask_2 = strategy.ask(market_id);
     let market_state_2 = market_manager.market_state(market_id);
@@ -433,22 +584,21 @@ fn test_update_positions_multiple_swaps() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_deposit() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
 
     // Deposit initial.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
     strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Deposit.
-    set_contract_address(alice());
+    start_prank(CheatTarget::One(strategy.contract_address), alice());
     let base_amount_req = to_e18(500);
     let quote_amount_req = to_e18(700000); // Contains extra, should be partially refunded
     let (base_amount, quote_amount, new_shares) = strategy
@@ -484,21 +634,20 @@ fn test_deposit() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_deposit_multiple() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
 
     // Deposit initial.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
     strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Deposit once.
-    set_contract_address(alice());
+    start_prank(CheatTarget::One(strategy.contract_address), alice());
     let base_amount_req = to_e18(500);
     let quote_amount_req = to_e18(700000); // Contains extra, should be partially refunded
     strategy.deposit(market_id, base_amount_req, quote_amount_req);
@@ -528,28 +677,29 @@ fn test_deposit_multiple() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_deposit_single_sided_bid_liquidity() {
     // The portfolio could become entirely skewed in one asset due to price movements. In this case,
     // single-sided liquidity deposits should be handled gracefully.
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
 
     // Deposit initial.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.deposit_initial(market_id, 1000, to_e18(1000));
 
     // Place position above current one.
-    set_contract_address(alice());
+    start_prank(CheatTarget::One(market_manager.contract_address), alice());
     market_manager
         .modify_position(
             market_id, 7906620 + 765000, 7906620 + 766000, I128Trait::new(to_e18_u128(1000), false)
         );
 
-    // Buy and update positions to concentrate liquidity entirely in bid.
+    // Execute buy as strategy. Update positions to concentrate liquidity entirely in bid.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     market_manager
         .swap(
             market_id,
@@ -561,8 +711,8 @@ fn test_deposit_single_sided_bid_liquidity() {
             Option::None(())
         );
     // Update oracle price and swap to trigger position update, setting ask liquidity to 0.
-    set_block_timestamp(1010);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 220000000000, 8, 1005, 5);
+    start_warp(CheatTarget::One(oracle.contract_address), 1010);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 220000000000, 8, 1005, 5);
     market_manager
         .swap(
             market_id,
@@ -581,6 +731,7 @@ fn test_deposit_single_sided_bid_liquidity() {
         market_id, strategy.contract_address.into(), state.bid.lower_limit, state.bid.upper_limit
     );
     let (_, quote_amount) = market_manager.amounts_inside_position(position_id);
+    start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.deposit(market_id, 0, quote_amount);
     let alice_shares = strategy.user_deposits(market_id, alice());
     let total_shares = strategy.total_deposits(market_id);
@@ -588,28 +739,29 @@ fn test_deposit_single_sided_bid_liquidity() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_deposit_single_sided_ask_liquidity() {
     // The portfolio could become entirely skewed in one asset due to price movements. In this case,
     // single-sided liquidity deposits should be handled gracefully.
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
 
     // Deposit initial.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.deposit_initial(market_id, to_e18(1), 10);
 
     // Place poosition below current one.
-    set_contract_address(alice());
+    start_prank(CheatTarget::One(market_manager.contract_address), alice());
     market_manager
         .modify_position(
             market_id, 7906620 + 725000, 7906620 + 735000, I128Trait::new(to_e18_u128(1000), false)
         );
 
     // Buy and update positions to concentrate liquidity entirely in bid.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     market_manager
         .swap(
             market_id,
@@ -621,8 +773,8 @@ fn test_deposit_single_sided_ask_liquidity() {
             Option::None(())
         );
     // Update oracle price and swap to trigger position update, setting ask liquidity to 0.
-    set_block_timestamp(1010);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 100000000000, 8, 1005, 5);
+    start_warp(CheatTarget::One(oracle.contract_address), 1010);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 100000000000, 8, 1005, 5);
     market_manager
         .swap(
             market_id,
@@ -641,6 +793,7 @@ fn test_deposit_single_sided_ask_liquidity() {
         market_id, strategy.contract_address.into(), state.ask.lower_limit, state.ask.upper_limit
     );
     let (base_amount, quote_amount) = market_manager.amounts_inside_position(position_id);
+    start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.deposit(market_id, base_amount, 0);
     let alice_shares = strategy.user_deposits(market_id, alice());
     let total_shares = strategy.total_deposits(market_id);
@@ -648,26 +801,27 @@ fn test_deposit_single_sided_ask_liquidity() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_get_balances() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Remove protocol fee for easier accounting.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(market_manager.contract_address), owner());
     market_manager.set_protocol_share(market_id, 0);
 
     // Set price.
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5); // 1668.78
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5); // 1668.78
 
     // Deposit initial.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
     let base_deposit = to_e18(1000);
     let quote_deposit = to_e18(1668780);
     strategy.deposit_initial(market_id, base_deposit, quote_deposit);
 
     // Swap buy to accrue fees. 
-    set_contract_address(alice());
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     let buy_amount = to_e18(2000);
     let (amount_in_1, amount_out_1, _) = market_manager
         .swap(
@@ -692,7 +846,7 @@ fn test_get_balances() {
     let quote_amount_exp = quote_deposit + amount_in_1 - amount_out_2;
 
     // Deposit more tokens.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.deposit(market_id, base_amount_exp, quote_amount_exp);
 
     // Get balances.
@@ -702,27 +856,29 @@ fn test_get_balances() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_withdraw_all() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
 
     // Deposit initial.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
     let shares_init = strategy
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Execute swap sell.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     let amount = to_e18(5000);
     let (amount_in, amount_out, fees) = market_manager
         .swap(market_id, false, amount, true, Option::None(()), Option::None(()), Option::None(()));
 
     // Withdraw from strategy.
     let mut user_deposits = strategy.user_deposits(market_id, owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let (base_amount, quote_amount) = strategy.withdraw(market_id, user_deposits);
     let market_state = market_manager.market_state(market_id);
     let state = strategy.strategy_state(market_id);
@@ -748,22 +904,25 @@ fn test_withdraw_all() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_withdraw_partial() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
 
     // Deposit initial.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
     let shares_init = strategy
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
-    // Execute swap sell.
+    // Execute swap sell as strategy. 
+    // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
+    // non-strategy caller.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     let amount = to_e18(5000);
     let (amount_in, amount_out, fees) = market_manager
         .swap(market_id, false, amount, true, Option::None(()), Option::None(()), Option::None(()));
@@ -771,6 +930,7 @@ fn test_withdraw_partial() {
     // Withdraw partial from strategy.
     let shares_init = 286266946460287812818573174 + 429406775392817428992841450;
     let shares_req = 357836860926552620905707312;
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let (base_amount, quote_amount) = strategy.withdraw(market_id, shares_req);
     let market_state = market_manager.market_state(market_id);
     let state = strategy.strategy_state(market_id);
@@ -802,23 +962,22 @@ fn test_withdraw_partial() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_collect_and_pause() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 100100000, 8, 999, 5);
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 100100000, 8, 999, 5);
 
     // Deposit initial.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let initial_base_amount = 1000000;
     let initial_quote_amount = 1000000;
     let shares_init = strategy
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Collect and pause.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.collect_and_pause(market_id);
     let market_state = market_manager.market_state(market_id);
     let state = strategy.strategy_state(market_id);
@@ -834,17 +993,16 @@ fn test_collect_and_pause() {
 }
 
 #[test]
-#[available_gas(1000000000)]
-#[should_panic(expected: ('DepositDisabled', 'ENTRYPOINT_FAILED'))]
+#[should_panic(expected: ('DepositDisabled',))]
 fn test_disable_deposits() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
 
     // Deposit initial.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let initial_base_amount = 1000000;
     let initial_quote_amount = 1000000;
     let shares_init = strategy
@@ -856,21 +1014,20 @@ fn test_disable_deposits() {
     strategy.set_params(market_id, params);
 
     // Try to deposit.
-    set_contract_address(alice());
+    start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.deposit(market_id, to_e18(500), to_e18(700000));
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_reenable_deposits() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
 
     // Deposit initial.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let initial_base_amount = 1000000;
     let initial_quote_amount = 1000000;
     let shares_init = strategy
@@ -886,21 +1043,20 @@ fn test_reenable_deposits() {
     strategy.set_params(market_id, params);
 
     // Deposit.
-    set_contract_address(alice());
+    start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.deposit(market_id, to_e18(500), to_e18(700000));
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_disable_deposit_strategy_owner_deposit() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
 
     // Deposit initial.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let initial_base_amount = 1000000;
     let initial_quote_amount = 1000000;
     let shares_init = strategy
@@ -916,14 +1072,13 @@ fn test_disable_deposit_strategy_owner_deposit() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_lvr_rebalance_condition() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Update price.
-    set_contract_address(owner());
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166780000000, 8, 999, 5);
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166780000000, 8, 999, 5);
 
     // Deposit initial.
     let initial_base_amount = to_e18(1000000);
@@ -931,14 +1086,16 @@ fn test_lvr_rebalance_condition() {
     let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Update price to within LVR rebalance threshold.
-    set_contract_address(owner());
-    set_block_timestamp(1010);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 167300000000, 8, 1005, 5);
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    start_warp(CheatTarget::One(oracle.contract_address), 1010);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 167300000000, 8, 1005, 5);
 
     let bid_before = strategy.bid(market_id);
     let ask_before = strategy.ask(market_id);
 
     // Swap and check positions not updated.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     let amount = to_e18(500000);
     market_manager
         .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
@@ -948,8 +1105,8 @@ fn test_lvr_rebalance_condition() {
     assert(ask_before == ask_after, 'LVR rebalance: ask 1');
 
     // Update price again.
-    set_block_timestamp(1020);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166400000000, 8, 1015, 5);
+    start_warp(CheatTarget::One(oracle.contract_address), 1020);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166400000000, 8, 1015, 5);
     market_manager
         .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
     bid_after = strategy.bid(market_id);
@@ -959,11 +1116,10 @@ fn test_lvr_rebalance_condition() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_set_strategy_params() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let params = StrategyParams { min_spread: 0, range: 3000, max_delta: 0, allow_deposits: true, };
     strategy.set_params(market_id, params);
 
@@ -975,38 +1131,35 @@ fn test_set_strategy_params() {
 }
 
 #[test]
-#[available_gas(1000000000)]
-#[should_panic(expected: ('ParamsUnchanged', 'ENTRYPOINT_FAILED'))]
+#[should_panic(expected: ('ParamsUnchanged',))]
 fn test_set_strategy_params_unchanged() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let params = strategy.strategy_params(market_id);
     strategy.set_params(market_id, params);
 }
 
 #[test]
-#[available_gas(1000000000)]
-#[should_panic(expected: ('RangeZero', 'ENTRYPOINT_FAILED'))]
+#[should_panic(expected: ('RangeZero',))]
 fn test_set_strategy_params_zero_range() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let mut params = strategy.strategy_params(market_id);
     params.range = 0;
     strategy.set_params(market_id, params);
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_transfer_and_accept_owner() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.transfer_owner(alice());
     assert(strategy.owner() == owner(), 'Transfer owner: owner');
 
-    set_contract_address(alice());
+    start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.accept_owner();
     assert(strategy.owner() == alice(), 'Accept owner: owner');
     assert(
@@ -1015,18 +1168,17 @@ fn test_transfer_and_accept_owner() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_transfer_then_update_owner_before_accepting() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.transfer_owner(alice());
 
     strategy.transfer_owner(bob());
     assert(strategy.owner() == owner(), 'Transfer owner: owner');
     assert(strategy.queued_owner() == bob(), 'Transfer owner: queued owner');
 
-    set_contract_address(bob());
+    start_prank(CheatTarget::One(strategy.contract_address), bob());
     strategy.accept_owner();
     assert(strategy.owner() == bob(), 'Accept owner: owner');
     assert(
@@ -1035,35 +1187,32 @@ fn test_transfer_then_update_owner_before_accepting() {
 }
 
 #[test]
-#[available_gas(100000000)]
-#[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('OnlyOwner',))]
 fn test_transfer_owner_not_owner() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
-    set_contract_address(alice());
+    start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.transfer_owner(alice());
 }
 
 #[test]
-#[available_gas(100000000)]
-#[should_panic(expected: ('OnlyNewOwner', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('OnlyNewOwner',))]
 fn test_accept_owner_not_transferred() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
-    set_contract_address(alice());
+    start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.accept_owner();
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_transfer_and_accept_strategy_owner() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.transfer_strategy_owner(market_id, alice());
     assert(strategy.strategy_owner(market_id) == owner(), 'Transfer owner: owner');
 
-    set_contract_address(alice());
+    start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.accept_strategy_owner(market_id);
     assert(strategy.strategy_owner(market_id) == alice(), 'Accept owner: owner');
     assert(
@@ -1073,18 +1222,17 @@ fn test_transfer_and_accept_strategy_owner() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_transfer_then_update_strategy_owner_before_accepting() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.transfer_strategy_owner(market_id, alice());
 
     strategy.transfer_strategy_owner(market_id, bob());
     assert(strategy.strategy_owner(market_id) == owner(), 'Transfer owner: owner');
     assert(strategy.queued_strategy_owner(market_id) == bob(), 'Transfer owner: queued owner');
 
-    set_contract_address(bob());
+    start_prank(CheatTarget::One(strategy.contract_address), bob());
     strategy.accept_strategy_owner(market_id);
     assert(strategy.strategy_owner(market_id) == bob(), 'Accept owner: owner');
     assert(
@@ -1094,22 +1242,20 @@ fn test_transfer_then_update_strategy_owner_before_accepting() {
 }
 
 #[test]
-#[available_gas(100000000)]
-#[should_panic(expected: ('OnlyStrategyOwner', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('OnlyStrategyOwner',))]
 fn test_transfer_strategy_owner_not_owner() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
-    set_contract_address(alice());
+    start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.transfer_strategy_owner(market_id, alice());
 }
 
 #[test]
-#[available_gas(100000000)]
-#[should_panic(expected: ('OnlyNewOwner', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('OnlyNewOwner',))]
 fn test_accept_strategy_owner_not_transferred() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
-    set_contract_address(alice());
+    start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.accept_strategy_owner(market_id);
 }
 
@@ -1213,16 +1359,15 @@ fn oracle_prices() -> Array<u128> {
 }
 
 #[test]
-#[available_gas(15000000000)]
 fn test_swap_cases() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set oracle price.
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
 
     // Deposit initial.
-    set_contract_address(owner());
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
     let shares_init = strategy
@@ -1239,7 +1384,7 @@ fn test_swap_cases() {
         }
         // Set oracle price.
         let price = *prices[index];
-        oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', price, 8, 999, 5);
+        oracle.set_data_with_USD_hop('ETH', 'USDC', price, 8, 999, 5);
 
         if index < 9 {
             ('*** PRICE 01' + index.into()).print();
@@ -1269,7 +1414,7 @@ fn test_swap_cases() {
         }
 
         let mut params = swap_params(
-            alice(),
+            strategy.contract_address,
             market_id,
             swap_case.is_buy,
             swap_case.exact_input,
@@ -1278,6 +1423,8 @@ fn test_swap_cases() {
             Option::None(()),
             Option::None(()),
         );
+        start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+        start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
         let (amount_in, amount_out, fees) = swap(market_manager, params);
 
         'amount_in'.print();

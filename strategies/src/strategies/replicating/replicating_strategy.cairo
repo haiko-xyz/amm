@@ -22,7 +22,7 @@ mod ReplicatingStrategy {
     };
     use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
     use amm::interfaces::IStrategy::IStrategy;
-    use amm::types::i128::{I128Trait, i128};
+    use amm::types::{i32::I32Trait, i128::{I128Trait, i128}};
     use strategies::strategies::replicating::{
         spread_math, interface::IReplicatingStrategy,
         types::{StrategyParams, OracleParams, StrategyState},
@@ -35,6 +35,8 @@ mod ReplicatingStrategy {
 
     // External imports.
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    
+    // use snforge_std::PrintTrait;
 
     ////////////////////////////////
     // STORAGE
@@ -260,6 +262,11 @@ mod ReplicatingStrategy {
             // Fetch market info.
             let market_manager = self.market_manager.read();
             let market_info = market_manager.market_info(market_id);
+
+            // Handle non-existent market.
+            if market_info.width == 0 {
+                return array![Default::default(), Default::default()].span();
+            }
 
             // Fetch strategy info.
             let params = self.strategy_params.read(market_id);
@@ -575,10 +582,19 @@ mod ReplicatingStrategy {
 
             // Calculate new bid and ask limits.
             let limit = price_math::price_to_limit(price, width, false);
-            let (base_amount, quote_amount) = self.get_balances(market_id);
-            let inv_delta = spread_math::delta_spread(
-                params.max_delta, base_amount, quote_amount, price
-            );
+            let inv_delta = if params.max_delta == 0 {
+                I32Trait::new(0, false)
+            } else {
+                let (base_amount, quote_amount) = self.get_balances(market_id);
+                if base_amount == 0 && quote_amount == 0 {
+                    // Handle edge case with early return to avoid division by 0 error.
+                    I32Trait::new(0, false)
+                } else {
+                    spread_math::delta_spread(
+                        params.max_delta, base_amount, quote_amount, price
+                    )
+                }
+            };
             spread_math::calc_bid_ask(
                 curr_limit, limit, params.min_spread, params.range, inv_delta, width
             )
@@ -616,6 +632,12 @@ mod ReplicatingStrategy {
             let state = self.strategy_state.read(market_id);
             assert(!state.is_initialised, 'Initialised');
             assert(range > 0, 'RangeZero');
+            assert(base_currency_id != 0, 'BaseIdNull');
+            assert(quote_currency_id != 0, 'QuoteIdNull');
+
+            // Check the market exists. This check prevents accidental registration of the wrong market.
+            let market_manager = self.market_manager.read();
+            assert(market_manager.market_info(market_id).width != 0, 'MarketNull');
 
             // Set strategy owner.
             self.strategy_owner.write(market_id, get_caller_address());
@@ -696,7 +718,7 @@ mod ReplicatingStrategy {
             base_token.transfer_from(caller, contract, base_amount);
             quote_token.transfer_from(caller, contract, quote_amount);
 
-            // Update reserves.
+            // Update reserves. Must be committed to state for `_update_positions` to place positions.
             state.base_reserves += base_amount;
             state.quote_reserves += quote_amount;
             self.strategy_state.write(market_id, state);
@@ -1112,7 +1134,7 @@ mod ReplicatingStrategy {
             }
 
             // Place new positions.
-            if next_bid.liquidity != 0 {
+            if next_bid.liquidity != 0 && update_bid {
                 let (_, quote_amount, _, _) = market_manager
                     .modify_position(
                         market_id,
@@ -1123,7 +1145,7 @@ mod ReplicatingStrategy {
                 state.quote_reserves -= quote_amount.val;
                 state.bid = next_bid;
             };
-            if next_ask.liquidity != 0 {
+            if next_ask.liquidity != 0 && update_ask {
                 let (base_amount, _, _, _) = market_manager
                     .modify_position(
                         market_id,

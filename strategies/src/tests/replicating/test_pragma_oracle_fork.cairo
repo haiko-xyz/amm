@@ -9,7 +9,7 @@ use amm::interfaces::IQuoter::{IQuoterDispatcher, IQuoterDispatcherTrait};
 use strategies::strategies::replicating::{
     interface::{IReplicatingStrategyDispatcher, IReplicatingStrategyDispatcherTrait},
 };
-use strategies::tests::snforge::replicating::helpers::deploy_replicating_strategy;
+use strategies::tests::replicating::helpers::deploy_replicating_strategy;
 
 use snforge_std::{start_prank, stop_prank, PrintTrait, CheatTarget};
 

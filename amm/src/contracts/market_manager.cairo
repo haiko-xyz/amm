@@ -42,6 +42,8 @@ mod MarketManager {
     use openzeppelin::token::erc721::interface::{IERC721Dispatcher, IERC721DispatcherTrait};
     use openzeppelin::introspection::src5::SRC5Component;
 
+    // use snforge_std::PrintTrait;
+
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
 
