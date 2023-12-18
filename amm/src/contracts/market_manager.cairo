@@ -1195,7 +1195,7 @@ mod MarketManager {
                 let market_configs = self.market_configs.read(market_id);
                 self.enforce_status(market_configs.swap.value, @market_info, 'SwapDisabled');
             }
-            assert(market_info.quote_token.is_non_zero(), 'MarketNull');
+            assert(market_info.width != 0, 'MarketNull');
             assert(amount > 0, 'AmtZero');
             if threshold_sqrt_price.is_some() {
                 price_lib::check_threshold(
@@ -1702,7 +1702,7 @@ mod MarketManager {
             let caller = get_caller_address();
 
             // Check inputs.
-            assert(market_info.quote_token.is_non_zero(), 'MarketNull');
+            assert(market_info.width != 0, 'MarketNull');
             price_lib::check_limits(
                 lower_limit, upper_limit, market_info.width, valid_limits, liquidity_delta.sign
             );
@@ -1837,7 +1837,7 @@ mod MarketManager {
                 let market_configs = self.market_configs.read(market_id);
                 self.enforce_status(market_configs.swap.value, @market_info, 'SwapDisabled');
             }
-            assert(market_info.quote_token.is_non_zero(), 'MarketNull');
+            assert(market_info.width != 0, 'MarketNull');
             assert(amount > 0, 'AmtZero');
             if threshold_sqrt_price.is_some() {
                 price_lib::check_threshold(
