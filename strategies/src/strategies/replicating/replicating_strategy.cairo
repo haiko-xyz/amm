@@ -599,7 +599,7 @@ mod ReplicatingStrategy {
         // * `min_spread` - minimum spread to between reference price and bid/ask price
         // * `range` - range parameter (width, in limits, of bid and ask liquidity positions)
         // * `max_delta` - max inv_delta parameter (additional single-sided spread based on portfolio imbalance)
-        // * `allow_deposits` - whether deposits are allowed
+        // * `allow_deposits` - whether deposits are allowed for depositors other than the strategy owner
         fn add_market(
             ref self: ContractState,
             market_id: felt252,
@@ -937,7 +937,7 @@ mod ReplicatingStrategy {
         // * `min_spread` - minimum spread between reference price and bid/ask price
         // * `range` - range parameter (width, in limits, of bid and ask liquidity positions)
         // * `max_delta` - max inv_delta parameter (additional single-sided spread based on portfolio imbalance)
-        // * `allow_deposits` - whether deposits are allowed
+        // * `allow_deposits` - whether deposits are allowed for depositors other than the strategy owner
         fn set_params(ref self: ContractState, market_id: felt252, params: StrategyParams) {
             self.assert_strategy_owner(market_id);
             let market_manager = self.market_manager.read();
