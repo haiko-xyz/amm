@@ -82,8 +82,8 @@ fn max_limit(width: u32) -> u32 {
 // * `sqrt_price` - sqrt price encoded as UD47x28
 fn limit_to_sqrt_price(limit: u32, width: u32) -> u256 {
     // Check limit ID is in range
-    assert(limit <= max_limit(width), 'LimitOF');
     assert(width <= MAX_WIDTH, 'WidthOF');
+    assert(limit <= max_limit(width), 'LimitOF');
 
     // Unshift limit
     let unshifted = unshift_limit(limit, width);
