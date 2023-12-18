@@ -807,9 +807,9 @@ mod MarketManager {
             assert(liquidity_delta != 0, 'OrderAmtZero');
 
             // Fetch order and batch info.
-            let mut limit_info = self.limit_info.read((market_id, limit));
+            let limit_info = self.limit_info.read((market_id, limit));
             let caller = get_caller_address();
-            let mut batch_id = id::batch_id(market_id, limit, limit_info.nonce);
+            let batch_id = id::batch_id(market_id, limit, limit_info.nonce);
             let mut batch = self.batches.read(batch_id);
             let order_id = id::order_id(batch_id, caller);
 
