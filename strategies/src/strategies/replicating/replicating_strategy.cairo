@@ -715,7 +715,7 @@ mod ReplicatingStrategy {
             // and would cause severe portfolio skew, so we simply revert the transaction.
             assert(bid.liquidity != 0 && ask.liquidity != 0, 'DepositInitialZero');
 
-            // Refetch strategy state after placing positions to find leftover token amounts.
+            // Refetch strategy state after placing positions to find shares.
             state = self.strategy_state.read(market_id);
 
             // Mint liquidity
