@@ -44,21 +44,13 @@ trait IReplicatingStrategy<TContractState> {
     );
     fn deposit_initial(
         ref self: TContractState, market_id: felt252, base_amount: u256, quote_amount: u256
-    ) -> (u256, u256, u256);
+    ) -> u256;
     fn deposit(
         ref self: TContractState, market_id: felt252, base_amount: u256, quote_amount: u256
     ) -> (u256, u256, u256);
     fn withdraw(ref self: TContractState, market_id: felt252, shares: u256) -> (u256, u256);
     fn collect_and_pause(ref self: TContractState, market_id: felt252);
-    fn set_params(
-        ref self: TContractState,
-        market_id: felt252,
-        min_spread: Limits,
-        range: Limits,
-        max_delta: u32,
-        vol_period: u64,
-        allow_deposits: bool,
-    );
+    fn set_params(ref self: TContractState, market_id: felt252, params: StrategyParams,);
     fn change_oracle(
         ref self: TContractState, oracle: ContractAddress, oracle_summary: ContractAddress,
     );

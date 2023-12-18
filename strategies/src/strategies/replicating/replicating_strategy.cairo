@@ -667,22 +667,22 @@ mod ReplicatingStrategy {
         //
         // # Arguments
         // * `market_id` - market id
-        // * `base_amount` - base asset requested
-        // * `quote_amount` - quote asset requested
-        //
-        // # Returns
         // * `base_amount` - base asset to deposit
         // * `quote_amount` - quote asset to deposit
-        // * `shares` - pool shares minted in the form of liquidity, which is always denominated in base asset
+        //
+        // # Returns
+        // * `shares` - pool shares minted in the form of liquidity
         fn deposit_initial(
             ref self: ContractState, market_id: felt252, base_amount: u256, quote_amount: u256
-        ) -> (u256, u256, u256) {
+        ) -> u256 {
             // Run checks
             assert(self.total_deposits.read(market_id) == 0, 'UseDeposit');
             assert(base_amount != 0 && quote_amount != 0, 'AmountZero');
             let mut state = self.strategy_state.read(market_id);
             assert(!state.is_paused, 'Paused');
             assert(state.is_initialised, 'NotInitialised');
+            let params = self.strategy_params.read(market_id);
+            assert(params.allow_deposits, 'DepositDisabled');
 
             // Initialise state
             let market_manager = self.market_manager.read();
@@ -706,38 +706,24 @@ mod ReplicatingStrategy {
             quote_token.approve(market_manager.contract_address, BoundedU256::max());
             let (bid, ask) = self._update_positions(market_id);
 
-            // Check that at least 1 position is placed. If oracle price is invalid, this will fail
-            // and revert the deposit.
-            assert(bid.liquidity + ask.liquidity != 0, 'DepositInitialZero');
+            // Check that both positions are placed. If neither position is placed, for example if the
+            // oracle price is invalid, this will cause `deposit` to fail. Further, if the oracle price
+            // is too high or low, only single-sided liquidity may be placed. This is extremely unlikely
+            // and would cause severe portfolio skew, so we simply revert the transaction.
+            assert(bid.liquidity != 0 && ask.liquidity != 0, 'DepositInitialZero');
 
             // Refetch strategy state after placing positions to find leftover token amounts.
             state = self.strategy_state.read(market_id);
-
-            // Transfer leftover back to caller
-            if state.base_reserves != 0 {
-                assert(base_token.balance_of(contract) >= state.base_reserves, 'BaseRemTransfer');
-                base_token.transfer(caller, state.base_reserves);
-                state.base_reserves = 0;
-            }
-            if state.quote_reserves != 0 {
-                assert(
-                    quote_token.balance_of(contract) >= state.quote_reserves, 'QuoteRemTransfer'
-                );
-                quote_token.transfer(caller, state.quote_reserves);
-                state.quote_reserves = 0;
-            }
 
             // Mint liquidity
             let shares: u256 = (state.bid.liquidity + state.ask.liquidity).into();
             self.user_deposits.write((market_id, caller), shares);
             self.total_deposits.write(market_id, shares);
-            assert(base_amount >= state.base_reserves, 'BaseLeftover');
-            assert(quote_amount >= state.quote_reserves, 'QuoteLeftover');
 
             // Emit event
             self.emit(Event::Deposit(Deposit { market_id, caller, base_amount, quote_amount }));
 
-            (base_amount - state.base_reserves, quote_amount - state.quote_reserves, shares)
+            shares
         }
 
         // Deposit liquidity to strategy.
@@ -768,13 +754,21 @@ mod ReplicatingStrategy {
             let (base_balance, quote_balance) = self.get_balances(market_id);
 
             // Calculate shares to mint.
-            let base_deposit = min(
-                base_amount, math::mul_div(quote_amount, base_balance, quote_balance, false)
-            );
-            let quote_deposit = min(
-                quote_amount, math::mul_div(base_amount, quote_balance, base_balance, false)
-            );
-            let shares = math::mul_div(total_deposits, base_deposit, base_balance, false);
+            let base_deposit = if quote_amount == 0 || quote_balance == 0 {
+                base_amount
+            } else {
+                min(base_amount, math::mul_div(quote_amount, base_balance, quote_balance, false))
+            };
+            let quote_deposit = if base_amount == 0 || base_balance == 0 {
+                quote_amount
+            } else {
+                min(quote_amount, math::mul_div(base_amount, quote_balance, base_balance, false))
+            };
+            let shares = if base_balance == 0 {
+                math::mul_div(total_deposits, quote_deposit, quote_balance, false)
+            } else {
+                math::mul_div(total_deposits, base_deposit, base_balance, false)
+            };
 
             // Transfer tokens into contract.
             let caller = get_caller_address();
@@ -796,7 +790,8 @@ mod ReplicatingStrategy {
             self.strategy_state.write(market_id, state);
 
             // Update deposits.
-            self.user_deposits.write((market_id, caller), shares);
+            let user_deposits = self.user_deposits.read((market_id, caller));
+            self.user_deposits.write((market_id, caller), user_deposits + shares);
             self.total_deposits.write(market_id, total_deposits + shares);
 
             // Emit event.
@@ -830,8 +825,8 @@ mod ReplicatingStrategy {
             assert(shares != 0, 'SharesZero');
             assert(shares <= total_deposits, 'SharesOF');
             let caller = get_caller_address();
-            let caller_deposits = self.user_deposits.read((market_id, caller));
-            assert(caller_deposits >= shares, 'InsuffShares');
+            let user_deposits = self.user_deposits.read((market_id, caller));
+            assert(user_deposits >= shares, 'InsuffShares');
 
             // Fetch current market state
             let market_manager = self.market_manager.read();
@@ -888,7 +883,7 @@ mod ReplicatingStrategy {
             state.quote_reserves += quote_fees_excess;
 
             // Burn shares.
-            self.user_deposits.write((market_id, caller), 0);
+            self.user_deposits.write((market_id, caller), user_deposits - shares);
             self.total_deposits.write(market_id, total_deposits - shares);
 
             // Transfer tokens to caller.
@@ -937,29 +932,23 @@ mod ReplicatingStrategy {
         // * `max_delta` - max inv_delta parameter (additional single-sided spread based on portfolio imbalance)
         // * `vol_period` - lookback period for calculating realised volatility (in seconds)
         // * `allow_deposits` - whether deposits are allowed
-        fn set_params(
-            ref self: ContractState,
-            market_id: felt252,
-            min_spread: Limits,
-            range: Limits,
-            max_delta: u32,
-            vol_period: u64,
-            allow_deposits: bool,
-        ) {
+        fn set_params(ref self: ContractState, market_id: felt252, params: StrategyParams) {
             self.assert_strategy_owner(market_id);
             let market_manager = self.market_manager.read();
             let width = market_manager.width(market_id);
             let old_params = self.strategy_params.read(market_id);
-            let new_params = StrategyParams {
-                min_spread, range, max_delta, vol_period, allow_deposits
-            };
-            assert(old_params != new_params, 'ParamsUnchanged');
-            self.strategy_params.write(market_id, new_params);
+            assert(old_params != params, 'ParamsUnchanged');
+            self.strategy_params.write(market_id, params);
             self
                 .emit(
                     Event::SetStrategyParams(
                         SetStrategyParams {
-                            market_id, min_spread, range, max_delta, vol_period, allow_deposits
+                            market_id,
+                            min_spread: params.min_spread,
+                            range: params.range,
+                            max_delta: params.max_delta,
+                            vol_period: params.vol_period,
+                            allow_deposits: params.allow_deposits,
                         }
                     )
                 );

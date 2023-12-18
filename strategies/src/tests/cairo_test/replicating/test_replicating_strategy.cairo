@@ -7,6 +7,7 @@ use integer::{BoundedU32, BoundedU128, BoundedU256};
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_SCALED};
 use amm::libraries::math::price_math;
 use amm::libraries::math::liquidity_math;
+use amm::libraries::id;
 use amm::interfaces::IMarketManager::{
     IMarketManager, IMarketManagerDispatcher, IMarketManagerDispatcherTrait
 };
@@ -20,10 +21,10 @@ use amm::tests::common::params::{
     owner, alice, treasury, default_token_params, default_market_params, modify_position_params,
     swap_params
 };
-use amm::tests::common::utils::{to_e18, to_e28, approx_eq, approx_eq_pct};
+use amm::tests::common::utils::{to_e18, to_e18_u128, to_e28, approx_eq, approx_eq_pct};
 use strategies::strategies::replicating::{
     interface::{IReplicatingStrategyDispatcher, IReplicatingStrategyDispatcherTrait},
-    pragma::{DataType, PragmaPricesResponse}, types::Limits,
+    pragma::{DataType, PragmaPricesResponse}, types::{Limits, StrategyParams},
     test::mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
 };
 use strategies::tests::cairo_test::replicating::helpers::{
@@ -131,25 +132,22 @@ fn before() -> (
 
 #[test]
 #[available_gas(100000000)]
-fn test_replicating_strategy_deposit_initial() {
+fn test_deposit_initial() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
     set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 5); // 1668.78
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5); // 1668.78
 
     // Deposit initial.
     set_contract_address(owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let (base_amount, quote_amount, shares) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
     let base_liquidity_exp = 429406775392817428992841450;
     let quote_liquidity_exp = 286266946460287812818573174;
     let shares_exp = quote_liquidity_exp + base_liquidity_exp;
 
-    assert(approx_eq(base_amount, initial_base_amount, 10), 'Deposit initial: base');
-    assert(approx_eq(quote_amount, initial_quote_amount, 10), 'Deposit initial: quote');
     assert(approx_eq_pct(shares, shares_exp, 20), 'Deposit initial: shares');
     assert(
         approx_eq_pct(strategy.user_deposits(market_id, owner()), shares_exp, 20),
@@ -160,12 +158,65 @@ fn test_replicating_strategy_deposit_initial() {
 #[test]
 #[should_panic(expected: ('DepositInitialZero', 'ENTRYPOINT_FAILED'))]
 #[available_gas(100000000)]
-fn test_replicating_strategy_deposit_initial_invalid_oracle_price() {
+fn test_deposit_initial_single_sided_bid_liquidity_correctly_reverts() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // If the position range would case the lower bid limit to overflow, only single sided (ask)
+    // liquidity is placed. This should be correctly handled when depositing initial liquidity.
+
+    // Set price.
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 1, 28, 999, 5); // Limit = -6447270
+
+    // Set range to overflow upper bounds so only bid liquidity is placed.
+    set_contract_address(owner());
+    let mut params = strategy.strategy_params(market_id);
+    params.range = Limits::Fixed(2000000);
+    strategy.set_params(market_id, params);
+
+    // Deposit initial.
+    let initial_base_amount = to_e18(1000000);
+    let initial_quote_amount = 1000;
+    strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+}
+
+#[test]
+#[should_panic(expected: ('DepositInitialZero', 'ENTRYPOINT_FAILED'))]
+#[available_gas(100000000)]
+fn test_deposit_initial_single_sided_ask_liquidity_correctly_reverts() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // If the position range would case the upper ask limit to overflow, only single sided (bid)
+    // liquidity is placed. This should be correctly handled when depositing initial liquidity.
+
+    // Set price.
+    set_block_timestamp(1000);
+    oracle
+        .set_data_with_USD_hop(
+            'ETH/USD', 'USDC/USD', 21764856978905781477192766323629261, 0, 999, 5
+        ); // Limit = 7906600
+
+    // Set range to overflow upper bounds so only ask liquidity is placed.
+    set_contract_address(owner());
+    let mut params = strategy.strategy_params(market_id);
+    params.range = Limits::Fixed(1000);
+    strategy.set_params(market_id, params);
+
+    // Deposit initial.
+    let initial_base_amount = to_e18(1000000);
+    let initial_quote_amount = to_e18(1112520000);
+    strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+}
+
+#[test]
+#[should_panic(expected: ('DepositInitialZero', 'ENTRYPOINT_FAILED'))]
+#[available_gas(100000000)]
+fn test_deposit_initial_invalid_oracle_price() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
     set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 2);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 2);
 
     // Deposit initial should revert if oracle price is invalid.
     set_contract_address(owner());
@@ -173,24 +224,67 @@ fn test_replicating_strategy_deposit_initial_invalid_oracle_price() {
 }
 
 #[test]
-#[available_gas(1000000000)]
-fn test_replicating_strategy_update_positions() {
+#[should_panic(expected: ('Paused', 'ENTRYPOINT_FAILED'))]
+#[available_gas(100000000)]
+fn test_deposit_initial_paused() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
     set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 5); // 1668.78
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5); // 1668.78
+
+    // Pause strategy.
+    set_contract_address(owner());
+    strategy.pause(market_id);
+
+    // Deposit initial should revert if paused.
+    strategy.deposit_initial(market_id, to_e18(1000000), to_e18(1112520000));
+}
+
+#[test]
+#[should_panic(expected: ('NotInitialised', 'ENTRYPOINT_FAILED'))]
+#[available_gas(100000000)]
+fn test_deposit_initial_market_not_initialised() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Deposit initial should revert if not market not initialised.
+    strategy.deposit_initial(1, to_e18(1000000), to_e18(1112520000));
+}
+
+#[test]
+#[should_panic(expected: ('DepositDisabled', 'ENTRYPOINT_FAILED'))]
+#[available_gas(100000000)]
+fn test_deposit_initial_deposit_disabled() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Disable deposits.
+    set_contract_address(owner());
+    let mut params = strategy.strategy_params(market_id);
+    params.allow_deposits = false;
+    strategy.set_params(market_id, params);
+
+    // Deposit initial should revert if deposits disabled.
+    strategy.deposit_initial(market_id, to_e18(1000000), to_e18(1112520000));
+}
+
+#[test]
+#[available_gas(1000000000)]
+fn test_update_positions() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Set price.
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5); // 1668.78
 
     // Deposit initial.
     set_contract_address(owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let (base_amount, quote_amount, shares) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Update price.
     set_block_timestamp(1010);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 167250000000, 1005, 5); // 1672.5
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 167250000000, 8, 1005, 5); // 1672.5
 
     // Execute swap and check positions updated.
     let amount = to_e18(500000);
@@ -215,23 +309,22 @@ fn test_replicating_strategy_update_positions() {
 
 #[test]
 #[available_gas(1000000000)]
-fn test_replicating_strategy_update_positions_num_sources_too_low() {
+fn test_update_positions_num_sources_too_low() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Update price.
     set_block_timestamp(1000);
     set_contract_address(owner());
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166800000000, 999, 5);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166800000000, 8, 999, 5);
 
     // Deposit initial.
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let (base_amount, quote_amount, shares) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Update price with sources below threshold.
     set_block_timestamp(1010);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 70000000000, 1005, 2);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 70000000000, 8, 1005, 2);
 
     // Execute swap.
     market_manager
@@ -246,23 +339,22 @@ fn test_replicating_strategy_update_positions_num_sources_too_low() {
 
 #[test]
 #[available_gas(1000000000)]
-fn test_replicating_strategy_update_positions_price_stale() {
+fn test_update_positions_price_stale() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Update price.
     set_block_timestamp(1000);
     set_contract_address(owner());
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166800000000, 999, 5);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166800000000, 8, 999, 5);
 
     // Deposit initial.
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let (base_amount, quote_amount, shares) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Update price with price age above threshold.
     set_block_timestamp(1600);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 70000000000, 999, 2);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 70000000000, 8, 999, 2);
 
     // Execute swap.
     market_manager
@@ -277,23 +369,22 @@ fn test_replicating_strategy_update_positions_price_stale() {
 
 #[test]
 #[available_gas(1000000000)]
-fn test_replicating_strategy_multiple_swaps() {
+fn test_update_positions_multiple_swaps() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
     set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166700000000, 999, 5);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166700000000, 8, 999, 5);
 
     // Deposit initial.
     set_contract_address(owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let (base_amount, quote_amount, shares) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Update price.
     set_block_timestamp(1010);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 163277500000, 1005, 5);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 163277500000, 8, 1005, 5);
 
     // Execute swap 1 and check positions updated.
     let amount = to_e18(100);
@@ -344,12 +435,12 @@ fn test_replicating_strategy_multiple_swaps() {
 
 #[test]
 #[available_gas(1000000000)]
-fn test_replicating_strategy_deposit() {
+fn test_deposit() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
     set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 5);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
 
     // Deposit initial.
     set_contract_address(owner());
@@ -367,11 +458,17 @@ fn test_replicating_strategy_deposit() {
     // Run checks.
     let market_state = market_manager.market_state(market_id);
     let state = strategy.strategy_state(market_id);
+    let user_deposits = strategy.user_deposits(market_id, alice());
+    let total_deposits = strategy.total_deposits(market_id);
 
     let bid_init_shares_exp = 286266946460287812818573174;
     let ask_init_shares_exp = 429406775392817428992841450;
     let bid_new_shares_exp = 143133473230143906409286;
     let ask_new_shares_exp = 214703387696408714496420;
+    let total_shares_exp = bid_init_shares_exp
+        + ask_init_shares_exp
+        + bid_new_shares_exp
+        + ask_new_shares_exp;
 
     assert(base_amount == base_amount_req, 'Deposit: base');
     assert(quote_amount == to_e18(556260), 'Deposit: quote');
@@ -380,22 +477,190 @@ fn test_replicating_strategy_deposit() {
     assert(
         approx_eq_pct(new_shares, bid_new_shares_exp + ask_new_shares_exp, 20), 'Deposit: shares'
     );
+    assert(
+        approx_eq_pct(user_deposits, bid_new_shares_exp + ask_new_shares_exp, 20),
+        'Deposit: user shares'
+    );
+    assert(approx_eq_pct(total_deposits, total_shares_exp, 20), 'Deposit: total shares');
 }
 
 #[test]
 #[available_gas(1000000000)]
-fn test_replicating_strategy_withdraw() {
+fn test_deposit_multiple() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
-    set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 5);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
 
     // Deposit initial.
     set_contract_address(owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let (base_amount_init, quote_amount_init, shares_init) = strategy
+    strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+
+    // Deposit once.
+    set_contract_address(alice());
+    let base_amount_req = to_e18(500);
+    let quote_amount_req = to_e18(700000); // Contains extra, should be partially refunded
+    strategy.deposit(market_id, base_amount_req, quote_amount_req);
+
+    // Deposit again.
+    strategy.deposit(market_id, base_amount_req, quote_amount_req);
+
+    // Run checks.
+    let market_state = market_manager.market_state(market_id);
+    let state = strategy.strategy_state(market_id);
+
+    let bid_init_shares_exp = 286266946460287812818573174;
+    let ask_init_shares_exp = 429406775392817428992841450;
+    let bid_new_shares_exp = 286266946460287812818572;
+    let ask_new_shares_exp = 429406775392817428992840;
+    let total_shares_exp = bid_init_shares_exp
+        + ask_init_shares_exp
+        + bid_new_shares_exp
+        + ask_new_shares_exp;
+
+    let user_shares = strategy.user_deposits(market_id, alice());
+    let total_shares = strategy.total_deposits(market_id);
+    assert(
+        approx_eq_pct(user_shares, bid_new_shares_exp + ask_new_shares_exp, 20), 'Deposit: shares'
+    );
+    assert(approx_eq_pct(total_shares, total_shares_exp, 20), 'Deposit: total shares');
+}
+
+#[test]
+#[available_gas(1000000000)]
+fn test_deposit_single_sided_bid_liquidity() {
+    // The portfolio could become entirely skewed in one asset due to price movements. In this case,
+    // single-sided liquidity deposits should be handled gracefully.
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Set price.
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
+
+    // Deposit initial.
+    set_contract_address(owner());
+    strategy.deposit_initial(market_id, 1000, to_e18(1000));
+
+    // Place position above current one.
+    set_contract_address(alice());
+    market_manager
+        .modify_position(
+            market_id, 7906620 + 765000, 7906620 + 766000, I128Trait::new(to_e18_u128(1000), false)
+        );
+
+    // Buy and update positions to concentrate liquidity entirely in bid.
+    market_manager
+        .swap(
+            market_id,
+            true,
+            to_e18(1000),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
+    // Update oracle price and swap to trigger position update, setting ask liquidity to 0.
+    set_block_timestamp(1010);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 220000000000, 8, 1005, 5);
+    market_manager
+        .swap(
+            market_id,
+            true,
+            to_e18(1000),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
+    let state = strategy.strategy_state(market_id);
+    assert(state.ask.liquidity == 0, 'Ask: liquidity');
+
+    // Deposit single-sided bid liquidity.
+    let position_id = id::position_id(
+        market_id, strategy.contract_address.into(), state.bid.lower_limit, state.bid.upper_limit
+    );
+    let (_, quote_amount) = market_manager.amounts_inside_position(position_id);
+    strategy.deposit(market_id, 0, quote_amount);
+    let alice_shares = strategy.user_deposits(market_id, alice());
+    let total_shares = strategy.total_deposits(market_id);
+    assert(alice_shares == total_shares / 2, 'Deposit: shares');
+}
+
+#[test]
+#[available_gas(1000000000)]
+fn test_deposit_single_sided_ask_liquidity() {
+    // The portfolio could become entirely skewed in one asset due to price movements. In this case,
+    // single-sided liquidity deposits should be handled gracefully.
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Set price.
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
+
+    // Deposit initial.
+    set_contract_address(owner());
+    strategy.deposit_initial(market_id, to_e18(1), 10);
+
+    // Place poosition below current one.
+    set_contract_address(alice());
+    market_manager
+        .modify_position(
+            market_id, 7906620 + 725000, 7906620 + 735000, I128Trait::new(to_e18_u128(1000), false)
+        );
+
+    // Buy and update positions to concentrate liquidity entirely in bid.
+    market_manager
+        .swap(
+            market_id,
+            false,
+            to_e18(100),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
+    // Update oracle price and swap to trigger position update, setting ask liquidity to 0.
+    set_block_timestamp(1010);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 100000000000, 8, 1005, 5);
+    market_manager
+        .swap(
+            market_id,
+            false,
+            to_e18(100),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
+    let state = strategy.strategy_state(market_id);
+    assert(state.bid.liquidity == 0, 'Bid: liquidity');
+
+    // Deposit single-sided bid liquidity.
+    let position_id = id::position_id(
+        market_id, strategy.contract_address.into(), state.ask.lower_limit, state.ask.upper_limit
+    );
+    let (base_amount, quote_amount) = market_manager.amounts_inside_position(position_id);
+    strategy.deposit(market_id, base_amount, 0);
+    let alice_shares = strategy.user_deposits(market_id, alice());
+    let total_shares = strategy.total_deposits(market_id);
+    assert(alice_shares == total_shares / 2, 'Deposit: shares');
+}
+
+#[test]
+#[available_gas(1000000000)]
+fn test_withdraw_all() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Set price.
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
+
+    // Deposit initial.
+    set_contract_address(owner());
+    let initial_base_amount = to_e18(1000000);
+    let initial_quote_amount = to_e18(1112520000);
+    let shares_init = strategy
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Execute swap sell.
@@ -404,11 +669,60 @@ fn test_replicating_strategy_withdraw() {
         .swap(market_id, false, amount, true, Option::None(()), Option::None(()), Option::None(()));
 
     // Withdraw from strategy.
+    let mut user_deposits = strategy.user_deposits(market_id, owner());
+    let (base_amount, quote_amount) = strategy.withdraw(market_id, user_deposits);
+    let market_state = market_manager.market_state(market_id);
+    let state = strategy.strategy_state(market_id);
+
+    // Refetch deposits.
+    user_deposits = strategy.user_deposits(market_id, owner());
+    let total_deposits = strategy.total_deposits(market_id);
+
+    // Run checks.
+    assert(
+        approx_eq_pct((state.bid.liquidity + state.ask.liquidity).into(), 0, 20),
+        'Withdraw: liquidity'
+    );
+    assert(amount_in == amount, 'Withdraw: amount in');
+    assert(approx_eq_pct(amount_out, 8308093186237340625293077, 20), 'Withdraw: amount out');
+    assert(fees == to_e18(15), 'Withdraw: fees');
+    assert(approx_eq_pct(base_amount, 1004999970000000000000000, 20), 'Withdraw: base amount');
+    assert(approx_eq_pct(quote_amount, 1104211906813762659374706922, 20), 'Withdraw: quote amount');
+    assert(approx_eq(state.base_reserves, 0, 10), 'Withdraw: base reserves');
+    assert(approx_eq(state.quote_reserves, 0, 10), 'Withdraw: quote reserves');
+    assert(approx_eq_pct(user_deposits, 0, 20), 'Withdraw: user shares');
+    assert(approx_eq_pct(total_deposits, 0, 20), 'Withdraw: total shares');
+}
+
+#[test]
+#[available_gas(1000000000)]
+fn test_withdraw_partial() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Set price.
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
+
+    // Deposit initial.
+    set_contract_address(owner());
+    let initial_base_amount = to_e18(1000000);
+    let initial_quote_amount = to_e18(1112520000);
+    let shares_init = strategy
+        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+
+    // Execute swap sell.
+    let amount = to_e18(5000);
+    let (amount_in, amount_out, fees) = market_manager
+        .swap(market_id, false, amount, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Withdraw partial from strategy.
     let shares_init = 286266946460287812818573174 + 429406775392817428992841450;
     let shares_req = 357836860926552620905707312;
     let (base_amount, quote_amount) = strategy.withdraw(market_id, shares_req);
     let market_state = market_manager.market_state(market_id);
     let state = strategy.strategy_state(market_id);
+    let user_deposits = strategy.user_deposits(market_id, owner());
+    let total_deposits = strategy.total_deposits(market_id);
 
     // Run checks.
     assert(
@@ -430,22 +744,24 @@ fn test_replicating_strategy_withdraw() {
     );
     assert(approx_eq(state.base_reserves, 7485000000000000000, 10), 'Withdraw: base reserves');
     assert(approx_eq(state.quote_reserves, 0, 10), 'Withdraw: quote reserves');
+    assert(approx_eq_pct(user_deposits, shares_init - shares_req, 20), 'Withdraw: user shares');
+    assert(approx_eq_pct(total_deposits, shares_init - shares_req, 20), 'Withdraw: total shares');
 }
 
 #[test]
 #[available_gas(1000000000)]
-fn test_replicating_strategy_collect_and_pause() {
+fn test_collect_and_pause() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
     set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 100100000, 999, 5);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 100100000, 8, 999, 5);
 
     // Deposit initial.
     set_contract_address(owner());
     let initial_base_amount = 1000000;
     let initial_quote_amount = 1000000;
-    let (base_amount_init, quote_amount_init, shares_init) = strategy
+    let shares_init = strategy
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Collect and pause.
@@ -467,26 +783,24 @@ fn test_replicating_strategy_collect_and_pause() {
 #[test]
 #[available_gas(1000000000)]
 #[should_panic(expected: ('DepositDisabled', 'ENTRYPOINT_FAILED'))]
-fn test_replicating_strategy_disable_deposits() {
+fn test_disable_deposits() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
     set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 5);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
 
     // Deposit initial.
     set_contract_address(owner());
     let initial_base_amount = 1000000;
     let initial_quote_amount = 1000000;
-    let (base_amount_init, quote_amount_init, shares_init) = strategy
+    let shares_init = strategy
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Disable deposits.
-    let params = strategy.strategy_params(market_id);
-    strategy
-        .set_params(
-            market_id, params.min_spread, params.range, params.max_delta, params.vol_period, false
-        );
+    let mut params = strategy.strategy_params(market_id);
+    params.allow_deposits = false;
+    strategy.set_params(market_id, params);
 
     // Try to deposit.
     set_contract_address(alice());
@@ -495,32 +809,28 @@ fn test_replicating_strategy_disable_deposits() {
 
 #[test]
 #[available_gas(1000000000)]
-fn test_replicating_strategy_reenable_deposits() {
+fn test_reenable_deposits() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set price.
     set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 5);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
 
     // Deposit initial.
     set_contract_address(owner());
     let initial_base_amount = 1000000;
     let initial_quote_amount = 1000000;
-    let (base_amount_init, quote_amount_init, shares_init) = strategy
+    let shares_init = strategy
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Disable deposits.
-    let params = strategy.strategy_params(market_id);
-    strategy
-        .set_params(
-            market_id, params.min_spread, params.range, params.max_delta, params.vol_period, false
-        );
+    let mut params = strategy.strategy_params(market_id);
+    params.allow_deposits = false;
+    strategy.set_params(market_id, params);
 
     // Enable deposits.
-    strategy
-        .set_params(
-            market_id, params.min_spread, params.range, params.max_delta, params.vol_period, true
-        );
+    params.allow_deposits = true;
+    strategy.set_params(market_id, params);
 
     // Deposit.
     set_contract_address(alice());
@@ -529,24 +839,23 @@ fn test_replicating_strategy_reenable_deposits() {
 
 #[test]
 #[available_gas(1000000000)]
-fn test_replicating_strategy_lvr_rebalance_condition() {
+fn test_lvr_rebalance_condition() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Update price.
     set_contract_address(owner());
     set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166780000000, 999, 5);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166780000000, 8, 999, 5);
 
     // Deposit initial.
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let (base_amount, quote_amount, shares) = strategy
-        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+    let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Update price to within LVR rebalance threshold.
     set_contract_address(owner());
     set_block_timestamp(1010);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 167300000000, 1005, 5);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 167300000000, 8, 1005, 5);
 
     let bid_before = strategy.bid(market_id);
     let ask_before = strategy.ask(market_id);
@@ -562,7 +871,7 @@ fn test_replicating_strategy_lvr_rebalance_condition() {
 
     // Update price again.
     set_block_timestamp(1020);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166400000000, 1015, 5);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166400000000, 8, 1015, 5);
     market_manager
         .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
     bid_after = strategy.bid(market_id);
@@ -573,17 +882,18 @@ fn test_replicating_strategy_lvr_rebalance_condition() {
 
 #[test]
 #[available_gas(1000000000)]
-fn test_replicating_strategy_set_strategy_params() {
+fn test_set_strategy_params() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     set_contract_address(owner());
-    let params = strategy.strategy_params(market_id);
-    let min_spread = Limits::Fixed(0);
-    let range = Limits::Fixed(3000);
-    let max_delta = 0;
-    let vol_period = 0;
-    let allow_deposits = true;
-    strategy.set_params(market_id, min_spread, range, max_delta, vol_period, allow_deposits);
+    let params = StrategyParams {
+        min_spread: Limits::Fixed(0),
+        range: Limits::Fixed(3000),
+        max_delta: 0,
+        vol_period: 0,
+        allow_deposits: true,
+    };
+    strategy.set_params(market_id, params);
 
     let params = strategy.strategy_params(market_id);
     assert(params.min_spread == Limits::Fixed(0), 'Set params: min spread');
@@ -596,20 +906,12 @@ fn test_replicating_strategy_set_strategy_params() {
 #[test]
 #[available_gas(1000000000)]
 #[should_panic(expected: ('ParamsUnchanged', 'ENTRYPOINT_FAILED'))]
-fn test_replicating_strategy_set_strategy_params_unchanged() {
+fn test_set_strategy_params_unchanged() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     set_contract_address(owner());
     let params = strategy.strategy_params(market_id);
-    strategy
-        .set_params(
-            market_id,
-            params.min_spread,
-            params.range,
-            params.max_delta,
-            params.vol_period,
-            params.allow_deposits
-        );
+    strategy.set_params(market_id, params);
 }
 
 fn swap_test_cases(width: u32) -> Array<SwapCase> {
@@ -713,18 +1015,18 @@ fn oracle_prices() -> Array<u128> {
 
 #[test]
 #[available_gas(15000000000)]
-fn test_replicating_strategy_swap_cases() {
+fn test_swap_cases() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     // Set oracle price.
     set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 999, 5);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
 
     // Deposit initial.
     set_contract_address(owner());
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
-    let (base_amount_init, quote_amount_init, shares_init) = strategy
+    let shares_init = strategy
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
     // Fetch test cases.
@@ -738,7 +1040,7 @@ fn test_replicating_strategy_swap_cases() {
         }
         // Set oracle price.
         let price = *prices[index];
-        oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', price, 999, 5);
+        oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', price, 8, 999, 5);
 
         if index < 9 {
             ('*** PRICE 01' + index.into()).print();
