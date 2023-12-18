@@ -329,7 +329,7 @@ fn test_liquidity_to_amounts() {
     let mut upper_sqrt_price = limit_to_sqrt_price(OFFSET + 90000, width);
     let liquidity = I128Trait::new(10000, false);
     let (mut base_amount, mut quote_amount) = liquidity_to_amounts(
-        liquidity, curr_sqrt_price, lower_sqrt_price, upper_sqrt_price, width
+        liquidity, curr_sqrt_price, lower_sqrt_price, upper_sqrt_price
     );
     assert(base_amount.val == 162, 'above base');
     assert(quote_amount.val == 0, 'above quote');
@@ -338,7 +338,7 @@ fn test_liquidity_to_amounts() {
     lower_sqrt_price = limit_to_sqrt_price(OFFSET + 70000, width);
     upper_sqrt_price = limit_to_sqrt_price(OFFSET + 75000, width);
     let (base_amount, quote_amount) = liquidity_to_amounts(
-        liquidity, curr_sqrt_price, lower_sqrt_price, upper_sqrt_price, width
+        liquidity, curr_sqrt_price, lower_sqrt_price, upper_sqrt_price
     );
     assert(base_amount.val == 0, 'below base');
     assert(quote_amount.val == 360, 'below quote');
@@ -347,7 +347,7 @@ fn test_liquidity_to_amounts() {
     lower_sqrt_price = limit_to_sqrt_price(OFFSET + 75000, width);
     upper_sqrt_price = limit_to_sqrt_price(OFFSET + 85000, width);
     let (base_amount, quote_amount) = liquidity_to_amounts(
-        liquidity, curr_sqrt_price, lower_sqrt_price, upper_sqrt_price, width
+        liquidity, curr_sqrt_price, lower_sqrt_price, upper_sqrt_price
     );
     assert(approx_eq(base_amount.val, 166, 1), 'wrap base');
     assert(quote_amount.val == 369, 'wrap quote');

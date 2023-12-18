@@ -6,7 +6,6 @@ use amm::libraries::math::{price_math, math};
 use amm::libraries::constants::ONE;
 use amm::types::i32::{i32, I32Trait};
 use amm::types::i256::I256Trait;
-use strategies::strategies::replicating::types::Limits;
 use strategies::strategies::replicating::{
     replicating_strategy::ReplicatingStrategy::ContractState,
 };
@@ -113,56 +112,56 @@ fn delta_spread(max_delta: u32, base_amount: u256, quote_amount: u256, price: u2
 }
 
 use debug::PrintTrait;
-
-// Unpack `Limits` enum into number of limits.
-// If range is Fixed, it is taken as is. 
-// If range is Variable, the number of limits is computed as:
-//    base * (vol / default_vol) * multiplier                   (if is_min_base = false)
-//    base * max(vol, default_vol) / default_vol * multiplier   (if is_min_base = true)
-//
 // Note: Volatility-based limits are currently disabled as they are not fully supported by the oracle.
-//
-// # Arguments
-// * `range` - Limits enum defining parameters for number of limits
-// * `vol` - volatility of market (expressed as a percentage base 10^10, e.g. 7076538586 = 70%)
-// * `is_min_base` - whether number of limits should be floored at `base` as minimum value 
-// * `width` - width of market
-fn unpack_limits(range: Limits, vol: u256, width: u32) -> u32 {
-    match range {
-        Limits::Fixed(v) => v / width * width,
-        Limits::Vol((
-            base, default_vol, multiplier, is_min_base
-        )) => {
-            // Run checks.
-            assert(default_vol != 0, 'DefaultVolZero');
+// // Unpack `Limits` enum into number of limits.
+// // If range is Fixed, it is taken as is. 
+// // If range is Variable, the number of limits is computed as:
+// //    base * (vol / default_vol) * multiplier                   (if is_min_base = false)
+// //    base * max(vol, default_vol) / default_vol * multiplier   (if is_min_base = true)
+// //
+// //
+// // # Arguments
+// // * `range` - Limits enum defining parameters for number of limits
+// // * `vol` - volatility of market (expressed as a percentage base 10^10, e.g. 7076538586 = 70%)
+// // * `is_min_base` - whether number of limits should be floored at `base` as minimum value 
+// // * `width` - width of market
+// fn unpack_limits(range: Limits, vol: u256, width: u32) -> u32 {
+//     match range {
+//         Limits::Fixed(v) => v / width * width,
+//         Limits::Vol((
+//             base, default_vol, multiplier, is_min_base
+//         )) => {
+//             // Run checks.
+//             assert(default_vol != 0, 'DefaultVolZero');
 
-            // Handle 0 volatility edge case.
-            if vol == 0 {
-                if is_min_base {
-                    return base / width * width;
-                } else {
-                    return 0;
-                }
-            }
+//             // Handle 0 volatility edge case.
+//             if vol == 0 {
+//                 if is_min_base {
+//                     return base / width * width;
+//                 } else {
+//                     return 0;
+//                 }
+//             }
 
-            // Calculate coefficient to multiply base by.
-            let numerator = if is_min_base {
-                max(vol, default_vol.into())
-            } else {
-                vol
-            };
-            let mut coefficient = I256Trait::new(
-                math::mul_div(numerator, VOL_DENOMINATOR, default_vol.into(), false), false
-            );
-            coefficient -= I256Trait::new(VOL_DENOMINATOR, false);
-            coefficient.val = math::mul_div(coefficient.val, multiplier.into(), DENOMINATOR, false);
-            coefficient += I256Trait::new(VOL_DENOMINATOR, false);
+//             // Calculate coefficient to multiply base by.
+//             let numerator = if is_min_base {
+//                 max(vol, default_vol.into())
+//             } else {
+//                 vol
+//             };
+//             let mut coefficient = I256Trait::new(
+//                 math::mul_div(numerator, VOL_DENOMINATOR, default_vol.into(), false), false
+//             );
+//             coefficient -= I256Trait::new(VOL_DENOMINATOR, false);
+//             coefficient.val = math::mul_div(coefficient.val, multiplier.into(), DENOMINATOR, false);
+//             coefficient += I256Trait::new(VOL_DENOMINATOR, false);
 
-            // Calculate raw limit
-            let limits = math::mul_div(base.into(), coefficient.val, VOL_DENOMINATOR, false);
+//             // Calculate raw limit
+//             let limits = math::mul_div(base.into(), coefficient.val, VOL_DENOMINATOR, false);
 
-            // Coerce limit to correct width.
-            (limits / width.into() * width.into()).try_into().unwrap()
-        }
-    }
-}
+//             // Coerce limit to correct width.
+//             (limits / width.into() * width.into()).try_into().unwrap()
+//         }
+//     }
+// }
+

@@ -1,12 +1,12 @@
 // Core lib imports.
 use starknet::ContractAddress;
+use starknet::contract_address_const;
 use starknet::testing::{set_contract_address, set_block_timestamp};
 use integer::{BoundedU32, BoundedU128, BoundedU256};
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_SCALED};
-use amm::libraries::math::price_math;
-use amm::libraries::math::liquidity_math;
+use amm::libraries::math::{fee_math, price_math, liquidity_math};
 use amm::libraries::id;
 use amm::interfaces::IMarketManager::{
     IMarketManager, IMarketManagerDispatcher, IMarketManagerDispatcherTrait
@@ -18,13 +18,13 @@ use amm::tests::cairo_test::helpers::{
     token::{deploy_token, fund, approve},
 };
 use amm::tests::common::params::{
-    owner, alice, treasury, default_token_params, default_market_params, modify_position_params,
-    swap_params
+    owner, alice, bob, treasury, default_token_params, default_market_params,
+    modify_position_params, swap_params
 };
 use amm::tests::common::utils::{to_e18, to_e18_u128, to_e28, approx_eq, approx_eq_pct};
 use strategies::strategies::replicating::{
     interface::{IReplicatingStrategyDispatcher, IReplicatingStrategyDispatcherTrait},
-    pragma::{DataType, PragmaPricesResponse}, types::{Limits, StrategyParams},
+    pragma::{DataType, PragmaPricesResponse}, types::StrategyParams,
     test::mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
 };
 use strategies::tests::cairo_test::replicating::helpers::{
@@ -98,10 +98,9 @@ fn before() -> (
             'ETH/USDC',
             3, // minimum sources
             600, // 10 minutes max age 
-            Limits::Fixed(10), // ~0.01% min spread
-            Limits::Fixed(20000), // ~20% range
+            10, // ~0.01% min spread
+            20000, // ~20% range
             200, // ~0.2% delta
-            259200, // volatility lookback period of 3 days
             true,
         );
 
@@ -171,7 +170,7 @@ fn test_deposit_initial_single_sided_bid_liquidity_correctly_reverts() {
     // Set range to overflow upper bounds so only bid liquidity is placed.
     set_contract_address(owner());
     let mut params = strategy.strategy_params(market_id);
-    params.range = Limits::Fixed(2000000);
+    params.range = 2000000;
     strategy.set_params(market_id, params);
 
     // Deposit initial.
@@ -199,7 +198,7 @@ fn test_deposit_initial_single_sided_ask_liquidity_correctly_reverts() {
     // Set range to overflow upper bounds so only ask liquidity is placed.
     set_contract_address(owner());
     let mut params = strategy.strategy_params(market_id);
-    params.range = Limits::Fixed(1000);
+    params.range = 1000;
     strategy.set_params(market_id, params);
 
     // Deposit initial.
@@ -650,6 +649,60 @@ fn test_deposit_single_sided_ask_liquidity() {
 
 #[test]
 #[available_gas(1000000000)]
+fn test_get_balances() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Remove protocol fee for easier accounting.
+    set_contract_address(owner());
+    market_manager.set_protocol_share(market_id, 0);
+
+    // Set price.
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5); // 1668.78
+
+    // Deposit initial.
+    set_contract_address(owner());
+    let base_deposit = to_e18(1000);
+    let quote_deposit = to_e18(1668780);
+    strategy.deposit_initial(market_id, base_deposit, quote_deposit);
+
+    // Swap buy to accrue fees. 
+    set_contract_address(alice());
+    let buy_amount = to_e18(2000);
+    let (amount_in_1, amount_out_1, _) = market_manager
+        .swap(
+            market_id,
+            true,
+            to_e18(2000),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
+
+    // Swap sell to accrue fees in ask position.
+    let sell_amount = to_e18(1);
+    let (amount_in_2, amount_out_2, _) = market_manager
+        .swap(
+            market_id, false, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
+        );
+
+    // Run checks.
+    let base_amount_exp = base_deposit + amount_in_2 - amount_out_1;
+    let quote_amount_exp = quote_deposit + amount_in_1 - amount_out_2;
+
+    // Deposit more tokens.
+    set_contract_address(owner());
+    strategy.deposit(market_id, base_amount_exp, quote_amount_exp);
+
+    // Get balances.
+    let (base_amount, quote_amount) = strategy.get_balances(market_id);
+    assert(approx_eq(base_amount, base_amount_exp * 2, 10), 'Base amount');
+    assert(approx_eq(quote_amount, quote_amount_exp * 2, 10), 'Quote amount');
+}
+
+#[test]
+#[available_gas(1000000000)]
 fn test_withdraw_all() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
@@ -839,6 +892,31 @@ fn test_reenable_deposits() {
 
 #[test]
 #[available_gas(1000000000)]
+fn test_disable_deposit_strategy_owner_deposit() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Set price.
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
+
+    // Deposit initial.
+    set_contract_address(owner());
+    let initial_base_amount = 1000000;
+    let initial_quote_amount = 1000000;
+    let shares_init = strategy
+        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+
+    // Disable deposits.
+    let mut params = strategy.strategy_params(market_id);
+    params.allow_deposits = false;
+    strategy.set_params(market_id, params);
+
+    // Deposit should be allowed.
+    strategy.deposit(market_id, to_e18(500), to_e18(700000));
+}
+
+#[test]
+#[available_gas(1000000000)]
 fn test_lvr_rebalance_condition() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
@@ -886,20 +964,13 @@ fn test_set_strategy_params() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     set_contract_address(owner());
-    let params = StrategyParams {
-        min_spread: Limits::Fixed(0),
-        range: Limits::Fixed(3000),
-        max_delta: 0,
-        vol_period: 0,
-        allow_deposits: true,
-    };
+    let params = StrategyParams { min_spread: 0, range: 3000, max_delta: 0, allow_deposits: true, };
     strategy.set_params(market_id, params);
 
     let params = strategy.strategy_params(market_id);
-    assert(params.min_spread == Limits::Fixed(0), 'Set params: min spread');
-    assert(params.range == Limits::Fixed(3000), 'Set params: range');
+    assert(params.min_spread == 0, 'Set params: min spread');
+    assert(params.range == 3000, 'Set params: range');
     assert(params.max_delta == 0, 'Set params: max delta');
-    assert(params.vol_period == 0, 'Set params: vol period');
     assert(params.allow_deposits == true, 'Set params: allow deposits');
 }
 
@@ -912,6 +983,134 @@ fn test_set_strategy_params_unchanged() {
     set_contract_address(owner());
     let params = strategy.strategy_params(market_id);
     strategy.set_params(market_id, params);
+}
+
+#[test]
+#[available_gas(1000000000)]
+#[should_panic(expected: ('RangeZero', 'ENTRYPOINT_FAILED'))]
+fn test_set_strategy_params_zero_range() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(owner());
+    let mut params = strategy.strategy_params(market_id);
+    params.range = 0;
+    strategy.set_params(market_id, params);
+}
+
+#[test]
+#[available_gas(100000000)]
+fn test_transfer_and_accept_owner() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(owner());
+    strategy.transfer_owner(alice());
+    assert(strategy.owner() == owner(), 'Transfer owner: owner');
+
+    set_contract_address(alice());
+    strategy.accept_owner();
+    assert(strategy.owner() == alice(), 'Accept owner: owner');
+    assert(
+        strategy.queued_owner() == contract_address_const::<0x0>(), 'Accept owner: queued owner'
+    );
+}
+
+#[test]
+#[available_gas(100000000)]
+fn test_transfer_then_update_owner_before_accepting() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(owner());
+    strategy.transfer_owner(alice());
+
+    strategy.transfer_owner(bob());
+    assert(strategy.owner() == owner(), 'Transfer owner: owner');
+    assert(strategy.queued_owner() == bob(), 'Transfer owner: queued owner');
+
+    set_contract_address(bob());
+    strategy.accept_owner();
+    assert(strategy.owner() == bob(), 'Accept owner: owner');
+    assert(
+        strategy.queued_owner() == contract_address_const::<0x0>(), 'Accept owner: queued owner'
+    );
+}
+
+#[test]
+#[available_gas(100000000)]
+#[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
+fn test_transfer_owner_not_owner() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(alice());
+    strategy.transfer_owner(alice());
+}
+
+#[test]
+#[available_gas(100000000)]
+#[should_panic(expected: ('OnlyNewOwner', 'ENTRYPOINT_FAILED',))]
+fn test_accept_owner_not_transferred() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(alice());
+    strategy.accept_owner();
+}
+
+#[test]
+#[available_gas(100000000)]
+fn test_transfer_and_accept_strategy_owner() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(owner());
+    strategy.transfer_strategy_owner(market_id, alice());
+    assert(strategy.strategy_owner(market_id) == owner(), 'Transfer owner: owner');
+
+    set_contract_address(alice());
+    strategy.accept_strategy_owner(market_id);
+    assert(strategy.strategy_owner(market_id) == alice(), 'Accept owner: owner');
+    assert(
+        strategy.queued_strategy_owner(market_id) == contract_address_const::<0x0>(),
+        'Accept owner: queued owner'
+    );
+}
+
+#[test]
+#[available_gas(100000000)]
+fn test_transfer_then_update_strategy_owner_before_accepting() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(owner());
+    strategy.transfer_strategy_owner(market_id, alice());
+
+    strategy.transfer_strategy_owner(market_id, bob());
+    assert(strategy.strategy_owner(market_id) == owner(), 'Transfer owner: owner');
+    assert(strategy.queued_strategy_owner(market_id) == bob(), 'Transfer owner: queued owner');
+
+    set_contract_address(bob());
+    strategy.accept_strategy_owner(market_id);
+    assert(strategy.strategy_owner(market_id) == bob(), 'Accept owner: owner');
+    assert(
+        strategy.queued_strategy_owner(market_id) == contract_address_const::<0x0>(),
+        'Accept owner: queued owner'
+    );
+}
+
+#[test]
+#[available_gas(100000000)]
+#[should_panic(expected: ('OnlyStrategyOwner', 'ENTRYPOINT_FAILED',))]
+fn test_transfer_strategy_owner_not_owner() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(alice());
+    strategy.transfer_strategy_owner(market_id, alice());
+}
+
+#[test]
+#[available_gas(100000000)]
+#[should_panic(expected: ('OnlyNewOwner', 'ENTRYPOINT_FAILED',))]
+fn test_accept_strategy_owner_not_transferred() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    set_contract_address(alice());
+    strategy.accept_strategy_owner(market_id);
 }
 
 fn swap_test_cases(width: u32) -> Array<SwapCase> {

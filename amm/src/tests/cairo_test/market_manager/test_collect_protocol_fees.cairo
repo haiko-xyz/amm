@@ -183,3 +183,14 @@ fn test_set_protocol_share_not_owner() {
     set_contract_address(alice());
     market_manager.set_protocol_share(market_id, 10000);
 }
+
+#[test]
+#[should_panic(expected: ('SameProtocolShare', 'ENTRYPOINT_FAILED',))]
+#[available_gas(100000000)]
+fn test_set_protocol_share_unchanged() {
+    let (market_manager, base_token, quote_token, market_id) = before();
+
+    set_contract_address(owner());
+    let protocol_share = market_manager.protocol_share(market_id);
+    market_manager.set_protocol_share(market_id, protocol_share);
+}

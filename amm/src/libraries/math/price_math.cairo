@@ -6,7 +6,6 @@ use integer::BoundedU256;
 
 // Local imports.
 use amm::libraries::math::math;
-use amm::libraries::math::price_math;
 use amm::libraries::math::bit_math;
 use amm::types::i32::{i32, I32Trait, I32Zeroable};
 use amm::types::i128::{i128, I128Trait};
@@ -19,7 +18,7 @@ use amm::libraries::constants::{
 // FUNCTIONS
 ////////////////////////////////
 
-// Convert limit from i32 (range -8,388,608 to 8,388,607) to u32 (range 0 to 16,777,215).
+// Convert limit from i32 (range -7,906,625 to 7,906,625) to u32 (range 0 to 15,813,251).
 //
 // # Arguments
 // * `limit` - unshifted limit
@@ -34,7 +33,7 @@ fn shift_limit(limit: i32, width: u32) -> u32 {
     shifted.val
 }
 
-// Convert limit from u32 (range 0 to 16,777,215) to i32 (range -8,388,608 to 8,388,607).
+// Convert limit from u32 (range 0 to 15,813,251) to i32 (range -7,906,625 to 7,906,625).
 //
 // # Arguments
 // * `limit` - shifted limit
@@ -44,7 +43,7 @@ fn shift_limit(limit: i32, width: u32) -> u32 {
 // * `unshifted_limit` - unshifted limit
 fn unshift_limit(limit: u32, width: u32) -> i32 {
     let unshifted: i32 = I32Trait::new(limit, false) - I32Trait::new(offset(width), false);
-    assert(unshifted <= I32Trait::new(max_limit(width), false), 'UnshiftLimitOF');
+    assert(unshifted.val <= MAX_LIMIT / width * width, 'UnshiftLimitOF');
     unshifted
 }
 
@@ -82,8 +81,8 @@ fn max_limit(width: u32) -> u32 {
 // * `sqrt_price` - sqrt price encoded as UD47x28
 fn limit_to_sqrt_price(limit: u32, width: u32) -> u256 {
     // Check limit ID is in range
-    assert(limit <= max_limit(width), 'LimitOF');
     assert(width <= MAX_WIDTH, 'WidthOF');
+    assert(limit <= max_limit(width), 'LimitOF');
 
     // Unshift limit
     let unshifted = unshift_limit(limit, width);

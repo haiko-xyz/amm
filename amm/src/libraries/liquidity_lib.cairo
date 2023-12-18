@@ -30,8 +30,8 @@ use amm::interfaces::IMarketManager::IMarketManager;
 // Helper function to add or remove liquidity from a position.
 //
 // # Arguments
-// * `market_id` - market id
 // * `owner` - user address (or batch id for limit orders)
+// * `market_id` - market id
 // * `market_info` - struct containing current market state
 // * `lower_limit` - lower limit of position
 // * `upper_limit` - upper limit of position
@@ -115,7 +115,6 @@ fn update_liquidity(
             market_state.curr_sqrt_price,
             price_math::limit_to_sqrt_price(lower_limit, width),
             price_math::limit_to_sqrt_price(upper_limit, width),
-            width,
         )
     };
 
@@ -228,7 +227,6 @@ fn amounts_inside_position(self: @ContractState, position_id: felt252,) -> (u256
         market_state.curr_sqrt_price,
         price_math::limit_to_sqrt_price(position.lower_limit, market_info.width),
         price_math::limit_to_sqrt_price(position.upper_limit, market_info.width),
-        market_info.width,
     );
 
     // Return amounts

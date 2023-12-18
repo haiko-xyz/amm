@@ -1,7 +1,6 @@
 use amm::types::i32::I32Trait;
 use amm::tests::common::utils::{to_e28, to_e18};
-use strategies::strategies::replicating::spread_math::{calc_bid_ask, delta_spread, unpack_limits};
-use strategies::strategies::replicating::types::Limits;
+use strategies::strategies::replicating::spread_math::{calc_bid_ask, delta_spread};
 
 use debug::PrintTrait;
 
@@ -181,55 +180,55 @@ fn test_delta_spread() {
     inv_delta = delta_spread(max_delta, base_amount, quote_amount, price);
     assert(inv_delta == I32Trait::new(0, false), 'Inv delta 9');
 }
+// #[test]
+// #[available_gas(100000000)]
+// fn test_unpack_limits_cases() {
+//     // Fixed limits
+//     let mut range = Limits::Fixed(100);
+//     let mut vol = 0;
+//     let mut width = 10;
+//     let limits = unpack_limits(range, vol, width);
+//     assert(limits == 100, 'Unpack limits 1');
 
-#[test]
-#[available_gas(100000000)]
-fn test_unpack_limits_cases() {
-    // Fixed limits
-    let mut range = Limits::Fixed(100);
-    let mut vol = 0;
-    let mut width = 10;
-    let limits = unpack_limits(range, vol, width);
-    assert(limits == 100, 'Unpack limits 1');
+//     // Variable limits
+//     // Base not floored
+//     vol = 7000000000;
+//     range = Limits::Vol((100, 5000000000, 8000, false));
+//     let limits = unpack_limits(range, vol, width);
+//     assert(limits == 130, 'Unpack limits 2');
 
-    // Variable limits
-    // Base not floored
-    vol = 7000000000;
-    range = Limits::Vol((100, 5000000000, 8000, false));
-    let limits = unpack_limits(range, vol, width);
-    assert(limits == 130, 'Unpack limits 2');
+//     vol = 5000000000;
+//     let limits = unpack_limits(range, vol, width);
+//     assert(limits == 100, 'Unpack limits 3');
 
-    vol = 5000000000;
-    let limits = unpack_limits(range, vol, width);
-    assert(limits == 100, 'Unpack limits 3');
+//     vol = 3000000000;
+//     let limits = unpack_limits(range, vol, width);
+//     assert(limits == 60, 'Unpack limits 4');
 
-    vol = 3000000000;
-    let limits = unpack_limits(range, vol, width);
-    assert(limits == 60, 'Unpack limits 4');
+//     // Zero vol
+//     vol = 0;
+//     let limits = unpack_limits(range, vol, width);
+//     assert(limits == 0, 'Unpack limits 5');
 
-    // Zero vol
-    vol = 0;
-    let limits = unpack_limits(range, vol, width);
-    assert(limits == 0, 'Unpack limits 5');
+//     // Capped at minimum
+//     vol = 3000000000;
+//     range = Limits::Vol((100, 5000000000, 8000, true));
+//     let limits = unpack_limits(range, vol, width);
+//     assert(limits == 100, 'Unpack limits 6');
 
-    // Capped at minimum
-    vol = 3000000000;
-    range = Limits::Vol((100, 5000000000, 8000, true));
-    let limits = unpack_limits(range, vol, width);
-    assert(limits == 100, 'Unpack limits 6');
+//     // Capped at minimum with 0 vol
+//     vol = 0;
+//     let limits = unpack_limits(range, vol, width);
+//     assert(limits == 100, 'Unpack limits 7');
+// }
 
-    // Capped at minimum with 0 vol
-    vol = 0;
-    let limits = unpack_limits(range, vol, width);
-    assert(limits == 100, 'Unpack limits 7');
-}
+// #[test]
+// #[available_gas(100000000)]
+// #[should_panic(expected: ('DefaultVolZero',))]
+// fn test_unpack_limits_zero_vol() {
+//     let range = Limits::Vol((100, 0, 8000, false));
+//     let vol = 0;
+//     let width = 10;
+//     let limits = unpack_limits(range, vol, width);
+// }
 
-#[test]
-#[available_gas(100000000)]
-#[should_panic(expected: ('DefaultVolZero',))]
-fn test_unpack_limits_zero_vol() {
-    let range = Limits::Vol((100, 0, 8000, false));
-    let vol = 0;
-    let width = 10;
-    let limits = unpack_limits(range, vol, width);
-}

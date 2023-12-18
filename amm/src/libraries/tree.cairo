@@ -19,8 +19,9 @@ use amm::libraries::constants::MAX_LIMIT_SHIFTED;
 // Returns true if the tree contains the given limit.
 //
 // # Arguments
-// * `market_id` - The id of the market.
-// * `limit` - The id of the limit to check.
+// * `market_id` - market id
+// * `width` - width of the market
+// * `limit` - limit to fetch
 //
 // # Returns
 // * `initialised` - Whether the limit price is initialised.
@@ -37,8 +38,9 @@ fn get(self: @ContractState, market_id: felt252, width: u32, limit: u32) -> bool
 // Flips the given limit in the tree.
 //
 // # Arguments
-// * `market_id` - The id of the market
-// * `limit` - The limit to insert
+// * `market_id` - market id
+// * `width` - width of the market
+// * `limit` - limit to insert
 fn flip(ref self: ContractState, market_id: felt252, width: u32, limit: u32) {
     // Compress limit by width.
     let scaled_limit = limit / width;
@@ -67,9 +69,8 @@ fn flip(ref self: ContractState, market_id: felt252, width: u32, limit: u32) {
     if new_segment_l1 != 0 && segment_l1 != 0 {
         return ();
     }
-    let pos_l0 = index_l1 % 256;
     let segment_l0 = self.limit_tree_l0.read(market_id);
-    let mask_l0 = math::pow(2, pos_l0.into());
+    let mask_l0 = math::pow(2, index_l1.into());
     let new_segment_l0: felt252 = (segment_l0.into() ^ mask_l0)
         .try_into()
         .unwrap(); // toggle the bit

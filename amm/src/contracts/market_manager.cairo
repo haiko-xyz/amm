@@ -68,7 +68,7 @@ mod MarketManager {
         protocol_fees: LegacyMap::<ContractAddress, u256>,
         flash_loan_fee: LegacyMap::<ContractAddress, u16>,
         // Market information
-        // Indexed by market_id = hash(base_token, quote_token, width, strategy, fee_controller)
+        // Indexed by market_id = hash(base_token, quote_token, width, strategy, fee_controller, controller)
         market_info: LegacyMap::<felt252, MarketInfo>,
         market_state: LegacyMap::<felt252, MarketState>,
         market_configs: LegacyMap::<felt252, MarketConfigs>,
@@ -517,7 +517,6 @@ mod MarketManager {
                 market_state.curr_sqrt_price,
                 price_math::limit_to_sqrt_price(lower_limit, market_info.width),
                 price_math::limit_to_sqrt_price(upper_limit, market_info.width),
-                market_info.width,
             );
             (base_amount.val, quote_amount.val)
         }
@@ -807,9 +806,9 @@ mod MarketManager {
             assert(liquidity_delta != 0, 'OrderAmtZero');
 
             // Fetch order and batch info.
-            let mut limit_info = self.limit_info.read((market_id, limit));
+            let limit_info = self.limit_info.read((market_id, limit));
             let caller = get_caller_address();
-            let mut batch_id = id::batch_id(market_id, limit, limit_info.nonce);
+            let batch_id = id::batch_id(market_id, limit, limit_info.nonce);
             let mut batch = self.batches.read(batch_id);
             let order_id = id::order_id(batch_id, caller);
 
@@ -1195,7 +1194,7 @@ mod MarketManager {
                 let market_configs = self.market_configs.read(market_id);
                 self.enforce_status(market_configs.swap.value, @market_info, 'SwapDisabled');
             }
-            assert(market_info.quote_token.is_non_zero(), 'MarketNull');
+            assert(market_info.width != 0, 'MarketNull');
             assert(amount > 0, 'AmtZero');
             if threshold_sqrt_price.is_some() {
                 price_lib::check_threshold(
@@ -1236,8 +1235,6 @@ mod MarketManager {
             // Initialise trackers for swap state.
             let mut amount_rem = amount;
             let mut amount_calc = 0;
-            let mut swap_fees = 0;
-            let mut protocol_fees = 0;
 
             // Simulate swap.
             quote_lib::quote_iter(
@@ -1246,7 +1243,6 @@ mod MarketManager {
                 ref market_state,
                 ref amount_rem,
                 ref amount_calc,
-                ref swap_fees,
                 ref queued_deltas,
                 target_limits.span(),
                 threshold_sqrt_price,
@@ -1570,6 +1566,8 @@ mod MarketManager {
         fn set_flash_loan_fee(ref self: ContractState, token: ContractAddress, fee: u16,) {
             self.assert_only_owner();
             assert(fee <= fee_math::MAX_FEE_RATE, 'FeeOF');
+            let old_fee = self.flash_loan_fee.read(token);
+            assert(old_fee != fee, 'SameFee');
             self.flash_loan_fee.write(token, fee);
             self.emit(Event::ChangeFlashLoanFee(ChangeFlashLoanFee { token, fee }));
         }
@@ -1585,6 +1583,7 @@ mod MarketManager {
             assert(protocol_share <= fee_math::MAX_FEE_RATE, 'ProtocolShareOF');
 
             let mut market_state = self.market_state.read(market_id);
+            assert(market_state.protocol_share != protocol_share, 'SameProtocolShare');
             market_state.protocol_share = protocol_share;
             self.market_state.write(market_id, market_state);
 
@@ -1699,7 +1698,7 @@ mod MarketManager {
             let caller = get_caller_address();
 
             // Check inputs.
-            assert(market_info.quote_token.is_non_zero(), 'MarketNull');
+            assert(market_info.width != 0, 'MarketNull');
             price_lib::check_limits(
                 lower_limit, upper_limit, market_info.width, valid_limits, liquidity_delta.sign
             );
@@ -1834,7 +1833,7 @@ mod MarketManager {
                 let market_configs = self.market_configs.read(market_id);
                 self.enforce_status(market_configs.swap.value, @market_info, 'SwapDisabled');
             }
-            assert(market_info.quote_token.is_non_zero(), 'MarketNull');
+            assert(market_info.width != 0, 'MarketNull');
             assert(amount > 0, 'AmtZero');
             if threshold_sqrt_price.is_some() {
                 price_lib::check_threshold(
@@ -1955,7 +1954,7 @@ mod MarketManager {
             // Handle fully filled limit orders. Must be done after state updates above.
             if filled_limits.len() != 0 {
                 order_lib::fill_limits(
-                    ref self, market_id, market_info.width, fee_rate, filled_limits.span(),
+                    ref self, market_id, market_info.width, filled_limits.span(),
                 );
             }
 

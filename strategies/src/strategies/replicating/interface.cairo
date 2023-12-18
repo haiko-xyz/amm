@@ -4,13 +4,15 @@ use starknet::class_hash::ClassHash;
 
 // Local imports.
 use amm::types::core::PositionInfo;
-use strategies::strategies::replicating::types::{StrategyParams, StrategyState, Limits};
+use strategies::strategies::replicating::types::{StrategyParams, StrategyState};
 
 
 #[starknet::interface]
 trait IReplicatingStrategy<TContractState> {
     fn owner(self: @TContractState) -> ContractAddress;
+    fn queued_owner(self: @TContractState) -> ContractAddress;
     fn strategy_owner(self: @TContractState, market_id: felt252) -> ContractAddress;
+    fn queued_strategy_owner(self: @TContractState, market_id: felt252) -> ContractAddress;
     fn oracle(self: @TContractState) -> ContractAddress;
     fn strategy_params(self: @TContractState, market_id: felt252) -> StrategyParams;
     fn strategy_state(self: @TContractState, market_id: felt252) -> StrategyState;
@@ -36,10 +38,9 @@ trait IReplicatingStrategy<TContractState> {
         pair_id: felt252,
         min_sources: u32,
         max_age: u64,
-        min_spread: Limits,
-        range: Limits,
+        min_spread: u32,
+        range: u32,
         max_delta: u32,
-        vol_period: u64,
         allow_deposits: bool,
     );
     fn deposit_initial(

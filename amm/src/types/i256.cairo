@@ -56,31 +56,6 @@ impl I256Impl of I256Trait {
     }
 }
 
-impl I256TryIntoFelt252 of TryInto<i256, felt252> {
-    fn try_into(self: i256) -> Option<felt252> {
-        let val: Option<felt252> = self.val.try_into();
-        match val {
-            Option::Some(val) => Option::Some(val * if self.sign {
-                -1
-            } else {
-                1
-            }),
-            Option::None(()) => Option::None(())
-        }
-    }
-}
-
-impl I256IntoFelt252 of Into<i256, felt252> {
-    fn into(self: i256) -> felt252 {
-        let mag_felt: felt252 = self.val.try_into().unwrap();
-        if self.sign {
-            mag_felt * -1
-        } else {
-            mag_felt
-        }
-    }
-}
-
 impl Felt252IntoI256 of Into<felt252, i256> {
     fn into(self: felt252) -> i256 {
         let abs: u256 = self.into();
@@ -147,13 +122,6 @@ impl I256PartialEq of PartialEq<i256> {
     #[inline(always)]
     fn ne(lhs: @i256, rhs: @i256) -> bool {
         lhs.sign != rhs.sign || lhs.val != rhs.val
-    }
-}
-
-impl LegacyHashI256 of LegacyHash<i256> {
-    #[inline(always)]
-    fn hash(state: felt252, value: i256) -> felt252 {
-        LegacyHash::<felt252>::hash(state, value.into())
     }
 }
 

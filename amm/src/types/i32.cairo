@@ -56,26 +56,6 @@ impl I32Impl of I32Trait {
     }
 }
 
-impl I32IntoFelt252 of Into<i32, felt252> {
-    #[inline(always)]
-    fn into(self: i32) -> felt252 {
-        let mag_felt: felt252 = self.val.into();
-        if self.sign {
-            mag_felt * -1
-        } else {
-            mag_felt
-        }
-    }
-}
-
-impl Felt252TryIntoI32 of TryInto<felt252, i32> {
-    #[inline(always)]
-    fn try_into(self: felt252) -> Option<i32> {
-        let abs: u32 = self.try_into().unwrap();
-        Option::Some(I32Trait::new(abs, false))
-    }
-}
-
 impl I32PartialOrd of PartialOrd<i32> {
     #[inline(always)]
     fn le(lhs: i32, rhs: i32) -> bool {
@@ -135,13 +115,6 @@ impl I32PartialEq of PartialEq<i32> {
     #[inline(always)]
     fn ne(lhs: @i32, rhs: @i32) -> bool {
         lhs.sign != rhs.sign || lhs.val != rhs.val
-    }
-}
-
-impl LegacyHashI32 of LegacyHash<i32> {
-    #[inline(always)]
-    fn hash(state: felt252, value: i32) -> felt252 {
-        LegacyHash::<felt252>::hash(state, value.into())
     }
 }
 

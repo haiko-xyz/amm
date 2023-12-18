@@ -5,7 +5,7 @@ use integer::BoundedU128;
 use integer::{u256_wide_mul, u512_safe_div_rem_by_u256, u256_try_as_non_zero};
 
 // Local imports.
-use amm::libraries::math::{math, fee_math, price_math, liquidity_math};
+use amm::libraries::math::{math, fee_math, price_math};
 use amm::libraries::constants::{ONE, MAX_NUM_LIMITS};
 use amm::types::core::{MarketState, LimitInfo};
 use amm::types::i128::{i128, I128Trait};
@@ -77,7 +77,7 @@ fn liquidity_to_base(
     // Switch between formulas depending on magnitude of price, to maintain precision.
     // Case 1: used for larger sqrt prices
     let liquidity: u256 = liquidity_delta.val.into();
-    let abs_base_amount = if lower_sqrt_price > ONE || upper_sqrt_price > ONE {
+    let abs_base_amount = if upper_sqrt_price - lower_sqrt_price > ONE {
         math::mul_div(
             math::mul_div(
                 liquidity, upper_sqrt_price - lower_sqrt_price, lower_sqrt_price, round_up
@@ -155,39 +155,34 @@ fn base_to_liquidity(
 // * `liquidity_delta` - liquidity delta to apply
 // * `lower_limit` - starting limit of the range
 // * `upper_limit` - ending limit of the range
-// * `width` - width of the price range
 //
 // # Returns
 // * `base_amount` - amount of base tokens transferred out (-ve) or in (+ve)
 // * `quote_amount` - amount of quote tokens transferred out (-ve) or in (+ve)
 fn liquidity_to_amounts(
-    liquidity_delta: i128,
-    curr_sqrt_price: u256,
-    lower_sqrt_price: u256,
-    upper_sqrt_price: u256,
-    width: u32,
+    liquidity_delta: i128, curr_sqrt_price: u256, lower_sqrt_price: u256, upper_sqrt_price: u256,
 ) -> (i256, i256) {
     // Note we round down amounts for liquidity removals, and round up for liquidity additions
     // to prevent rounding errors from causing protocol insolvency. 
 
     // Case 1: price range is below current price, all liquidity is quote token
     if upper_sqrt_price <= curr_sqrt_price {
-        let quote_amount = liquidity_math::liquidity_to_quote(
+        let quote_amount = liquidity_to_quote(
             lower_sqrt_price, upper_sqrt_price, liquidity_delta, !liquidity_delta.sign,
         );
         (I256Zeroable::zero(), quote_amount)
     } // Case 2: price range contains current price
     else if lower_sqrt_price <= curr_sqrt_price {
-        let base_amount = liquidity_math::liquidity_to_base(
+        let base_amount = liquidity_to_base(
             curr_sqrt_price, upper_sqrt_price, liquidity_delta, !liquidity_delta.sign
         );
-        let quote_amount = liquidity_math::liquidity_to_quote(
+        let quote_amount = liquidity_to_quote(
             lower_sqrt_price, curr_sqrt_price, liquidity_delta, !liquidity_delta.sign
         );
         (base_amount, quote_amount)
     } // Case 3: price range is above current price, all liquidity is base token
     else {
-        let base_amount = liquidity_math::liquidity_to_base(
+        let base_amount = liquidity_to_base(
             lower_sqrt_price, upper_sqrt_price, liquidity_delta, !liquidity_delta.sign
         );
         (base_amount, I256Zeroable::zero())

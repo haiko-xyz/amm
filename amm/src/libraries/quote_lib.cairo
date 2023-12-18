@@ -29,8 +29,6 @@ use amm::types::i128::{i128, I128Trait};
 // * `market_state` - market state
 // * `amount_rem` - amount remaining to be swapped
 // * `amount_calc` - amount out if exact input or amount in if exact output
-// * `swap_fees` - swap fees
-// * `protocol_fees` - protocol fees
 // * `queued_deltas` - liquidity deltas from strategy position updates
 // * `target_limits` - additional target limits from queued strategy position updates
 // * `threshold_sqrt_price` - price threshold
@@ -44,7 +42,6 @@ fn quote_iter(
     ref market_state: MarketState,
     ref amount_rem: u256,
     ref amount_calc: u256,
-    ref swap_fees: u256,
     ref queued_deltas: Felt252Dict<Nullable<i128>>,
     target_limits: Span<u32>,
     threshold_sqrt_price: Option<u256>,
@@ -170,7 +167,6 @@ fn quote_iter(
             ref market_state,
             ref amount_rem,
             ref amount_calc,
-            ref swap_fees,
             ref queued_deltas,
             target_limits,
             threshold_sqrt_price,
