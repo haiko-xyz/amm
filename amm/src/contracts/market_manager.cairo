@@ -517,7 +517,6 @@ mod MarketManager {
                 market_state.curr_sqrt_price,
                 price_math::limit_to_sqrt_price(lower_limit, market_info.width),
                 price_math::limit_to_sqrt_price(upper_limit, market_info.width),
-                market_info.width,
             );
             (base_amount.val, quote_amount.val)
         }
@@ -1236,17 +1235,14 @@ mod MarketManager {
             // Initialise trackers for swap state.
             let mut amount_rem = amount;
             let mut amount_calc = 0;
-            let mut swap_fees = 0;
-            let mut protocol_fees = 0;
 
             // Simulate swap.
             quote_lib::quote_iter(
                 self,
-                market_id,
+                market_id, 
                 ref market_state,
                 ref amount_rem,
                 ref amount_calc,
-                ref swap_fees,
                 ref queued_deltas,
                 target_limits.span(),
                 threshold_sqrt_price,
@@ -1958,7 +1954,7 @@ mod MarketManager {
             // Handle fully filled limit orders. Must be done after state updates above.
             if filled_limits.len() != 0 {
                 order_lib::fill_limits(
-                    ref self, market_id, market_info.width, fee_rate, filled_limits.span(),
+                    ref self, market_id, market_info.width, filled_limits.span(),
                 );
             }
 

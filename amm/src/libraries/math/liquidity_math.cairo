@@ -155,7 +155,6 @@ fn base_to_liquidity(
 // * `liquidity_delta` - liquidity delta to apply
 // * `lower_limit` - starting limit of the range
 // * `upper_limit` - ending limit of the range
-// * `width` - width of the price range
 //
 // # Returns
 // * `base_amount` - amount of base tokens transferred out (-ve) or in (+ve)
@@ -165,7 +164,6 @@ fn liquidity_to_amounts(
     curr_sqrt_price: u256,
     lower_sqrt_price: u256,
     upper_sqrt_price: u256,
-    width: u32,
 ) -> (i256, i256) {
     // Note we round down amounts for liquidity removals, and round up for liquidity additions
     // to prevent rounding errors from causing protocol insolvency. 

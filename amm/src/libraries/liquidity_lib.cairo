@@ -115,7 +115,6 @@ fn update_liquidity(
             market_state.curr_sqrt_price,
             price_math::limit_to_sqrt_price(lower_limit, width),
             price_math::limit_to_sqrt_price(upper_limit, width),
-            width,
         )
     };
 
@@ -228,7 +227,6 @@ fn amounts_inside_position(self: @ContractState, position_id: felt252,) -> (u256
         market_state.curr_sqrt_price,
         price_math::limit_to_sqrt_price(position.lower_limit, market_info.width),
         price_math::limit_to_sqrt_price(position.upper_limit, market_info.width),
-        market_info.width,
     );
 
     // Return amounts
