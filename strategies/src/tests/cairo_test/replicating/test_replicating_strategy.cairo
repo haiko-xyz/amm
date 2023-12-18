@@ -102,7 +102,6 @@ fn before() -> (
             10, // ~0.01% min spread
             20000, // ~20% range
             200, // ~0.2% delta
-            259200, // volatility lookback period of 3 days
             true,
         );
 
@@ -852,7 +851,6 @@ fn test_set_strategy_params() {
         min_spread: 0,
         range: 3000,
         max_delta: 0,
-        vol_period: 0,
         allow_deposits: true,
     };
     strategy.set_params(market_id, params);
@@ -861,7 +859,6 @@ fn test_set_strategy_params() {
     assert(params.min_spread == 0, 'Set params: min spread');
     assert(params.range == 3000, 'Set params: range');
     assert(params.max_delta == 0, 'Set params: max delta');
-    assert(params.vol_period == 0, 'Set params: vol period');
     assert(params.allow_deposits == true, 'Set params: allow deposits');
 }
 

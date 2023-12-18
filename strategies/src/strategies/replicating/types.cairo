@@ -26,8 +26,6 @@ struct StrategyParams {
     range: u32,
     // inventory delta, or the max additional single-sided spread applied on an imbalanced portfolio
     max_delta: u32,
-    // lookback period for calculating realised volatility (in seconds)
-    vol_period: u64,
     // whether strategy allows deposits
     allow_deposits: bool,
 }

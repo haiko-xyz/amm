@@ -41,7 +41,6 @@ trait IReplicatingStrategy<TContractState> {
         min_spread: u32,
         range: u32,
         max_delta: u32,
-        vol_period: u64,
         allow_deposits: bool,
     );
     fn deposit_initial(
