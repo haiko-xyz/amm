@@ -6,7 +6,6 @@ use integer::BoundedU256;
 
 // Local imports.
 use amm::libraries::math::math;
-use amm::libraries::math::price_math;
 use amm::libraries::math::bit_math;
 use amm::types::i32::{i32, I32Trait, I32Zeroable};
 use amm::types::i128::{i128, I128Trait};
