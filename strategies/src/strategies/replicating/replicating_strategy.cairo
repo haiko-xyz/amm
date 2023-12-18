@@ -331,9 +331,8 @@ mod ReplicatingStrategy {
             let market_manager = self.market_manager.read();
             assert(get_caller_address() == market_manager.contract_address, 'OnlyMarketManager');
             let state = self.strategy_state.read(market_id);
-            assert(state.is_initialised, 'NotInitialised');
-            if state.is_paused {
-                return ();
+            if !state.is_initialised || state.is_paused {
+                return;
             }
 
             // Fetch oracle price.

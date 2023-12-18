@@ -51,7 +51,7 @@ struct SwapCase {
 // SETUP
 ////////////////////////////////
 
-fn before() -> (
+fn before(initialise_market: bool) -> (
     IMarketManagerDispatcher,
     ERC20ABIDispatcher,
     ERC20ABIDispatcher,
@@ -90,20 +90,22 @@ fn before() -> (
     let market_id = create_market(market_manager, params);
 
     // Add market to strategy.
-    start_prank(CheatTarget::One(strategy.contract_address), owner());
-    strategy
-        .add_market(
-            market_id,
-            owner,
-            'ETH',
-            'USDC',
-            3, // minimum sources
-            600, // 10 minutes max age 
-            10, // ~0.01% min spread
-            20000, // ~20% range
-            200, // ~0.2% delta
-            true,
-        );
+    if initialise_market {
+        start_prank(CheatTarget::One(strategy.contract_address), owner());
+        strategy
+            .add_market(
+                market_id,
+                owner,
+                'ETH',
+                'USDC',
+                3, // minimum sources
+                600, // 10 minutes max age 
+                10, // ~0.01% min spread
+                20000, // ~20% range
+                200, // ~0.2% delta
+                true,
+            );
+    }
 
     // Fund owner with initial token balances and approve strategy and market manager as spenders.
     let base_amount = to_e18(5000000);
@@ -140,7 +142,7 @@ fn before() -> (
 
 #[test]
 fn test_get_bid_ask() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -165,7 +167,7 @@ fn test_get_bid_ask() {
 
 #[test]
 fn test_queued_and_placed_positions() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -213,7 +215,7 @@ fn test_queued_and_placed_positions() {
 
 #[test]
 fn test_queued_positions_uninitialised_market() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -236,7 +238,7 @@ fn test_queued_positions_uninitialised_market() {
 
 #[test]
 fn test_add_market_initialises_state() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Check strategy params correctly updated.
     let params = strategy.strategy_params(market_id);
@@ -272,7 +274,7 @@ fn test_add_market_initialises_state() {
 #[test]
 #[should_panic(expected: ('MarketNull',))]
 fn test_add_market_market_null() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Register null market.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -282,7 +284,7 @@ fn test_add_market_market_null() {
 #[test]
 #[should_panic(expected: ('Initialised',))]
 fn test_add_market_already_initialised() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Register null market.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -292,7 +294,7 @@ fn test_add_market_already_initialised() {
 #[test]
 #[should_panic(expected: ('RangeZero',))]
 fn test_add_market_range_zero() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Technically the market id does not exist but because this check is run before the
     // market null check, it catches the error correctly.
@@ -303,7 +305,7 @@ fn test_add_market_range_zero() {
 #[test]
 #[should_panic(expected: ('MinSourcesZero',))]
 fn test_add_market_min_sources_zero() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Technically the market id does not exist but because this check is run before the
     // market null check, it catches the error correctly.
@@ -314,7 +316,7 @@ fn test_add_market_min_sources_zero() {
 #[test]
 #[should_panic(expected: ('MaxAgeZero',))]
 fn test_add_market_max_age_zero() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Technically the market id does not exist but because this check is run before the
     // market null check, it catches the error correctly.
@@ -325,7 +327,7 @@ fn test_add_market_max_age_zero() {
 #[test]
 #[should_panic(expected: ('BaseIdNull',))]
 fn test_add_market_base_id_null() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Technically the market id does not exist but because this check is run before the
     // market null check, it catches the error correctly.
@@ -336,7 +338,7 @@ fn test_add_market_base_id_null() {
 #[test]
 #[should_panic(expected: ('QuoteIdNull',))]
 fn test_add_market_quote_id_null() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Technically the market id does not exist but because this check is run before the
     // market null check, it catches the error correctly.
@@ -346,7 +348,7 @@ fn test_add_market_quote_id_null() {
 
 #[test]
 fn test_deposit_initial_success() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -371,7 +373,7 @@ fn test_deposit_initial_success() {
 #[test]
 #[should_panic(expected: ('DepositInitialZero',))]
 fn test_deposit_initial_single_sided_bid_liquidity_correctly_reverts() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // If the position range would case the lower bid limit to overflow, only single sided (ask)
     // liquidity is placed. This should be correctly handled when depositing initial liquidity.
@@ -395,7 +397,7 @@ fn test_deposit_initial_single_sided_bid_liquidity_correctly_reverts() {
 #[test]
 #[should_panic(expected: ('DepositInitialZero',))]
 fn test_deposit_initial_single_sided_ask_liquidity_correctly_reverts() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // If the position range would case the upper ask limit to overflow, only single sided (bid)
     // liquidity is placed. This should be correctly handled when depositing initial liquidity.
@@ -422,7 +424,7 @@ fn test_deposit_initial_single_sided_ask_liquidity_correctly_reverts() {
 #[test]
 #[should_panic(expected: ('DepositInitialZero',))]
 fn test_deposit_initial_invalid_oracle_price() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -436,7 +438,7 @@ fn test_deposit_initial_invalid_oracle_price() {
 #[test]
 #[should_panic(expected: ('Paused',))]
 fn test_deposit_initial_paused() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -453,7 +455,7 @@ fn test_deposit_initial_paused() {
 #[test]
 #[should_panic(expected: ('NotInitialised',))]
 fn test_deposit_initial_market_not_initialised() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Deposit initial should revert if not market not initialised.
     strategy.deposit_initial(1, to_e18(1000000), to_e18(1112520000));
@@ -462,7 +464,7 @@ fn test_deposit_initial_market_not_initialised() {
 #[test]
 #[should_panic(expected: ('DepositDisabled',))]
 fn test_deposit_initial_deposit_disabled() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Disable deposits.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -477,7 +479,7 @@ fn test_deposit_initial_deposit_disabled() {
 
 #[test]
 fn test_update_positions() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -519,8 +521,59 @@ fn test_update_positions() {
 }
 
 #[test]
+#[should_panic(expected: ('OnlyMarketManager',))]
+fn test_update_positions_not_market_manager() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let strategy_alt = IStrategyDispatcher{ contract_address: strategy.contract_address };
+    strategy_alt.update_positions(market_id, SwapParams { 
+        is_buy: true,
+        amount: to_e18(1000),
+        exact_input: true,
+        threshold_sqrt_price: Option::None(()),
+        deadline: Option::None(()),
+    });
+}
+
+#[test]
+fn test_update_positions_market_not_initialised() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(false);
+
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    let strategy_alt = IStrategyDispatcher{ contract_address: strategy.contract_address };
+    strategy_alt.update_positions(market_id, SwapParams { 
+        is_buy: true,
+        amount: to_e18(1000),
+        exact_input: true,
+        threshold_sqrt_price: Option::None(()),
+        deadline: Option::None(()),
+    });
+}
+
+#[test]
+fn test_update_positions_market_paused() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+
+    // Pause market.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    strategy.pause(market_id);
+
+    // Update positions.
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    let strategy_alt = IStrategyDispatcher{ contract_address: strategy.contract_address };
+    strategy_alt.update_positions(market_id, SwapParams { 
+        is_buy: true,
+        amount: to_e18(1000),
+        exact_input: true,
+        threshold_sqrt_price: Option::None(()),
+        deadline: Option::None(()),
+    });
+}
+
+#[test]
 fn test_update_positions_num_sources_too_low() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Update price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -553,7 +606,7 @@ fn test_update_positions_num_sources_too_low() {
 
 #[test]
 fn test_update_positions_price_stale() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Update price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -586,7 +639,7 @@ fn test_update_positions_price_stale() {
 
 #[test]
 fn test_update_positions_multiple_swaps() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -663,7 +716,7 @@ fn test_update_positions_multiple_swaps() {
 
 #[test]
 fn test_deposit() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -713,7 +766,7 @@ fn test_deposit() {
 
 #[test]
 fn test_deposit_multiple() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
@@ -758,7 +811,7 @@ fn test_deposit_multiple() {
 fn test_deposit_single_sided_bid_liquidity() {
     // The portfolio could become entirely skewed in one asset due to price movements. In this case,
     // single-sided liquidity deposits should be handled gracefully.
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -820,7 +873,7 @@ fn test_deposit_single_sided_bid_liquidity() {
 fn test_deposit_single_sided_ask_liquidity() {
     // The portfolio could become entirely skewed in one asset due to price movements. In this case,
     // single-sided liquidity deposits should be handled gracefully.
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -880,7 +933,7 @@ fn test_deposit_single_sided_ask_liquidity() {
 
 #[test]
 fn test_get_balances() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Remove protocol fee for easier accounting.
     start_prank(CheatTarget::One(market_manager.contract_address), owner());
@@ -935,7 +988,7 @@ fn test_get_balances() {
 
 #[test]
 fn test_withdraw_all() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
@@ -983,7 +1036,7 @@ fn test_withdraw_all() {
 
 #[test]
 fn test_withdraw_partial() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -1041,7 +1094,7 @@ fn test_withdraw_partial() {
 
 #[test]
 fn test_collect_and_pause() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -1073,7 +1126,7 @@ fn test_collect_and_pause() {
 #[test]
 #[should_panic(expected: ('DepositDisabled',))]
 fn test_disable_deposits() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -1098,7 +1151,7 @@ fn test_disable_deposits() {
 
 #[test]
 fn test_reenable_deposits() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -1127,7 +1180,7 @@ fn test_reenable_deposits() {
 
 #[test]
 fn test_disable_deposit_strategy_owner_deposit() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -1151,7 +1204,7 @@ fn test_disable_deposit_strategy_owner_deposit() {
 
 #[test]
 fn test_lvr_rebalance_condition() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Update price.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -1195,7 +1248,7 @@ fn test_lvr_rebalance_condition() {
 
 #[test]
 fn test_set_strategy_params() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     let params = StrategyParams { min_spread: 0, range: 3000, max_delta: 0, allow_deposits: true, };
@@ -1211,7 +1264,7 @@ fn test_set_strategy_params() {
 #[test]
 #[should_panic(expected: ('ParamsUnchanged',))]
 fn test_set_strategy_params_unchanged() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     let params = strategy.strategy_params(market_id);
@@ -1221,7 +1274,7 @@ fn test_set_strategy_params_unchanged() {
 #[test]
 #[should_panic(expected: ('RangeZero',))]
 fn test_set_strategy_params_zero_range() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     let mut params = strategy.strategy_params(market_id);
@@ -1231,7 +1284,7 @@ fn test_set_strategy_params_zero_range() {
 
 #[test]
 fn test_transfer_and_accept_owner() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.transfer_owner(alice());
@@ -1247,7 +1300,7 @@ fn test_transfer_and_accept_owner() {
 
 #[test]
 fn test_transfer_then_update_owner_before_accepting() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.transfer_owner(alice());
@@ -1267,7 +1320,7 @@ fn test_transfer_then_update_owner_before_accepting() {
 #[test]
 #[should_panic(expected: ('OnlyOwner',))]
 fn test_transfer_owner_not_owner() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.transfer_owner(alice());
@@ -1276,7 +1329,7 @@ fn test_transfer_owner_not_owner() {
 #[test]
 #[should_panic(expected: ('OnlyNewOwner',))]
 fn test_accept_owner_not_transferred() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.accept_owner();
@@ -1284,7 +1337,7 @@ fn test_accept_owner_not_transferred() {
 
 #[test]
 fn test_transfer_and_accept_strategy_owner() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.transfer_strategy_owner(market_id, alice());
@@ -1301,7 +1354,7 @@ fn test_transfer_and_accept_strategy_owner() {
 
 #[test]
 fn test_transfer_then_update_strategy_owner_before_accepting() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.transfer_strategy_owner(market_id, alice());
@@ -1322,7 +1375,7 @@ fn test_transfer_then_update_strategy_owner_before_accepting() {
 #[test]
 #[should_panic(expected: ('OnlyStrategyOwner',))]
 fn test_transfer_strategy_owner_not_owner() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.transfer_strategy_owner(market_id, alice());
@@ -1331,7 +1384,7 @@ fn test_transfer_strategy_owner_not_owner() {
 #[test]
 #[should_panic(expected: ('OnlyNewOwner',))]
 fn test_accept_strategy_owner_not_transferred() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.accept_strategy_owner(market_id);
@@ -1438,7 +1491,7 @@ fn oracle_prices() -> Array<u128> {
 
 #[test]
 fn test_swap_cases() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set oracle price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
