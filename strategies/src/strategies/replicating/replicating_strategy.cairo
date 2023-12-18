@@ -135,7 +135,6 @@ mod ReplicatingStrategy {
         min_spread: u32,
         range: u32,
         max_delta: u32,
-        vol_period: u64,
         allow_deposits: bool,
     }
 
@@ -600,7 +599,6 @@ mod ReplicatingStrategy {
         // * `min_spread` - minimum spread to between reference price and bid/ask price
         // * `range` - range parameter (width, in limits, of bid and ask liquidity positions)
         // * `max_delta` - max inv_delta parameter (additional single-sided spread based on portfolio imbalance)
-        // * `vol_period` - lookback period for calculating realised volatility in seconds (or 0 if none)
         // * `allow_deposits` - whether deposits are allowed
         fn add_market(
             ref self: ContractState,
@@ -614,7 +612,6 @@ mod ReplicatingStrategy {
             min_spread: u32,
             range: u32,
             max_delta: u32,
-            vol_period: u64,
             allow_deposits: bool,
         ) {
             // Run checks.
@@ -628,7 +625,7 @@ mod ReplicatingStrategy {
 
             // Set strategy params.
             let strategy_params = StrategyParams {
-                min_spread, range, max_delta, vol_period, allow_deposits
+                min_spread, range, max_delta, allow_deposits
             };
             self.strategy_params.write(market_id, strategy_params);
 
@@ -663,7 +660,7 @@ mod ReplicatingStrategy {
                 .emit(
                     Event::SetStrategyParams(
                         SetStrategyParams {
-                            market_id, min_spread, range, max_delta, vol_period, allow_deposits
+                            market_id, min_spread, range, max_delta, allow_deposits
                         }
                     )
                 );
@@ -936,7 +933,6 @@ mod ReplicatingStrategy {
         // * `min_spread` - minimum spread between reference price and bid/ask price
         // * `range` - range parameter (width, in limits, of bid and ask liquidity positions)
         // * `max_delta` - max inv_delta parameter (additional single-sided spread based on portfolio imbalance)
-        // * `vol_period` - lookback period for calculating realised volatility (in seconds)
         // * `allow_deposits` - whether deposits are allowed
         fn set_params(ref self: ContractState, market_id: felt252, params: StrategyParams) {
             self.assert_strategy_owner(market_id);
@@ -954,7 +950,6 @@ mod ReplicatingStrategy {
                             min_spread: params.min_spread,
                             range: params.range,
                             max_delta: params.max_delta,
-                            vol_period: params.vol_period,
                             allow_deposits: params.allow_deposits,
                         }
                     )
