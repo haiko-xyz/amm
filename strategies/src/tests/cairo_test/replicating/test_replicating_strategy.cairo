@@ -6,8 +6,7 @@ use integer::{BoundedU32, BoundedU128, BoundedU256};
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_SCALED};
-use amm::libraries::math::price_math;
-use amm::libraries::math::liquidity_math;
+use amm::libraries::math::{fee_math, price_math, liquidity_math};
 use amm::libraries::id;
 use amm::interfaces::IMarketManager::{
     IMarketManager, IMarketManagerDispatcher, IMarketManagerDispatcherTrait
@@ -607,6 +606,50 @@ fn test_deposit_single_sided_ask_liquidity() {
     let alice_shares = strategy.user_deposits(market_id, alice());
     let total_shares = strategy.total_deposits(market_id);
     assert(alice_shares == total_shares / 2, 'Deposit: shares');
+}
+
+#[test]
+#[available_gas(1000000000)]
+fn test_get_balances() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Remove protocol fee for easier accounting.
+    set_contract_address(owner());
+    market_manager.set_protocol_share(market_id, 0);
+
+    // Set price.
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5); // 1668.78
+
+    // Deposit initial.
+    set_contract_address(owner());
+    let base_deposit = to_e18(1000);
+    let quote_deposit = to_e18(1668780);
+    strategy.deposit_initial(market_id, base_deposit, quote_deposit);
+
+    // Swap buy to accrue fees. 
+    set_contract_address(alice());
+    let buy_amount = to_e18(2000);
+    let (amount_in_1, amount_out_1, _) = market_manager
+        .swap(market_id, true, to_e18(2000), true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Swap sell to accrue fees in ask position.
+    let sell_amount = to_e18(1);
+    let (amount_in_2, amount_out_2, _) = market_manager
+        .swap(market_id, false, to_e18(1), true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Run checks.
+    let base_amount_exp = base_deposit + amount_in_2 - amount_out_1;
+    let quote_amount_exp = quote_deposit + amount_in_1 - amount_out_2;
+
+    // Deposit more tokens.
+    set_contract_address(owner());
+    strategy.deposit(market_id, base_amount_exp, quote_amount_exp);
+
+    // Get balances.
+    let (base_amount, quote_amount) = strategy.get_balances(market_id);
+    assert(approx_eq(base_amount, base_amount_exp * 2, 10), 'Base amount');
+    assert(approx_eq(quote_amount, quote_amount_exp * 2, 10), 'Quote amount');
 }
 
 #[test]
