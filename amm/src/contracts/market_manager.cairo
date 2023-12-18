@@ -1239,7 +1239,7 @@ mod MarketManager {
             // Simulate swap.
             quote_lib::quote_iter(
                 self,
-                market_id, 
+                market_id,
                 ref market_state,
                 ref amount_rem,
                 ref amount_calc,
