@@ -14,10 +14,10 @@ use amm::libraries::constants::{MAX_SQRT_PRICE, MIN_SQRT_PRICE};
 // * `lower_limit` - lower limit (shifted)
 // * `upper_limit` - upper limit (shifted)
 // * `width` - market width
-// * `is_concentrated` - whether the pool allows concentrated liquidity positions
+// * `valid_limits` - valid limits struct
 // * `is_remove` - whether liquidity is being removed
 fn check_limits(
-    lower_limit: u32, upper_limit: u32, width: u32, valid: ValidLimits, is_remove: bool
+    lower_limit: u32, upper_limit: u32, width: u32, valid_limits: ValidLimits, is_remove: bool
 ) {
     let max_limit = price_math::max_limit(width);
     assert(lower_limit < upper_limit, 'LimitsUnordered');
@@ -26,17 +26,17 @@ fn check_limits(
     // If the valid limits struct has not been initialised, or we are removing liquidity, 
     // just perform the default range checks.
     if is_remove
-        || (valid.min_lower == 0
-            && valid.max_lower == 0
-            && valid.min_upper == 0
-            && valid.max_upper == 0) {
+        || (valid_limits.min_lower == 0
+            && valid_limits.max_lower == 0
+            && valid_limits.min_upper == 0
+            && valid_limits.max_upper == 0) {
         assert(upper_limit <= max_limit, 'UpperLimitOF');
     } else {
         assert(
-            lower_limit >= valid.min_lower
-                && lower_limit <= valid.max_lower
-                && upper_limit >= valid.min_upper
-                && upper_limit <= min(max_limit, valid.max_upper),
+            lower_limit >= valid_limits.min_lower
+                && lower_limit <= valid_limits.max_lower
+                && upper_limit >= valid_limits.min_upper
+                && upper_limit <= min(max_limit, valid_limits.max_upper),
             'LimitsOutOfRange'
         );
     }
