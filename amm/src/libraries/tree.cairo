@@ -69,9 +69,8 @@ fn flip(ref self: ContractState, market_id: felt252, width: u32, limit: u32) {
     if new_segment_l1 != 0 && segment_l1 != 0 {
         return ();
     }
-    let pos_l0 = index_l1 % 256;
     let segment_l0 = self.limit_tree_l0.read(market_id);
-    let mask_l0 = math::pow(2, pos_l0.into());
+    let mask_l0 = math::pow(2, index_l1.into());
     let new_segment_l0: felt252 = (segment_l0.into() ^ mask_l0)
         .try_into()
         .unwrap(); // toggle the bit
