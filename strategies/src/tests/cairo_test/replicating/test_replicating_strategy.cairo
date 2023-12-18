@@ -263,6 +263,7 @@ fn test_deposit_initial_deposit_disabled() {
     strategy.set_params(market_id, params);
 
     // Deposit initial should revert if deposits disabled.
+    set_contract_address(alice());
     strategy.deposit_initial(market_id, to_e18(1000000), to_e18(1112520000));
 }
 
