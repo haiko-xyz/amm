@@ -207,3 +207,14 @@ fn test_set_flash_loan_fee_not_owner() {
     set_contract_address(loan_receiver.contract_address);
     market_manager.set_flash_loan_fee(base_token.contract_address, 10);
 }
+
+#[test]
+#[should_panic(expected: ('SameFee', 'ENTRYPOINT_FAILED',))]
+#[available_gas(1000000000)]
+fn test_set_flash_loan_fee_unchanged() {
+    let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true, false);
+
+    set_contract_address(owner());
+    let flash_loan_fee = market_manager.flash_loan_fee(base_token.contract_address);
+    market_manager.set_flash_loan_fee(base_token.contract_address, flash_loan_fee);
+}

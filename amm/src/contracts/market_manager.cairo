@@ -1570,6 +1570,8 @@ mod MarketManager {
         fn set_flash_loan_fee(ref self: ContractState, token: ContractAddress, fee: u16,) {
             self.assert_only_owner();
             assert(fee <= fee_math::MAX_FEE_RATE, 'FeeOF');
+            let old_fee = self.flash_loan_fee.read(token);
+            assert(old_fee != fee, 'SameFee');
             self.flash_loan_fee.write(token, fee);
             self.emit(Event::ChangeFlashLoanFee(ChangeFlashLoanFee { token, fee }));
         }
@@ -1585,6 +1587,7 @@ mod MarketManager {
             assert(protocol_share <= fee_math::MAX_FEE_RATE, 'ProtocolShareOF');
 
             let mut market_state = self.market_state.read(market_id);
+            assert(market_state.protocol_share != protocol_share, 'SameProtocolShare');
             market_state.protocol_share = protocol_share;
             self.market_state.write(market_id, market_state);
 
