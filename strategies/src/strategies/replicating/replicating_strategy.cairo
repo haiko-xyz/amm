@@ -685,7 +685,11 @@ mod ReplicatingStrategy {
             assert(!state.is_paused, 'Paused');
             assert(state.is_initialised, 'NotInitialised');
             let params = self.strategy_params.read(market_id);
-            assert(params.allow_deposits, 'DepositDisabled');
+            // If deposits are disabled, only the strategy owner can deposit.
+            let caller = get_caller_address();
+            if caller != self.strategy_owner.read(market_id) {
+                assert(params.allow_deposits, 'DepositDisabled');
+            }
 
             // Initialise state
             let market_manager = self.market_manager.read();
@@ -694,7 +698,6 @@ mod ReplicatingStrategy {
             let quote_token = IERC20Dispatcher { contract_address: market_info.quote_token };
 
             // Deposit tokens to reserves
-            let caller = get_caller_address();
             let contract = get_contract_address();
             base_token.transfer_from(caller, contract, base_amount);
             quote_token.transfer_from(caller, contract, quote_amount);
@@ -749,7 +752,11 @@ mod ReplicatingStrategy {
             let mut state = self.strategy_state.read(market_id);
             assert(!state.is_paused, 'Paused');
             let params = self.strategy_params.read(market_id);
-            assert(params.allow_deposits, 'DepositDisabled');
+            // If deposits are disabled, only the strategy owner can deposit.
+            let caller = get_caller_address();
+            if caller != self.strategy_owner.read(market_id) {
+                assert(params.allow_deposits, 'DepositDisabled');
+            }
 
             // Fetch market info and strategy state.
             let market_manager = self.market_manager.read();
@@ -774,7 +781,6 @@ mod ReplicatingStrategy {
             };
 
             // Transfer tokens into contract.
-            let caller = get_caller_address();
             let contract = get_contract_address();
             if base_deposit != 0 {
                 let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
