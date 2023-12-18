@@ -30,8 +30,8 @@ use amm::interfaces::IMarketManager::IMarketManager;
 // Helper function to add or remove liquidity from a position.
 //
 // # Arguments
-// * `market_id` - market id
 // * `owner` - user address (or batch id for limit orders)
+// * `market_id` - market id
 // * `market_info` - struct containing current market state
 // * `lower_limit` - lower limit of position
 // * `upper_limit` - upper limit of position

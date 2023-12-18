@@ -19,7 +19,7 @@ use amm::libraries::constants::{
 // FUNCTIONS
 ////////////////////////////////
 
-// Convert limit from i32 (range -8,388,608 to 8,388,607) to u32 (range 0 to 16,777,215).
+// Convert limit from i32 (range -7,906,625 to 7,906,625) to u32 (range 0 to 15,813,251).
 //
 // # Arguments
 // * `limit` - unshifted limit
@@ -34,7 +34,7 @@ fn shift_limit(limit: i32, width: u32) -> u32 {
     shifted.val
 }
 
-// Convert limit from u32 (range 0 to 16,777,215) to i32 (range -8,388,608 to 8,388,607).
+// Convert limit from u32 (range 0 to 15,813,251) to i32 (range -7,906,625 to 7,906,625).
 //
 // # Arguments
 // * `limit` - shifted limit

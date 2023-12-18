@@ -68,7 +68,7 @@ mod MarketManager {
         protocol_fees: LegacyMap::<ContractAddress, u256>,
         flash_loan_fee: LegacyMap::<ContractAddress, u16>,
         // Market information
-        // Indexed by market_id = hash(base_token, quote_token, width, strategy, fee_controller)
+        // Indexed by market_id = hash(base_token, quote_token, width, strategy, fee_controller, controller)
         market_info: LegacyMap::<felt252, MarketInfo>,
         market_state: LegacyMap::<felt252, MarketState>,
         market_configs: LegacyMap::<felt252, MarketConfigs>,
