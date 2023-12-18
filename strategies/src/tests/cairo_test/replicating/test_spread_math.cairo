@@ -180,7 +180,6 @@ fn test_delta_spread() {
     inv_delta = delta_spread(max_delta, base_amount, quote_amount, price);
     assert(inv_delta == I32Trait::new(0, false), 'Inv delta 9');
 }
-
 // #[test]
 // #[available_gas(100000000)]
 // fn test_unpack_limits_cases() {
@@ -232,3 +231,4 @@ fn test_delta_spread() {
 //     let width = 10;
 //     let limits = unpack_limits(range, vol, width);
 // }
+

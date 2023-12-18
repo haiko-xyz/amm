@@ -160,10 +160,7 @@ fn base_to_liquidity(
 // * `base_amount` - amount of base tokens transferred out (-ve) or in (+ve)
 // * `quote_amount` - amount of quote tokens transferred out (-ve) or in (+ve)
 fn liquidity_to_amounts(
-    liquidity_delta: i128,
-    curr_sqrt_price: u256,
-    lower_sqrt_price: u256,
-    upper_sqrt_price: u256,
+    liquidity_delta: i128, curr_sqrt_price: u256, lower_sqrt_price: u256, upper_sqrt_price: u256,
 ) -> (i256, i256) {
     // Note we round down amounts for liquidity removals, and round up for liquidity additions
     // to prevent rounding errors from causing protocol insolvency. 

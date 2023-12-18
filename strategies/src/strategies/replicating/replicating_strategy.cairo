@@ -624,9 +624,7 @@ mod ReplicatingStrategy {
             self.strategy_owner.write(market_id, get_caller_address());
 
             // Set strategy params.
-            let strategy_params = StrategyParams {
-                min_spread, range, max_delta, allow_deposits
-            };
+            let strategy_params = StrategyParams { min_spread, range, max_delta, allow_deposits };
             self.strategy_params.write(market_id, strategy_params);
 
             // Set oracle params.

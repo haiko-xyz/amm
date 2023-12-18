@@ -31,10 +31,7 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 // * `width` - limit width of market
 // * `filled_limits` - list of limits that were fully filled, along with associated batch ids
 fn fill_limits(
-    ref self: ContractState,
-    market_id: felt252,
-    width: u32,
-    filled_limits: Span<(u32, felt252)>,
+    ref self: ContractState, market_id: felt252, width: u32, filled_limits: Span<(u32, felt252)>,
 ) {
     let mut i = filled_limits.len();
     loop {

@@ -18,8 +18,8 @@ use amm::tests::cairo_test::helpers::{
     token::{deploy_token, fund, approve},
 };
 use amm::tests::common::params::{
-    owner, alice, bob, treasury, default_token_params, default_market_params, modify_position_params,
-    swap_params
+    owner, alice, bob, treasury, default_token_params, default_market_params,
+    modify_position_params, swap_params
 };
 use amm::tests::common::utils::{to_e18, to_e18_u128, to_e28, approx_eq, approx_eq_pct};
 use strategies::strategies::replicating::{
@@ -670,12 +670,22 @@ fn test_get_balances() {
     set_contract_address(alice());
     let buy_amount = to_e18(2000);
     let (amount_in_1, amount_out_1, _) = market_manager
-        .swap(market_id, true, to_e18(2000), true, Option::None(()), Option::None(()), Option::None(()));
+        .swap(
+            market_id,
+            true,
+            to_e18(2000),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
 
     // Swap sell to accrue fees in ask position.
     let sell_amount = to_e18(1);
     let (amount_in_2, amount_out_2, _) = market_manager
-        .swap(market_id, false, to_e18(1), true, Option::None(()), Option::None(()), Option::None(()));
+        .swap(
+            market_id, false, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
+        );
 
     // Run checks.
     let base_amount_exp = base_deposit + amount_in_2 - amount_out_1;
@@ -954,12 +964,7 @@ fn test_set_strategy_params() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
     set_contract_address(owner());
-    let params = StrategyParams {
-        min_spread: 0,
-        range: 3000,
-        max_delta: 0,
-        allow_deposits: true,
-    };
+    let params = StrategyParams { min_spread: 0, range: 3000, max_delta: 0, allow_deposits: true, };
     strategy.set_params(market_id, params);
 
     let params = strategy.strategy_params(market_id);
@@ -1004,7 +1009,9 @@ fn test_transfer_and_accept_owner() {
     set_contract_address(alice());
     strategy.accept_owner();
     assert(strategy.owner() == alice(), 'Accept owner: owner');
-    assert(strategy.queued_owner() == contract_address_const::<0x0>(), 'Accept owner: queued owner');
+    assert(
+        strategy.queued_owner() == contract_address_const::<0x0>(), 'Accept owner: queued owner'
+    );
 }
 
 #[test]
@@ -1022,7 +1029,9 @@ fn test_transfer_then_update_owner_before_accepting() {
     set_contract_address(bob());
     strategy.accept_owner();
     assert(strategy.owner() == bob(), 'Accept owner: owner');
-    assert(strategy.queued_owner() == contract_address_const::<0x0>(), 'Accept owner: queued owner');
+    assert(
+        strategy.queued_owner() == contract_address_const::<0x0>(), 'Accept owner: queued owner'
+    );
 }
 
 #[test]
@@ -1057,7 +1066,10 @@ fn test_transfer_and_accept_strategy_owner() {
     set_contract_address(alice());
     strategy.accept_strategy_owner(market_id);
     assert(strategy.strategy_owner(market_id) == alice(), 'Accept owner: owner');
-    assert(strategy.queued_strategy_owner(market_id) == contract_address_const::<0x0>(), 'Accept owner: queued owner');
+    assert(
+        strategy.queued_strategy_owner(market_id) == contract_address_const::<0x0>(),
+        'Accept owner: queued owner'
+    );
 }
 
 #[test]
@@ -1075,7 +1087,10 @@ fn test_transfer_then_update_strategy_owner_before_accepting() {
     set_contract_address(bob());
     strategy.accept_strategy_owner(market_id);
     assert(strategy.strategy_owner(market_id) == bob(), 'Accept owner: owner');
-    assert(strategy.queued_strategy_owner(market_id) == contract_address_const::<0x0>(), 'Accept owner: queued owner');
+    assert(
+        strategy.queued_strategy_owner(market_id) == contract_address_const::<0x0>(),
+        'Accept owner: queued owner'
+    );
 }
 
 #[test]
