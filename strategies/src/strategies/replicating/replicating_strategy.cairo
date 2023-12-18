@@ -35,7 +35,7 @@ mod ReplicatingStrategy {
 
     // External imports.
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
-    
+
     // use snforge_std::PrintTrait;
 
     ////////////////////////////////
@@ -414,6 +414,11 @@ mod ReplicatingStrategy {
             self.strategy_params.read(market_id)
         }
 
+        // Oracle parameters
+        fn oracle_params(self: @ContractState, market_id: felt252) -> OracleParams {
+            self.oracle_params.read(market_id)
+        }
+
         // Strategy state
         fn strategy_state(self: @ContractState, market_id: felt252) -> StrategyState {
             self.strategy_state.read(market_id)
@@ -590,9 +595,7 @@ mod ReplicatingStrategy {
                     // Handle edge case with early return to avoid division by 0 error.
                     I32Trait::new(0, false)
                 } else {
-                    spread_math::delta_spread(
-                        params.max_delta, base_amount, quote_amount, price
-                    )
+                    spread_math::delta_spread(params.max_delta, base_amount, quote_amount, price)
                 }
             };
             spread_math::calc_bid_ask(
@@ -631,7 +634,9 @@ mod ReplicatingStrategy {
             self.assert_owner();
             let state = self.strategy_state.read(market_id);
             assert(!state.is_initialised, 'Initialised');
-            assert(range > 0, 'RangeZero');
+            assert(range != 0, 'RangeZero');
+            assert(min_sources != 0, 'MinSourcesZero');
+            assert(max_age != 0, 'MaxAgeZero');
             assert(base_currency_id != 0, 'BaseIdNull');
             assert(quote_currency_id != 0, 'QuoteIdNull');
 
@@ -640,7 +645,7 @@ mod ReplicatingStrategy {
             assert(market_manager.market_info(market_id).width != 0, 'MarketNull');
 
             // Set strategy owner.
-            self.strategy_owner.write(market_id, get_caller_address());
+            self.strategy_owner.write(market_id, owner);
 
             // Set strategy params.
             let strategy_params = StrategyParams { min_spread, range, max_delta, allow_deposits };
@@ -664,11 +669,7 @@ mod ReplicatingStrategy {
                 .emit(
                     Event::SetOracleParams(
                         SetOracleParams {
-                            market_id,
-                            base_currency_id,
-                            quote_currency_id,
-                            min_sources,
-                            max_age
+                            market_id, base_currency_id, quote_currency_id, min_sources, max_age
                         }
                     )
                 );
@@ -678,6 +679,12 @@ mod ReplicatingStrategy {
                         SetStrategyParams {
                             market_id, min_spread, range, max_delta, allow_deposits
                         }
+                    )
+                );
+            self
+                .emit(
+                    Event::ChangeStrategyOwner(
+                        ChangeStrategyOwner { old: ContractAddressZeroable::zero(), new: owner, }
                     )
                 );
         }

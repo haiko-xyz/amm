@@ -37,19 +37,7 @@ fn test_pragma_oracle_forked_state() {
 
     // Add market to strategy.
     start_prank(CheatTarget::One(strategy.contract_address), owner);
-    strategy
-        .add_market(
-            market_id,
-            owner,
-            'ETH',
-            'USDC',
-            3,
-            600,
-            0,
-            5000,
-            0,
-            true,
-        );
+    strategy.add_market(market_id, owner, 'ETH', 'USDC', 3, 600, 0, 5000, 0, true,);
     stop_prank(CheatTarget::One(strategy.contract_address));
 
     // Fetch oracle price.

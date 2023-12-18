@@ -46,8 +46,6 @@ struct OracleParams {
 struct StrategyState {
     // Whether strategy is initialised
     is_initialised: bool,
-    // Strategy owner for market
-    owner: ContractAddress,
     // Whether strategy is paused
     is_paused: bool,
     // Base reserves

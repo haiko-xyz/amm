@@ -11,7 +11,7 @@ use amm::interfaces::{
     IMarketManager::{IMarketManager, IMarketManagerDispatcher, IMarketManagerDispatcherTrait},
     IStrategy::{IStrategyDispatcher, IStrategyDispatcherTrait},
 };
-use amm::types::core::{MarketState};
+use amm::types::core::{MarketState, SwapParams};
 use amm::types::i128::{i128, I128Trait};
 use amm::tests::snforge::helpers::{
     market_manager::{deploy_market_manager, create_market, modify_position, swap},
@@ -27,7 +27,9 @@ use strategies::strategies::replicating::{
     pragma::{DataType, PragmaPricesResponse}, types::StrategyParams,
     test::mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
 };
-use strategies::tests::replicating::helpers::{deploy_replicating_strategy, deploy_mock_pragma_oracle};
+use strategies::tests::replicating::helpers::{
+    deploy_replicating_strategy, deploy_mock_pragma_oracle
+};
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
@@ -178,9 +180,9 @@ fn test_queued_and_placed_positions() {
     // Update price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
     oracle.set_data_with_USD_hop('ETH', 'USDC', 180000000000, 8, 999, 5);
-    
+
     // Get queued position.
-    let strategy_alt = IStrategyDispatcher{ contract_address: strategy.contract_address };
+    let strategy_alt = IStrategyDispatcher { contract_address: strategy.contract_address };
     let queued_positions = strategy_alt.queued_positions(market_id);
     let next_bid = *queued_positions.at(0);
     let next_ask = *queued_positions.at(1);
@@ -189,7 +191,15 @@ fn test_queued_and_placed_positions() {
     start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
     start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     market_manager
-        .swap(market_id, true, to_e18(1000), true, Option::None(()), Option::None(()), Option::None(()));
+        .swap(
+            market_id,
+            true,
+            to_e18(1000),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
 
     // Get placed positions.
     let placed_positions = strategy_alt.placed_positions(market_id);
@@ -210,7 +220,7 @@ fn test_queued_positions_uninitialised_market() {
     oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
 
     // Fetch queued positions for uninitialised market.
-    let strategy_alt = IStrategyDispatcher{ contract_address: strategy.contract_address };
+    let strategy_alt = IStrategyDispatcher { contract_address: strategy.contract_address };
     let queued_positions = strategy_alt.queued_positions(1);
     let next_bid = *queued_positions.at(0);
     let next_ask = *queued_positions.at(1);
@@ -225,10 +235,45 @@ fn test_queued_positions_uninitialised_market() {
 }
 
 #[test]
+fn test_add_market_initialises_state() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Check strategy params correctly updated.
+    let params = strategy.strategy_params(market_id);
+    assert(params.min_spread == 10, 'Min spread');
+    assert(params.range == 20000, 'Range');
+    assert(params.max_delta == 200, 'Delta');
+    assert(params.allow_deposits, 'Allow deposits');
+
+    // Check oracle params correctly updated.
+    let oracle_params = strategy.oracle_params(market_id);
+    assert(oracle_params.base_currency_id == 'ETH', 'Base curr id');
+    assert(oracle_params.quote_currency_id == 'USDC', 'Quote curr id');
+    assert(oracle_params.min_sources == 3, 'Min sources');
+    assert(oracle_params.max_age == 600, 'Max age');
+
+    // Check market state correctly updated.
+    let state = strategy.strategy_state(market_id);
+    assert(state.is_initialised, 'Initialised');
+    assert(!state.is_paused, 'Paused');
+    assert(state.base_reserves == 0, 'Base reserves');
+    assert(state.quote_reserves == 0, 'Quote reserves');
+    assert(state.bid.lower_limit == 0, 'Bid: lower limit');
+    assert(state.bid.upper_limit == 0, 'Bid: upper limit');
+    assert(state.bid.liquidity == 0, 'Bid: liquidity');
+    assert(state.ask.lower_limit == 0, 'Ask: lower limit');
+    assert(state.ask.upper_limit == 0, 'Ask: upper limit');
+    assert(state.ask.liquidity == 0, 'Ask: liquidity');
+
+    // Check owner correctly updated.
+    assert(strategy.strategy_owner(market_id) == owner(), 'Owner');
+}
+
+#[test]
 #[should_panic(expected: ('MarketNull',))]
 fn test_add_market_market_null() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
-    
+
     // Register null market.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.add_market(1, owner(), 'ETH', 'USDC', 3, 600, 10, 20000, 200, true);
@@ -238,32 +283,65 @@ fn test_add_market_market_null() {
 #[should_panic(expected: ('Initialised',))]
 fn test_add_market_already_initialised() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
-    
+
     // Register null market.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.add_market(market_id, owner(), 'ETH', 'USDC', 3, 600, 10, 20000, 200, true);
 }
 
 #[test]
+#[should_panic(expected: ('RangeZero',))]
+fn test_add_market_range_zero() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Technically the market id does not exist but because this check is run before the
+    // market null check, it catches the error correctly.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    strategy.add_market(1, owner(), 'ETH', 'USDC', 3, 600, 10, 0, 200, true);
+}
+
+#[test]
+#[should_panic(expected: ('MinSourcesZero',))]
+fn test_add_market_min_sources_zero() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Technically the market id does not exist but because this check is run before the
+    // market null check, it catches the error correctly.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    strategy.add_market(1, owner(), 'ETH', 'USDC', 0, 600, 10, 20000, 200, true);
+}
+
+#[test]
+#[should_panic(expected: ('MaxAgeZero',))]
+fn test_add_market_max_age_zero() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Technically the market id does not exist but because this check is run before the
+    // market null check, it catches the error correctly.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    strategy.add_market(1, owner(), 'ETH', 'USDC', 3, 0, 10, 20000, 200, true);
+}
+
+#[test]
 #[should_panic(expected: ('BaseIdNull',))]
 fn test_add_market_base_id_null() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
-    
-    // Technically this market id does not exist but because this check is run before the
+
+    // Technically the market id does not exist but because this check is run before the
     // market null check, it catches the error correctly.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.add_market(1, owner(), 0, 'USDC', 3, 600, 10, 20000, 200, true);
 }
 
 #[test]
-#[should_panic(expected: ('BaseIdNull',))]
+#[should_panic(expected: ('QuoteIdNull',))]
 fn test_add_market_quote_id_null() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
-    
-    // Technically this market id does not exist but because this check is run before the
+
+    // Technically the market id does not exist but because this check is run before the
     // market null check, it catches the error correctly.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
-    strategy.add_market(1, owner(), 0, 'USDC', 3, 600, 10, 20000, 200, true);
+    strategy.add_market(1, owner(), 'ETH', 0, 3, 600, 10, 20000, 200, true);
 }
 
 #[test]
