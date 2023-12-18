@@ -26,3 +26,8 @@ sierra-replace-ids = true
 [tool.snforge]
 fuzzer_runs = 30
 fuzzer_seed = 88888
+
+[[tool.snforge.fork]]
+name = "TESTNET"
+url = "https://starknet-goerli.g.alchemy.com/v2/KDQIvQ6ANSkhkuP-9WP0P6f_eJLW6kHj"
+block_id.tag = "Latest"

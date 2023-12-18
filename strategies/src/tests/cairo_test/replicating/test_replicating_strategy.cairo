@@ -93,9 +93,8 @@ fn before() -> (
         .add_market(
             market_id,
             owner,
-            'ETH/USD',
-            'USDC/USD',
-            'ETH/USDC',
+            'ETH',
+            'USDC',
             3, // minimum sources
             600, // 10 minutes max age 
             10, // ~0.01% min spread

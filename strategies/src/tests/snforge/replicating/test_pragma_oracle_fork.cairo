@@ -7,7 +7,7 @@ use integer::BoundedU32;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::interfaces::IQuoter::{IQuoterDispatcher, IQuoterDispatcherTrait};
 use strategies::strategies::replicating::{
-    interface::{IReplicatingStrategyDispatcher, IReplicatingStrategyDispatcherTrait}, types::Limits,
+    interface::{IReplicatingStrategyDispatcher, IReplicatingStrategyDispatcherTrait},
 };
 use strategies::tests::snforge::replicating::helpers::deploy_replicating_strategy;
 
@@ -26,37 +26,36 @@ fn test_pragma_oracle_forked_state() {
         0x2afc579c1a02e4e36b2717bb664bee705d749d581e150d1dd16311e3b3bb057
     >();
     let market_manager = contract_address_const::<
-        0x4f1d5c71f89ec0d4adc267682fce3280acdc2e5f6854632784372ba34f1dd83
+        0x889f55a7bb4f673281ab34499d0f506605febc5ab880f4c286472eaf67e20
     >();
-    let market_id = 123;
+    let market_id = 0x383fdd4406bdb35bda8978f61436ecf4c8b3abed6bb6017eb7f4b90ae589992;
 
     // Deploy strategy contract.
     let strategy = deploy_replicating_strategy(
         owner, market_manager, oracle_addr, oracle_summary_addr
     );
 
-    // Register market on strategy.
+    // Add market to strategy.
     start_prank(CheatTarget::One(strategy.contract_address), owner);
     strategy
-        .initialise(
+        .add_market(
             market_id,
             owner,
-            'ETH/USD',
-            'USDC/USD',
-            'ETH/USD',
-            BoundedU32::max(),
-            Limits::Fixed(0),
-            Limits::Fixed(5000),
-            200,
-            604800, // 7 days (in seconds)
+            'ETH',
+            'USDC',
+            3,
+            600,
+            0,
+            5000,
+            0,
             true,
         );
     stop_prank(CheatTarget::One(strategy.contract_address));
 
-    // Fetch volatility.
-    let volatility = strategy.get_oracle_vol(market_id);
-    volatility.print();
-
-    // Add assert to allow test to pass.
+    // Fetch oracle price.
+    let (price, is_valid) = strategy.get_oracle_price(market_id);
+    'oracle price'.print();
+    price.print();
+    assert(is_valid, 'Oracle price: valid');
     assert(true, 'Test finished');
 }
