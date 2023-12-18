@@ -164,10 +164,9 @@ fn test_deposit_initial_single_sided_bid_liquidity_correctly_reverts() {
     // If the position range would case the lower bid limit to overflow, only single sided (ask)
     // liquidity is placed. This should be correctly handled when depositing initial liquidity.
 
-     // Set price.
+    // Set price.
     set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop(
-        'ETH/USD', 'USDC/USD', 1, 28, 999, 5); // Limit = -6447270
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 1, 28, 999, 5); // Limit = -6447270
 
     // Set range to overflow upper bounds so only bid liquidity is placed.
     set_contract_address(owner());
@@ -190,10 +189,12 @@ fn test_deposit_initial_single_sided_ask_liquidity_correctly_reverts() {
     // If the position range would case the upper ask limit to overflow, only single sided (bid)
     // liquidity is placed. This should be correctly handled when depositing initial liquidity.
 
-     // Set price.
+    // Set price.
     set_block_timestamp(1000);
-    oracle.set_data_with_USD_hop(
-        'ETH/USD', 'USDC/USD', 21764856978905781477192766323629261, 0, 999, 5); // Limit = 7906600
+    oracle
+        .set_data_with_USD_hop(
+            'ETH/USD', 'USDC/USD', 21764856978905781477192766323629261, 0, 999, 5
+        ); // Limit = 7906600
 
     // Set range to overflow upper bounds so only ask liquidity is placed.
     set_contract_address(owner());
@@ -544,16 +545,35 @@ fn test_deposit_single_sided_bid_liquidity() {
 
     // Place position above current one.
     set_contract_address(alice());
-    market_manager.modify_position(
-        market_id, 7906620 + 765000, 7906620 + 766000, I128Trait::new(to_e18_u128(1000), false)
-    );
+    market_manager
+        .modify_position(
+            market_id, 7906620 + 765000, 7906620 + 766000, I128Trait::new(to_e18_u128(1000), false)
+        );
 
     // Buy and update positions to concentrate liquidity entirely in bid.
-    market_manager.swap(market_id, true, to_e18(1000), true, Option::None(()), Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id,
+            true,
+            to_e18(1000),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
     // Update oracle price and swap to trigger position update, setting ask liquidity to 0.
     set_block_timestamp(1010);
     oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 220000000000, 8, 1005, 5);
-    market_manager.swap(market_id, true, to_e18(1000), true, Option::None(()), Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id,
+            true,
+            to_e18(1000),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
     let state = strategy.strategy_state(market_id);
     assert(state.ask.liquidity == 0, 'Ask: liquidity');
 
@@ -585,16 +605,35 @@ fn test_deposit_single_sided_ask_liquidity() {
 
     // Place poosition below current one.
     set_contract_address(alice());
-    market_manager.modify_position(
-        market_id, 7906620 + 725000, 7906620 + 735000, I128Trait::new(to_e18_u128(1000), false)
-    );
+    market_manager
+        .modify_position(
+            market_id, 7906620 + 725000, 7906620 + 735000, I128Trait::new(to_e18_u128(1000), false)
+        );
 
     // Buy and update positions to concentrate liquidity entirely in bid.
-    market_manager.swap(market_id, false, to_e18(100), true, Option::None(()), Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id,
+            false,
+            to_e18(100),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
     // Update oracle price and swap to trigger position update, setting ask liquidity to 0.
     set_block_timestamp(1010);
     oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 100000000000, 8, 1005, 5);
-    market_manager.swap(market_id, false, to_e18(100), true, Option::None(()), Option::None(()), Option::None(()));
+    market_manager
+        .swap(
+            market_id,
+            false,
+            to_e18(100),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
     let state = strategy.strategy_state(market_id);
     assert(state.bid.liquidity == 0, 'Bid: liquidity');
 

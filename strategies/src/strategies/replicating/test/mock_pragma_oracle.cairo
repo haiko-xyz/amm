@@ -96,7 +96,8 @@ mod MockPragmaOracle {
         }
 
         fn get_data_median(self: @ContractState, data_type: DataType) -> PragmaPricesResponse {
-            let (price, decimals, last_updated_timestamp, num_sources_aggregated) = match data_type {
+            let (price, decimals, last_updated_timestamp, num_sources_aggregated) =
+                match data_type {
                 DataType::SpotEntry(x) => self.usd_prices.read(x),
                 DataType::FutureEntry((x, y)) => self.usd_prices.read(x),
                 DataType::GenericEntry(x) => self.usd_prices.read(x),
