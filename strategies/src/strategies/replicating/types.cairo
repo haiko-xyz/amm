@@ -36,8 +36,6 @@ struct OracleParams {
     base_currency_id: felt252,
     // Pragma quote currency id
     quote_currency_id: felt252,
-    // Pragma pair id
-    pair_id: felt252,
     // Minimum number of data sources aggregated
     min_sources: u32,
     // Maximum age of quoted price

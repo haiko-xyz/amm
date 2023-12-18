@@ -35,7 +35,6 @@ trait IReplicatingStrategy<TContractState> {
         owner: ContractAddress,
         base_currency_id: felt252,
         quote_currency_id: felt252,
-        pair_id: felt252,
         min_sources: u32,
         max_age: u64,
         min_spread: u32,

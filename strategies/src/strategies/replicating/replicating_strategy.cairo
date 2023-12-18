@@ -143,7 +143,6 @@ mod ReplicatingStrategy {
         market_id: felt252,
         base_currency_id: felt252,
         quote_currency_id: felt252,
-        pair_id: felt252,
         min_sources: u32,
         max_age: u64,
     }
@@ -593,7 +592,6 @@ mod ReplicatingStrategy {
         // * `owner` - nominated owner for strategy
         // * `base_currency_id` - base currency id for oracle
         // * `quote_currency_id` - quote currency id for oracle
-        // * `pair_id` - pair id for oracle
         // * `min_sources` - minimum number of sources required for oracle price (automatically paused if fails)
         // * `max_age` - maximum age of oracle price in seconds (automatically paused if fails)
         // * `min_spread` - minimum spread to between reference price and bid/ask price
@@ -606,7 +604,6 @@ mod ReplicatingStrategy {
             owner: ContractAddress,
             base_currency_id: felt252,
             quote_currency_id: felt252,
-            pair_id: felt252,
             min_sources: u32,
             max_age: u64,
             min_spread: u32,
@@ -629,7 +626,7 @@ mod ReplicatingStrategy {
 
             // Set oracle params.
             let oracle_params = OracleParams {
-                base_currency_id, quote_currency_id, pair_id, min_sources, max_age
+                base_currency_id, quote_currency_id, min_sources, max_age
             };
             self.oracle_params.write(market_id, oracle_params);
 
@@ -648,7 +645,6 @@ mod ReplicatingStrategy {
                             market_id,
                             base_currency_id,
                             quote_currency_id,
-                            pair_id,
                             min_sources,
                             max_age
                         }
