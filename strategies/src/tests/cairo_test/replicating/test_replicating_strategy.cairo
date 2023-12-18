@@ -843,6 +843,31 @@ fn test_reenable_deposits() {
 
 #[test]
 #[available_gas(1000000000)]
+fn test_disable_deposit_strategy_owner_deposit() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
+
+    // Set price.
+    set_block_timestamp(1000);
+    oracle.set_data_with_USD_hop('ETH/USD', 'USDC/USD', 166878000000, 8, 999, 5);
+
+    // Deposit initial.
+    set_contract_address(owner());
+    let initial_base_amount = 1000000;
+    let initial_quote_amount = 1000000;
+    let shares_init = strategy
+        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+
+    // Disable deposits.
+    let mut params = strategy.strategy_params(market_id);
+    params.allow_deposits = false;
+    strategy.set_params(market_id, params);
+
+    // Deposit should be allowed.
+    strategy.deposit(market_id, to_e18(500), to_e18(700000));
+}
+
+#[test]
+#[available_gas(1000000000)]
 fn test_lvr_rebalance_condition() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before();
 
