@@ -433,6 +433,11 @@ mod ReplicatingStrategy {
             self.oracle.read().contract_address
         }
 
+        // Contract address of oracle summary contract.
+        fn oracle_summary(self: @ContractState) -> ContractAddress {
+            self.oracle_summary.read().contract_address
+        }
+
         // Bid position of strategy
         fn bid(self: @ContractState, market_id: felt252) -> PositionInfo {
             self.strategy_state.read(market_id).bid
@@ -701,19 +706,19 @@ mod ReplicatingStrategy {
             ref self: ContractState, market_id: felt252, base_amount: u256, quote_amount: u256
         ) -> u256 {
             // Run checks
-            assert(self.total_deposits.read(market_id) == 0, 'UseDeposit');
             assert(base_amount != 0 && quote_amount != 0, 'AmountZero');
+            assert(self.total_deposits.read(market_id) == 0, 'UseDeposit');
             let mut state = self.strategy_state.read(market_id);
             assert(!state.is_paused, 'Paused');
             assert(state.is_initialised, 'NotInitialised');
-            let params = self.strategy_params.read(market_id);
             // If deposits are disabled, only the strategy owner can deposit.
+            let params = self.strategy_params.read(market_id);
             let caller = get_caller_address();
             if caller != self.strategy_owner.read(market_id) {
                 assert(params.allow_deposits, 'DepositDisabled');
             }
 
-            // Initialise state
+            // Fetch dispatchers.
             let market_manager = self.market_manager.read();
             let market_info = market_manager.market_info(market_id);
             let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
@@ -851,10 +856,7 @@ mod ReplicatingStrategy {
         // * `quote_amount` - quote asset withdrawn
         fn withdraw(ref self: ContractState, market_id: felt252, shares: u256) -> (u256, u256) {
             // Run checks
-            let total_deposits = self.total_deposits.read(market_id);
-            assert(total_deposits != 0, 'NoSupply');
             assert(shares != 0, 'SharesZero');
-            assert(shares <= total_deposits, 'SharesOF');
             let caller = get_caller_address();
             let user_deposits = self.user_deposits.read((market_id, caller));
             assert(user_deposits >= shares, 'InsuffShares');
@@ -863,6 +865,7 @@ mod ReplicatingStrategy {
             let market_manager = self.market_manager.read();
             let market_state = market_manager.market_state(market_id);
             let market_info = market_manager.market_info(market_id);
+            let total_deposits = self.total_deposits.read(market_id);
             let mut state = self.strategy_state.read(market_id);
 
             // Calculate share of reserves to withdraw
@@ -992,6 +995,13 @@ mod ReplicatingStrategy {
             ref self: ContractState, oracle: ContractAddress, oracle_summary: ContractAddress
         ) {
             self.assert_owner();
+            let old_oracle = self.oracle.read();
+            let old_oracle_summary = self.oracle_summary.read();
+            assert(
+                oracle != old_oracle.contract_address
+                    || oracle_summary != old_oracle_summary.contract_address,
+                'OracleUnchanged'
+            );
             let oracle_dispatcher = IOracleABIDispatcher { contract_address: oracle };
             self.oracle.write(oracle_dispatcher);
             let oracle_summary_dispatcher = ISummaryStatsABIDispatcher {
@@ -1058,6 +1068,7 @@ mod ReplicatingStrategy {
         fn pause(ref self: ContractState, market_id: felt252) {
             self.assert_strategy_owner(market_id);
             let mut state = self.strategy_state.read(market_id);
+            assert(!state.is_paused, 'AlreadyPaused');
             state.is_paused = true;
             self.strategy_state.write(market_id, state);
             self.emit(Event::Pause(Pause { market_id }));
@@ -1067,6 +1078,7 @@ mod ReplicatingStrategy {
         fn unpause(ref self: ContractState, market_id: felt252) {
             self.assert_strategy_owner(market_id);
             let mut state = self.strategy_state.read(market_id);
+            assert(state.is_paused, 'AlreadyUnpaused');
             state.is_paused = false;
             self.strategy_state.write(market_id, state);
             self.emit(Event::Unpause(Unpause { market_id }));

@@ -14,6 +14,7 @@ trait IReplicatingStrategy<TContractState> {
     fn strategy_owner(self: @TContractState, market_id: felt252) -> ContractAddress;
     fn queued_strategy_owner(self: @TContractState, market_id: felt252) -> ContractAddress;
     fn oracle(self: @TContractState) -> ContractAddress;
+    fn oracle_summary(self: @TContractState) -> ContractAddress;
     fn strategy_params(self: @TContractState, market_id: felt252) -> StrategyParams;
     fn oracle_params(self: @TContractState, market_id: felt252) -> OracleParams;
     fn strategy_state(self: @TContractState, market_id: felt252) -> StrategyState;
