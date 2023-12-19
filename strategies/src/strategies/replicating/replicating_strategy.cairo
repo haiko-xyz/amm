@@ -110,12 +110,15 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct AddMarket {
+        #[key]
         market_id: felt252
     }
 
     #[derive(Drop, starknet::Event)]
     struct Deposit {
+        #[key]
         caller: ContractAddress,
+        #[key]
         market_id: felt252,
         base_amount: u256,
         quote_amount: u256,
@@ -123,7 +126,9 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct Withdraw {
+        #[key]
         caller: ContractAddress,
+        #[key]
         market_id: felt252,
         base_amount: u256,
         quote_amount: u256,
@@ -131,6 +136,7 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct UpdatePositions {
+        #[key]
         market_id: felt252,
         bid_lower_limit: u32,
         bid_upper_limit: u32,
@@ -142,6 +148,7 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct SetStrategyParams {
+        #[key]
         market_id: felt252,
         min_spread: u32,
         range: u32,
@@ -152,8 +159,11 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct SetOracleParams {
+        #[key]
         market_id: felt252,
+        #[key]
         base_currency_id: felt252,
+        #[key]
         quote_currency_id: felt252,
         min_sources: u32,
         max_age: u64,
@@ -161,19 +171,23 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct SetWhitelist {
+        #[key]
         user: ContractAddress,
         enable: bool,
     }
 
     #[derive(Drop, starknet::Event)]
     struct SetWithdrawFee {
+        #[key]
         market_id: felt252,
         fee_rate: u16,
     }
 
     #[derive(Drop, starknet::Event)]
     struct CollectWithdrawFee {
+        #[key]
         receiver: ContractAddress,
+        #[key]
         token: ContractAddress,
         amount: u256,
     }
@@ -192,6 +206,7 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct ChangeStrategyOwner {
+        #[key]
         market_id: felt252,
         old: ContractAddress,
         new: ContractAddress
@@ -199,11 +214,13 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct Pause {
+        #[key]
         market_id: felt252,
     }
 
     #[derive(Drop, starknet::Event)]
     struct Unpause {
+        #[key]
         market_id: felt252,
     }
 
