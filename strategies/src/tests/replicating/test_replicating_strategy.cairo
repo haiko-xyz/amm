@@ -2043,7 +2043,7 @@ fn test_withdraw_user_removed_from_whitelist() {
     strategy.set_params(market_id, params);
 
     // Whitelist user.
-    strategy.set_whitelist(market_id, owner(), true);
+    strategy.set_whitelist(owner(), true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -2054,7 +2054,7 @@ fn test_withdraw_user_removed_from_whitelist() {
     let shares = strategy.deposit_initial(market_id, to_e18(1000), to_e18(1125000));
 
     // Remove user from whitelist.
-    strategy.set_whitelist(market_id, owner(), false);
+    strategy.set_whitelist(owner(), false);
 
     // Should be able to withdraw.
     strategy.withdraw(market_id, shares);
@@ -2461,7 +2461,7 @@ fn test_whitelist_user() {
 
     // Whitelist user.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
-    strategy.set_whitelist(market_id, alice(), true);
+    strategy.set_whitelist(alice(), true);
 
     // Deposit initial should be allowed.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -2470,7 +2470,7 @@ fn test_whitelist_user() {
     strategy.deposit_initial(market_id, 1000, 1000);
 
     // Run checks.
-    let is_whitelisted = strategy.is_whitelisted(market_id, alice());
+    let is_whitelisted = strategy.is_whitelisted(alice());
     assert(is_whitelisted, 'Whitelist user');
 
     // Check event emitted.
@@ -2480,7 +2480,7 @@ fn test_whitelist_user() {
                 (
                     strategy.contract_address,
                     ReplicatingStrategy::Event::SetWhitelist(
-                        ReplicatingStrategy::SetWhitelist { market_id, user: alice(), add: true }
+                        ReplicatingStrategy::SetWhitelist { user: alice(), enable: true }
                     )
                 )
             ]
@@ -2499,16 +2499,16 @@ fn test_remove_user_from_whitelist() {
 
     // Whitelist user.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
-    strategy.set_whitelist(market_id, alice(), true);
+    strategy.set_whitelist(alice(), true);
 
     // Log events.
     let mut spy = spy_events(SpyOn::One(strategy.contract_address));
 
     // Remove user from whitelist.
-    strategy.set_whitelist(market_id, alice(), false);
+    strategy.set_whitelist(alice(), false);
 
     // Run checks.
-    let is_whitelisted = strategy.is_whitelisted(market_id, alice());
+    let is_whitelisted = strategy.is_whitelisted(alice());
     assert(!is_whitelisted, 'Remove Whitelist');
 
     // Check event emitted.
@@ -2518,7 +2518,7 @@ fn test_remove_user_from_whitelist() {
                 (
                     strategy.contract_address,
                     ReplicatingStrategy::Event::SetWhitelist(
-                        ReplicatingStrategy::SetWhitelist { market_id, user: alice(), add: false }
+                        ReplicatingStrategy::SetWhitelist { user: alice(), enable: false }
                     )
                 )
             ]
@@ -2538,8 +2538,8 @@ fn test_whitelist_already_whitelisted_user() {
 
     // Whitelist user.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
-    strategy.set_whitelist(market_id, alice(), true);
-    strategy.set_whitelist(market_id, alice(), true);
+    strategy.set_whitelist(alice(), true);
+    strategy.set_whitelist(alice(), true);
 }
 
 #[test]
@@ -2553,7 +2553,7 @@ fn test_remove_non_whitelisted_user() {
     params.use_whitelist = true;
     strategy.set_params(market_id, params);
 
-    strategy.set_whitelist(market_id, alice(), false);
+    strategy.set_whitelist(alice(), false);
 }
 
 #[test]
