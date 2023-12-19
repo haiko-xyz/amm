@@ -38,6 +38,5 @@ jobs:
       - name: Build and test `strategies`
         working-directory: ./strategies
         run: |
-          scarb test -f cairo_test
-          snforge test snforge
+          snforge test
           scarb build

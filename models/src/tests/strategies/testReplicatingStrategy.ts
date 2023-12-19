@@ -164,7 +164,7 @@ const testReplicatingStrategyUpdatePositions = () => {
   const width = 10
   let currLimit = Number(shiftLimit(741930, width))
   const startLimit = currLimit
-  let price = 1668.78
+  let price = 1680
   let newLimit = Number(priceToLimit(price, width))
   const maxDelta = 200
   const minSpread = 10
@@ -172,7 +172,8 @@ const testReplicatingStrategyUpdatePositions = () => {
 
   // Rebalancing condition.
   if (rebalanceConditionMet(currLimit, newLimit, true, 0.003)) {
-    price = 1672.5
+    console.log("Rebalancing")
+    price = 1680
     newLimit = Number(priceToLimit(price, width))
   }
 
@@ -425,7 +426,7 @@ const testReplicatingStrategyWithdraw = () => {
 }
 
 // testReplicatingStrategyDepositInitial()
-// testReplicatingStrategyUpdatePositions()
+testReplicatingStrategyUpdatePositions()
 // testReplicatingStrategyMultipleSwaps()
 // testReplicatingStrategyDeposit()
-testReplicatingStrategyWithdraw()
+// testReplicatingStrategyWithdraw()

@@ -22,7 +22,7 @@ mod ReplicatingStrategy {
     };
     use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
     use amm::interfaces::IStrategy::IStrategy;
-    use amm::types::i128::{I128Trait, i128};
+    use amm::types::{i32::I32Trait, i128::{I128Trait, i128}};
     use strategies::strategies::replicating::{
         spread_math, interface::IReplicatingStrategy,
         types::{StrategyParams, OracleParams, StrategyState},
@@ -35,6 +35,8 @@ mod ReplicatingStrategy {
 
     // External imports.
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+
+    // use snforge_std::PrintTrait;
 
     ////////////////////////////////
     // STORAGE
@@ -143,7 +145,6 @@ mod ReplicatingStrategy {
         market_id: felt252,
         base_currency_id: felt252,
         quote_currency_id: felt252,
-        pair_id: felt252,
         min_sources: u32,
         max_age: u64,
     }
@@ -162,6 +163,7 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct ChangeStrategyOwner {
+        market_id: felt252,
         old: ContractAddress,
         new: ContractAddress
     }
@@ -262,6 +264,11 @@ mod ReplicatingStrategy {
             let market_manager = self.market_manager.read();
             let market_info = market_manager.market_info(market_id);
 
+            // Handle non-existent market.
+            if market_info.width == 0 {
+                return array![Default::default(), Default::default()].span();
+            }
+
             // Fetch strategy info.
             let params = self.strategy_params.read(market_id);
             let state = self.strategy_state.read(market_id);
@@ -325,9 +332,8 @@ mod ReplicatingStrategy {
             let market_manager = self.market_manager.read();
             assert(get_caller_address() == market_manager.contract_address, 'OnlyMarketManager');
             let state = self.strategy_state.read(market_id);
-            assert(state.is_initialised, 'NotInitialised');
-            if state.is_paused {
-                return ();
+            if !state.is_initialised || state.is_paused {
+                return;
             }
 
             // Fetch oracle price.
@@ -408,6 +414,11 @@ mod ReplicatingStrategy {
             self.strategy_params.read(market_id)
         }
 
+        // Oracle parameters
+        fn oracle_params(self: @ContractState, market_id: felt252) -> OracleParams {
+            self.oracle_params.read(market_id)
+        }
+
         // Strategy state
         fn strategy_state(self: @ContractState, market_id: felt252) -> StrategyState {
             self.strategy_state.read(market_id)
@@ -421,6 +432,11 @@ mod ReplicatingStrategy {
         // Contract address of oracle feed.
         fn oracle(self: @ContractState) -> ContractAddress {
             self.oracle.read().contract_address
+        }
+
+        // Contract address of oracle summary contract.
+        fn oracle_summary(self: @ContractState) -> ContractAddress {
+            self.oracle_summary.read().contract_address
         }
 
         // Bid position of strategy
@@ -576,10 +592,17 @@ mod ReplicatingStrategy {
 
             // Calculate new bid and ask limits.
             let limit = price_math::price_to_limit(price, width, false);
-            let (base_amount, quote_amount) = self.get_balances(market_id);
-            let inv_delta = spread_math::delta_spread(
-                params.max_delta, base_amount, quote_amount, price
-            );
+            let inv_delta = if params.max_delta == 0 {
+                I32Trait::new(0, false)
+            } else {
+                let (base_amount, quote_amount) = self.get_balances(market_id);
+                if base_amount == 0 && quote_amount == 0 {
+                    // Handle edge case with early return to avoid division by 0 error.
+                    I32Trait::new(0, false)
+                } else {
+                    spread_math::delta_spread(params.max_delta, base_amount, quote_amount, price)
+                }
+            };
             spread_math::calc_bid_ask(
                 curr_limit, limit, params.min_spread, params.range, inv_delta, width
             )
@@ -593,7 +616,6 @@ mod ReplicatingStrategy {
         // * `owner` - nominated owner for strategy
         // * `base_currency_id` - base currency id for oracle
         // * `quote_currency_id` - quote currency id for oracle
-        // * `pair_id` - pair id for oracle
         // * `min_sources` - minimum number of sources required for oracle price (automatically paused if fails)
         // * `max_age` - maximum age of oracle price in seconds (automatically paused if fails)
         // * `min_spread` - minimum spread to between reference price and bid/ask price
@@ -606,7 +628,6 @@ mod ReplicatingStrategy {
             owner: ContractAddress,
             base_currency_id: felt252,
             quote_currency_id: felt252,
-            pair_id: felt252,
             min_sources: u32,
             max_age: u64,
             min_spread: u32,
@@ -618,10 +639,18 @@ mod ReplicatingStrategy {
             self.assert_owner();
             let state = self.strategy_state.read(market_id);
             assert(!state.is_initialised, 'Initialised');
-            assert(range > 0, 'RangeZero');
+            assert(range != 0, 'RangeZero');
+            assert(min_sources != 0, 'MinSourcesZero');
+            assert(max_age != 0, 'MaxAgeZero');
+            assert(base_currency_id != 0, 'BaseIdNull');
+            assert(quote_currency_id != 0, 'QuoteIdNull');
+
+            // Check the market exists. This check prevents accidental registration of the wrong market.
+            let market_manager = self.market_manager.read();
+            assert(market_manager.market_info(market_id).width != 0, 'MarketNull');
 
             // Set strategy owner.
-            self.strategy_owner.write(market_id, get_caller_address());
+            self.strategy_owner.write(market_id, owner);
 
             // Set strategy params.
             let strategy_params = StrategyParams { min_spread, range, max_delta, allow_deposits };
@@ -629,7 +658,7 @@ mod ReplicatingStrategy {
 
             // Set oracle params.
             let oracle_params = OracleParams {
-                base_currency_id, quote_currency_id, pair_id, min_sources, max_age
+                base_currency_id, quote_currency_id, min_sources, max_age
             };
             self.oracle_params.write(market_id, oracle_params);
 
@@ -645,12 +674,7 @@ mod ReplicatingStrategy {
                 .emit(
                     Event::SetOracleParams(
                         SetOracleParams {
-                            market_id,
-                            base_currency_id,
-                            quote_currency_id,
-                            pair_id,
-                            min_sources,
-                            max_age
+                            market_id, base_currency_id, quote_currency_id, min_sources, max_age
                         }
                     )
                 );
@@ -659,6 +683,14 @@ mod ReplicatingStrategy {
                     Event::SetStrategyParams(
                         SetStrategyParams {
                             market_id, min_spread, range, max_delta, allow_deposits
+                        }
+                    )
+                );
+            self
+                .emit(
+                    Event::ChangeStrategyOwner(
+                        ChangeStrategyOwner {
+                            market_id, old: ContractAddressZeroable::zero(), new: owner,
                         }
                     )
                 );
@@ -677,19 +709,19 @@ mod ReplicatingStrategy {
             ref self: ContractState, market_id: felt252, base_amount: u256, quote_amount: u256
         ) -> u256 {
             // Run checks
-            assert(self.total_deposits.read(market_id) == 0, 'UseDeposit');
             assert(base_amount != 0 && quote_amount != 0, 'AmountZero');
+            assert(self.total_deposits.read(market_id) == 0, 'UseDeposit');
             let mut state = self.strategy_state.read(market_id);
             assert(!state.is_paused, 'Paused');
             assert(state.is_initialised, 'NotInitialised');
-            let params = self.strategy_params.read(market_id);
             // If deposits are disabled, only the strategy owner can deposit.
+            let params = self.strategy_params.read(market_id);
             let caller = get_caller_address();
             if caller != self.strategy_owner.read(market_id) {
                 assert(params.allow_deposits, 'DepositDisabled');
             }
 
-            // Initialise state
+            // Fetch dispatchers.
             let market_manager = self.market_manager.read();
             let market_info = market_manager.market_info(market_id);
             let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
@@ -700,7 +732,7 @@ mod ReplicatingStrategy {
             base_token.transfer_from(caller, contract, base_amount);
             quote_token.transfer_from(caller, contract, quote_amount);
 
-            // Update reserves.
+            // Update reserves. Must be committed to state for `_update_positions` to place positions.
             state.base_reserves += base_amount;
             state.quote_reserves += quote_amount;
             self.strategy_state.write(market_id, state);
@@ -827,10 +859,7 @@ mod ReplicatingStrategy {
         // * `quote_amount` - quote asset withdrawn
         fn withdraw(ref self: ContractState, market_id: felt252, shares: u256) -> (u256, u256) {
             // Run checks
-            let total_deposits = self.total_deposits.read(market_id);
-            assert(total_deposits != 0, 'NoSupply');
             assert(shares != 0, 'SharesZero');
-            assert(shares <= total_deposits, 'SharesOF');
             let caller = get_caller_address();
             let user_deposits = self.user_deposits.read((market_id, caller));
             assert(user_deposits >= shares, 'InsuffShares');
@@ -839,6 +868,7 @@ mod ReplicatingStrategy {
             let market_manager = self.market_manager.read();
             let market_state = market_manager.market_state(market_id);
             let market_info = market_manager.market_info(market_id);
+            let total_deposits = self.total_deposits.read(market_id);
             let mut state = self.strategy_state.read(market_id);
 
             // Calculate share of reserves to withdraw
@@ -968,6 +998,13 @@ mod ReplicatingStrategy {
             ref self: ContractState, oracle: ContractAddress, oracle_summary: ContractAddress
         ) {
             self.assert_owner();
+            let old_oracle = self.oracle.read();
+            let old_oracle_summary = self.oracle_summary.read();
+            assert(
+                oracle != old_oracle.contract_address
+                    || oracle_summary != old_oracle_summary.contract_address,
+                'OracleUnchanged'
+            );
             let oracle_dispatcher = IOracleABIDispatcher { contract_address: oracle };
             self.oracle.write(oracle_dispatcher);
             let oracle_summary_dispatcher = ISummaryStatsABIDispatcher {
@@ -1025,7 +1062,7 @@ mod ReplicatingStrategy {
             self
                 .emit(
                     Event::ChangeStrategyOwner(
-                        ChangeStrategyOwner { old: old_owner, new: queued_owner }
+                        ChangeStrategyOwner { market_id, old: old_owner, new: queued_owner }
                     )
                 );
         }
@@ -1034,6 +1071,7 @@ mod ReplicatingStrategy {
         fn pause(ref self: ContractState, market_id: felt252) {
             self.assert_strategy_owner(market_id);
             let mut state = self.strategy_state.read(market_id);
+            assert(!state.is_paused, 'AlreadyPaused');
             state.is_paused = true;
             self.strategy_state.write(market_id, state);
             self.emit(Event::Pause(Pause { market_id }));
@@ -1043,6 +1081,7 @@ mod ReplicatingStrategy {
         fn unpause(ref self: ContractState, market_id: felt252) {
             self.assert_strategy_owner(market_id);
             let mut state = self.strategy_state.read(market_id);
+            assert(state.is_paused, 'AlreadyUnpaused');
             state.is_paused = false;
             self.strategy_state.write(market_id, state);
             self.emit(Event::Unpause(Unpause { market_id }));
@@ -1116,7 +1155,7 @@ mod ReplicatingStrategy {
             }
 
             // Place new positions.
-            if next_bid.liquidity != 0 {
+            if next_bid.liquidity != 0 && update_bid {
                 let (_, quote_amount, _, _) = market_manager
                     .modify_position(
                         market_id,
@@ -1127,7 +1166,7 @@ mod ReplicatingStrategy {
                 state.quote_reserves -= quote_amount.val;
                 state.bid = next_bid;
             };
-            if next_ask.liquidity != 0 {
+            if next_ask.liquidity != 0 && update_ask {
                 let (base_amount, _, _, _) = market_manager
                     .modify_position(
                         market_id,
@@ -1149,12 +1188,12 @@ mod ReplicatingStrategy {
                         Event::UpdatePositions(
                             UpdatePositions {
                                 market_id,
-                                bid_lower_limit: next_bid.lower_limit,
-                                bid_upper_limit: next_bid.upper_limit,
-                                bid_liquidity: next_bid.liquidity,
-                                ask_lower_limit: next_ask.lower_limit,
-                                ask_upper_limit: next_ask.upper_limit,
-                                ask_liquidity: next_ask.liquidity,
+                                bid_lower_limit: state.bid.lower_limit,
+                                bid_upper_limit: state.bid.upper_limit,
+                                bid_liquidity: state.bid.liquidity,
+                                ask_lower_limit: state.ask.lower_limit,
+                                ask_upper_limit: state.ask.upper_limit,
+                                ask_liquidity: state.ask.liquidity,
                             }
                         )
                     );

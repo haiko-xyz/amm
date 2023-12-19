@@ -4,7 +4,7 @@ use starknet::class_hash::ClassHash;
 
 // Local imports.
 use amm::types::core::PositionInfo;
-use strategies::strategies::replicating::types::{StrategyParams, StrategyState};
+use strategies::strategies::replicating::types::{StrategyParams, OracleParams, StrategyState};
 
 
 #[starknet::interface]
@@ -14,7 +14,9 @@ trait IReplicatingStrategy<TContractState> {
     fn strategy_owner(self: @TContractState, market_id: felt252) -> ContractAddress;
     fn queued_strategy_owner(self: @TContractState, market_id: felt252) -> ContractAddress;
     fn oracle(self: @TContractState) -> ContractAddress;
+    fn oracle_summary(self: @TContractState) -> ContractAddress;
     fn strategy_params(self: @TContractState, market_id: felt252) -> StrategyParams;
+    fn oracle_params(self: @TContractState, market_id: felt252) -> OracleParams;
     fn strategy_state(self: @TContractState, market_id: felt252) -> StrategyState;
     fn is_paused(self: @TContractState, market_id: felt252) -> bool;
     fn bid(self: @TContractState, market_id: felt252) -> PositionInfo;
@@ -35,7 +37,6 @@ trait IReplicatingStrategy<TContractState> {
         owner: ContractAddress,
         base_currency_id: felt252,
         quote_currency_id: felt252,
-        pair_id: felt252,
         min_sources: u32,
         max_age: u64,
         min_spread: u32,
