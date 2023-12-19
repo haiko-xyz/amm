@@ -23,6 +23,7 @@ use amm::tests::common::params::{
 };
 use amm::tests::common::utils::{to_e18, to_e18_u128, to_e28, approx_eq, approx_eq_pct};
 use strategies::strategies::replicating::{
+    replicating_strategy::ReplicatingStrategy,
     interface::{IReplicatingStrategyDispatcher, IReplicatingStrategyDispatcherTrait},
     pragma::{DataType, PragmaPricesResponse}, types::{StrategyParams, StrategyState},
     test::mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
@@ -33,7 +34,10 @@ use strategies::tests::replicating::helpers::{
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
-use snforge_std::{declare, start_warp, start_prank, stop_prank, CheatTarget, PrintTrait};
+use snforge_std::{
+    declare, start_warp, start_prank, stop_prank, CheatTarget, PrintTrait, spy_events, SpyOn,
+    EventSpy, EventAssertions, EventFetcher
+};
 
 ////////////////////////////////
 // TYPES
@@ -240,7 +244,14 @@ fn test_queued_positions_uninitialised_market() {
 
 #[test]
 fn test_add_market_initialises_state() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(false);
+
+    // Record events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
+    // Add market.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    strategy.add_market(market_id, owner(), 'ETH', 'USDC', 3, 600, 10, 20000, 200, true);
 
     // Check strategy params correctly updated.
     let params = strategy.strategy_params(market_id);
@@ -271,6 +282,19 @@ fn test_add_market_initialises_state() {
 
     // Check owner correctly updated.
     assert(strategy.strategy_owner(market_id) == owner(), 'Owner');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::AddMarket(
+                        ReplicatingStrategy::AddMarket { market_id }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
@@ -361,6 +385,9 @@ fn test_deposit_initial_success() {
         market_manager, strategy, market_id, base_token, quote_token, owner()
     );
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Deposit initial.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     let initial_base_amount = to_e18(1000000);
@@ -399,6 +426,24 @@ fn test_deposit_initial_success() {
         approx_eq_pct(strategy.user_deposits(market_id, owner()), shares_exp, 20), 'User deposits'
     );
     assert(approx_eq_pct(strategy.total_deposits(market_id), shares_exp, 20), 'Total deposits');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Deposit(
+                        ReplicatingStrategy::Deposit {
+                            market_id,
+                            caller: owner(),
+                            base_amount: initial_base_amount,
+                            quote_amount: initial_quote_amount,
+                        }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
@@ -587,7 +632,10 @@ fn test_update_positions_rebalances() {
 
     // Update price.
     start_warp(CheatTarget::One(oracle.contract_address), 1010);
-    oracle.set_data_with_USD_hop('ETH', 'USDC', 167250000000, 8, 1005, 5); // 1672.5
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 168000000000, 8, 1005, 5); // 1680
+
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
 
     // Execute swap as strategy and check positions updated.
     // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
@@ -600,23 +648,45 @@ fn test_update_positions_rebalances() {
     let state = strategy.strategy_state(market_id);
     let market_state = market_manager.market_state(market_id);
 
+    // Run checks.
     assert(state.bid.lower_limit == 7906620 + 721930, 'Bid: lower limit');
     assert(state.bid.upper_limit == 7906620 + 741930, 'Bid: upper limit');
-    assert(state.ask.lower_limit == 7906620 + 742050, 'Ask: lower limit');
-    assert(state.ask.upper_limit == 7906620 + 762050, 'Ask: upper limit');
+    assert(state.ask.lower_limit == 7906620 + 742720, 'Ask: lower limit');
+    assert(state.ask.upper_limit == 7906620 + 762720, 'Ask: upper limit');
     assert(
         approx_eq_pct(state.bid.liquidity.into(), 286266946460287812818573174, 20), 'Bid: liquidity'
     );
     assert(
-        approx_eq_pct(state.ask.liquidity.into(), 429406775392817428992841450, 20), 'Ask: liquidity'
+        approx_eq_pct(state.ask.liquidity.into(), 430847693075374009874980115, 20), 'Ask: liquidity'
     );
     assert(
-        approx_eq(market_state.curr_sqrt_price, 408644240927203282685139153875, 100),
+        approx_eq(market_state.curr_sqrt_price, 410015410053942901623567337309, 100),
         'Market: curr sqrt price'
     );
-    assert(market_state.curr_limit == 7906620 + 742055, 'Market: curr sqrt price');
-    assert(state.base_reserves == 0, 'Base reserves');
-    assert(state.quote_reserves == 0, 'Quote reserves');
+    assert(market_state.curr_limit == 7906620 + 742725, 'Market: curr sqrt price');
+    assert(approx_eq(state.base_reserves, 0, 10), 'Base reserves');
+    assert(approx_eq(state.quote_reserves, 0, 10), 'Quote reserves');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::UpdatePositions(
+                        ReplicatingStrategy::UpdatePositions {
+                            market_id,
+                            bid_lower_limit: state.bid.lower_limit,
+                            bid_upper_limit: state.bid.upper_limit,
+                            bid_liquidity: state.bid.liquidity,
+                            ask_lower_limit: state.ask.lower_limit,
+                            ask_upper_limit: state.ask.upper_limit,
+                            ask_liquidity: state.ask.liquidity,
+                        }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
@@ -637,6 +707,9 @@ fn test_update_positions_multiple_swaps() {
     start_warp(CheatTarget::One(oracle.contract_address), 1010);
     oracle.set_data_with_USD_hop('ETH', 'USDC', 163277500000, 8, 1005, 5);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Execute swap 1 as strategy. 
     // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
     // non-strategy caller.
@@ -646,8 +719,8 @@ fn test_update_positions_multiple_swaps() {
     let (amount_in, amount_out, fees) = market_manager
         .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
 
-    // Run checks.
-    let mut state = strategy.strategy_state(market_id);
+    // Run checks. Expect position not updated as LVR condition not met.
+    let state = strategy.strategy_state(market_id);
     let mut market_state = market_manager.market_state(market_id);
     assert(state.bid.lower_limit == 7906620 + 721870, 'Bid 1: lower limit');
     assert(state.bid.upper_limit == 7906620 + 741870, 'Bid 1: upper limit');
@@ -678,18 +751,18 @@ fn test_update_positions_multiple_swaps() {
         .swap(market_id, false, amount, true, Option::None(()), Option::None(()), Option::None(()));
 
     // Run checks.
-    state = strategy.strategy_state(market_id);
+    let state_2 = strategy.strategy_state(market_id);
     market_state = market_manager.market_state(market_id);
-    assert(state.bid.lower_limit == 7906620 + 719790, 'Bid 2: lower limit');
-    assert(state.bid.upper_limit == 7906620 + 739790, 'Bid 2: upper limit');
-    assert(state.ask.lower_limit == 7906620 + 741950, 'Ask 2: lower limit');
-    assert(state.ask.upper_limit == 7906620 + 761950, 'Ask 2: upper limit');
+    assert(state_2.bid.lower_limit == 7906620 + 719790, 'Bid 2: lower limit');
+    assert(state_2.bid.upper_limit == 7906620 + 739790, 'Bid 2: upper limit');
+    assert(state_2.ask.lower_limit == 7906620 + 741950, 'Ask 2: lower limit');
+    assert(state_2.ask.upper_limit == 7906620 + 761950, 'Ask 2: upper limit');
     assert(
-        approx_eq_pct(state.bid.liquidity.into(), 289346459271780151386678214, 20),
+        approx_eq_pct(state_2.bid.liquidity.into(), 289346459271780151386678214, 20),
         'Bid 2: liquidity'
     );
     assert(
-        approx_eq_pct(state.ask.liquidity.into(), 429192101090792820578334882, 20),
+        approx_eq_pct(state_2.ask.liquidity.into(), 429192101090792820578334882, 20),
         'Ask 2: liquidity'
     );
     assert(
@@ -697,8 +770,29 @@ fn test_update_positions_multiple_swaps() {
         'Swap 2: end sqrt price'
     );
     assert(market_state.curr_limit == 7906620 + 739787, 'Swap 2: end limit');
-    assert(approx_eq(state.base_reserves, 0, 10), 'Swap 2: Base reserves');
-    assert(approx_eq(state.quote_reserves, 0, 10), 'Swap 2: Quote reserves');
+    assert(approx_eq(state_2.base_reserves, 0, 10), 'Swap 2: Base reserves');
+    assert(approx_eq(state_2.quote_reserves, 0, 10), 'Swap 2: Quote reserves');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::UpdatePositions(
+                        ReplicatingStrategy::UpdatePositions {
+                            market_id,
+                            bid_lower_limit: state_2.bid.lower_limit,
+                            bid_upper_limit: state_2.bid.upper_limit,
+                            bid_liquidity: state_2.bid.liquidity,
+                            ask_lower_limit: state_2.ask.lower_limit,
+                            ask_upper_limit: state_2.ask.upper_limit,
+                            ask_liquidity: state_2.ask.liquidity,
+                        }
+                    )
+                ),
+            ]
+        );
 }
 
 #[test]
@@ -723,6 +817,9 @@ fn test_update_positions_lvr_condition_not_met() {
     let bid_before = strategy.bid(market_id);
     let ask_before = strategy.ask(market_id);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Swap buy and check positions not updated.
     start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
     start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
@@ -743,6 +840,10 @@ fn test_update_positions_lvr_condition_not_met() {
     ask_after = strategy.ask(market_id);
     assert(bid_before == bid_after, 'LVR rebalance: bid 2');
     assert(ask_before == ask_after, 'LVR rebalance: ask 2');
+
+    // Check no events emitted.
+    spy.fetch_events();
+    assert(spy.events.len() == 0, 'Events');
 }
 
 #[test]
@@ -781,6 +882,9 @@ fn test_update_positions_zero_fee_crossing_spread_always_rebalances() {
     let bid_before = strategy.bid(market_id);
     let ask_before = strategy.ask(market_id);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Swap sell and check positions updated.
     start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
     start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
@@ -788,10 +892,33 @@ fn test_update_positions_zero_fee_crossing_spread_always_rebalances() {
         .swap(
             market_id, false, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
         );
+
+    // Run checks.
     let mut bid_after = strategy.bid(market_id);
     let mut ask_after = strategy.ask(market_id);
     assert(bid_before != bid_after, 'Rebalance: bid');
     assert(ask_before != ask_after, 'Rebalance: ask');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::UpdatePositions(
+                        ReplicatingStrategy::UpdatePositions {
+                            market_id,
+                            bid_lower_limit: bid_after.lower_limit,
+                            bid_upper_limit: bid_after.upper_limit,
+                            bid_liquidity: bid_after.liquidity,
+                            ask_lower_limit: ask_after.lower_limit,
+                            ask_upper_limit: ask_after.upper_limit,
+                            ask_liquidity: ask_after.liquidity,
+                        }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
@@ -816,6 +943,9 @@ fn test_update_positions_not_crossing_spread_does_not_rebalance() {
     let bid_before = strategy.bid(market_id);
     let ask_before = strategy.ask(market_id);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Swap buy and check positions not updated.
     start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
     start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
@@ -827,6 +957,10 @@ fn test_update_positions_not_crossing_spread_does_not_rebalance() {
     let mut ask_after = strategy.ask(market_id);
     assert(bid_before == bid_after, 'Rebalance: bid');
     assert(ask_before == ask_after, 'Rebalance: ask');
+
+    // Check event not emitted.
+    spy.fetch_events();
+    assert(spy.events.len() == 0, 'Events');
 }
 
 #[test]
@@ -846,6 +980,9 @@ fn test_update_positions_oracle_price_unchanged() {
     let bid_before = strategy.bid(market_id);
     let ask_before = strategy.ask(market_id);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Swap and check positions not updated.
     start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
     start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
@@ -857,6 +994,10 @@ fn test_update_positions_oracle_price_unchanged() {
     let mut ask_after = strategy.ask(market_id);
     assert(bid_before == bid_after, 'Rebalance: bid');
     assert(ask_before == ask_after, 'Rebalance: ask');
+
+    // Check event not emitted.
+    spy.fetch_events();
+    assert(spy.events.len() == 0, 'Events');
 }
 
 #[test]
@@ -885,6 +1026,10 @@ fn test_update_positions_market_not_initialised() {
 
     start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     let strategy_alt = IStrategyDispatcher { contract_address: strategy.contract_address };
+
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     strategy_alt
         .update_positions(
             market_id,
@@ -896,6 +1041,10 @@ fn test_update_positions_market_not_initialised() {
                 deadline: Option::None(()),
             }
         );
+
+    // Check event not emitted.
+    spy.fetch_events();
+    assert(spy.events.len() == 0, 'Events');
 }
 
 #[test]
@@ -905,6 +1054,9 @@ fn test_update_positions_market_paused() {
     // Pause market.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.pause(market_id);
+
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
 
     // Update positions.
     start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
@@ -920,6 +1072,10 @@ fn test_update_positions_market_paused() {
                 deadline: Option::None(()),
             }
         );
+
+    // Check event not emitted.
+    spy.fetch_events();
+    assert(spy.events.len() == 0, 'Events');
 }
 
 #[test]
@@ -940,6 +1096,9 @@ fn test_update_positions_num_sources_too_low() {
     start_warp(CheatTarget::One(oracle.contract_address), 1010);
     oracle.set_data_with_USD_hop('ETH', 'USDC', 70000000000, 8, 1005, 2);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Execute swap as strategy. 
     // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
     // non-strategy caller.
@@ -953,6 +1112,17 @@ fn test_update_positions_num_sources_too_low() {
     assert(state.is_paused, 'Paused');
     assert(state.bid.liquidity == 0, 'Bid liquidity');
     assert(state.ask.liquidity == 0, 'Ask liquidity');
+
+    // Check pause event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Pause(ReplicatingStrategy::Pause { market_id })
+                )
+            ]
+        );
 }
 
 #[test]
@@ -973,6 +1143,9 @@ fn test_update_positions_price_stale() {
     start_warp(CheatTarget::One(oracle.contract_address), 1600);
     oracle.set_data_with_USD_hop('ETH', 'USDC', 70000000000, 8, 999, 2);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Execute swap as strategy. 
     // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
     // non-strategy caller.
@@ -986,6 +1159,17 @@ fn test_update_positions_price_stale() {
     assert(state.is_paused, 'Paused');
     assert(state.bid.liquidity == 0, 'Bid liquidity');
     assert(state.ask.liquidity == 0, 'Ask liquidity');
+
+    // Check pause event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Pause(ReplicatingStrategy::Pause { market_id })
+                )
+            ]
+        );
 }
 
 #[test]
@@ -1006,6 +1190,9 @@ fn test_deposit_success() {
     let bef = _snapshot_state(
         market_manager, strategy, market_id, base_token, quote_token, alice()
     );
+
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
 
     // Deposit.
     start_prank(CheatTarget::One(strategy.contract_address), alice());
@@ -1053,6 +1240,21 @@ fn test_deposit_success() {
     assert(aft.strategy_quote_bal == bef.strategy_quote_bal + quote_exp, 'Strategy quote');
     assert(bef.strategy_state.bid == aft.strategy_state.bid, 'Bid');
     assert(bef.strategy_state.ask == aft.strategy_state.ask, 'Ask');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Deposit(
+                        ReplicatingStrategy::Deposit {
+                            market_id, caller: alice(), base_amount, quote_amount,
+                        }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
@@ -1068,6 +1270,9 @@ fn test_deposit_multiple() {
     let initial_quote_amount = to_e18(1112520000);
     strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Deposit once.
     start_prank(CheatTarget::One(strategy.contract_address), alice());
     let base_amount_req = to_e18(500);
@@ -1081,6 +1286,8 @@ fn test_deposit_multiple() {
     let market_state = market_manager.market_state(market_id);
     let state = strategy.strategy_state(market_id);
 
+    let base_exp = to_e18(500);
+    let quote_exp = to_e18(556260);
     let bid_init_shares_exp = 286266946460287812818573174;
     let ask_init_shares_exp = 429406775392817428992841450;
     let bid_new_shares_exp = 286266946460287812818572;
@@ -1096,6 +1303,35 @@ fn test_deposit_multiple() {
         approx_eq_pct(user_shares, bid_new_shares_exp + ask_new_shares_exp, 20), 'Deposit: shares'
     );
     assert(approx_eq_pct(total_shares, total_shares_exp, 20), 'Deposit: total shares');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Deposit(
+                        ReplicatingStrategy::Deposit {
+                            market_id,
+                            caller: alice(),
+                            base_amount: base_exp,
+                            quote_amount: quote_exp,
+                        }
+                    )
+                ),
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Deposit(
+                        ReplicatingStrategy::Deposit {
+                            market_id,
+                            caller: alice(),
+                            base_amount: base_exp,
+                            quote_amount: quote_exp,
+                        }
+                    )
+                ),
+            ]
+        );
 }
 
 #[test]
@@ -1132,6 +1368,7 @@ fn test_deposit_single_sided_bid_liquidity() {
             Option::None(()),
             Option::None(())
         );
+
     // Update oracle price and swap to trigger position update, setting ask liquidity to 0.
     start_warp(CheatTarget::One(oracle.contract_address), 1010);
     oracle.set_data_with_USD_hop('ETH', 'USDC', 220000000000, 8, 1005, 5);
@@ -1148,6 +1385,9 @@ fn test_deposit_single_sided_bid_liquidity() {
     let state = strategy.strategy_state(market_id);
     assert(state.ask.liquidity == 0, 'Ask: liquidity');
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Deposit single-sided bid liquidity.
     let position_id = id::position_id(
         market_id, strategy.contract_address.into(), state.bid.lower_limit, state.bid.upper_limit
@@ -1155,9 +1395,26 @@ fn test_deposit_single_sided_bid_liquidity() {
     let (_, quote_amount) = market_manager.amounts_inside_position(position_id);
     start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.deposit(market_id, 0, quote_amount);
+
+    // Run checks.
     let alice_shares = strategy.user_deposits(market_id, alice());
     let total_shares = strategy.total_deposits(market_id);
     assert(alice_shares == total_shares / 2, 'Deposit: shares');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Deposit(
+                        ReplicatingStrategy::Deposit {
+                            market_id, caller: alice(), base_amount: 0, quote_amount,
+                        }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
@@ -1194,6 +1451,7 @@ fn test_deposit_single_sided_ask_liquidity() {
             Option::None(()),
             Option::None(())
         );
+
     // Update oracle price and swap to trigger position update, setting ask liquidity to 0.
     start_warp(CheatTarget::One(oracle.contract_address), 1010);
     oracle.set_data_with_USD_hop('ETH', 'USDC', 100000000000, 8, 1005, 5);
@@ -1210,6 +1468,9 @@ fn test_deposit_single_sided_ask_liquidity() {
     let state = strategy.strategy_state(market_id);
     assert(state.bid.liquidity == 0, 'Bid: liquidity');
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Deposit single-sided bid liquidity.
     let position_id = id::position_id(
         market_id, strategy.contract_address.into(), state.ask.lower_limit, state.ask.upper_limit
@@ -1217,9 +1478,26 @@ fn test_deposit_single_sided_ask_liquidity() {
     let (base_amount, quote_amount) = market_manager.amounts_inside_position(position_id);
     start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.deposit(market_id, base_amount, 0);
+
+    // Run checks.
     let alice_shares = strategy.user_deposits(market_id, alice());
     let total_shares = strategy.total_deposits(market_id);
     assert(alice_shares == total_shares / 2, 'Deposit: shares');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Deposit(
+                        ReplicatingStrategy::Deposit {
+                            market_id, caller: alice(), base_amount, quote_amount: 0,
+                        }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
@@ -1260,7 +1538,6 @@ fn test_deposit_not_approved() {
 
     strategy.deposit(market_id, to_e18(1000000), to_e18(1112520000));
 }
-
 
 #[test]
 #[should_panic(expected: ('UseDepositInitial',))]
@@ -1343,15 +1620,33 @@ fn test_deposit_deposit_disabled_strategy_owner() {
 
     // Deposit initial.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
-    strategy.deposit_initial(market_id, to_e18(1000), to_e18(1112520));
+    strategy.deposit_initial(market_id, to_e18(1000), to_e18(1250000));
 
     // Disable deposits.
     let mut params = strategy.strategy_params(market_id);
     params.allow_deposits = false;
     strategy.set_params(market_id, params);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Deposit should work if owner is depositing.
-    strategy.deposit(market_id, to_e18(1), to_e18(1250));
+    let (base_amount, quote_amount, _) = strategy.deposit(market_id, to_e18(1), to_e18(1250));
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Deposit(
+                        ReplicatingStrategy::Deposit {
+                            market_id, caller: owner(), base_amount, quote_amount,
+                        }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
@@ -1435,6 +1730,9 @@ fn test_withdraw_all() {
         market_manager, strategy, market_id, base_token, quote_token, owner()
     );
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Withdraw from strategy.
     let mut user_deposits = strategy.user_deposits(market_id, owner());
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -1475,6 +1773,21 @@ fn test_withdraw_all() {
     assert(approx_eq(aft.strategy_state.quote_reserves, 0, 10), 'Quote reserves');
     assert(approx_eq(user_deposits, 0, 10), 'User shares');
     assert(approx_eq(total_deposits, 0, 10), 'Total shares');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Withdraw(
+                        ReplicatingStrategy::Withdraw {
+                            market_id, caller: owner(), base_amount, quote_amount,
+                        }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
@@ -1505,6 +1818,9 @@ fn test_withdraw_partial() {
     let bef = _snapshot_state(
         market_manager, strategy, market_id, base_token, quote_token, owner()
     );
+
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
 
     // Withdraw partial from strategy.
     let shares_init = 286266946460287812818573174 + 429406775392817428992841450;
@@ -1574,6 +1890,21 @@ fn test_withdraw_partial() {
     assert(approx_eq(aft.strategy_state.quote_reserves, 0, 10), 'Withdraw: quote reserves');
     assert(approx_eq_pct(user_deposits, shares_init - shares_req, 20), 'Withdraw: user shares');
     assert(approx_eq_pct(total_deposits, shares_init - shares_req, 20), 'Withdraw: total shares');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Withdraw(
+                        ReplicatingStrategy::Withdraw {
+                            market_id, caller: owner(), base_amount, quote_amount,
+                        }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
@@ -1753,8 +2084,26 @@ fn test_withdraw_allowed_if_paused() {
     // Pause strategy.
     strategy.pause(market_id);
 
-    // Deposit.
-    strategy.withdraw(market_id, shares);
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
+    // Withdraw.
+    let (base_amount, quote_amount) = strategy.withdraw(market_id, shares);
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Withdraw(
+                        ReplicatingStrategy::Withdraw {
+                            market_id, caller: owner(), base_amount, quote_amount,
+                        }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
@@ -1772,6 +2121,9 @@ fn test_collect_and_pause() {
     let shares_init = strategy
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Collect and pause.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.collect_and_pause(market_id);
@@ -1786,10 +2138,20 @@ fn test_collect_and_pause() {
     assert(
         approx_eq(state.quote_reserves, initial_quote_amount, 10), 'Collect pause: quote reserves'
     );
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Pause(ReplicatingStrategy::Pause { market_id })
+                )
+            ]
+        );
 }
 
 #[test]
-#[should_panic(expected: ('DepositDisabled',))]
 fn test_disable_deposits() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
@@ -1804,14 +2166,36 @@ fn test_disable_deposits() {
     let shares_init = strategy
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Disable deposits.
     let mut params = strategy.strategy_params(market_id);
     params.allow_deposits = false;
     strategy.set_params(market_id, params);
 
-    // Try to deposit.
-    start_prank(CheatTarget::One(strategy.contract_address), alice());
-    strategy.deposit(market_id, to_e18(500), to_e18(700000));
+    // Run checks.
+    params = strategy.strategy_params(market_id);
+    assert(!params.allow_deposits, 'Disable deposits');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::SetStrategyParams(
+                        ReplicatingStrategy::SetStrategyParams {
+                            market_id,
+                            min_spread: params.min_spread,
+                            range: params.range,
+                            max_delta: params.max_delta,
+                            allow_deposits: false,
+                        }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
@@ -1829,14 +2213,48 @@ fn test_reenable_deposits() {
     let shares_init = strategy
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Disable deposits.
     let mut params = strategy.strategy_params(market_id);
     params.allow_deposits = false;
     strategy.set_params(market_id, params);
 
-    // Enable deposits.
+    // Reenable deposits.
     params.allow_deposits = true;
     strategy.set_params(market_id, params);
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::SetStrategyParams(
+                        ReplicatingStrategy::SetStrategyParams {
+                            market_id,
+                            min_spread: params.min_spread,
+                            range: params.range,
+                            max_delta: params.max_delta,
+                            allow_deposits: false,
+                        }
+                    )
+                ),
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::SetStrategyParams(
+                        ReplicatingStrategy::SetStrategyParams {
+                            market_id,
+                            min_spread: params.min_spread,
+                            range: params.range,
+                            max_delta: params.max_delta,
+                            allow_deposits: true,
+                        }
+                    )
+                ),
+            ]
+        );
 
     // Deposit.
     start_prank(CheatTarget::One(strategy.contract_address), alice());
@@ -1858,28 +2276,70 @@ fn test_disable_deposit_strategy_owner_deposit() {
     let shares_init = strategy
         .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Disable deposits.
     let mut params = strategy.strategy_params(market_id);
     params.allow_deposits = false;
     strategy.set_params(market_id, params);
 
     // Deposit should be allowed.
-    strategy.deposit(market_id, to_e18(500), to_e18(700000));
+    let (base_amount, quote_amount, _) = strategy.deposit(market_id, to_e18(500), to_e18(700000));
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Deposit(
+                        ReplicatingStrategy::Deposit {
+                            market_id, caller: owner(), base_amount, quote_amount,
+                        }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
 fn test_set_strategy_params() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
+    // Update params.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     let params = StrategyParams { min_spread: 0, range: 3000, max_delta: 0, allow_deposits: true, };
     strategy.set_params(market_id, params);
 
+    // Run checks.
     let params = strategy.strategy_params(market_id);
     assert(params.min_spread == 0, 'Set params: min spread');
     assert(params.range == 3000, 'Set params: range');
     assert(params.max_delta == 0, 'Set params: max delta');
     assert(params.allow_deposits == true, 'Set params: allow deposits');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::SetStrategyParams(
+                        ReplicatingStrategy::SetStrategyParams {
+                            market_id,
+                            min_spread: 0,
+                            range: 3000,
+                            max_delta: 0,
+                            allow_deposits: true,
+                        }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
@@ -1918,6 +2378,9 @@ fn test_set_strategy_params_zero_range() {
 fn test_change_oracle() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Update oracle and oracle summary.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     let new_oracle = contract_address_const::<0x123>();
@@ -1929,6 +2392,21 @@ fn test_change_oracle() {
     let oracle_summary = strategy.oracle_summary();
     assert(oracle == new_oracle, 'Change oracle: oracle');
     assert(oracle_summary == new_oracle_summary, 'Change oracle: oracle summary');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::ChangeOracle(
+                        ReplicatingStrategy::ChangeOracle {
+                            oracle: new_oracle, oracle_summary: new_oracle_summary,
+                        }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
@@ -1957,6 +2435,9 @@ fn test_change_oracle_unchanged() {
 fn test_transfer_and_accept_owner() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.transfer_owner(alice());
     assert(strategy.owner() == owner(), 'Transfer owner: owner');
@@ -1967,25 +2448,57 @@ fn test_transfer_and_accept_owner() {
     assert(
         strategy.queued_owner() == contract_address_const::<0x0>(), 'Accept owner: queued owner'
     );
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::ChangeOwner(
+                        ReplicatingStrategy::ChangeOwner { old: owner(), new: alice(), }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
 fn test_transfer_then_update_owner_before_accepting() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
+    // Transfer owner.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.transfer_owner(alice());
 
+    // Transfer again.
     strategy.transfer_owner(bob());
     assert(strategy.owner() == owner(), 'Transfer owner: owner');
     assert(strategy.queued_owner() == bob(), 'Transfer owner: queued owner');
 
+    // Accept owner.
     start_prank(CheatTarget::One(strategy.contract_address), bob());
     strategy.accept_owner();
     assert(strategy.owner() == bob(), 'Accept owner: owner');
     assert(
         strategy.queued_owner() == contract_address_const::<0x0>(), 'Accept owner: queued owner'
     );
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::ChangeOwner(
+                        ReplicatingStrategy::ChangeOwner { old: owner(), new: bob(), }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
@@ -2010,10 +2523,15 @@ fn test_accept_owner_not_transferred() {
 fn test_transfer_and_accept_strategy_owner() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
+    // Transfer owner.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.transfer_strategy_owner(market_id, alice());
     assert(strategy.strategy_owner(market_id) == owner(), 'Transfer owner: owner');
 
+    // Accept owner.
     start_prank(CheatTarget::One(strategy.contract_address), alice());
     strategy.accept_strategy_owner(market_id);
     assert(strategy.strategy_owner(market_id) == alice(), 'Accept owner: owner');
@@ -2021,26 +2539,64 @@ fn test_transfer_and_accept_strategy_owner() {
         strategy.queued_strategy_owner(market_id) == contract_address_const::<0x0>(),
         'Accept owner: queued owner'
     );
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::ChangeStrategyOwner(
+                        ReplicatingStrategy::ChangeStrategyOwner {
+                            market_id, old: owner(), new: alice(),
+                        }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
 fn test_transfer_then_update_strategy_owner_before_accepting() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
+    // Transfer owner.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.transfer_strategy_owner(market_id, alice());
 
+    // Transfer again.
     strategy.transfer_strategy_owner(market_id, bob());
     assert(strategy.strategy_owner(market_id) == owner(), 'Transfer owner: owner');
     assert(strategy.queued_strategy_owner(market_id) == bob(), 'Transfer owner: queued owner');
 
+    // Accept owner.
     start_prank(CheatTarget::One(strategy.contract_address), bob());
     strategy.accept_strategy_owner(market_id);
+
+    // Run checks.
     assert(strategy.strategy_owner(market_id) == bob(), 'Accept owner: owner');
     assert(
         strategy.queued_strategy_owner(market_id) == contract_address_const::<0x0>(),
         'Accept owner: queued owner'
     );
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::ChangeStrategyOwner(
+                        ReplicatingStrategy::ChangeStrategyOwner {
+                            market_id, old: owner(), new: bob(),
+                        }
+                    )
+                )
+            ]
+        );
 }
 
 #[test]
@@ -2065,10 +2621,24 @@ fn test_accept_strategy_owner_not_transferred() {
 fn test_pause() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
+    // Pause strategy.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.pause(market_id);
 
+    // Run checks.
     assert(strategy.is_paused(market_id), 'Paused');
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Pause(ReplicatingStrategy::Pause { market_id })
+                )
+            ]
+        );
 }
 
 #[test]
@@ -2085,11 +2655,27 @@ fn test_pause_already_paused() {
 fn test_unpause() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
+    // Pause strategy.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.pause(market_id);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
+    // Unpause strategy.
     strategy.unpause(market_id);
     assert(!strategy.is_paused(market_id), 'Unpaused');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Unpause(ReplicatingStrategy::Unpause { market_id })
+                )
+            ]
+        );
 }
 
 #[test]

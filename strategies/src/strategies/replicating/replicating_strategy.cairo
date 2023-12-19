@@ -163,6 +163,7 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct ChangeStrategyOwner {
+        market_id: felt252,
         old: ContractAddress,
         new: ContractAddress
     }
@@ -688,7 +689,9 @@ mod ReplicatingStrategy {
             self
                 .emit(
                     Event::ChangeStrategyOwner(
-                        ChangeStrategyOwner { old: ContractAddressZeroable::zero(), new: owner, }
+                        ChangeStrategyOwner {
+                            market_id, old: ContractAddressZeroable::zero(), new: owner,
+                        }
                     )
                 );
         }
@@ -1059,7 +1062,7 @@ mod ReplicatingStrategy {
             self
                 .emit(
                     Event::ChangeStrategyOwner(
-                        ChangeStrategyOwner { old: old_owner, new: queued_owner }
+                        ChangeStrategyOwner { market_id, old: old_owner, new: queued_owner }
                     )
                 );
         }
@@ -1185,12 +1188,12 @@ mod ReplicatingStrategy {
                         Event::UpdatePositions(
                             UpdatePositions {
                                 market_id,
-                                bid_lower_limit: next_bid.lower_limit,
-                                bid_upper_limit: next_bid.upper_limit,
-                                bid_liquidity: next_bid.liquidity,
-                                ask_lower_limit: next_ask.lower_limit,
-                                ask_upper_limit: next_ask.upper_limit,
-                                ask_liquidity: next_ask.liquidity,
+                                bid_lower_limit: state.bid.lower_limit,
+                                bid_upper_limit: state.bid.upper_limit,
+                                bid_liquidity: state.bid.liquidity,
+                                ask_lower_limit: state.ask.lower_limit,
+                                ask_upper_limit: state.ask.upper_limit,
+                                ask_liquidity: state.ask.liquidity,
                             }
                         )
                     );
