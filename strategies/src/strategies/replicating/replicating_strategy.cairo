@@ -73,6 +73,8 @@ mod ReplicatingStrategy {
         oracle_params: LegacyMap::<felt252, OracleParams>,
         // Indexed by market id
         strategy_state: LegacyMap::<felt252, StrategyState>,
+        // Indexed by (market_id: felt252, user: ContractAddress)
+        whitelist: LegacyMap::<(felt252, ContractAddress), bool>,
         // Indexed by market id
         total_deposits: LegacyMap::<felt252, u256>,
         // Indexed by (market_id: felt252, depositor: ContractAddress)
@@ -92,6 +94,7 @@ mod ReplicatingStrategy {
         UpdatePositions: UpdatePositions,
         SetStrategyParams: SetStrategyParams,
         SetOracleParams: SetOracleParams,
+        SetWhitelist: SetWhitelist,
         ChangeOwner: ChangeOwner,
         ChangeStrategyOwner: ChangeStrategyOwner,
         ChangeOracle: ChangeOracle,
@@ -138,6 +141,7 @@ mod ReplicatingStrategy {
         range: u32,
         max_delta: u32,
         allow_deposits: bool,
+        use_whitelist: bool,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -147,6 +151,13 @@ mod ReplicatingStrategy {
         quote_currency_id: felt252,
         min_sources: u32,
         max_age: u64,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct SetWhitelist {
+        market_id: felt252,
+        user: ContractAddress,
+        add: bool,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -459,6 +470,11 @@ mod ReplicatingStrategy {
             self.strategy_state.read(market_id).quote_reserves
         }
 
+        // Whether user is whitelisted to deposit in strategy market
+        fn is_whitelisted(self: @ContractState, market_id: felt252, user: ContractAddress) -> bool {
+            self.whitelist.read((market_id, user))
+        }
+
         // Get user deposits for a given market.
         fn user_deposits(self: @ContractState, market_id: felt252, owner: ContractAddress) -> u256 {
             self.user_deposits.read((market_id, owner))
@@ -622,6 +638,7 @@ mod ReplicatingStrategy {
         // * `range` - range parameter (width, in limits, of bid and ask liquidity positions)
         // * `max_delta` - max inv_delta parameter (additional single-sided spread based on portfolio imbalance)
         // * `allow_deposits` - whether deposits are allowed for depositors other than the strategy owner
+        // * `use_whitelist` - whether to use a whitelist for deposits
         fn add_market(
             ref self: ContractState,
             market_id: felt252,
@@ -634,6 +651,7 @@ mod ReplicatingStrategy {
             range: u32,
             max_delta: u32,
             allow_deposits: bool,
+            use_whitelist: bool,
         ) {
             // Run checks.
             self.assert_owner();
@@ -653,7 +671,9 @@ mod ReplicatingStrategy {
             self.strategy_owner.write(market_id, owner);
 
             // Set strategy params.
-            let strategy_params = StrategyParams { min_spread, range, max_delta, allow_deposits };
+            let strategy_params = StrategyParams {
+                min_spread, range, max_delta, allow_deposits, use_whitelist
+            };
             self.strategy_params.write(market_id, strategy_params);
 
             // Set oracle params.
@@ -682,7 +702,7 @@ mod ReplicatingStrategy {
                 .emit(
                     Event::SetStrategyParams(
                         SetStrategyParams {
-                            market_id, min_spread, range, max_delta, allow_deposits
+                            market_id, min_spread, range, max_delta, allow_deposits, use_whitelist
                         }
                     )
                 );
@@ -714,9 +734,13 @@ mod ReplicatingStrategy {
             let mut state = self.strategy_state.read(market_id);
             assert(!state.is_paused, 'Paused');
             assert(state.is_initialised, 'NotInitialised');
-            // If deposits are disabled, only the strategy owner can deposit.
-            let params = self.strategy_params.read(market_id);
+            // If whitelist is enabled, only whitelisted users can deposit.
             let caller = get_caller_address();
+            let params = self.strategy_params.read(market_id);
+            if params.use_whitelist {
+                assert(self.whitelist.read((market_id, caller)), 'NotWhitelisted');
+            }
+            // If deposits are disabled, only the strategy owner can deposit.
             if caller != self.strategy_owner.read(market_id) {
                 assert(params.allow_deposits, 'DepositDisabled');
             }
@@ -782,8 +806,12 @@ mod ReplicatingStrategy {
             let mut state = self.strategy_state.read(market_id);
             assert(!state.is_paused, 'Paused');
             let params = self.strategy_params.read(market_id);
-            // If deposits are disabled, only the strategy owner can deposit.
+            // If whitelist is enabled, only whitelisted users can deposit.
             let caller = get_caller_address();
+            if params.use_whitelist {
+                assert(self.whitelist.read((market_id, caller)), 'NotWhitelisted');
+            }
+            // If deposits are disabled, only the strategy owner can deposit.
             if caller != self.strategy_owner.read(market_id) {
                 assert(params.allow_deposits, 'DepositDisabled');
             }
@@ -985,9 +1013,30 @@ mod ReplicatingStrategy {
                             range: params.range,
                             max_delta: params.max_delta,
                             allow_deposits: params.allow_deposits,
+                            use_whitelist: params.use_whitelist
                         }
                     )
                 );
+        }
+
+        // Update whitelist for depositing to a strategy market.
+        // Only callable by strategy owner.
+        //
+        // # Arguments
+        // * `market_id` - market id
+        // * `user` - user to whitelist
+        // * `add` - whether to add or remove user from whitelist
+        fn set_whitelist(
+            ref self: ContractState, market_id: felt252, user: ContractAddress, add: bool
+        ) {
+            self.assert_strategy_owner(market_id);
+            if add {
+                assert(!self.whitelist.read((market_id, user)), 'AlreadyWhitelisted');
+            } else {
+                assert(self.whitelist.read((market_id, user)), 'NotWhitelisted');
+            }
+            self.whitelist.write((market_id, user), add);
+            self.emit(Event::SetWhitelist(SetWhitelist { market_id, user, add }));
         }
 
         // Change the oracle or oracle summary contracts.

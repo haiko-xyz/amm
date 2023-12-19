@@ -28,6 +28,8 @@ struct StrategyParams {
     max_delta: u32,
     // whether strategy allows deposits
     allow_deposits: bool,
+    // whether whitelisting is enabled
+    use_whitelist: bool,
 }
 
 #[derive(Drop, Copy, Serde, starknet::Store)]
