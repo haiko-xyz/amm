@@ -23,6 +23,7 @@ trait IReplicatingStrategy<TContractState> {
     fn ask(self: @TContractState, market_id: felt252) -> PositionInfo;
     fn base_reserves(self: @TContractState, market_id: felt252) -> u256;
     fn quote_reserves(self: @TContractState, market_id: felt252) -> u256;
+    fn is_whitelisted(self: @TContractState, market_id: felt252, user: ContractAddress) -> bool;
     fn user_deposits(self: @TContractState, market_id: felt252, owner: ContractAddress) -> u256;
     fn total_deposits(self: @TContractState, market_id: felt252) -> u256;
 
@@ -43,6 +44,7 @@ trait IReplicatingStrategy<TContractState> {
         range: u32,
         max_delta: u32,
         allow_deposits: bool,
+        use_whitelist: bool,
     );
     fn deposit_initial(
         ref self: TContractState, market_id: felt252, base_amount: u256, quote_amount: u256
@@ -53,6 +55,9 @@ trait IReplicatingStrategy<TContractState> {
     fn withdraw(ref self: TContractState, market_id: felt252, shares: u256) -> (u256, u256);
     fn collect_and_pause(ref self: TContractState, market_id: felt252);
     fn set_params(ref self: TContractState, market_id: felt252, params: StrategyParams,);
+    fn set_whitelist(
+        ref self: TContractState, market_id: felt252, user: ContractAddress, add: bool
+    );
     fn change_oracle(
         ref self: TContractState, oracle: ContractAddress, oracle_summary: ContractAddress,
     );

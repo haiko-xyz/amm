@@ -110,6 +110,7 @@ fn before(
                 20000, // ~20% range
                 200, // ~0.2% delta
                 true,
+                false,
             );
     }
 
@@ -251,7 +252,7 @@ fn test_add_market_initialises_state() {
 
     // Add market.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
-    strategy.add_market(market_id, owner(), 'ETH', 'USDC', 3, 600, 10, 20000, 200, true);
+    strategy.add_market(market_id, owner(), 'ETH', 'USDC', 3, 600, 10, 20000, 200, true, false);
 
     // Check strategy params correctly updated.
     let params = strategy.strategy_params(market_id);
@@ -304,7 +305,7 @@ fn test_add_market_market_null() {
 
     // Register null market.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
-    strategy.add_market(1, owner(), 'ETH', 'USDC', 3, 600, 10, 20000, 200, true);
+    strategy.add_market(1, owner(), 'ETH', 'USDC', 3, 600, 10, 20000, 200, true, false);
 }
 
 #[test]
@@ -314,7 +315,7 @@ fn test_add_market_already_initialised() {
 
     // Register null market.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
-    strategy.add_market(market_id, owner(), 'ETH', 'USDC', 3, 600, 10, 20000, 200, true);
+    strategy.add_market(market_id, owner(), 'ETH', 'USDC', 3, 600, 10, 20000, 200, true, false);
 }
 
 #[test]
@@ -325,7 +326,7 @@ fn test_add_market_range_zero() {
     // Technically the market id does not exist but because this check is run before the
     // market null check, it catches the error correctly.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
-    strategy.add_market(1, owner(), 'ETH', 'USDC', 3, 600, 10, 0, 200, true);
+    strategy.add_market(1, owner(), 'ETH', 'USDC', 3, 600, 10, 0, 200, true, false);
 }
 
 #[test]
@@ -336,7 +337,7 @@ fn test_add_market_min_sources_zero() {
     // Technically the market id does not exist but because this check is run before the
     // market null check, it catches the error correctly.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
-    strategy.add_market(1, owner(), 'ETH', 'USDC', 0, 600, 10, 20000, 200, true);
+    strategy.add_market(1, owner(), 'ETH', 'USDC', 0, 600, 10, 20000, 200, true, false);
 }
 
 #[test]
@@ -347,7 +348,7 @@ fn test_add_market_max_age_zero() {
     // Technically the market id does not exist but because this check is run before the
     // market null check, it catches the error correctly.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
-    strategy.add_market(1, owner(), 'ETH', 'USDC', 3, 0, 10, 20000, 200, true);
+    strategy.add_market(1, owner(), 'ETH', 'USDC', 3, 0, 10, 20000, 200, true, false);
 }
 
 #[test]
@@ -358,7 +359,7 @@ fn test_add_market_base_id_null() {
     // Technically the market id does not exist but because this check is run before the
     // market null check, it catches the error correctly.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
-    strategy.add_market(1, owner(), 0, 'USDC', 3, 600, 10, 20000, 200, true);
+    strategy.add_market(1, owner(), 0, 'USDC', 3, 600, 10, 20000, 200, true, false);
 }
 
 #[test]
@@ -369,7 +370,7 @@ fn test_add_market_quote_id_null() {
     // Technically the market id does not exist but because this check is run before the
     // market null check, it catches the error correctly.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
-    strategy.add_market(1, owner(), 'ETH', 0, 3, 600, 10, 20000, 200, true);
+    strategy.add_market(1, owner(), 'ETH', 0, 3, 600, 10, 20000, 200, true, false);
 }
 
 #[test]
@@ -541,6 +542,26 @@ fn test_deposit_initial_existing_deposits() {
     strategy.deposit(market_id, to_e18(500), to_e18(700000));
 
     // Deposit initial again.
+    strategy.deposit_initial(market_id, to_e18(100), to_e18(1125200));
+}
+
+#[test]
+#[should_panic(expected: ('NotWhitelisted',))]
+fn test_deposit_initial_user_not_whitelisted() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+
+    // Set price.
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
+
+    // Enable whitelist.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let mut params = strategy.strategy_params(market_id);
+    params.use_whitelist = true;
+    strategy.set_params(market_id, params);
+
+    // Deposit initial.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.deposit_initial(market_id, to_e18(100), to_e18(1125200));
 }
 
@@ -862,7 +883,7 @@ fn test_update_positions_zero_fee_crossing_spread_always_rebalances() {
 
     // Add market to strategy.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
-    strategy.add_market(market_id, owner(), 'ETH', 'USDC', 3, 600, 10, 20000, 200, true);
+    strategy.add_market(market_id, owner(), 'ETH', 'USDC', 3, 600, 10, 20000, 200, true, false);
 
     // Update price.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -1558,6 +1579,22 @@ fn test_deposit_no_deposits() {
 }
 
 #[test]
+#[should_panic(expected: ('UseDepositInitial',))]
+fn test_deposit_user_not_whitelisted() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+
+    // Enable whitelist.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let mut params = strategy.strategy_params(market_id);
+    params.use_whitelist = true;
+    strategy.set_params(market_id, params);
+
+    // Deposit.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    strategy.deposit(market_id, to_e18(500), to_e18(700000));
+}
+
+#[test]
 #[should_panic(expected: ('Paused',))]
 fn test_deposit_paused() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
@@ -1996,6 +2033,34 @@ fn test_withdraw_single_sided_liquidity() {
 }
 
 #[test]
+fn test_withdraw_user_removed_from_whitelist() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+
+    // Enable whitelist.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let mut params = strategy.strategy_params(market_id);
+    params.use_whitelist = true;
+    strategy.set_params(market_id, params);
+
+    // Whitelist user.
+    strategy.set_whitelist(market_id, owner(), true);
+
+    // Set price.
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
+
+    // Deposit initial.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let shares = strategy.deposit_initial(market_id, to_e18(1000), to_e18(1125000));
+
+    // Remove user from whitelist.
+    strategy.set_whitelist(market_id, owner(), false);
+
+    // Should be able to withdraw.
+    strategy.withdraw(market_id, shares);
+}
+
+#[test]
 #[should_panic(expected: ('InsuffShares',))]
 fn test_withdraw_market_null() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
@@ -2191,6 +2256,7 @@ fn test_disable_deposits() {
                             range: params.range,
                             max_delta: params.max_delta,
                             allow_deposits: false,
+                            use_whitelist: false,
                         }
                     )
                 )
@@ -2238,6 +2304,7 @@ fn test_reenable_deposits() {
                             range: params.range,
                             max_delta: params.max_delta,
                             allow_deposits: false,
+                            use_whitelist: params.use_whitelist,
                         }
                     )
                 ),
@@ -2250,6 +2317,7 @@ fn test_reenable_deposits() {
                             range: params.range,
                             max_delta: params.max_delta,
                             allow_deposits: true,
+                            use_whitelist: params.use_whitelist,
                         }
                     )
                 ),
@@ -2312,7 +2380,9 @@ fn test_set_strategy_params() {
 
     // Update params.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
-    let params = StrategyParams { min_spread: 0, range: 3000, max_delta: 0, allow_deposits: true, };
+    let params = StrategyParams {
+        min_spread: 0, range: 3000, max_delta: 0, allow_deposits: false, use_whitelist: true,
+    };
     strategy.set_params(market_id, params);
 
     // Run checks.
@@ -2320,7 +2390,8 @@ fn test_set_strategy_params() {
     assert(params.min_spread == 0, 'Set params: min spread');
     assert(params.range == 3000, 'Set params: range');
     assert(params.max_delta == 0, 'Set params: max delta');
-    assert(params.allow_deposits == true, 'Set params: allow deposits');
+    assert(!params.allow_deposits, 'Set params: allow deposits');
+    assert(params.use_whitelist, 'Set params: use whitelist');
 
     // Check event emitted.
     spy
@@ -2334,7 +2405,8 @@ fn test_set_strategy_params() {
                             min_spread: 0,
                             range: 3000,
                             max_delta: 0,
-                            allow_deposits: true,
+                            allow_deposits: false,
+                            use_whitelist: true,
                         }
                     )
                 )
@@ -2372,6 +2444,116 @@ fn test_set_strategy_params_zero_range() {
     let mut params = strategy.strategy_params(market_id);
     params.range = 0;
     strategy.set_params(market_id, params);
+}
+
+#[test]
+fn test_whitelist_user() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+
+    // Enable whitelist.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let mut params = strategy.strategy_params(market_id);
+    params.use_whitelist = true;
+    strategy.set_params(market_id, params);
+
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
+    // Whitelist user.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    strategy.set_whitelist(market_id, alice(), true);
+
+    // Deposit initial should be allowed.
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
+    start_prank(CheatTarget::One(strategy.contract_address), alice());
+    strategy.deposit_initial(market_id, 1000, 1000);
+
+    // Run checks.
+    let is_whitelisted = strategy.is_whitelisted(market_id, alice());
+    assert(is_whitelisted, 'Whitelist user');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::SetWhitelist(
+                        ReplicatingStrategy::SetWhitelist { market_id, user: alice(), add: true }
+                    )
+                )
+            ]
+        );
+}
+
+#[test]
+fn test_remove_user_from_whitelist() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+
+    // Enable whitelist.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let mut params = strategy.strategy_params(market_id);
+    params.use_whitelist = true;
+    strategy.set_params(market_id, params);
+
+    // Whitelist user.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    strategy.set_whitelist(market_id, alice(), true);
+
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
+    // Remove user from whitelist.
+    strategy.set_whitelist(market_id, alice(), false);
+
+    // Run checks.
+    let is_whitelisted = strategy.is_whitelisted(market_id, alice());
+    assert(!is_whitelisted, 'Remove Whitelist');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::SetWhitelist(
+                        ReplicatingStrategy::SetWhitelist { market_id, user: alice(), add: false }
+                    )
+                )
+            ]
+        );
+}
+
+#[test]
+#[should_panic(expected: ('AlreadyWhitelisted',))]
+fn test_whitelist_already_whitelisted_user() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+
+    // Enable whitelist.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let mut params = strategy.strategy_params(market_id);
+    params.use_whitelist = true;
+    strategy.set_params(market_id, params);
+
+    // Whitelist user.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    strategy.set_whitelist(market_id, alice(), true);
+    strategy.set_whitelist(market_id, alice(), true);
+}
+
+#[test]
+#[should_panic(expected: ('NotWhitelisted',))]
+fn test_remove_non_whitelisted_user() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+
+    // Enable whitelist.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let mut params = strategy.strategy_params(market_id);
+    params.use_whitelist = true;
+    strategy.set_params(market_id, params);
+
+    strategy.set_whitelist(market_id, alice(), false);
 }
 
 #[test]
