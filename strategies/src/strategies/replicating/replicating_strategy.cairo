@@ -73,8 +73,8 @@ mod ReplicatingStrategy {
         oracle_params: LegacyMap::<felt252, OracleParams>,
         // Indexed by market id
         strategy_state: LegacyMap::<felt252, StrategyState>,
-        // Indexed by (market_id: felt252, user: ContractAddress)
-        whitelist: LegacyMap::<(felt252, ContractAddress), bool>,
+        // Indexed by user
+        whitelist: LegacyMap::<ContractAddress, bool>,
         // Indexed by market id
         total_deposits: LegacyMap::<felt252, u256>,
         // Indexed by (market_id: felt252, depositor: ContractAddress)
@@ -155,9 +155,8 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct SetWhitelist {
-        market_id: felt252,
         user: ContractAddress,
-        add: bool,
+        enable: bool,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -471,8 +470,8 @@ mod ReplicatingStrategy {
         }
 
         // Whether user is whitelisted to deposit in strategy market
-        fn is_whitelisted(self: @ContractState, market_id: felt252, user: ContractAddress) -> bool {
-            self.whitelist.read((market_id, user))
+        fn is_whitelisted(self: @ContractState, user: ContractAddress) -> bool {
+            self.whitelist.read(user)
         }
 
         // Get user deposits for a given market.
@@ -738,7 +737,7 @@ mod ReplicatingStrategy {
             let caller = get_caller_address();
             let params = self.strategy_params.read(market_id);
             if params.use_whitelist {
-                assert(self.whitelist.read((market_id, caller)), 'NotWhitelisted');
+                assert(self.whitelist.read(caller), 'NotWhitelisted');
             }
             // If deposits are disabled, only the strategy owner can deposit.
             if caller != self.strategy_owner.read(market_id) {
@@ -809,7 +808,7 @@ mod ReplicatingStrategy {
             // If whitelist is enabled, only whitelisted users can deposit.
             let caller = get_caller_address();
             if params.use_whitelist {
-                assert(self.whitelist.read((market_id, caller)), 'NotWhitelisted');
+                assert(self.whitelist.read(caller), 'NotWhitelisted');
             }
             // If deposits are disabled, only the strategy owner can deposit.
             if caller != self.strategy_owner.read(market_id) {
@@ -1019,24 +1018,21 @@ mod ReplicatingStrategy {
                 );
         }
 
-        // Update whitelist for depositing to a strategy market.
-        // Only callable by strategy owner.
+        // Update whitelist for user deposits.
+        // Only callable by owner.
         //
         // # Arguments
-        // * `market_id` - market id
         // * `user` - user to whitelist
-        // * `add` - whether to add or remove user from whitelist
-        fn set_whitelist(
-            ref self: ContractState, market_id: felt252, user: ContractAddress, add: bool
-        ) {
-            self.assert_strategy_owner(market_id);
-            if add {
-                assert(!self.whitelist.read((market_id, user)), 'AlreadyWhitelisted');
+        // * `enable` - whether to enable or disable user whitelist
+        fn set_whitelist(ref self: ContractState, user: ContractAddress, enable: bool) {
+            self.assert_owner();
+            if enable {
+                assert(!self.whitelist.read(user), 'AlreadyWhitelisted');
             } else {
-                assert(self.whitelist.read((market_id, user)), 'NotWhitelisted');
+                assert(self.whitelist.read(user), 'NotWhitelisted');
             }
-            self.whitelist.write((market_id, user), add);
-            self.emit(Event::SetWhitelist(SetWhitelist { market_id, user, add }));
+            self.whitelist.write(user, enable);
+            self.emit(Event::SetWhitelist(SetWhitelist { user, enable }));
         }
 
         // Change the oracle or oracle summary contracts.
