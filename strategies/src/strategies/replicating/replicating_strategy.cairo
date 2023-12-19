@@ -79,6 +79,10 @@ mod ReplicatingStrategy {
         total_deposits: LegacyMap::<felt252, u256>,
         // Indexed by (market_id: felt252, depositor: ContractAddress)
         user_deposits: LegacyMap::<(felt252, ContractAddress), u256>,
+        // Indexed by market_id
+        withdraw_fee: LegacyMap::<felt252, u16>,
+        // Indexed by asset
+        withdraw_fees: LegacyMap::<ContractAddress, u256>,
     }
 
     ////////////////////////////////
@@ -95,6 +99,8 @@ mod ReplicatingStrategy {
         SetStrategyParams: SetStrategyParams,
         SetOracleParams: SetOracleParams,
         SetWhitelist: SetWhitelist,
+        CollectWithdrawFee: CollectWithdrawFee,
+        SetWithdrawFee: SetWithdrawFee,
         ChangeOwner: ChangeOwner,
         ChangeStrategyOwner: ChangeStrategyOwner,
         ChangeOracle: ChangeOracle,
@@ -157,6 +163,19 @@ mod ReplicatingStrategy {
     struct SetWhitelist {
         user: ContractAddress,
         enable: bool,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct SetWithdrawFee {
+        market_id: felt252,
+        fee_rate: u16,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct CollectWithdrawFee {
+        receiver: ContractAddress,
+        token: ContractAddress,
+        amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -905,8 +924,6 @@ mod ReplicatingStrategy {
             let mut quote_withdraw = math::mul_div(
                 state.quote_reserves, shares, total_deposits, false
             );
-            state.base_reserves -= base_withdraw;
-            state.quote_reserves -= quote_withdraw;
 
             // Calculate share of position liquidity to withdraw.
             let bid_liquidity_delta = math::mul_div(
@@ -943,12 +960,38 @@ mod ReplicatingStrategy {
             );
             base_withdraw += bid_base_rem.val + ask_base_rem.val - base_fees_excess;
             quote_withdraw += bid_quote_rem.val + ask_quote_rem.val - quote_fees_excess;
-            state.base_reserves += base_fees_excess;
-            state.quote_reserves += quote_fees_excess;
 
             // Burn shares.
             self.user_deposits.write((market_id, caller), user_deposits - shares);
             self.total_deposits.write(market_id, total_deposits - shares);
+
+            // Deduct withdrawal fee.
+            let fee_rate = self.withdraw_fee.read(market_id);
+            if fee_rate != 0 {
+                let base_withdraw_fees = fee_math::calc_fee(base_withdraw, fee_rate);
+                let quote_withdraw_fees = fee_math::calc_fee(quote_withdraw, fee_rate);
+                base_withdraw -= base_withdraw_fees;
+                quote_withdraw -= quote_withdraw_fees;
+
+                // Update fee balance.
+                if base_withdraw_fees != 0 {
+                    let base_fees = self.withdraw_fees.read(market_info.base_token);
+                    self
+                        .withdraw_fees
+                        .write(market_info.base_token, base_fees + base_withdraw_fees);
+                }
+                if quote_withdraw_fees != 0 {
+                    let quote_fees = self.withdraw_fees.read(market_info.quote_token);
+                    self
+                        .withdraw_fees
+                        .write(market_info.quote_token, quote_fees + quote_withdraw_fees);
+                }
+            }
+
+            // Update reserves.
+            state.base_reserves -= base_withdraw;
+            state.quote_reserves -= quote_withdraw;
+            self.strategy_state.write(market_id, state);
 
             // Transfer tokens to caller.
             let contract = get_contract_address();
@@ -960,9 +1003,6 @@ mod ReplicatingStrategy {
                 let quote_token = IERC20Dispatcher { contract_address: market_info.quote_token };
                 quote_token.transfer(caller, quote_withdraw);
             }
-
-            // Commit state updates.
-            self.strategy_state.write(market_id, state);
 
             // Emit event.
             self
@@ -986,6 +1026,36 @@ mod ReplicatingStrategy {
         fn collect_and_pause(ref self: ContractState, market_id: felt252) {
             self.assert_strategy_owner(market_id);
             self._collect_and_pause(market_id);
+        }
+
+        // Collect withdrawal fees.
+        // Only callable by contract owner.
+        //
+        // # Arguments
+        // * `receiver` - address to receive fees
+        // * `token` - token to collect fees for
+        // * `amount` - amount of fees requested
+        fn collect_withdraw_fees(
+            ref self: ContractState, receiver: ContractAddress, token: ContractAddress, amount: u256
+        ) -> u256 {
+            // Run checks.
+            self.assert_owner();
+            let mut fees = self.withdraw_fees.read(token);
+            assert(fees >= amount, 'InsuffFees');
+
+            // Update fee balance.
+            fees -= amount;
+            self.withdraw_fees.write(token, fees);
+
+            // Transfer fees to caller.
+            let dispatcher = IERC20Dispatcher { contract_address: token };
+            dispatcher.transfer(get_caller_address(), amount);
+
+            // Emit event.
+            self.emit(Event::CollectWithdrawFee(CollectWithdrawFee { receiver, token, amount }));
+
+            // Return amount collected.
+            amount
         }
 
         // Change the parameters of the strategy.
@@ -1016,6 +1086,20 @@ mod ReplicatingStrategy {
                         }
                     )
                 );
+        }
+
+        // Set withdraw fee for a given market.
+        // Only callable by contract owner.
+        //
+        // # Arguments
+        // * `market_id` - market id
+        // * `fee_rate` - fee rate
+        fn set_withdraw_fee(ref self: ContractState, market_id: felt252, fee_rate: u16) {
+            self.assert_owner();
+            let old_fee_rate = self.withdraw_fee.read(market_id);
+            assert(old_fee_rate != fee_rate, 'FeeRateUnchanged');
+            self.withdraw_fee.write(market_id, fee_rate);
+            self.emit(Event::SetWithdrawFee(SetWithdrawFee { market_id, fee_rate }));
         }
 
         // Update whitelist for user deposits.
