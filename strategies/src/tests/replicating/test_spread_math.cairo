@@ -9,7 +9,6 @@ use debug::PrintTrait;
 ////////////////////////////////
 
 #[test]
-#[available_gas(100000000)]
 fn test_calc_bid_ask() {
     // New limit is equal to current limit
     let mut curr_limit = 500;
@@ -123,7 +122,6 @@ fn test_calc_bid_ask() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_delta_spread() {
     // Equal amounts
     let mut max_delta = 2000;
@@ -181,7 +179,6 @@ fn test_delta_spread() {
     assert(inv_delta == I32Trait::new(0, false), 'Inv delta 9');
 }
 // #[test]
-// #[available_gas(100000000)]
 // fn test_unpack_limits_cases() {
 //     // Fixed limits
 //     let mut range = Limits::Fixed(100);
