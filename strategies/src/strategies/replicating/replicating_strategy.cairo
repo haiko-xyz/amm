@@ -455,12 +455,12 @@ mod ReplicatingStrategy {
             self.queued_strategy_owner.read(market_id)
         }
 
-        // Strategy parameters
+        // Strategy parameters for a given market
         fn strategy_params(self: @ContractState, market_id: felt252) -> StrategyParams {
             self.strategy_params.read(market_id)
         }
 
-        // Oracle parameters
+        // Oracle parameters for a given market
         fn oracle_params(self: @ContractState, market_id: felt252) -> OracleParams {
             self.oracle_params.read(market_id)
         }
@@ -470,27 +470,27 @@ mod ReplicatingStrategy {
             self.strategy_state.read(market_id)
         }
 
-        // Whether strategy is paused
+        // Whether strategy is paused for a given market
         fn is_paused(self: @ContractState, market_id: felt252) -> bool {
             self.strategy_state.read(market_id).is_paused
         }
 
-        // Contract address of oracle feed.
+        // Pragma oracle contract address
         fn oracle(self: @ContractState) -> ContractAddress {
             self.oracle.read().contract_address
         }
 
-        // Contract address of oracle summary contract.
+        // Pragma oracle summary contract address
         fn oracle_summary(self: @ContractState) -> ContractAddress {
             self.oracle_summary.read().contract_address
         }
 
-        // Bid position of strategy
+        // Placed bid position for a given market
         fn bid(self: @ContractState, market_id: felt252) -> PositionInfo {
             self.strategy_state.read(market_id).bid
         }
 
-        // Ask position of strategy
+        // Placed ask position for a given market
         fn ask(self: @ContractState, market_id: felt252) -> PositionInfo {
             self.strategy_state.read(market_id).ask
         }
@@ -505,27 +505,27 @@ mod ReplicatingStrategy {
             self.strategy_state.read(market_id).quote_reserves
         }
 
-        // Whether user is whitelisted to deposit in strategy market
+        // Whether a user is whitelisted to deposit to the strategy contract
         fn is_whitelisted(self: @ContractState, user: ContractAddress) -> bool {
             self.whitelist.read(user)
         }
 
-        // Get user deposits for a given market.
+        // GUser's deposited shares in a given market
         fn user_deposits(self: @ContractState, market_id: felt252, owner: ContractAddress) -> u256 {
             self.user_deposits.read((market_id, owner))
         }
 
-        // Get total deposits for a given market.
+        // Total deposited shares for a given market
         fn total_deposits(self: @ContractState, market_id: felt252) -> u256 {
             self.total_deposits.read(market_id)
         }
 
-        // Get withdraw fee for a given market.
+        // Withdraw fee rate for a given market
         fn withdraw_fee_rate(self: @ContractState, market_id: felt252) -> u16 {
             self.withdraw_fee_rate.read(market_id)
         }
 
-        // Get accumulated withdraw fee balance for a given asset.
+        // Accumulated withdraw fee balance for a given asset
         fn withdraw_fees(self: @ContractState, token: ContractAddress) -> u256 {
             self.withdraw_fees.read(token)
         }
@@ -621,7 +621,7 @@ mod ReplicatingStrategy {
             (base_amount, quote_amount)
         }
 
-        // Calculate new optimal positions.
+        // Calculate next optimal bid and ask positions.
         // 
         // Given reference price R: 
         // - Bid range position will be placed from P - R - Db to B - Db
@@ -761,7 +761,11 @@ mod ReplicatingStrategy {
                 );
         }
 
-        // Deposit initial liquidity to strategy and place first positions.
+        // Deposit initial liquidity to strategy and place positions.
+        // Should be used whenever total deposits in a strategy are zero. This can happen both
+        // when a strategy is first initialised, or subsequently whenever all deposits are withdrawn.
+        // The deposited amounts will constitute the starting reserves of the strategy, so initial
+        // base and quote deposits should be balanced in value to avoid portfolio skew.
         //
         // # Arguments
         // * `market_id` - market id
@@ -834,6 +838,7 @@ mod ReplicatingStrategy {
         // Deposit liquidity to strategy.
         //
         // # Arguments
+        // * `market_id` - market id
         // * `base_amount` - base asset desired
         // * `quote_amount` - quote asset desired
         //
@@ -925,6 +930,7 @@ mod ReplicatingStrategy {
         // Burn pool shares and withdraw funds from strategy.
         //
         // # Arguments
+        // * `market_id` - market id
         // * `shares` - pool shares to burn
         //
         // # Returns
@@ -1090,12 +1096,15 @@ mod ReplicatingStrategy {
         }
 
         // Change the parameters of the strategy.
+        // Only callable by strategy owner.
         //
-        // # Arguments
-        // * `min_spread` - minimum spread between reference price and bid/ask price
-        // * `range` - range parameter (width, in limits, of bid and ask liquidity positions)
-        // * `max_delta` - max inv_delta parameter (additional single-sided spread based on portfolio imbalance)
-        // * `allow_deposits` - whether deposits are allowed for depositors other than the strategy owner
+        // # Params
+        // * `market_id` - market id
+        // * `params` - strategy params
+        //    * `min_spread` - minimum spread between reference price and bid/ask price
+        //    * `range` - range parameter (width, in limits, of bid and ask liquidity positions)
+        //    * `max_delta` - max inv_delta parameter (additional single-sided spread based on portfolio imbalance)
+        //    * `allow_deposits` - whether deposits are allowed for depositors other than the strategy owner
         fn set_params(ref self: ContractState, market_id: felt252, params: StrategyParams) {
             self.assert_strategy_owner(market_id);
             let market_manager = self.market_manager.read();
@@ -1151,10 +1160,11 @@ mod ReplicatingStrategy {
             self.emit(Event::SetWhitelist(SetWhitelist { user, enable }));
         }
 
-        // Change the oracle or oracle summary contracts.
+        // Change the oracle or oracle summary contract addresses.
         //
         // # Arguments
         // * `oracle` - contract address of oracle feed
+        // * `oracle_summary` - contract address of oracle summary
         fn change_oracle(
             ref self: ContractState, oracle: ContractAddress, oracle_summary: ContractAddress
         ) {
@@ -1202,6 +1212,7 @@ mod ReplicatingStrategy {
         // Part 1 of 2 step process to transfer ownership.
         //
         // # Arguments
+        // * `market_id` - market id of strategy
         // * `new_owner` - New owner of the contract
         fn transfer_strategy_owner(
             ref self: ContractState, market_id: felt252, new_owner: ContractAddress
@@ -1214,6 +1225,9 @@ mod ReplicatingStrategy {
 
         // Called by new owner to accept ownership of a strategy.
         // Part 2 of 2 step process to transfer ownership.
+        //
+        // # Arguments
+        // * `market_id` - market id of strategy
         fn accept_strategy_owner(ref self: ContractState, market_id: felt252) {
             let queued_owner = self.queued_strategy_owner.read(market_id);
             assert(get_caller_address() == queued_owner, 'OnlyNewOwner');
@@ -1228,7 +1242,11 @@ mod ReplicatingStrategy {
                 );
         }
 
-        // Pause strategy.
+        // Pause strategy. 
+        // Only callable by strategy owner. 
+        // 
+        // # Arguments
+        // * `market_id` - market id of strategy
         fn pause(ref self: ContractState, market_id: felt252) {
             self.assert_strategy_owner(market_id);
             let mut state = self.strategy_state.read(market_id);
@@ -1239,6 +1257,10 @@ mod ReplicatingStrategy {
         }
 
         // Unpause strategy.
+        // Only callable by strategy owner.
+        //
+        // # Arguments
+        // * `market_id` - market id of strategy
         fn unpause(ref self: ContractState, market_id: felt252) {
             self.assert_strategy_owner(market_id);
             let mut state = self.strategy_state.read(market_id);
@@ -1248,11 +1270,11 @@ mod ReplicatingStrategy {
             self.emit(Event::Unpause(Unpause { market_id }));
         }
 
-        // Temporary function to allow upgrading while deployed on testnet.
-        // Callable by owner only.
+        // Upgrade contract to new version.
+        // Only callable by contract owner.
         //
         // # Arguments
-        // # `new_class_hash` - New class hash of the contract
+        // # `new_class_hash` - new class hash of upgraded contract
         fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
             self.assert_owner();
             replace_class_syscall(new_class_hash);
