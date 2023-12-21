@@ -99,7 +99,6 @@ mod ReplicatingStrategy {
         SetStrategyParams: SetStrategyParams,
         SetOracleParams: SetOracleParams,
         SetWhitelist: SetWhitelist,
-        AccumulateWithdrawFee: AccumulateWithdrawFee,
         CollectWithdrawFee: CollectWithdrawFee,
         SetWithdrawFee: SetWithdrawFee,
         ChangeOwner: ChangeOwner,
@@ -182,13 +181,6 @@ mod ReplicatingStrategy {
         #[key]
         market_id: felt252,
         fee_rate: u16,
-    }
-
-    #[derive(Drop, starknet::Event)]
-    struct AccumulateWithdrawFee {
-        #[key]
-        token: ContractAddress,
-        fees: u256,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -1020,34 +1012,18 @@ mod ReplicatingStrategy {
                 state.base_reserves += base_withdraw_fees;
                 state.quote_reserves += quote_withdraw_fees;
 
-                // Update fee balance and emit event.
+                // Update fee balance.
                 if base_withdraw_fees != 0 {
                     let base_fees = self.withdraw_fees.read(market_info.base_token);
                     self
                         .withdraw_fees
                         .write(market_info.base_token, base_fees + base_withdraw_fees);
-                    self.emit(
-                        Event::AccumulateWithdrawFee(
-                            AccumulateWithdrawFee {
-                                token: market_info.base_token,
-                                fees: base_withdraw_fees
-                            }
-                        )
-                    );
                 }
                 if quote_withdraw_fees != 0 {
                     let quote_fees = self.withdraw_fees.read(market_info.quote_token);
                     self
                         .withdraw_fees
                         .write(market_info.quote_token, quote_fees + quote_withdraw_fees);
-                    self.emit(
-                        Event::AccumulateWithdrawFee(
-                            AccumulateWithdrawFee {
-                                token: market_info.quote_token,
-                                fees: quote_withdraw_fees
-                            }
-                        )
-                    );
                 }
             }
 
