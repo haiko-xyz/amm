@@ -2190,15 +2190,15 @@ fn test_withdraw_fees() {
     let quote_deposit = to_e18(1112520000);
     let shares = strategy.deposit_initial(market_id, base_deposit, quote_deposit);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Withdraw.
     let (base_amount, quote_amount) = strategy.withdraw(market_id, shares);
     let base_fees_exp = fee_math::calc_fee(base_deposit, withdraw_fee_rate);
     let quote_fees_exp = fee_math::calc_fee(quote_deposit, withdraw_fee_rate);
     let base_amount_exp = base_deposit - base_fees_exp;
     let quote_amount_exp = quote_deposit - quote_fees_exp;
-
-    // Log events.
-    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
 
     // Collect fees.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -2217,6 +2217,24 @@ fn test_withdraw_fees() {
     spy
         .assert_emitted(
             @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::AccumulateWithdrawFee(
+                        ReplicatingStrategy::AccumulateWithdrawFee {
+                            token: base_token.contract_address,
+                            fees: base_fees,
+                        }
+                    )
+                ),
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::AccumulateWithdrawFee(
+                        ReplicatingStrategy::AccumulateWithdrawFee {
+                            token: quote_token.contract_address,
+                            fees: quote_fees,
+                        }
+                    )
+                ),
                 (
                     strategy.contract_address,
                     ReplicatingStrategy::Event::CollectWithdrawFee(
