@@ -26,6 +26,8 @@ trait IReplicatingStrategy<TContractState> {
     fn is_whitelisted(self: @TContractState, user: ContractAddress) -> bool;
     fn user_deposits(self: @TContractState, market_id: felt252, owner: ContractAddress) -> u256;
     fn total_deposits(self: @TContractState, market_id: felt252) -> u256;
+    fn withdraw_fee_rate(self: @TContractState, market_id: felt252) -> u16;
+    fn withdraw_fees(self: @TContractState, token: ContractAddress) -> u256;
 
     fn get_oracle_price(self: @TContractState, market_id: felt252) -> (u256, bool);
     // fn get_oracle_vol(self: @TContractState, market_id: felt252) -> u256;

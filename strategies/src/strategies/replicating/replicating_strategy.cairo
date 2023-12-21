@@ -80,7 +80,7 @@ mod ReplicatingStrategy {
         // Indexed by (market_id: felt252, depositor: ContractAddress)
         user_deposits: LegacyMap::<(felt252, ContractAddress), u256>,
         // Indexed by market_id
-        withdraw_fee: LegacyMap::<felt252, u16>,
+        withdraw_fee_rate: LegacyMap::<felt252, u16>,
         // Indexed by asset
         withdraw_fees: LegacyMap::<ContractAddress, u256>,
     }
@@ -520,6 +520,16 @@ mod ReplicatingStrategy {
             self.total_deposits.read(market_id)
         }
 
+        // Get withdraw fee for a given market.
+        fn withdraw_fee_rate(self: @ContractState, market_id: felt252) -> u16 {
+            self.withdraw_fee_rate.read(market_id)
+        }
+
+        // Get accumulated withdraw fee balance for a given asset.
+        fn withdraw_fees(self: @ContractState, token: ContractAddress) -> u256 {
+            self.withdraw_fees.read(token)
+        }
+
         // Get price from oracle feed.
         // 
         // # Returns
@@ -941,6 +951,8 @@ mod ReplicatingStrategy {
             let mut quote_withdraw = math::mul_div(
                 state.quote_reserves, shares, total_deposits, false
             );
+            state.base_reserves -= base_withdraw;
+            state.quote_reserves -= quote_withdraw;
 
             // Calculate share of position liquidity to withdraw.
             let bid_liquidity_delta = math::mul_div(
@@ -977,18 +989,22 @@ mod ReplicatingStrategy {
             );
             base_withdraw += bid_base_rem.val + ask_base_rem.val - base_fees_excess;
             quote_withdraw += bid_quote_rem.val + ask_quote_rem.val - quote_fees_excess;
+            state.base_reserves += base_fees_excess;
+            state.quote_reserves += quote_fees_excess;
 
             // Burn shares.
             self.user_deposits.write((market_id, caller), user_deposits - shares);
             self.total_deposits.write(market_id, total_deposits - shares);
 
             // Deduct withdrawal fee.
-            let fee_rate = self.withdraw_fee.read(market_id);
+            let fee_rate = self.withdraw_fee_rate.read(market_id);
             if fee_rate != 0 {
                 let base_withdraw_fees = fee_math::calc_fee(base_withdraw, fee_rate);
                 let quote_withdraw_fees = fee_math::calc_fee(quote_withdraw, fee_rate);
                 base_withdraw -= base_withdraw_fees;
                 quote_withdraw -= quote_withdraw_fees;
+                state.base_reserves += base_withdraw_fees;
+                state.quote_reserves += quote_withdraw_fees;
 
                 // Update fee balance.
                 if base_withdraw_fees != 0 {
@@ -1006,8 +1022,6 @@ mod ReplicatingStrategy {
             }
 
             // Update reserves.
-            state.base_reserves -= base_withdraw;
-            state.quote_reserves -= quote_withdraw;
             self.strategy_state.write(market_id, state);
 
             // Transfer tokens to caller.
@@ -1113,9 +1127,10 @@ mod ReplicatingStrategy {
         // * `fee_rate` - fee rate
         fn set_withdraw_fee(ref self: ContractState, market_id: felt252, fee_rate: u16) {
             self.assert_owner();
-            let old_fee_rate = self.withdraw_fee.read(market_id);
-            assert(old_fee_rate != fee_rate, 'FeeRateUnchanged');
-            self.withdraw_fee.write(market_id, fee_rate);
+            let old_fee_rate = self.withdraw_fee_rate.read(market_id);
+            assert(old_fee_rate != fee_rate, 'FeeUnchanged');
+            assert(fee_rate <= fee_math::MAX_FEE_RATE, 'FeeOF');
+            self.withdraw_fee_rate.write(market_id, fee_rate);
             self.emit(Event::SetWithdrawFee(SetWithdrawFee { market_id, fee_rate }));
         }
 

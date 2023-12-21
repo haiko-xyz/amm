@@ -2172,6 +2172,140 @@ fn test_withdraw_allowed_if_paused() {
 }
 
 #[test]
+fn test_withdraw_fees() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+
+    // Enable withdraw fee.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let withdraw_fee_rate = 30;
+    strategy.set_withdraw_fee(market_id, withdraw_fee_rate);
+
+    // Set price.
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
+
+    // Deposit initial.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let base_deposit = to_e18(1000000);
+    let quote_deposit = to_e18(1112520000);
+    let shares = strategy.deposit_initial(market_id, base_deposit, quote_deposit);
+
+    // Withdraw.
+    let (base_amount, quote_amount) = strategy.withdraw(market_id, shares);
+    let base_fees_exp = fee_math::calc_fee(base_deposit, withdraw_fee_rate);
+    let quote_fees_exp = fee_math::calc_fee(quote_deposit, withdraw_fee_rate);
+    let base_amount_exp = base_deposit - base_fees_exp;
+    let quote_amount_exp = quote_deposit - quote_fees_exp;
+
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
+    // Collect fees.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let base_fees = strategy
+        .collect_withdraw_fees(owner(), base_token.contract_address, base_fees_exp);
+    let quote_fees = strategy
+        .collect_withdraw_fees(owner(), quote_token.contract_address, quote_fees_exp);
+
+    // Run checks.
+    assert(approx_eq_pct(base_amount, base_amount_exp, 20), 'Base amount');
+    assert(approx_eq_pct(quote_amount, quote_amount_exp, 20), 'Quote amount');
+    assert(approx_eq_pct(base_fees, base_fees_exp, 20), 'Base fees');
+    assert(approx_eq_pct(quote_fees, quote_fees_exp, 20), 'Quote fees');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::CollectWithdrawFee(
+                        ReplicatingStrategy::CollectWithdrawFee {
+                            receiver: owner(),
+                            token: base_token.contract_address,
+                            amount: base_fees,
+                        }
+                    )
+                ),
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::CollectWithdrawFee(
+                        ReplicatingStrategy::CollectWithdrawFee {
+                            receiver: owner(),
+                            token: quote_token.contract_address,
+                            amount: quote_fees,
+                        }
+                    )
+                )
+            ]
+        );
+}
+
+#[test]
+fn test_set_withdraw_fee() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
+    // Set withdraw fee.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let withdraw_fee_rate = 30;
+    strategy.set_withdraw_fee(market_id, withdraw_fee_rate);
+
+    // Run checks.
+    let fee_rate = strategy.withdraw_fee_rate(market_id);
+    assert(fee_rate == withdraw_fee_rate, 'Withdraw fee rate');
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::SetWithdrawFee(
+                        ReplicatingStrategy::SetWithdrawFee { market_id, fee_rate, }
+                    )
+                )
+            ]
+        );
+}
+
+
+#[test]
+#[should_panic(expected: ('FeeOF',))]
+fn test_set_withdraw_fee_overflow() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+
+    // Set withdraw fee.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let withdraw_fee_rate = 10001;
+    strategy.set_withdraw_fee(market_id, withdraw_fee_rate);
+}
+
+#[test]
+#[should_panic(expected: ('FeeUnchanged',))]
+fn test_set_withdraw_fee_unchanged() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+
+    // Set withdraw fee.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let withdraw_fee_rate = strategy.withdraw_fee_rate(market_id);
+    strategy.set_withdraw_fee(market_id, withdraw_fee_rate);
+}
+
+#[test]
+#[should_panic(expected: ('OnlyOwner',))]
+fn test_set_withdraw_fee_not_owner() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+
+    // Set withdraw fee.
+    start_prank(CheatTarget::One(strategy.contract_address), alice());
+    strategy.set_withdraw_fee(market_id, 50);
+}
+
+
+#[test]
 fn test_collect_and_pause() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
