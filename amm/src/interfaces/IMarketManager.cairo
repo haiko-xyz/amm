@@ -106,8 +106,25 @@ trait IMarketManager<TContractState> {
     // Get accumulated protocol fees for token.
     fn protocol_fees(self: @TContractState, asset: ContractAddress) -> u256;
 
-    // Snapshots base and quote token amounts accumulated inside position.
+    // Returns total amount of tokens, inclusive of fees, inside of a liquidity position.
+    // 
+    // # Arguments
+    // * `position_id` - position id
+    //
+    // # Returns
+    // * `base_amount` - amount of base tokens inside position, inclusive of fees
+    // * `quote_amount` - amount of quote tokens inside position, inclusive of fees
     fn amounts_inside_position(self: @TContractState, position_id: felt252,) -> (u256, u256);
+
+    // Returns accrued fees inside of a liquidity position.
+    // 
+    // # Arguments
+    // * `position_id` - position id
+    //
+    // # Returns
+    // * `base_fees` - amount of base tokens collected in fees
+    // * `quote_fees` - amount of quote tokens collected in fees
+    fn fees_inside_position(self: @TContractState, position_id: felt252,) -> (u256, u256);
 
     // Converts liquidity to base and quote token amounts.
     fn liquidity_to_amounts(

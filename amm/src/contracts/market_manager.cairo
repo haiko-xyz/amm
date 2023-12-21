@@ -486,12 +486,25 @@ mod MarketManager {
         // Returns total amount of tokens, inclusive of fees, inside of a liquidity position.
         // 
         // # Arguments
-        // * `market_id` - market id
-        // * `position_id` - position id (see `id` library)
-        // * `lower_limit` - lower limit of position
-        // * `upper_limit` - upper limit of position
+        // * `position_id` - position id
+        //
+        // # Returns
+        // * `base_amount` - amount of base tokens inside position, inclusive of fees
+        // * `quote_amount` - amount of quote tokens inside position, inclusive of fees
         fn amounts_inside_position(self: @ContractState, position_id: felt252,) -> (u256, u256) {
             liquidity_lib::amounts_inside_position(self, position_id)
+        }
+
+        // Returns accrued fees inside of a liquidity position.
+        // 
+        // # Arguments
+        // * `position_id` - position id
+        //
+        // # Returns
+        // * `base_fees` - amount of base tokens collected in fees
+        // * `quote_fees` - amount of quote tokens collected in fees
+        fn fees_inside_position(self: @ContractState, position_id: felt252,) -> (u256, u256) {
+            liquidity_lib::fees_inside_position(self, position_id)
         }
 
         // Returns the token amounts to be transferred for creating a liquidity position.
