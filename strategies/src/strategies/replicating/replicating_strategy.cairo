@@ -79,6 +79,10 @@ mod ReplicatingStrategy {
         total_deposits: LegacyMap::<felt252, u256>,
         // Indexed by (market_id: felt252, depositor: ContractAddress)
         user_deposits: LegacyMap::<(felt252, ContractAddress), u256>,
+        // Indexed by market_id
+        withdraw_fee_rate: LegacyMap::<felt252, u16>,
+        // Indexed by asset
+        withdraw_fees: LegacyMap::<ContractAddress, u256>,
     }
 
     ////////////////////////////////
@@ -95,6 +99,8 @@ mod ReplicatingStrategy {
         SetStrategyParams: SetStrategyParams,
         SetOracleParams: SetOracleParams,
         SetWhitelist: SetWhitelist,
+        CollectWithdrawFee: CollectWithdrawFee,
+        SetWithdrawFee: SetWithdrawFee,
         ChangeOwner: ChangeOwner,
         ChangeStrategyOwner: ChangeStrategyOwner,
         ChangeOracle: ChangeOracle,
@@ -104,12 +110,15 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct AddMarket {
+        #[key]
         market_id: felt252
     }
 
     #[derive(Drop, starknet::Event)]
     struct Deposit {
+        #[key]
         caller: ContractAddress,
+        #[key]
         market_id: felt252,
         base_amount: u256,
         quote_amount: u256,
@@ -117,7 +126,9 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct Withdraw {
+        #[key]
         caller: ContractAddress,
+        #[key]
         market_id: felt252,
         base_amount: u256,
         quote_amount: u256,
@@ -125,6 +136,7 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct UpdatePositions {
+        #[key]
         market_id: felt252,
         bid_lower_limit: u32,
         bid_upper_limit: u32,
@@ -136,6 +148,7 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct SetStrategyParams {
+        #[key]
         market_id: felt252,
         min_spread: u32,
         range: u32,
@@ -146,8 +159,11 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct SetOracleParams {
+        #[key]
         market_id: felt252,
+        #[key]
         base_currency_id: felt252,
+        #[key]
         quote_currency_id: felt252,
         min_sources: u32,
         max_age: u64,
@@ -155,8 +171,25 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct SetWhitelist {
+        #[key]
         user: ContractAddress,
         enable: bool,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct SetWithdrawFee {
+        #[key]
+        market_id: felt252,
+        fee_rate: u16,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct CollectWithdrawFee {
+        #[key]
+        receiver: ContractAddress,
+        #[key]
+        token: ContractAddress,
+        amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -173,6 +206,7 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct ChangeStrategyOwner {
+        #[key]
         market_id: felt252,
         old: ContractAddress,
         new: ContractAddress
@@ -180,11 +214,13 @@ mod ReplicatingStrategy {
 
     #[derive(Drop, starknet::Event)]
     struct Pause {
+        #[key]
         market_id: felt252,
     }
 
     #[derive(Drop, starknet::Event)]
     struct Unpause {
+        #[key]
         market_id: felt252,
     }
 
@@ -419,12 +455,12 @@ mod ReplicatingStrategy {
             self.queued_strategy_owner.read(market_id)
         }
 
-        // Strategy parameters
+        // Strategy parameters for a given market
         fn strategy_params(self: @ContractState, market_id: felt252) -> StrategyParams {
             self.strategy_params.read(market_id)
         }
 
-        // Oracle parameters
+        // Oracle parameters for a given market
         fn oracle_params(self: @ContractState, market_id: felt252) -> OracleParams {
             self.oracle_params.read(market_id)
         }
@@ -434,27 +470,27 @@ mod ReplicatingStrategy {
             self.strategy_state.read(market_id)
         }
 
-        // Whether strategy is paused
+        // Whether strategy is paused for a given market
         fn is_paused(self: @ContractState, market_id: felt252) -> bool {
             self.strategy_state.read(market_id).is_paused
         }
 
-        // Contract address of oracle feed.
+        // Pragma oracle contract address
         fn oracle(self: @ContractState) -> ContractAddress {
             self.oracle.read().contract_address
         }
 
-        // Contract address of oracle summary contract.
+        // Pragma oracle summary contract address
         fn oracle_summary(self: @ContractState) -> ContractAddress {
             self.oracle_summary.read().contract_address
         }
 
-        // Bid position of strategy
+        // Placed bid position for a given market
         fn bid(self: @ContractState, market_id: felt252) -> PositionInfo {
             self.strategy_state.read(market_id).bid
         }
 
-        // Ask position of strategy
+        // Placed ask position for a given market
         fn ask(self: @ContractState, market_id: felt252) -> PositionInfo {
             self.strategy_state.read(market_id).ask
         }
@@ -469,19 +505,29 @@ mod ReplicatingStrategy {
             self.strategy_state.read(market_id).quote_reserves
         }
 
-        // Whether user is whitelisted to deposit in strategy market
+        // Whether a user is whitelisted to deposit to the strategy contract
         fn is_whitelisted(self: @ContractState, user: ContractAddress) -> bool {
             self.whitelist.read(user)
         }
 
-        // Get user deposits for a given market.
+        // GUser's deposited shares in a given market
         fn user_deposits(self: @ContractState, market_id: felt252, owner: ContractAddress) -> u256 {
             self.user_deposits.read((market_id, owner))
         }
 
-        // Get total deposits for a given market.
+        // Total deposited shares for a given market
         fn total_deposits(self: @ContractState, market_id: felt252) -> u256 {
             self.total_deposits.read(market_id)
+        }
+
+        // Withdraw fee rate for a given market
+        fn withdraw_fee_rate(self: @ContractState, market_id: felt252) -> u16 {
+            self.withdraw_fee_rate.read(market_id)
+        }
+
+        // Accumulated withdraw fee balance for a given asset
+        fn withdraw_fees(self: @ContractState, token: ContractAddress) -> u256 {
+            self.withdraw_fees.read(token)
         }
 
         // Get price from oracle feed.
@@ -575,7 +621,7 @@ mod ReplicatingStrategy {
             (base_amount, quote_amount)
         }
 
-        // Calculate new optimal positions.
+        // Calculate next optimal bid and ask positions.
         // 
         // Given reference price R: 
         // - Bid range position will be placed from P - R - Db to B - Db
@@ -715,7 +761,11 @@ mod ReplicatingStrategy {
                 );
         }
 
-        // Deposit initial liquidity to strategy and place first positions.
+        // Deposit initial liquidity to strategy and place positions.
+        // Should be used whenever total deposits in a strategy are zero. This can happen both
+        // when a strategy is first initialised, or subsequently whenever all deposits are withdrawn.
+        // The deposited amounts will constitute the starting reserves of the strategy, so initial
+        // base and quote deposits should be balanced in value to avoid portfolio skew.
         //
         // # Arguments
         // * `market_id` - market id
@@ -788,6 +838,7 @@ mod ReplicatingStrategy {
         // Deposit liquidity to strategy.
         //
         // # Arguments
+        // * `market_id` - market id
         // * `base_amount` - base asset desired
         // * `quote_amount` - quote asset desired
         //
@@ -879,6 +930,7 @@ mod ReplicatingStrategy {
         // Burn pool shares and withdraw funds from strategy.
         //
         // # Arguments
+        // * `market_id` - market id
         // * `shares` - pool shares to burn
         //
         // # Returns
@@ -950,6 +1002,34 @@ mod ReplicatingStrategy {
             self.user_deposits.write((market_id, caller), user_deposits - shares);
             self.total_deposits.write(market_id, total_deposits - shares);
 
+            // Deduct withdrawal fee.
+            let fee_rate = self.withdraw_fee_rate.read(market_id);
+            if fee_rate != 0 {
+                let base_withdraw_fees = fee_math::calc_fee(base_withdraw, fee_rate);
+                let quote_withdraw_fees = fee_math::calc_fee(quote_withdraw, fee_rate);
+                base_withdraw -= base_withdraw_fees;
+                quote_withdraw -= quote_withdraw_fees;
+                state.base_reserves += base_withdraw_fees;
+                state.quote_reserves += quote_withdraw_fees;
+
+                // Update fee balance.
+                if base_withdraw_fees != 0 {
+                    let base_fees = self.withdraw_fees.read(market_info.base_token);
+                    self
+                        .withdraw_fees
+                        .write(market_info.base_token, base_fees + base_withdraw_fees);
+                }
+                if quote_withdraw_fees != 0 {
+                    let quote_fees = self.withdraw_fees.read(market_info.quote_token);
+                    self
+                        .withdraw_fees
+                        .write(market_info.quote_token, quote_fees + quote_withdraw_fees);
+                }
+            }
+
+            // Update reserves.
+            self.strategy_state.write(market_id, state);
+
             // Transfer tokens to caller.
             let contract = get_contract_address();
             if base_withdraw != 0 {
@@ -960,9 +1040,6 @@ mod ReplicatingStrategy {
                 let quote_token = IERC20Dispatcher { contract_address: market_info.quote_token };
                 quote_token.transfer(caller, quote_withdraw);
             }
-
-            // Commit state updates.
-            self.strategy_state.write(market_id, state);
 
             // Emit event.
             self
@@ -988,13 +1065,46 @@ mod ReplicatingStrategy {
             self._collect_and_pause(market_id);
         }
 
-        // Change the parameters of the strategy.
+        // Collect withdrawal fees.
+        // Only callable by contract owner.
         //
         // # Arguments
-        // * `min_spread` - minimum spread between reference price and bid/ask price
-        // * `range` - range parameter (width, in limits, of bid and ask liquidity positions)
-        // * `max_delta` - max inv_delta parameter (additional single-sided spread based on portfolio imbalance)
-        // * `allow_deposits` - whether deposits are allowed for depositors other than the strategy owner
+        // * `receiver` - address to receive fees
+        // * `token` - token to collect fees for
+        // * `amount` - amount of fees requested
+        fn collect_withdraw_fees(
+            ref self: ContractState, receiver: ContractAddress, token: ContractAddress, amount: u256
+        ) -> u256 {
+            // Run checks.
+            self.assert_owner();
+            let mut fees = self.withdraw_fees.read(token);
+            assert(fees >= amount, 'InsuffFees');
+
+            // Update fee balance.
+            fees -= amount;
+            self.withdraw_fees.write(token, fees);
+
+            // Transfer fees to caller.
+            let dispatcher = IERC20Dispatcher { contract_address: token };
+            dispatcher.transfer(get_caller_address(), amount);
+
+            // Emit event.
+            self.emit(Event::CollectWithdrawFee(CollectWithdrawFee { receiver, token, amount }));
+
+            // Return amount collected.
+            amount
+        }
+
+        // Change the parameters of the strategy.
+        // Only callable by strategy owner.
+        //
+        // # Params
+        // * `market_id` - market id
+        // * `params` - strategy params
+        //    * `min_spread` - minimum spread between reference price and bid/ask price
+        //    * `range` - range parameter (width, in limits, of bid and ask liquidity positions)
+        //    * `max_delta` - max inv_delta parameter (additional single-sided spread based on portfolio imbalance)
+        //    * `allow_deposits` - whether deposits are allowed for depositors other than the strategy owner
         fn set_params(ref self: ContractState, market_id: felt252, params: StrategyParams) {
             self.assert_strategy_owner(market_id);
             let market_manager = self.market_manager.read();
@@ -1018,6 +1128,21 @@ mod ReplicatingStrategy {
                 );
         }
 
+        // Set withdraw fee for a given market.
+        // Only callable by contract owner.
+        //
+        // # Arguments
+        // * `market_id` - market id
+        // * `fee_rate` - fee rate
+        fn set_withdraw_fee(ref self: ContractState, market_id: felt252, fee_rate: u16) {
+            self.assert_owner();
+            let old_fee_rate = self.withdraw_fee_rate.read(market_id);
+            assert(old_fee_rate != fee_rate, 'FeeUnchanged');
+            assert(fee_rate <= fee_math::MAX_FEE_RATE, 'FeeOF');
+            self.withdraw_fee_rate.write(market_id, fee_rate);
+            self.emit(Event::SetWithdrawFee(SetWithdrawFee { market_id, fee_rate }));
+        }
+
         // Update whitelist for user deposits.
         // Only callable by owner.
         //
@@ -1035,10 +1160,11 @@ mod ReplicatingStrategy {
             self.emit(Event::SetWhitelist(SetWhitelist { user, enable }));
         }
 
-        // Change the oracle or oracle summary contracts.
+        // Change the oracle or oracle summary contract addresses.
         //
         // # Arguments
         // * `oracle` - contract address of oracle feed
+        // * `oracle_summary` - contract address of oracle summary
         fn change_oracle(
             ref self: ContractState, oracle: ContractAddress, oracle_summary: ContractAddress
         ) {
@@ -1086,6 +1212,7 @@ mod ReplicatingStrategy {
         // Part 1 of 2 step process to transfer ownership.
         //
         // # Arguments
+        // * `market_id` - market id of strategy
         // * `new_owner` - New owner of the contract
         fn transfer_strategy_owner(
             ref self: ContractState, market_id: felt252, new_owner: ContractAddress
@@ -1098,6 +1225,9 @@ mod ReplicatingStrategy {
 
         // Called by new owner to accept ownership of a strategy.
         // Part 2 of 2 step process to transfer ownership.
+        //
+        // # Arguments
+        // * `market_id` - market id of strategy
         fn accept_strategy_owner(ref self: ContractState, market_id: felt252) {
             let queued_owner = self.queued_strategy_owner.read(market_id);
             assert(get_caller_address() == queued_owner, 'OnlyNewOwner');
@@ -1112,7 +1242,11 @@ mod ReplicatingStrategy {
                 );
         }
 
-        // Pause strategy.
+        // Pause strategy. 
+        // Only callable by strategy owner. 
+        // 
+        // # Arguments
+        // * `market_id` - market id of strategy
         fn pause(ref self: ContractState, market_id: felt252) {
             self.assert_strategy_owner(market_id);
             let mut state = self.strategy_state.read(market_id);
@@ -1123,6 +1257,10 @@ mod ReplicatingStrategy {
         }
 
         // Unpause strategy.
+        // Only callable by strategy owner.
+        //
+        // # Arguments
+        // * `market_id` - market id of strategy
         fn unpause(ref self: ContractState, market_id: felt252) {
             self.assert_strategy_owner(market_id);
             let mut state = self.strategy_state.read(market_id);
@@ -1132,11 +1270,11 @@ mod ReplicatingStrategy {
             self.emit(Event::Unpause(Unpause { market_id }));
         }
 
-        // Temporary function to allow upgrading while deployed on testnet.
-        // Callable by owner only.
+        // Upgrade contract to new version.
+        // Only callable by contract owner.
         //
         // # Arguments
-        // # `new_class_hash` - New class hash of the contract
+        // # `new_class_hash` - new class hash of upgraded contract
         fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
             self.assert_owner();
             replace_class_syscall(new_class_hash);

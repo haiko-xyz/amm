@@ -20,7 +20,7 @@ use amm::types::core::PositionInfo;
 
 #[derive(Drop, Copy, Serde, PartialEq, starknet::Store)]
 struct StrategyParams {
-    // default spread between reference price and bid/ask price (TODO: replace with volatility)
+    // default spread between reference price and bid/ask price
     min_spread: u32,
     // range parameter (width, in limits, of bid and ask liquidity positions)
     range: u32,
