@@ -189,8 +189,10 @@ fn test_order_id() {
 // ID GENERATORS
 ////////////////////////////////
 
+// #[test]
+// #[available_gas(1000000000)]
 // Used to quickly generate IDs, not for testing.
-fn position_id() {
+fn position_id_generator() {
     let market_id = 0x5027d547580851650aebe16b71643a1885e0b5b7eb7f16cd2439ae2f729a512;
     let owner = 0x1fdb6ce2bb27420c779b59c4329c13d23f224b6bc30359c392e0e0b3f358e27;
     let lower_limit = 7906625 + 732660;
@@ -200,20 +202,25 @@ fn position_id() {
     assert(true, id);
 }
 
-fn market_id() {
+// #[test]
+// #[available_gas(1000000000)]
+fn market_id_generator() {
     let base_token = contract_address_const::<
         0x041b47f933fcfdb696521b89a704a3662c5aa446ed8a29b352fb6fa9a748a8a3
     >();
     let quote_token = contract_address_const::<
         0x072b09174080f7d1f158b26f1c6639964f4c8568bd5bc1fc3580b3047e500e99
     >();
+    let strategy = contract_address_const::<
+        0x42382d318c5a094cbeccb5e5ae4594dffdbe235708c527a370327a1cde808e
+    >();
 
     let market_info = MarketInfo {
         base_token,
         quote_token,
-        width: 1,
-        strategy: contract_address_const::<0x0>(),
-        swap_fee_rate: 1,
+        width: 10,
+        strategy,
+        swap_fee_rate: 5,
         fee_controller: contract_address_const::<0x0>(),
         controller: contract_address_const::<0x0>(),
     };
