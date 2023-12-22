@@ -184,8 +184,6 @@ fn update_limit(
     limit_info
 }
 
-use debug::PrintTrait;
-
 // Get token amounts inside a position.
 //
 // # Arguments
