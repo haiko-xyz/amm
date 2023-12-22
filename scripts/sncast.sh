@@ -6,7 +6,8 @@ export OWNER=0x2afc579c1a02e4e36b2717bb664bee705d749d581e150d1dd16311e3b3bb057
 export STARKNET_KEYSTORE=~/.starkli-wallets/deployer/testnet_deployer_keystore.json
 # export STARKNET_ACCOUNT_OLD=~/.starkli-wallets/deployer/testnet_deployer_account_starkli.json
 export STARKNET_ACCOUNT=~/.starkli-wallets/deployer/testnet_deployer_account_starkli_2.json
-export PRAGMA_ORACLE=0x620a609f88f612eb5773a6f4084f7b33be06a6fed7943445aebce80d6a146ba
+export ORACLE=0x06df335982dddce41008e4c03f2546fa27276567b5274c7d0c1262f3c2b5d167
+export ORACLE_SUMMARY=0x6421fdd068d0dc56b7f5edc956833ca0ba66b2d5f9a8fea40932f226668b5c4
 
 # Declare contract classes
 # MarketManager
