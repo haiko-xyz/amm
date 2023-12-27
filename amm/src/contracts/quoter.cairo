@@ -13,7 +13,9 @@ mod Quoter {
     use starknet::class_hash::ClassHash;
 
     // Local imports.
-    use amm::interfaces::IQuoter::IQuoter;
+    use amm::interfaces::{
+        IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait}, IQuoter::IQuoter
+    };
 
     ////////////////////////////////
     // STORAGE
@@ -107,6 +109,10 @@ mod Quoter {
         }
 
         // Obtain quotes for a list of swaps.
+        // Caution: this function returns correct quotes only so long as the strategy correctly
+        // reports its queued and placed positions. This function is intended for use by on-chain
+        // callers that cannot retrieve `quote` via error message. Alternatively, it can be used 
+        // to obtain guaranteed correct quotes for non-strategy markets.
         //
         // # Arguments
         // * `market_ids` - list of market ids
@@ -116,7 +122,7 @@ mod Quoter {
         //
         // # Returns
         // * `amounts` - list of quoted amounts
-        fn quote_array(
+        fn unsafe_quote_array(
             self: @ContractState,
             market_ids: Span<felt252>,
             is_buy: bool,
@@ -129,7 +135,14 @@ mod Quoter {
                 if i == market_ids.len() {
                     break;
                 }
-                quotes.append(self.quote(*market_ids.at(i), is_buy, amount, exact_input,));
+                let dispatcher = IMarketManagerDispatcher {
+                    contract_address: self.market_manager.read()
+                };
+                quotes
+                    .append(
+                        dispatcher
+                            .unsafe_quote(*market_ids.at(i), is_buy, amount, exact_input, false)
+                    );
                 i += 1;
             };
             quotes.span()
@@ -192,6 +205,10 @@ mod Quoter {
         }
 
         // Obtain quotes for a list of multi-market swaps.
+        // Caution: this function returns correct quotes only so long as the strategy correctly
+        // reports its queued and placed positions. This function is intended for use by on-chain
+        // callers that cannot retrieve `quote` via error message. Alternatively, it can be used 
+        // to obtain guaranteed correct quotes for non-strategy markets.
         //
         // # Arguments
         // * `in_token` - in token address
@@ -202,7 +219,7 @@ mod Quoter {
         //
         // # Returns
         // * `amounts` - list of quoted amounts
-        fn quote_multiple_array(
+        fn unsafe_quote_multiple_array(
             self: @ContractState,
             in_token: ContractAddress,
             out_token: ContractAddress,
@@ -224,7 +241,11 @@ mod Quoter {
                 }
                 route.append(*routes.at(i));
                 if i == route_end {
-                    let quote = self.quote_multiple(in_token, out_token, amount, route.span(),);
+                    let dispatcher = IMarketManagerDispatcher {
+                        contract_address: self.market_manager.read()
+                    };
+                    let quote = dispatcher
+                        .unsafe_quote_multiple(in_token, out_token, amount, route.span(), false);
                     quotes.append(quote);
                     // Move to next quote and reset array.
                     if j != route_lens.len() - 1 {

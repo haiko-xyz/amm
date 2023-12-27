@@ -161,7 +161,7 @@ fn test_quote_multiple_array() {
     let route_lens: Span<u8> = array![2, 2, 2].span();
     let amount = to_e18(1);
     let quotes = quoter
-        .quote_multiple_array(
+        .unsafe_quote_multiple_array(
             eth.contract_address, btc.contract_address, amount, routes, route_lens
         );
 

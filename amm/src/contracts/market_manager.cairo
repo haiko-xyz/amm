@@ -1184,7 +1184,6 @@ mod MarketManager {
         // * `is_buy` - whether swap is a buy or sell
         // * `amount` - amount of tokens to swap
         // * `exact_input` - true if `amount` is exact input, or false if exact output
-        // * `threshold_sqrt_price` - maximum sqrt price to swap at for buys, minimum for sells
         // * `ignore_strategy` - whether to ignore strategy positions when fetching quote
         //
         // # Returns
@@ -1195,7 +1194,6 @@ mod MarketManager {
             is_buy: bool,
             amount: u256,
             exact_input: bool,
-            threshold_sqrt_price: Option<u256>,
             ignore_strategy: bool,
         ) -> u256 {
             // Fetch market info and state.
@@ -1209,11 +1207,6 @@ mod MarketManager {
             }
             assert(market_info.width != 0, 'MarketNull');
             assert(amount > 0, 'AmtZero');
-            if threshold_sqrt_price.is_some() {
-                price_lib::check_threshold(
-                    threshold_sqrt_price.unwrap(), market_state.curr_sqrt_price, is_buy
-                );
-            }
 
             // Fetch strategy positions and simulate updates.
             // To account for queued position updates, we update in-memory market liquidity by 
@@ -1258,7 +1251,7 @@ mod MarketManager {
                 ref amount_calc,
                 ref queued_deltas,
                 target_limits.span(),
-                threshold_sqrt_price,
+                Option::None(()),
                 fee_rate,
                 market_info.width,
                 is_buy,
@@ -1316,9 +1309,7 @@ mod MarketManager {
 
                 // Execute swap and update values.
                 let amount_out_iter = self
-                    .unsafe_quote(
-                        market_id, is_buy_iter, amount_out, true, Option::None(()), ignore_strategy,
-                    );
+                    .unsafe_quote(market_id, is_buy_iter, amount_out, true, ignore_strategy,);
                 amount_out = amount_out_iter;
                 in_token_iter =
                     if is_buy_iter {
