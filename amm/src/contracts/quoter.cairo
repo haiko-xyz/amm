@@ -73,11 +73,7 @@ mod Quoter {
         // # Returns
         // * `amount` - quoted amount out if exact input, quoted amount in if exact output
         fn quote(
-            self: @ContractState,
-            market_id: felt252,
-            is_buy: bool,
-            amount: u256,
-            exact_input: bool,
+            self: @ContractState, market_id: felt252, is_buy: bool, amount: u256, exact_input: bool,
         ) -> u256 {
             // Compile calldata.
             let mut calldata = array![];
@@ -133,12 +129,7 @@ mod Quoter {
                 if i == market_ids.len() {
                     break;
                 }
-                quotes.append(self.quote(
-                    *market_ids.at(i),
-                    is_buy,
-                    amount,
-                    exact_input,
-                ));
+                quotes.append(self.quote(*market_ids.at(i), is_buy, amount, exact_input,));
                 i += 1;
             };
             quotes.span()
@@ -233,12 +224,7 @@ mod Quoter {
                 }
                 route.append(*routes.at(i));
                 if i == route_end {
-                    let quote = self.quote_multiple(
-                        in_token,
-                        out_token,
-                        amount,
-                        route.span(),
-                    );
+                    let quote = self.quote_multiple(in_token, out_token, amount, route.span(),);
                     quotes.append(quote);
                     // Move to next quote and reset array.
                     if j != route_lens.len() - 1 {

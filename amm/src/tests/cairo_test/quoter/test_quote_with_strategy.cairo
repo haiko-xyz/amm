@@ -203,12 +203,7 @@ fn test_quote_with_strategy() {
         // Obtain quote.
         set_contract_address(alice());
         let quote = quoter
-            .quote(
-                market_id,
-                swap_case.is_buy,
-                swap_case.amount,
-                swap_case.exact_input,
-            );
+            .quote(market_id, swap_case.is_buy, swap_case.amount, swap_case.exact_input,);
 
         // Execute swap.
         let mut params = swap_params(

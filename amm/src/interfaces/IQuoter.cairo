@@ -7,11 +7,7 @@ trait IQuoter<TContractState> {
     fn market_manager(self: @TContractState) -> ContractAddress;
 
     fn quote(
-        self: @TContractState,
-        market_id: felt252,
-        is_buy: bool,
-        amount: u256,
-        exact_input: bool,
+        self: @TContractState, market_id: felt252, is_buy: bool, amount: u256, exact_input: bool,
     ) -> u256;
 
     fn quote_array(

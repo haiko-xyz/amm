@@ -65,46 +65,11 @@ fn before() -> (
 fn swap_test_cases() -> Array<SwapCase> {
     let mut cases = ArrayTrait::<SwapCase>::new();
 
-    cases
-        .append(
-            SwapCase {
-                is_buy: false,
-                exact_input: true,
-                amount: to_e18(1),
-            }
-        );
-    cases
-        .append(
-            SwapCase {
-                is_buy: true,
-                exact_input: true,
-                amount: to_e18(1),
-            }
-        );
-    cases
-        .append(
-            SwapCase {
-                is_buy: false,
-                exact_input: false,
-                amount: to_e18(1),
-            }
-        );
-    cases
-        .append(
-            SwapCase {
-                is_buy: true,
-                exact_input: false,
-                amount: to_e18(1),
-            }
-        );
-    cases
-        .append(
-            SwapCase {
-                is_buy: true,
-                exact_input: true,
-                amount: to_e18(1),
-            }
-        );
+    cases.append(SwapCase { is_buy: false, exact_input: true, amount: to_e18(1), });
+    cases.append(SwapCase { is_buy: true, exact_input: true, amount: to_e18(1), });
+    cases.append(SwapCase { is_buy: false, exact_input: false, amount: to_e18(1), });
+    cases.append(SwapCase { is_buy: true, exact_input: false, amount: to_e18(1), });
+    cases.append(SwapCase { is_buy: true, exact_input: true, amount: to_e18(1), });
 
     cases
 }
@@ -149,12 +114,7 @@ fn test_quote_cases() {
 
         // Obtain quote.
         let quote = quoter
-            .quote(
-                market_id,
-                swap_case.is_buy,
-                swap_case.amount,
-                swap_case.exact_input,
-            );
+            .quote(market_id, swap_case.is_buy, swap_case.amount, swap_case.exact_input,);
 
         // Execute swap.
         let mut params = swap_params(

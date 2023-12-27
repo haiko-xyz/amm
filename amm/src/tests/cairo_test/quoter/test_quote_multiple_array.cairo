@@ -150,22 +150,19 @@ fn test_quote_multiple_array() {
 
     // Fetch quotes for ETH -> BTC swap.
     let routes = array![
-        eth_usdc_market_id, 
+        eth_usdc_market_id,
         btc_usdc_market_id,
-        eth_usdt_market_id, 
+        eth_usdt_market_id,
         btc_usdt_market_id,
-        eth_dai_market_id, 
+        eth_dai_market_id,
         btc_dai_market_id,
-    ].span();
+    ]
+        .span();
     let route_lens: Span<u8> = array![2, 2, 2].span();
     let amount = to_e18(1);
     let quotes = quoter
         .quote_multiple_array(
-            eth.contract_address,
-            btc.contract_address,
-            amount,
-            routes,
-            route_lens
+            eth.contract_address, btc.contract_address, amount, routes, route_lens
         );
 
     // Swap ETH for BTC and check amounts out.
@@ -180,7 +177,7 @@ fn test_quote_multiple_array() {
             eth.contract_address,
             btc.contract_address,
             amount,
-            array![*routes.at((i+1)*2-2), *routes.at((i+1)*2-1)].span(),
+            array![*routes.at((i + 1) * 2 - 2), *routes.at((i + 1) * 2 - 1)].span(),
             Option::None(()),
             Option::None(()),
         );
@@ -190,5 +187,4 @@ fn test_quote_multiple_array() {
         assert(amount_out == quote, 'Quote multiple: amount out');
         i += 1;
     };
-
 }

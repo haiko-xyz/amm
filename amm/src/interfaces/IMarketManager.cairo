@@ -295,11 +295,7 @@ trait IMarketManager<TContractState> {
     // # Returns (as panic message)
     // * `amount` - amount out (if exact input) or amount in (if exact output)
     fn quote(
-        ref self: TContractState,
-        market_id: felt252,
-        is_buy: bool,
-        amount: u256,
-        exact_input: bool,
+        ref self: TContractState, market_id: felt252, is_buy: bool, amount: u256, exact_input: bool,
     );
 
     // Obtain quote for a swap across multiple markets in a multi-hop route.
