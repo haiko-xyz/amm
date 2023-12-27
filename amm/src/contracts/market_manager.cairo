@@ -1116,7 +1116,6 @@ mod MarketManager {
         // * `is_buy` - whether swap is a buy or sell
         // * `amount` - amount of tokens to swap
         // * `exact_input` - true if `amount` is exact input, or false if exact output
-        // * `threshold_sqrt_price` - maximum sqrt price to swap at for buys, minimum for sells
         // 
         // # Returns (as panic message)
         // * `amount` - amount out (if exact input) or amount in (if exact output)
@@ -1126,7 +1125,6 @@ mod MarketManager {
             is_buy: bool,
             amount: u256,
             exact_input: bool,
-            threshold_sqrt_price: Option<u256>,
         ) {
             let (amount_in, amount_out, _) = self
                 ._swap(
@@ -1134,7 +1132,7 @@ mod MarketManager {
                     is_buy,
                     amount,
                     exact_input,
-                    threshold_sqrt_price,
+                    Option::None(()),
                     Option::None(()),
                     1, // mock swap id - unused
                     Option::None(()),

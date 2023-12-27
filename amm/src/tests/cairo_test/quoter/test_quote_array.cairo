@@ -20,17 +20,6 @@ use amm::tests::common::utils::{to_e18, to_e18_u128, to_e28, encode_sqrt_price};
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
-// TYPES
-////////////////////////////////
-
-#[derive(Drop, Copy)]
-struct SwapCase {
-    is_buy: bool,
-    exact_input: bool,
-    amount: u256,
-}
-
-////////////////////////////////
 // SETUP
 ////////////////////////////////
 
@@ -62,81 +51,78 @@ fn before() -> (
     (market_manager, base_token, quote_token, quoter)
 }
 
-fn swap_test_cases() -> Array<SwapCase> {
-    let mut cases = ArrayTrait::<SwapCase>::new();
-
-    cases.append(SwapCase { is_buy: false, exact_input: true, amount: to_e18(1), });
-    cases.append(SwapCase { is_buy: true, exact_input: true, amount: to_e18(1), });
-    cases.append(SwapCase { is_buy: false, exact_input: false, amount: to_e18(1), });
-    cases.append(SwapCase { is_buy: true, exact_input: false, amount: to_e18(1), });
-    cases.append(SwapCase { is_buy: true, exact_input: true, amount: to_e18(1), });
-
-    cases
-}
-
 ////////////////////////////////
 // TESTS
 ////////////////////////////////
 
 #[test]
 #[available_gas(15000000000)]
-fn test_quote_cases() {
+fn test_quote_array() {
     let (market_manager, base_token, quote_token, quoter) = before();
 
-    // Create the market.
+    // Create market 1.
     let mut params = default_market_params();
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
-    let market_id = create_market(market_manager, params);
+    let market_id_1 = create_market(market_manager, params);
 
-    // Mint positions.
+    // Create market 2.
+    params.width = 5;
+    let market_id_2 = create_market(market_manager, params);
+
+    // Create market 3.
+    params.width = 10;
+    let market_id_3 = create_market(market_manager, params);
+
+    // Mint position for market 1.
     set_contract_address(alice());
     let mut params = modify_position_params(
         alice(),
-        market_id,
-        OFFSET + 749000,
-        OFFSET + 750000,
+        market_id_1,
+        7906620 + 749000,
+        7906620 + 750000,
         I128Trait::new(to_e18_u128(100000), false),
     );
     modify_position(market_manager, params);
 
-    // Iterate through swap test cases.
+    // Mint position for market 2.
+    params.market_id = market_id_2;
+    params.liquidity_delta = I128Trait::new(to_e18_u128(75000), false);
+    modify_position(market_manager, params);
+
+    params.market_id = market_id_3;
+    params.liquidity_delta = I128Trait::new(to_e18_u128(40000), false);
+    modify_position(market_manager, params);
+
+    // Obtain quotes.
     set_contract_address(alice());
-    let swap_cases = swap_test_cases();
-    let mut swap_index = 0;
+    let market_ids = array![market_id_1, market_id_2, market_id_3].span();
+    let is_buy = true;
+    let amount = to_e18(1);
+    let exact_input = true;
+    let quotes = quoter.quote_array(market_ids, is_buy, amount, exact_input);
+
+    // Execute swaps and check quote is correct.
+    let mut i = 0;
     loop {
-        if swap_index >= swap_cases.len() {
-            break ();
+        if i == market_ids.len() {
+            break;
         }
-
-        // Fetch swap test case.
-        let swap_case: SwapCase = *swap_cases[swap_index];
-
-        // Obtain quote.
-        let quote = quoter
-            .quote(market_id, swap_case.is_buy, swap_case.amount, swap_case.exact_input,);
-
-        // Execute swap.
-        let mut params = swap_params(
+        let params = swap_params(
             alice(),
-            market_id,
-            swap_case.is_buy,
-            swap_case.exact_input,
-            swap_case.amount,
+            *market_ids.at(i),
+            is_buy,
+            exact_input,
+            amount,
             Option::None(()),
             Option::None(()),
             Option::None(()),
         );
-        let (amount_in, amount_out, _) = swap(market_manager, params);
-        let amount = if swap_case.exact_input {
-            amount_out
-        } else {
-            amount_in
-        };
+        let (_, amount_out, _) = swap(market_manager, params);
 
-        // Check that the quote is correct.
-        assert(quote == amount, 'Incorrect quote: Case 1' + swap_index.into());
-
-        swap_index += 1;
+        // Check swap amount matches quote.
+        let quote = *quotes.at(i);
+        assert(quote == amount_out, 'Quote array: Case 1' + i.into());
+        i += 1;
     };
 }
