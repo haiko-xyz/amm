@@ -100,7 +100,7 @@ fn test_quote_array() {
     let is_buy = true;
     let amount = to_e18(1);
     let exact_input = true;
-    let quotes = quoter.quote_array(market_ids, is_buy, amount, exact_input);
+    let quotes = quoter.unsafe_quote_array(market_ids, is_buy, amount, exact_input);
 
     // Execute swaps and check quote is correct.
     let mut i = 0;

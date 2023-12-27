@@ -10,7 +10,7 @@ trait IQuoter<TContractState> {
         self: @TContractState, market_id: felt252, is_buy: bool, amount: u256, exact_input: bool,
     ) -> u256;
 
-    fn quote_array(
+    fn unsafe_quote_array(
         self: @TContractState,
         market_ids: Span<felt252>,
         is_buy: bool,
@@ -26,7 +26,7 @@ trait IQuoter<TContractState> {
         route: Span<felt252>,
     ) -> u256;
 
-    fn quote_multiple_array(
+    fn unsafe_quote_multiple_array(
         self: @TContractState,
         in_token: ContractAddress,
         out_token: ContractAddress,

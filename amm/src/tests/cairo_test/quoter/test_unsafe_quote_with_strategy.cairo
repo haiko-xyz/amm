@@ -32,7 +32,6 @@ struct SwapCase {
     is_buy: bool,
     exact_input: bool,
     amount: u256,
-    threshold_sqrt_price: Option<u256>,
     bid_lower: u32,
     bid_upper: u32,
     ask_lower: u32,
@@ -104,7 +103,6 @@ fn swap_test_cases() -> Array<SwapCase> {
                 is_buy: false,
                 exact_input: true,
                 amount: to_e18(1),
-                threshold_sqrt_price: Option::None(()),
                 bid_lower: OFFSET - 200,
                 bid_upper: OFFSET - 100,
                 ask_lower: OFFSET + 100,
@@ -117,7 +115,6 @@ fn swap_test_cases() -> Array<SwapCase> {
                 is_buy: true,
                 exact_input: false,
                 amount: to_e18(1),
-                threshold_sqrt_price: Option::Some(to_e28(5) / 4),
                 bid_lower: OFFSET - MIN_LIMIT,
                 bid_upper: OFFSET - 1,
                 ask_lower: OFFSET + 1,
@@ -130,7 +127,6 @@ fn swap_test_cases() -> Array<SwapCase> {
                 is_buy: false,
                 exact_input: true,
                 amount: to_e18(1),
-                threshold_sqrt_price: Option::Some(to_e28(4) / 5),
                 bid_lower: OFFSET - 1000,
                 bid_upper: OFFSET - 900,
                 ask_lower: OFFSET + 900,
@@ -143,7 +139,6 @@ fn swap_test_cases() -> Array<SwapCase> {
                 is_buy: true,
                 exact_input: true,
                 amount: to_e18(1),
-                threshold_sqrt_price: Option::Some(to_e28(5) / 4),
                 bid_lower: OFFSET - MIN_LIMIT,
                 bid_upper: OFFSET - 1,
                 ask_lower: OFFSET + 1,
@@ -156,7 +151,6 @@ fn swap_test_cases() -> Array<SwapCase> {
                 is_buy: false,
                 exact_input: false,
                 amount: to_e18(1),
-                threshold_sqrt_price: Option::Some(to_e28(4) / 5),
                 bid_lower: OFFSET - 500,
                 bid_upper: OFFSET - 1,
                 ask_lower: OFFSET + 10,
@@ -204,12 +198,7 @@ fn test_unsafe_quote_with_strategy() {
         set_contract_address(alice());
         let quote = market_manager
             .unsafe_quote(
-                market_id,
-                swap_case.is_buy,
-                swap_case.amount,
-                swap_case.exact_input,
-                swap_case.threshold_sqrt_price,
-                false
+                market_id, swap_case.is_buy, swap_case.amount, swap_case.exact_input, false
             );
 
         // Execute swap.
@@ -219,7 +208,7 @@ fn test_unsafe_quote_with_strategy() {
             swap_case.is_buy,
             swap_case.exact_input,
             swap_case.amount,
-            swap_case.threshold_sqrt_price,
+            Option::None(()),
             Option::None(()),
             Option::None(()),
         );

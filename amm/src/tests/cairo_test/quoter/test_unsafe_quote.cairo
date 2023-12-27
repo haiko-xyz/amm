@@ -27,7 +27,6 @@ struct SwapCase {
     is_buy: bool,
     exact_input: bool,
     amount: u256,
-    threshold_sqrt_price: Option<u256>,
 }
 
 ////////////////////////////////
@@ -60,51 +59,11 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 fn swap_test_cases() -> Array<SwapCase> {
     let mut cases = ArrayTrait::<SwapCase>::new();
 
-    cases
-        .append(
-            SwapCase {
-                is_buy: false,
-                exact_input: true,
-                amount: to_e18(1),
-                threshold_sqrt_price: Option::None(()),
-            }
-        );
-    cases
-        .append(
-            SwapCase {
-                is_buy: true,
-                exact_input: true,
-                amount: to_e18(1),
-                threshold_sqrt_price: Option::None(()),
-            }
-        );
-    cases
-        .append(
-            SwapCase {
-                is_buy: false,
-                exact_input: false,
-                amount: to_e18(1),
-                threshold_sqrt_price: Option::None(())
-            }
-        );
-    cases
-        .append(
-            SwapCase {
-                is_buy: true,
-                exact_input: false,
-                amount: to_e18(1),
-                threshold_sqrt_price: Option::None(())
-            }
-        );
-    cases
-        .append(
-            SwapCase {
-                is_buy: true,
-                exact_input: true,
-                amount: to_e18(1),
-                threshold_sqrt_price: Option::Some(to_e28(48))
-            }
-        );
+    cases.append(SwapCase { is_buy: false, exact_input: true, amount: to_e18(1), });
+    cases.append(SwapCase { is_buy: true, exact_input: true, amount: to_e18(1), });
+    cases.append(SwapCase { is_buy: false, exact_input: false, amount: to_e18(1), });
+    cases.append(SwapCase { is_buy: true, exact_input: false, amount: to_e18(1), });
+    cases.append(SwapCase { is_buy: true, exact_input: true, amount: to_e18(1), });
 
     cases
 }
@@ -150,12 +109,7 @@ fn test_unsafe_quote() {
         // Obtain quote.
         let quote = market_manager
             .unsafe_quote(
-                market_id,
-                swap_case.is_buy,
-                swap_case.amount,
-                swap_case.exact_input,
-                swap_case.threshold_sqrt_price,
-                true,
+                market_id, swap_case.is_buy, swap_case.amount, swap_case.exact_input, true,
             );
 
         // Execute swap.
@@ -165,7 +119,7 @@ fn test_unsafe_quote() {
             swap_case.is_buy,
             swap_case.exact_input,
             swap_case.amount,
-            swap_case.threshold_sqrt_price,
+            Option::None(()),
             Option::None(()),
             Option::None(()),
         );

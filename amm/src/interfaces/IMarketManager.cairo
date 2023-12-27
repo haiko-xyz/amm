@@ -330,7 +330,6 @@ trait IMarketManager<TContractState> {
     // * `is_buy` - whether swap is a buy or sell
     // * `amount` - amount of tokens to swap
     // * `exact_input` - true if `amount` is exact input, or false if exact output
-    // * `threshold_sqrt_price` - maximum sqrt price to swap at for buys, minimum for sells
     // * `ignore_strategy` - whether to ignore strategy positions when fetching quote
     //
     // # Returns
@@ -341,7 +340,6 @@ trait IMarketManager<TContractState> {
         is_buy: bool,
         amount: u256,
         exact_input: bool,
-        threshold_sqrt_price: Option<u256>,
         ignore_strategy: bool,
     ) -> u256;
 
