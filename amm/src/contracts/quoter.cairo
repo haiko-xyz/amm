@@ -69,7 +69,6 @@ mod Quoter {
         // * `is_buy` - whether swap is a buy or sell
         // * `amount` - amount of tokens to swap in
         // * `exact_input` - true if `amount` is exact input, otherwise exact output
-        // * `threshold_sqrt_price` - maximum sqrt price to swap at for buys, minimum for sells
         //
         // # Returns
         // * `amount` - quoted amount out if exact input, quoted amount in if exact output
@@ -79,7 +78,6 @@ mod Quoter {
             is_buy: bool,
             amount: u256,
             exact_input: bool,
-            threshold_sqrt_price: Option<u256>,
         ) -> u256 {
             // Compile calldata.
             let mut calldata = array![];
@@ -88,14 +86,6 @@ mod Quoter {
             calldata.append(amount.low.into());
             calldata.append(amount.high.into());
             calldata.append(exact_input.into());
-            match threshold_sqrt_price {
-                Option::Some(threshold_sqrt_price) => {
-                    calldata.append(0);
-                    calldata.append(threshold_sqrt_price.low.into());
-                    calldata.append(threshold_sqrt_price.high.into());
-                },
-                Option::None => calldata.append(1),
-            };
 
             // Call `quote` in market manager.
             let res = call_contract_syscall(
@@ -118,6 +108,40 @@ mod Quoter {
                     u256 { low, high }
                 },
             }
+        }
+
+        // Obtain quotes for a list of swaps.
+        //
+        // # Arguments
+        // * `market_ids` - list of market ids
+        // * `is_buy` - whether swap is a buy or sell
+        // * `amount` - amount of tokens to swap in
+        // * `exact_input` - true if `amount` is exact input, otherwise exact output
+        //
+        // # Returns
+        // * `amounts` - list of quoted amounts
+        fn quote_array(
+            self: @ContractState,
+            market_ids: Span<felt252>,
+            is_buy: bool,
+            amount: u256,
+            exact_input: bool
+        ) -> Span<u256> {
+            let mut i = 0;
+            let mut quotes: Array<u256> = array![];
+            loop {
+                if i == market_ids.len() {
+                    break;
+                }
+                quotes.append(self.quote(
+                    *market_ids.at(i),
+                    is_buy,
+                    amount,
+                    exact_input,
+                ));
+                i += 1;
+            };
+            quotes.span()
         }
 
         // Obtain quote for a multi-market swap.
@@ -174,6 +198,60 @@ mod Quoter {
                     u256 { low, high }
                 },
             }
+        }
+
+        // Obtain quotes for a list of multi-market swaps.
+        //
+        // # Arguments
+        // * `in_token` - in token address
+        // * `out_token` - out token address
+        // * `amount` - amount of tokens to swap in
+        // * `routes` - list of routes to swap through
+        // * `route_lens` - length of each swap route
+        //
+        // # Returns
+        // * `amounts` - list of quoted amounts
+        fn quote_multiple_array(
+            self: @ContractState,
+            in_token: ContractAddress,
+            out_token: ContractAddress,
+            amount: u256,
+            routes: Span<felt252>,
+            route_lens: Span<u8>,
+        ) -> Span<u256> {
+            // Initialise array to collect quotes.
+            let mut quotes: Array<u256> = array![];
+
+            // Loop through routes and obtain quote.
+            let mut i = 0;
+            let mut j = 0;
+            let mut route_end: u32 = (*route_lens.at(j)).into() - 1;
+            let mut route: Array<felt252> = array![];
+            loop {
+                if i == routes.len() {
+                    break;
+                }
+                route.append(*routes.at(i));
+                if i == route_end {
+                    let quote = self.quote_multiple(
+                        in_token,
+                        out_token,
+                        amount,
+                        route.span(),
+                    );
+                    quotes.append(quote);
+                    // Move to next quote and reset array.
+                    if j != route_lens.len() - 1 {
+                        j += 1;
+                        route_end += (*route_lens.at(j)).into();
+                        route = array![];
+                    }
+                }
+                i += 1;
+            };
+
+            // Return quotes
+            quotes.span()
         }
 
         // Update market manager.
