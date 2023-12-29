@@ -289,6 +289,35 @@ mod Quoter {
             amounts.span()
         }
 
+        // Returns token amounts accrued inside a list of limit orders.
+        // 
+        // # Arguments
+        // * `order_ids` - list of position ids
+        // * `market_ids` - list of market ids
+        //
+        // # Returns
+        // * `base_amount` - amount of base tokens inside order
+        // * `quote_amount` - amount of quote tokens inside order
+        fn amounts_inside_order_array(
+            self: @ContractState, order_ids: Span<felt252>, market_ids: Span<felt252>
+        ) -> Span<(u256, u256)> {
+            assert(order_ids.len() == market_ids.len(), 'LengthMismatch');
+
+            let mut i = 0;
+            let mut amounts: Array<(u256, u256)> = array![];
+            let dispatcher = IMarketManagerDispatcher {
+                contract_address: self.market_manager.read()
+            };
+            loop {
+                if i == order_ids.len() {
+                    break;
+                }
+                amounts.append(dispatcher.amounts_inside_order(*order_ids.at(i), *market_ids.at(i)));
+                i += 1;
+            };
+            amounts.span()
+        }
+
         // Update market manager.
         //
         // # Arguments
