@@ -261,6 +261,34 @@ mod Quoter {
             quotes.span()
         }
 
+        // Returns token amounts (including accrued fees) inside a list of liquidity positions.
+        // 
+        // # Arguments
+        // * `position_ids` - list of position ids
+        //
+        // # Returns
+        // * `base_amount` - amount of base tokens inside position, exclusive of fees
+        // * `quote_amount` - amount of quote tokens inside position, exclusive of fees
+        // * `base_fees` - base fees accumulated inside position
+        // * `quote_fees` - quote fees accumulated inside position
+        fn amounts_inside_position_array(
+            self: @ContractState, position_ids: Span<felt252>
+        ) -> Span<(u256, u256, u256, u256)> {
+            let mut i = 0;
+            let mut amounts: Array<(u256, u256, u256, u256)> = array![];
+            let dispatcher = IMarketManagerDispatcher {
+                contract_address: self.market_manager.read()
+            };
+            loop {
+                if i == position_ids.len() {
+                    break;
+                }
+                amounts.append(dispatcher.amounts_inside_position(*position_ids.at(i)));
+                i += 1;
+            };
+            amounts.span()
+        }
+
         // Update market manager.
         //
         // # Arguments

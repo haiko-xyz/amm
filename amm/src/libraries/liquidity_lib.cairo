@@ -190,15 +190,19 @@ fn update_limit(
 // * `position_id` - position id
 //
 // # Returns
-// * `base_amount` - base tokens in position, including accrued fees
-// * `quote_amount` - quote tokens in position, including accrued fees
-fn amounts_inside_position(self: @ContractState, position_id: felt252,) -> (u256, u256) {
+// * `base_amount` - amount of base tokens inside position, exclusive of fees
+// * `quote_amount` - amount of quote tokens inside position, exclusive of fees
+// * `base_fees` - base fees accumulated inside position
+// * `quote_fees` - quote fees accumulated inside position
+fn amounts_inside_position(
+    self: @ContractState, position_id: felt252,
+) -> (u256, u256, u256, u256) {
     // Fetch position.
     let position = self.positions.read(position_id);
 
     // Handle uninitialised position.
     if position.market_id == 0 {
-        return (0, 0);
+        return (0, 0, 0, 0);
     }
 
     // Fetch market state.
@@ -228,43 +232,5 @@ fn amounts_inside_position(self: @ContractState, position_id: felt252,) -> (u256
     );
 
     // Return amounts
-    (base_amount.val + base_fees, quote_amount.val + quote_fees)
-}
-
-// Get accrued fees inside a position.
-//
-// # Arguments
-// * `position_id` - position id
-//
-// # Returns
-// * `base_fees` - base fees accrued in position
-// * `quote_fees` - quote fees accrued in position
-fn fees_inside_position(self: @ContractState, position_id: felt252,) -> (u256, u256) {
-    // Fetch position.
-    let position = self.positions.read(position_id);
-
-    // Handle uninitialised position.
-    if position.market_id == 0 {
-        return (0, 0);
-    }
-
-    // Fetch market state.
-    let market_state = self.market_state.read(position.market_id);
-    let lower_limit_info = self.limit_info.read((position.market_id, position.lower_limit));
-    let upper_limit_info = self.limit_info.read((position.market_id, position.upper_limit));
-
-    // Get fee factors and calculate accrued fees.
-    let (base_fees, quote_fees, _, _) = fee_math::get_fee_inside(
-        position,
-        lower_limit_info,
-        upper_limit_info,
-        position.lower_limit,
-        position.upper_limit,
-        market_state.curr_limit,
-        market_state.base_fee_factor,
-        market_state.quote_fee_factor,
-    );
-
-    // Return amounts
-    (base_fees, quote_fees)
+    (base_amount.val, quote_amount.val, base_fees, quote_fees)
 }
