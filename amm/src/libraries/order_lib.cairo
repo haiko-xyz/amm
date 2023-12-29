@@ -1,11 +1,9 @@
-use core::traits::TryInto;
-use core::option::OptionTrait;
 // Core lib imports.
 use starknet::ContractAddress;
 use starknet::get_caller_address;
 
 // Local imports.
-use amm::libraries::id;
+use amm::libraries::{id, liquidity_lib};
 use amm::libraries::math::{math, price_math, fee_math, liquidity_math};
 use amm::libraries::constants::ONE;
 use amm::contracts::market_manager::MarketManager::{ContractState, MarketManagerInternalTrait};
@@ -21,6 +19,53 @@ use amm::types::i128::{i128, I128Trait};
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
+
+// Returns total amount of tokens inside of a limit order.
+// User's share of batch is calculated based on the liquidity of their order relative to the 
+// total liquidity of the batch. If we are collecting from the batch and it has not yet been 
+// filled, we need to first remove our share of batch liquidity from the pool. However, if 
+// the batch has accrued fees (e.g. through partial fills), it will also withdraw all fees
+// from the position. To discourage this, fees are forfeited and not paid out to the user if 
+// they collect from an unfilled batch.
+// 
+// # Arguments
+// * `order_id` - order id
+// * `market_id` - market id
+//
+// # Returns
+// * `base_amount` - amount of base tokens inside order
+// * `quote_amount` - amount of quote tokens inside order
+fn amounts_inside_order(
+    self: @ContractState, order_id: felt252, market_id: felt252
+) -> (u256, u256) {
+    // Get order and batch info.
+    let market_info = self.market_info.read(market_id);
+    let order = self.orders.read(order_id);
+    let batch = self.batches.read(order.batch_id);
+
+    // Calculate batch token amounts.
+    let (batch_base, batch_quote) = if !batch.filled {
+        let position_id = id::position_id(
+            market_id, order.batch_id, batch.limit, batch.limit + market_info.width
+        );
+        let (base_amount, quote_amount, _, _) = liquidity_lib::amounts_inside_position(
+            self, position_id
+        );
+        (base_amount, quote_amount)
+    } else {
+        (batch.base_amount.into(), batch.quote_amount.into())
+    };
+
+    // Allocate batch liquidity to order.
+    let base_amount = math::mul_div(
+        batch_base, order.liquidity.into(), batch.liquidity.into(), false
+    );
+    let quote_amount = math::mul_div(
+        batch_quote, order.liquidity.into(), batch.liquidity.into(), false
+    );
+
+    (base_amount, quote_amount)
+}
 
 // Fully fill orders at the given limits.
 // Calling `swap` returns an array of limits that were fully filled. This function iterates through

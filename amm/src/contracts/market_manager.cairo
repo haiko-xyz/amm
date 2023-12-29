@@ -483,28 +483,35 @@ mod MarketManager {
             self.protocol_fees.read(asset)
         }
 
-        // Returns total amount of tokens, inclusive of fees, inside of a liquidity position.
+        // Returns total amount of tokens and accrued fees inside of a liquidity position.
         // 
         // # Arguments
         // * `position_id` - position id
         //
         // # Returns
-        // * `base_amount` - amount of base tokens inside position, inclusive of fees
-        // * `quote_amount` - amount of quote tokens inside position, inclusive of fees
-        fn amounts_inside_position(self: @ContractState, position_id: felt252,) -> (u256, u256) {
+        // * `base_amount` - amount of base tokens inside position, exclusive of fees
+        // * `quote_amount` - amount of quote tokens inside position, exclusive of fees
+        // * `base_fees` - base fees accumulated inside position
+        // * `quote_fees` - quote fees accumulated inside position
+        fn amounts_inside_position(
+            self: @ContractState, position_id: felt252,
+        ) -> (u256, u256, u256, u256) {
             liquidity_lib::amounts_inside_position(self, position_id)
         }
 
-        // Returns accrued fees inside of a liquidity position.
+        // Returns total amount of tokens inside of a limit order.
         // 
         // # Arguments
-        // * `position_id` - position id
+        // * `order_id` - order id
+        // * `market_id` - market id
         //
         // # Returns
-        // * `base_fees` - amount of base tokens collected in fees
-        // * `quote_fees` - amount of quote tokens collected in fees
-        fn fees_inside_position(self: @ContractState, position_id: felt252,) -> (u256, u256) {
-            liquidity_lib::fees_inside_position(self, position_id)
+        // * `base_amount` - amount of base tokens inside order
+        // * `quote_amount` - amount of quote tokens inside order
+        fn amounts_inside_order(
+            self: @ContractState, order_id: felt252, market_id: felt252
+        ) -> (u256, u256) {
+            order_lib::amounts_inside_order(self, order_id, market_id)
         }
 
         // Returns the token amounts to be transferred for creating a liquidity position.
@@ -583,7 +590,8 @@ mod MarketManager {
         fn ERC721_position_info(self: @ContractState, token_id: felt252) -> ERC721PositionInfo {
             let position = self.positions.read(token_id);
             let market_info = self.market_info.read(position.market_id);
-            let (base_amount, quote_amount) = liquidity_lib::amounts_inside_position(
+            let (base_amount, quote_amount, base_fees, quote_fees) =
+                liquidity_lib::amounts_inside_position(
                 self, token_id
             );
 
@@ -596,8 +604,8 @@ mod MarketManager {
                 fee_controller: market_info.fee_controller,
                 controller: market_info.controller,
                 liquidity: position.liquidity,
-                base_amount,
-                quote_amount,
+                base_amount: base_amount + base_fees,
+                quote_amount: quote_amount + quote_fees,
                 lower_limit: position.lower_limit,
                 upper_limit: position.upper_limit,
             }

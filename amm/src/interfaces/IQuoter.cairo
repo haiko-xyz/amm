@@ -35,6 +35,14 @@ trait IQuoter<TContractState> {
         route_lens: Span<u8>,
     ) -> Span<u256>;
 
+    fn amounts_inside_position_array(
+        self: @TContractState, position_ids: Span<felt252>
+    ) -> Span<(u256, u256, u256, u256)>;
+
+    fn amounts_inside_order_array(
+        self: @TContractState, order_ids: Span<felt252>, market_ids: Span<felt252>
+    ) -> Span<(u256, u256)>;
+
     fn set_market_manager(ref self: TContractState, market_manager: ContractAddress);
 
     fn upgrade(ref self: TContractState, new_class_hash: ClassHash);

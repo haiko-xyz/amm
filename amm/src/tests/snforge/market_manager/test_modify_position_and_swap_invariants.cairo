@@ -342,7 +342,7 @@ fn test_invariants_set1(
         if lower_limit != upper_limit && liquidity != 0 {
             // Calculate amount inside position.
             let position_id = id::position_id(market_id, alice().into(), lower_limit, upper_limit);
-            let (base_amount_exp, quote_amount_exp) = market_manager
+            let (base_amount_exp, quote_amount_exp, base_fees_exp, quote_fees_exp) = market_manager
                 .amounts_inside_position(position_id);
 
             // Remove liquidity.
@@ -363,8 +363,8 @@ fn test_invariants_set1(
             assert(end_state.upper_liq <= start_state.upper_liq, 'Invariant 5b: upper');
             assert(end_state.lower_liq_delta <= start_state.lower_liq_delta, 'Invariant 6a: lower');
             assert(end_state.upper_liq_delta >= start_state.upper_liq_delta, 'Invariant 6b: upper');
-            assert(base_amount_exp == base_amount.val, 'Invariant 13: base');
-            assert(quote_amount_exp == quote_amount.val, 'Invariant 13: quote');
+            assert(base_amount_exp + base_fees_exp == base_amount.val, 'Invariant 13: base');
+            assert(quote_amount_exp + quote_fees_exp == quote_amount.val, 'Invariant 13: quote');
         }
 
         m += 1;

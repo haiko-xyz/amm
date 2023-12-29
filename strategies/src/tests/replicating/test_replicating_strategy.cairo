@@ -1413,9 +1413,9 @@ fn test_deposit_single_sided_bid_liquidity() {
     let position_id = id::position_id(
         market_id, strategy.contract_address.into(), state.bid.lower_limit, state.bid.upper_limit
     );
-    let (_, quote_amount) = market_manager.amounts_inside_position(position_id);
+    let (_, quote_amount, _, quote_fees) = market_manager.amounts_inside_position(position_id);
     start_prank(CheatTarget::One(strategy.contract_address), alice());
-    strategy.deposit(market_id, 0, quote_amount);
+    strategy.deposit(market_id, 0, quote_amount + quote_fees);
 
     // Run checks.
     let alice_shares = strategy.user_deposits(market_id, alice());
@@ -1430,7 +1430,10 @@ fn test_deposit_single_sided_bid_liquidity() {
                     strategy.contract_address,
                     ReplicatingStrategy::Event::Deposit(
                         ReplicatingStrategy::Deposit {
-                            market_id, caller: alice(), base_amount: 0, quote_amount,
+                            market_id,
+                            caller: alice(),
+                            base_amount: 0,
+                            quote_amount: quote_amount + quote_fees,
                         }
                     )
                 )
@@ -1496,9 +1499,10 @@ fn test_deposit_single_sided_ask_liquidity() {
     let position_id = id::position_id(
         market_id, strategy.contract_address.into(), state.ask.lower_limit, state.ask.upper_limit
     );
-    let (base_amount, quote_amount) = market_manager.amounts_inside_position(position_id);
+    let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
+        .amounts_inside_position(position_id);
     start_prank(CheatTarget::One(strategy.contract_address), alice());
-    strategy.deposit(market_id, base_amount, 0);
+    strategy.deposit(market_id, base_amount + base_fees, 0);
 
     // Run checks.
     let alice_shares = strategy.user_deposits(market_id, alice());
@@ -1513,7 +1517,10 @@ fn test_deposit_single_sided_ask_liquidity() {
                     strategy.contract_address,
                     ReplicatingStrategy::Event::Deposit(
                         ReplicatingStrategy::Deposit {
-                            market_id, caller: alice(), base_amount, quote_amount: 0,
+                            market_id,
+                            caller: alice(),
+                            base_amount: base_amount + base_fees,
+                            quote_amount: 0,
                         }
                     )
                 )
