@@ -111,7 +111,6 @@ fn delta_spread(max_delta: u32, base_amount: u256, quote_amount: u256, price: u2
     I32Trait::new(spread, is_bid_delta)
 }
 
-use debug::PrintTrait;
 // Note: Volatility-based limits are currently disabled as they are not fully supported by the oracle.
 // // Unpack `Limits` enum into number of limits.
 // // If range is Fixed, it is taken as is. 
