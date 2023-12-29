@@ -69,22 +69,36 @@ fn test_amounts_inside_order_array() {
 
     // Create order 1.
     set_contract_address(alice());
-    let order_id_1 = market_manager.create_order(market_id, true, OFFSET - 1000, to_e18_u128(10000));
+    let order_id_1 = market_manager
+        .create_order(market_id, true, OFFSET - 1000, to_e18_u128(10000));
 
     // Create order 2.
     let order_id_2 = market_manager.create_order(market_id, true, OFFSET - 500, to_e18_u128(10000));
 
     // Execute a swap.
-    let swap_params = swap_params(alice(), market_id, false, true, to_e18(1) / 10, Option::None(()), Option::None(()), Option::None(()));
+    let swap_params = swap_params(
+        alice(),
+        market_id,
+        false,
+        true,
+        to_e18(1) / 10,
+        Option::None(()),
+        Option::None(()),
+        Option::None(())
+    );
     swap(market_manager, swap_params);
 
     // Create order 3.
-    let order_id_3 = market_manager.create_order(market_id, false, OFFSET + 500, to_e18_u128(10000));
+    let order_id_3 = market_manager
+        .create_order(market_id, false, OFFSET + 500, to_e18_u128(10000));
 
     // Fetch amounts inside each order. 
-    let (base_amount_1, quote_amount_1) = market_manager.amounts_inside_order(order_id_1, market_id);
-    let (base_amount_2, quote_amount_2) = market_manager.amounts_inside_order(order_id_2, market_id);
-    let (base_amount_3, quote_amount_3) = market_manager.amounts_inside_order(order_id_3, market_id);
+    let (base_amount_1, quote_amount_1) = market_manager
+        .amounts_inside_order(order_id_1, market_id);
+    let (base_amount_2, quote_amount_2) = market_manager
+        .amounts_inside_order(order_id_2, market_id);
+    let (base_amount_3, quote_amount_3) = market_manager
+        .amounts_inside_order(order_id_3, market_id);
 
     // Fetch amounts from array.
     let order_ids = array![order_id_1, order_id_2, order_id_3].span();
@@ -92,7 +106,7 @@ fn test_amounts_inside_order_array() {
     let amounts = quoter.amounts_inside_order_array(order_ids, market_ids);
     let (base_amount_1a, quote_amount_1a) = *amounts.at(0);
     let (base_amount_2a, quote_amount_2a) = *amounts.at(1);
-    let (base_amount_3a, quote_amount_3a) = *amounts.at(2); 
+    let (base_amount_3a, quote_amount_3a) = *amounts.at(2);
 
     // Check that amounts are correct.
     assert(base_amount_1 == base_amount_1a, 'Base amount 1');

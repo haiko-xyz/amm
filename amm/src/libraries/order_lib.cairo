@@ -45,16 +45,24 @@ fn amounts_inside_order(
 
     // Calculate batch token amounts.
     let (batch_base, batch_quote) = if !batch.filled {
-        let position_id = id::position_id(market_id, order.batch_id, batch.limit, batch.limit + market_info.width);
-        let (base_amount, quote_amount, _, _) = liquidity_lib::amounts_inside_position(self, position_id);
+        let position_id = id::position_id(
+            market_id, order.batch_id, batch.limit, batch.limit + market_info.width
+        );
+        let (base_amount, quote_amount, _, _) = liquidity_lib::amounts_inside_position(
+            self, position_id
+        );
         (base_amount, quote_amount)
     } else {
         (batch.base_amount.into(), batch.quote_amount.into())
     };
 
     // Allocate batch liquidity to order.
-    let base_amount = math::mul_div(batch_base, order.liquidity.into(), batch.liquidity.into(), false);
-    let quote_amount = math::mul_div(batch_quote, order.liquidity.into(), batch.liquidity.into(), false);
+    let base_amount = math::mul_div(
+        batch_base, order.liquidity.into(), batch.liquidity.into(), false
+    );
+    let quote_amount = math::mul_div(
+        batch_quote, order.liquidity.into(), batch.liquidity.into(), false
+    );
 
     (base_amount, quote_amount)
 }

@@ -312,7 +312,8 @@ mod Quoter {
                 if i == order_ids.len() {
                     break;
                 }
-                amounts.append(dispatcher.amounts_inside_order(*order_ids.at(i), *market_ids.at(i)));
+                amounts
+                    .append(dispatcher.amounts_inside_order(*order_ids.at(i), *market_ids.at(i)));
                 i += 1;
             };
             amounts.span()

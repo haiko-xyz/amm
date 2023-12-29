@@ -13,7 +13,7 @@ use amm::tests::cairo_test::helpers::market_manager::{
 };
 use amm::tests::cairo_test::helpers::token::{deploy_token, fund, approve};
 use amm::tests::common::params::{
-    owner, alice, bob, treasury, default_token_params, default_market_params, 
+    owner, alice, bob, treasury, default_token_params, default_market_params,
     modify_position_params, swap_params,
 };
 use amm::tests::common::utils::{to_e18, to_e18_u128, to_e28, approx_eq};
@@ -66,27 +66,56 @@ fn test_amounts_inside_position() {
     // Create position.
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, I128Trait::new(to_e18_u128(10000), false));
+    let params = modify_position_params(
+        alice(), market_id, lower_limit, upper_limit, I128Trait::new(to_e18_u128(10000), false)
+    );
     modify_position(market_manager, params);
 
     // Check amounts inside position.
     let position_id = id::position_id(market_id, alice().into(), lower_limit, upper_limit);
-    let (base_amount, quote_amount, base_fees, quote_fees) = market_manager.amounts_inside_position(position_id);
+    let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
+        .amounts_inside_position(position_id);
     assert(base_amount == 49874959321712300625, 'Base amount 1');
     assert(quote_amount == 49874959321712300625, 'Quote amount 1');
     assert(base_fees == 0, 'Base fees 1');
     assert(quote_fees == 0, 'Quote fees 1');
 
     // Execute swaps.
-    let mut params = swap_params(alice(), market_id, true, true, to_e18(10), Option::None(()), Option::None(()), Option::None(()));
+    let mut params = swap_params(
+        alice(),
+        market_id,
+        true,
+        true,
+        to_e18(10),
+        Option::None(()),
+        Option::None(()),
+        Option::None(())
+    );
     let (amount_in, amount_out, fees) = swap(market_manager, params);
-    params = swap_params(alice(), market_id, false, true, to_e18(10), Option::None(()), Option::None(()), Option::None(()));
+    params =
+        swap_params(
+            alice(),
+            market_id,
+            false,
+            true,
+            to_e18(10),
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
     let (amount_in_2, amount_out_2, fees_2) = swap(market_manager, params);
 
     // Recheck amounts inside position.
-    let (base_amount_2, quote_amount_2, base_fees_2, quote_fees_2) = market_manager.amounts_inside_position(position_id);
-    assert(approx_eq(base_amount_2, base_amount - amount_out + (amount_in_2 - fees_2), 10), 'Base amount 2');
-    assert(approx_eq(quote_amount_2, quote_amount + (amount_in - fees) - amount_out_2, 10), 'Quote amount 2');
+    let (base_amount_2, quote_amount_2, base_fees_2, quote_fees_2) = market_manager
+        .amounts_inside_position(position_id);
+    assert(
+        approx_eq(base_amount_2, base_amount - amount_out + (amount_in_2 - fees_2), 10),
+        'Base amount 2'
+    );
+    assert(
+        approx_eq(quote_amount_2, quote_amount + (amount_in - fees) - amount_out_2, 10),
+        'Quote amount 2'
+    );
     assert(base_fees_2 == 30000000000000000, 'Base fees 2');
     assert(quote_fees_2 == 30000000000000000, 'Quote fees 2');
 }

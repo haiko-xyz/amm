@@ -70,21 +70,13 @@ fn test_amounts_inside_position_array() {
 
     // Mint position 1.
     let params_1 = modify_position_params(
-        alice(),
-        market_id,
-        OFFSET - 1000,
-        OFFSET + 1000,
-        I128Trait::new(to_e18_u128(10000), false),
+        alice(), market_id, OFFSET - 1000, OFFSET + 1000, I128Trait::new(to_e18_u128(10000), false),
     );
     modify_position(market_manager, params_1);
 
     // Mint position 2.
     let params_2 = modify_position_params(
-        alice(),
-        market_id,
-        OFFSET - 500,
-        OFFSET - 400,
-        I128Trait::new(to_e18_u128(10000), false),
+        alice(), market_id, OFFSET - 500, OFFSET - 400, I128Trait::new(to_e18_u128(10000), false),
     );
     modify_position(market_manager, params_2);
 
@@ -103,21 +95,26 @@ fn test_amounts_inside_position_array() {
 
     // Mint position 3.
     let params_3 = modify_position_params(
-        alice(),
-        market_id,
-        OFFSET + 400,
-        OFFSET + 500,
-        I128Trait::new(to_e18_u128(10000), false),
+        alice(), market_id, OFFSET + 400, OFFSET + 500, I128Trait::new(to_e18_u128(10000), false),
     );
     modify_position(market_manager, params_3);
 
     // Fetch amounts inside each position. 
-    let position_id_1 = id::position_id(market_id, alice().into(), params_1.lower_limit, params_1.upper_limit);
-    let position_id_2 = id::position_id(market_id, alice().into(), params_2.lower_limit, params_2.upper_limit);
-    let position_id_3 = id::position_id(market_id, alice().into(), params_3.lower_limit, params_3.upper_limit);
-    let (base_amount_1, quote_amount_1, base_fees_1, quote_fees_1) = market_manager.amounts_inside_position(position_id_1);
-    let (base_amount_2, quote_amount_2, base_fees_2, quote_fees_2) = market_manager.amounts_inside_position(position_id_2);
-    let (base_amount_3, quote_amount_3, base_fees_3, quote_fees_3) = market_manager.amounts_inside_position(position_id_3);
+    let position_id_1 = id::position_id(
+        market_id, alice().into(), params_1.lower_limit, params_1.upper_limit
+    );
+    let position_id_2 = id::position_id(
+        market_id, alice().into(), params_2.lower_limit, params_2.upper_limit
+    );
+    let position_id_3 = id::position_id(
+        market_id, alice().into(), params_3.lower_limit, params_3.upper_limit
+    );
+    let (base_amount_1, quote_amount_1, base_fees_1, quote_fees_1) = market_manager
+        .amounts_inside_position(position_id_1);
+    let (base_amount_2, quote_amount_2, base_fees_2, quote_fees_2) = market_manager
+        .amounts_inside_position(position_id_2);
+    let (base_amount_3, quote_amount_3, base_fees_3, quote_fees_3) = market_manager
+        .amounts_inside_position(position_id_3);
 
     // Fetch amounts from array.
     let position_ids = array![position_id_1, position_id_2, position_id_3].span();

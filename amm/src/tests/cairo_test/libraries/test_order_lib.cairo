@@ -9,9 +9,7 @@ use amm::libraries::id;
 use amm::types::core::{MarketConfigs, ConfigOption};
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
-use amm::tests::cairo_test::helpers::market_manager::{
-    deploy_market_manager, create_market, swap
-};
+use amm::tests::cairo_test::helpers::market_manager::{deploy_market_manager, create_market, swap};
 use amm::tests::cairo_test::helpers::token::{deploy_token, fund, approve};
 use amm::tests::common::params::{
     owner, alice, bob, treasury, default_token_params, default_market_params, swap_params
@@ -79,7 +77,16 @@ fn test_amounts_inside_order_bid() {
     market_manager.create_order(market_id, true, limit, liquidity);
 
     // Partially fill order.
-    let mut params = swap_params(alice(), market_id, false, true, 5000000000000000, Option::None(()), Option::None(()), Option::None(()));
+    let mut params = swap_params(
+        alice(),
+        market_id,
+        false,
+        true,
+        5000000000000000,
+        Option::None(()),
+        Option::None(()),
+        Option::None(())
+    );
     let (amount_in, amount_out, fees) = swap(market_manager, params);
 
     // Check amounts inside order. Expect fees to be forfeited.
@@ -94,7 +101,10 @@ fn test_amounts_inside_order_bid() {
     // Check amounts inside order. Expect fees to be included.
     let (base_amount_2, quote_amount_2) = market_manager.amounts_inside_order(order_id, market_id);
     assert(approx_eq(base_amount_2, (amount_in + amount_in_2) / 2, 10), 'Base amount 2');
-    assert(approx_eq(quote_amount_2, (99501001654900617 - amount_out - amount_out_2) / 2, 10), 'Quote amount 2');
+    assert(
+        approx_eq(quote_amount_2, (99501001654900617 - amount_out - amount_out_2) / 2, 10),
+        'Quote amount 2'
+    );
 }
 
 #[test]
@@ -113,7 +123,16 @@ fn test_amounts_inside_order_ask() {
     market_manager.create_order(market_id, false, limit, liquidity);
 
     // Partially fill order.
-    let mut params = swap_params(alice(), market_id, true, true, 5000000000000000, Option::None(()), Option::None(()), Option::None(()));
+    let mut params = swap_params(
+        alice(),
+        market_id,
+        true,
+        true,
+        5000000000000000,
+        Option::None(()),
+        Option::None(()),
+        Option::None(())
+    );
     let (amount_in, amount_out, fees) = swap(market_manager, params);
 
     // Check amounts inside order. Expect fees to be forfeited.
@@ -127,6 +146,9 @@ fn test_amounts_inside_order_ask() {
 
     // Check amounts inside order. Expect fees to be included.
     let (base_amount_2, quote_amount_2) = market_manager.amounts_inside_order(order_id, market_id);
-    assert(approx_eq(base_amount_2, (99500504153623599 - amount_out - amount_out_2) / 2, 10), 'Base amount 2');
+    assert(
+        approx_eq(base_amount_2, (99500504153623599 - amount_out - amount_out_2) / 2, 10),
+        'Base amount 2'
+    );
     assert(approx_eq(quote_amount_2, (amount_in + amount_in_2) / 2, 10), 'Quote amount 2');
 }
