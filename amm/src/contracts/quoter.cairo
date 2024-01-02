@@ -17,6 +17,9 @@ mod Quoter {
         IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait}, IQuoter::IQuoter
     };
 
+    // Third party imports.
+    use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
+
     ////////////////////////////////
     // STORAGE
     ////////////////////////////////
@@ -317,6 +320,32 @@ mod Quoter {
                 i += 1;
             };
             amounts.span()
+        }
+
+        // Returns token balances of a user.
+        // 
+        // # Arguments
+        // * `user` - target user
+        // * `tokens` - list of tokens
+        //
+        // # Returns
+        // * `balances` - token balances of user
+        fn token_balance_array(
+            self: @ContractState, user: ContractAddress, tokens: Span<ContractAddress>
+        ) -> Span<(u256, u8)> {
+            let mut i = 0;
+            let mut balances: Array<(u256, u8)> = array![];
+            loop {
+                if i == tokens.len() {
+                    break;
+                }
+                let dispatcher = ERC20ABIDispatcher { contract_address: *tokens.at(i) };
+                let balance = dispatcher.balance_of(user);
+                let decimals = dispatcher.decimals();
+                balances.append((balance, decimals));
+                i += 1;
+            };
+            balances.span()
         }
 
         // Update market manager.
