@@ -152,3 +152,24 @@ fn test_amounts_inside_order_ask() {
     );
     assert(approx_eq(quote_amount_2, (amount_in + amount_in_2) / 2, 10), 'Quote amount 2');
 }
+
+#[test]
+#[available_gas(2000000000)]
+fn test_amounts_inside_order_empty_position() {
+    let (market_manager, base_token, quote_token, market_id) = before();
+
+    // Create order.
+    set_contract_address(alice());
+    let limit = OFFSET - 1000;
+    let liquidity = to_e18_u128(10000);
+    let order_id = market_manager.create_order(market_id, true, limit, liquidity);
+
+    // Collect order.
+    set_contract_address(alice());
+    market_manager.collect_order(market_id, order_id);
+
+    // Check amounts inside order. Expect 0.
+    let (base_amount, quote_amount) = market_manager.amounts_inside_order(order_id, market_id);
+    assert(base_amount == 0, 'Base amount');
+    assert(quote_amount == 0, 'Quote amount');
+}

@@ -19,6 +19,9 @@ sncast --url $STARKNET_RPC --keystore $STARKNET_KEYSTORE --account $STARKNET_ACC
 
 
 # Deployments
+# Staging (4 Jan 2024)
+export MARKET_MANAGER_CLASS_HASH=0x7e1138c6ebd27eae1ca7986e31582b44afbf9c2f0ef2675867251a19da0c9a1
+
 # Staging (2 Jan 2024)
 export QUOTER_CLASS_HASH=0x591a847efdddc2fe431161ff6b7887f6151d2487fb4eb7127d6659d3215d749
 

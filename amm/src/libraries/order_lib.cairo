@@ -43,6 +43,11 @@ fn amounts_inside_order(
     let order = self.orders.read(order_id);
     let batch = self.batches.read(order.batch_id);
 
+    // Handle empty batch.
+    if batch.liquidity == 0 {
+        return (0, 0);
+    }
+
     // Calculate batch token amounts.
     let (batch_base, batch_quote) = if !batch.filled {
         let position_id = id::position_id(
