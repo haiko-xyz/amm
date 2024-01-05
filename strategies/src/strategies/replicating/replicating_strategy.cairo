@@ -641,6 +641,49 @@ mod ReplicatingStrategy {
             (base_amount, quote_amount)
         }
 
+        // Get user's share of amounts held in strategy, for a list of users.
+        // 
+        // # Arguments
+        // * `users` - list of user address
+        // * `market_ids` - list of market ids
+        //
+        // # Returns
+        // * `base_amount` - base tokens owned by user
+        // * `quote_amount` - quote tokens owned by user
+        // * `user_shares` - user shares
+        // * `total_shares` - total shares in strategy market
+        fn get_user_balances(
+            self: @ContractState, users: Span<ContractAddress>, market_ids: Span<felt252>
+        ) -> Span<(u256, u256, u256, u256)> {
+            // Check users and market ids of equal length.
+            assert(users.len() == market_ids.len(), 'LengthMismatch');
+
+            let mut balances: Array<(u256, u256, u256, u256)> = array![];
+            let mut i = 0;
+            loop {
+                if i == users.len() {
+                    break;
+                }
+                // Handle divison by 0 case.
+                let market_id = *market_ids.at(i);
+                let total_shares = self.total_deposits.read(market_id);
+                if total_shares == 0 {
+                    balances.append((0, 0, 0, 0));
+                } else {
+                    let (base_amount, quote_amount) = self.get_balances(market_id);
+                    let user_shares = self.user_deposits.read((market_id, *users.at(i)));
+                    // Allocate balances to user.
+                    let base_share = math::mul_div(base_amount, user_shares, total_shares, false);
+                    let quote_share = math::mul_div(quote_amount, user_shares, total_shares, false);
+                    balances.append((base_share, quote_share, user_shares, total_shares));
+                }
+                i += 1;
+            };
+
+            // Return balances.
+            balances.span()
+        }
+
         // Calculate next optimal bid and ask positions.
         // 
         // Given reference price R: 
