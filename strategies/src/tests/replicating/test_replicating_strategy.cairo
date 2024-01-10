@@ -440,6 +440,7 @@ fn test_deposit_initial_success() {
                             caller: owner(),
                             base_amount: initial_base_amount,
                             quote_amount: initial_quote_amount,
+                            shares,
                         }
                     )
                 )
@@ -1270,7 +1271,11 @@ fn test_deposit_success() {
                     strategy.contract_address,
                     ReplicatingStrategy::Event::Deposit(
                         ReplicatingStrategy::Deposit {
-                            market_id, caller: alice(), base_amount, quote_amount,
+                            market_id,
+                            caller: alice(),
+                            base_amount,
+                            quote_amount,
+                            shares: new_shares,
                         }
                     )
                 )
@@ -1298,10 +1303,10 @@ fn test_deposit_multiple() {
     start_prank(CheatTarget::One(strategy.contract_address), alice());
     let base_amount_req = to_e18(500);
     let quote_amount_req = to_e18(700000); // Contains extra, should be partially refunded
-    strategy.deposit(market_id, base_amount_req, quote_amount_req);
+    let (_, _, shares_1) = strategy.deposit(market_id, base_amount_req, quote_amount_req);
 
     // Deposit again.
-    strategy.deposit(market_id, base_amount_req, quote_amount_req);
+    let (_, _, shares_2) = strategy.deposit(market_id, base_amount_req, quote_amount_req);
 
     // Run checks.
     let market_state = market_manager.market_state(market_id);
@@ -1337,6 +1342,7 @@ fn test_deposit_multiple() {
                             caller: alice(),
                             base_amount: base_exp,
                             quote_amount: quote_exp,
+                            shares: shares_1,
                         }
                     )
                 ),
@@ -1348,6 +1354,7 @@ fn test_deposit_multiple() {
                             caller: alice(),
                             base_amount: base_exp,
                             quote_amount: quote_exp,
+                            shares: shares_2,
                         }
                     )
                 ),
@@ -1434,6 +1441,7 @@ fn test_deposit_single_sided_bid_liquidity() {
                             caller: alice(),
                             base_amount: 0,
                             quote_amount: quote_amount + quote_fees,
+                            shares: alice_shares,
                         }
                     )
                 )
@@ -1502,7 +1510,7 @@ fn test_deposit_single_sided_ask_liquidity() {
     let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
         .amounts_inside_position(position_id);
     start_prank(CheatTarget::One(strategy.contract_address), alice());
-    strategy.deposit(market_id, base_amount + base_fees, 0);
+    let (_, _, shares) = strategy.deposit(market_id, base_amount + base_fees, 0);
 
     // Run checks.
     let alice_shares = strategy.user_deposits(market_id, alice());
@@ -1521,6 +1529,7 @@ fn test_deposit_single_sided_ask_liquidity() {
                             caller: alice(),
                             base_amount: base_amount + base_fees,
                             quote_amount: 0,
+                            shares,
                         }
                     )
                 )
@@ -1675,7 +1684,7 @@ fn test_deposit_deposit_disabled_strategy_owner() {
     let mut spy = spy_events(SpyOn::One(strategy.contract_address));
 
     // Deposit should work if owner is depositing.
-    let (base_amount, quote_amount, _) = strategy.deposit(market_id, to_e18(1), to_e18(1250));
+    let (base_amount, quote_amount, shares) = strategy.deposit(market_id, to_e18(1), to_e18(1250));
 
     // Check event emitted.
     spy
@@ -1685,7 +1694,7 @@ fn test_deposit_deposit_disabled_strategy_owner() {
                     strategy.contract_address,
                     ReplicatingStrategy::Event::Deposit(
                         ReplicatingStrategy::Deposit {
-                            market_id, caller: owner(), base_amount, quote_amount,
+                            market_id, caller: owner(), base_amount, quote_amount, shares
                         }
                     )
                 )
@@ -1778,15 +1787,15 @@ fn test_withdraw_all() {
     let mut spy = spy_events(SpyOn::One(strategy.contract_address));
 
     // Withdraw from strategy.
-    let mut user_deposits = strategy.user_deposits(market_id, owner());
+    let user_deposits_before = strategy.user_deposits(market_id, owner());
     start_prank(CheatTarget::One(strategy.contract_address), owner());
-    let (base_amount, quote_amount) = strategy.withdraw(market_id, user_deposits);
+    let (base_amount, quote_amount) = strategy.withdraw(market_id, user_deposits_before);
 
     // Snapshot after.
     let aft = _snapshot_state(
         market_manager, strategy, market_id, base_token, quote_token, owner()
     );
-    user_deposits = strategy.user_deposits(market_id, owner());
+    let user_deposits = strategy.user_deposits(market_id, owner());
     let total_deposits = strategy.total_deposits(market_id);
 
     // Run checks.
@@ -1826,7 +1835,11 @@ fn test_withdraw_all() {
                     strategy.contract_address,
                     ReplicatingStrategy::Event::Withdraw(
                         ReplicatingStrategy::Withdraw {
-                            market_id, caller: owner(), base_amount, quote_amount,
+                            market_id,
+                            caller: owner(),
+                            base_amount,
+                            quote_amount,
+                            shares: user_deposits_before
                         }
                     )
                 )
@@ -1943,7 +1956,11 @@ fn test_withdraw_partial() {
                     strategy.contract_address,
                     ReplicatingStrategy::Event::Withdraw(
                         ReplicatingStrategy::Withdraw {
-                            market_id, caller: owner(), base_amount, quote_amount,
+                            market_id,
+                            caller: owner(),
+                            base_amount,
+                            quote_amount,
+                            shares: shares_req
                         }
                     )
                 )
@@ -2170,7 +2187,7 @@ fn test_withdraw_allowed_if_paused() {
                     strategy.contract_address,
                     ReplicatingStrategy::Event::Withdraw(
                         ReplicatingStrategy::Withdraw {
-                            market_id, caller: owner(), base_amount, quote_amount,
+                            market_id, caller: owner(), base_amount, quote_amount, shares
                         }
                     )
                 )
@@ -2197,15 +2214,15 @@ fn test_withdraw_fees() {
     let quote_deposit = to_e18(1112520000);
     let shares = strategy.deposit_initial(market_id, base_deposit, quote_deposit);
 
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
     // Withdraw.
     let (base_amount, quote_amount) = strategy.withdraw(market_id, shares);
     let base_fees_exp = fee_math::calc_fee(base_deposit, withdraw_fee_rate);
     let quote_fees_exp = fee_math::calc_fee(quote_deposit, withdraw_fee_rate);
     let base_amount_exp = base_deposit - base_fees_exp;
     let quote_amount_exp = quote_deposit - quote_fees_exp;
-
-    // Log events.
-    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
 
     // Collect fees.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -2224,6 +2241,34 @@ fn test_withdraw_fees() {
     spy
         .assert_emitted(
             @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Withdraw(
+                        ReplicatingStrategy::Withdraw {
+                            caller: owner(),
+                            market_id,
+                            base_amount: base_deposit - 1, // rounding error
+                            quote_amount: quote_deposit - 1, // rounding error 
+                            shares
+                        }
+                    )
+                ),
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::WithdrawFeeEarned(
+                        ReplicatingStrategy::WithdrawFeeEarned {
+                            market_id, token: base_token.contract_address, amount: base_fees,
+                        }
+                    )
+                ),
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::WithdrawFeeEarned(
+                        ReplicatingStrategy::WithdrawFeeEarned {
+                            market_id, token: quote_token.contract_address, amount: quote_fees,
+                        }
+                    )
+                ),
                 (
                     strategy.contract_address,
                     ReplicatingStrategy::Event::CollectWithdrawFee(
@@ -2246,6 +2291,80 @@ fn test_withdraw_fees() {
                 )
             ]
         );
+}
+
+#[test]
+fn test_deposit_and_withdraw_with_fees() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+
+    // Set price.
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 232600000000, 8, 999, 5);
+
+    // Deposit.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let base_deposit = to_e18(10);
+    let quote_deposit = to_e18(500);
+    let shares_1 = strategy.deposit_initial(market_id, base_deposit, quote_deposit);
+
+    // Enable withdraw fee.
+    let withdraw_fee_rate = 20;
+    strategy.set_withdraw_fee(market_id, withdraw_fee_rate);
+
+    // Withdraw.
+    let withdraw_shares_1 = shares_1 / 2;
+    let (base_withdraw_1, quote_withdraw_1) = strategy.withdraw(market_id, withdraw_shares_1);
+
+    // Deposit.
+    let base_deposit_2 = to_e18(5);
+    let quote_deposit_2 = to_e18(250);
+    let (_, _, shares_2) = strategy.deposit(market_id, base_deposit_2, quote_deposit_2);
+
+    // Withdraw.
+    let withdraw_shares_2 = shares_2 + shares_1 - withdraw_shares_1;
+    let (base_withdraw_2, quote_withdraw_2) = strategy.withdraw(market_id, withdraw_shares_2);
+
+    // Check deposits and reserves.
+    let user_deposits = strategy.user_deposits(market_id, owner());
+    let total_deposits = strategy.total_deposits(market_id);
+    let base_reserves = strategy.strategy_state(market_id).base_reserves;
+    let quote_reserves = strategy.strategy_state(market_id).quote_reserves;
+    let market_info = market_manager.market_info(market_id);
+    let base_fee_balance = strategy.withdraw_fees(market_info.base_token);
+    let quote_fee_balance = strategy.withdraw_fees(market_info.quote_token);
+
+    let base_fees_exp = fee_math::net_to_fee(base_withdraw_1 + base_withdraw_2, withdraw_fee_rate);
+    let quote_fees_exp = fee_math::net_to_fee(
+        quote_withdraw_1 + quote_withdraw_2, withdraw_fee_rate
+    );
+    let base_withdraw_exp = base_deposit + base_deposit_2 - base_fees_exp;
+    let quote_withdraw_exp = quote_deposit + quote_deposit_2 - quote_fees_exp;
+
+    // Withdraw amounts should match deposits and expected fees.
+    assert(
+        approx_eq(base_withdraw_1, base_deposit / 2 * 998 / 1000, 10), 'Base withdraw'
+    ); // exp: 4.99 
+    assert(
+        approx_eq(quote_withdraw_1, quote_deposit / 2 * 998 / 1000, 10), 'Quote withdraw'
+    ); // exp: 249.5
+    assert(
+        approx_eq(base_withdraw_2, (base_deposit / 2 + base_deposit_2) * 998 / 1000, 10),
+        'Base withdraw 2'
+    ); // exp: 9.98
+    assert(
+        approx_eq(quote_withdraw_2, (quote_deposit / 2 + quote_deposit_2) * 998 / 1000, 10),
+        'Quote withdraw 2'
+    ); // exp: 499
+    assert(user_deposits == 0, 'User deposits');
+    assert(total_deposits == 0, 'Total deposits');
+    assert(approx_eq(base_reserves, 0, 10), 'Base reserves');
+    assert(approx_eq(quote_reserves, 0, 10), 'Quote reserves');
+    assert(approx_eq(base_fee_balance, base_fees_exp, 10), 'Base fee balance');
+    assert(approx_eq(quote_fee_balance, quote_fees_exp, 10), 'Quote fee balance');
+    assert(approx_eq(base_withdraw_1 + base_withdraw_2, base_withdraw_exp, 10), 'Base withdraw');
+    assert(
+        approx_eq(quote_withdraw_1 + quote_withdraw_2, quote_withdraw_exp, 10), 'Quote withdraw'
+    );
 }
 
 #[test]
@@ -2494,7 +2613,8 @@ fn test_disable_deposit_strategy_owner_deposit() {
     strategy.set_params(market_id, params);
 
     // Deposit should be allowed.
-    let (base_amount, quote_amount, _) = strategy.deposit(market_id, to_e18(500), to_e18(700000));
+    let (base_amount, quote_amount, shares) = strategy
+        .deposit(market_id, to_e18(500), to_e18(700000));
 
     // Check event emitted.
     spy
@@ -2504,7 +2624,7 @@ fn test_disable_deposit_strategy_owner_deposit() {
                     strategy.contract_address,
                     ReplicatingStrategy::Event::Deposit(
                         ReplicatingStrategy::Deposit {
-                            market_id, caller: owner(), base_amount, quote_amount,
+                            market_id, caller: owner(), base_amount, quote_amount, shares
                         }
                     )
                 )

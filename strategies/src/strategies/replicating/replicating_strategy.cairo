@@ -13,8 +13,6 @@ mod ReplicatingStrategy {
     use starknet::replace_class_syscall;
 
     // Local imports.
-    use amm::contracts::market_manager::MarketManager;
-    use amm::contracts::market_manager::MarketManager::ContractState as MMContractState;
     use amm::types::core::{MarketState, SwapParams, PositionInfo};
     use amm::libraries::{
         id, math::{math, price_math, liquidity_math, fee_math},
@@ -101,6 +99,7 @@ mod ReplicatingStrategy {
         SetWhitelist: SetWhitelist,
         CollectWithdrawFee: CollectWithdrawFee,
         SetWithdrawFee: SetWithdrawFee,
+        WithdrawFeeEarned: WithdrawFeeEarned,
         ChangeOwner: ChangeOwner,
         ChangeStrategyOwner: ChangeStrategyOwner,
         ChangeOracle: ChangeOracle,
@@ -122,6 +121,7 @@ mod ReplicatingStrategy {
         market_id: felt252,
         base_amount: u256,
         quote_amount: u256,
+        shares: u256,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -132,6 +132,7 @@ mod ReplicatingStrategy {
         market_id: felt252,
         base_amount: u256,
         quote_amount: u256,
+        shares: u256,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -181,6 +182,15 @@ mod ReplicatingStrategy {
         #[key]
         market_id: felt252,
         fee_rate: u16,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct WithdrawFeeEarned {
+        #[key]
+        market_id: felt252,
+        #[key]
+        token: ContractAddress,
+        amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -893,7 +903,10 @@ mod ReplicatingStrategy {
             self.total_deposits.write(market_id, shares);
 
             // Emit event
-            self.emit(Event::Deposit(Deposit { market_id, caller, base_amount, quote_amount }));
+            self
+                .emit(
+                    Event::Deposit(Deposit { market_id, caller, base_amount, quote_amount, shares })
+                );
 
             shares
         }
@@ -982,7 +995,8 @@ mod ReplicatingStrategy {
                             market_id,
                             caller,
                             base_amount: base_deposit,
-                            quote_amount: quote_deposit
+                            quote_amount: quote_deposit,
+                            shares,
                         }
                     )
                 );
@@ -1027,26 +1041,26 @@ mod ReplicatingStrategy {
             let bid_liquidity_delta = math::mul_div(
                 state.bid.liquidity.into(), shares, total_deposits, false
             );
-            let bid_delta_i128 = bid_liquidity_delta.try_into().expect('BidLiqOF');
-            state.bid.liquidity -= bid_delta_i128;
+            let bid_delta_u128 = bid_liquidity_delta.try_into().expect('BidLiqOF');
+            state.bid.liquidity -= bid_delta_u128;
             let (bid_base_rem, bid_quote_rem, bid_base_fees, bid_quote_fees) = market_manager
                 .modify_position(
                     market_id,
                     state.bid.lower_limit,
                     state.bid.upper_limit,
-                    I128Trait::new(bid_delta_i128, true)
+                    I128Trait::new(bid_delta_u128, true)
                 );
             let ask_liquidity_delta = math::mul_div(
                 state.ask.liquidity.into(), shares, total_deposits, false
             );
-            let ask_delta_i128 = ask_liquidity_delta.try_into().expect('AskLiqOF');
-            state.ask.liquidity -= ask_delta_i128;
+            let ask_delta_u128 = ask_liquidity_delta.try_into().expect('AskLiqOF');
+            state.ask.liquidity -= ask_delta_u128;
             let (ask_base_rem, ask_quote_rem, ask_base_fees, ask_quote_fees) = market_manager
                 .modify_position(
                     market_id,
                     state.ask.lower_limit,
                     state.ask.upper_limit,
-                    I128Trait::new(ask_delta_i128, true)
+                    I128Trait::new(ask_delta_u128, true)
                 );
 
             // Withdrawal includes all fees in position, not only those belonging to caller.
@@ -1065,29 +1079,29 @@ mod ReplicatingStrategy {
             self.user_deposits.write((market_id, caller), user_deposits - shares);
             self.total_deposits.write(market_id, total_deposits - shares);
 
+            // Initialise withdraw fee balances and cache withdraw amounts gross of fees.
+            let mut base_withdraw_fees = 0;
+            let mut quote_withdraw_fees = 0;
+            let base_withdraw_gross = base_withdraw;
+            let quote_withdraw_gross = quote_withdraw;
+
             // Deduct withdrawal fee.
             let fee_rate = self.withdraw_fee_rate.read(market_id);
             if fee_rate != 0 {
-                let base_withdraw_fees = fee_math::calc_fee(base_withdraw, fee_rate);
-                let quote_withdraw_fees = fee_math::calc_fee(quote_withdraw, fee_rate);
+                base_withdraw_fees = fee_math::calc_fee(base_withdraw, fee_rate);
+                quote_withdraw_fees = fee_math::calc_fee(quote_withdraw, fee_rate);
                 base_withdraw -= base_withdraw_fees;
                 quote_withdraw -= quote_withdraw_fees;
-                state.base_reserves += base_withdraw_fees;
-                state.quote_reserves += quote_withdraw_fees;
+            }
 
-                // Update fee balance.
-                if base_withdraw_fees != 0 {
-                    let base_fees = self.withdraw_fees.read(market_info.base_token);
-                    self
-                        .withdraw_fees
-                        .write(market_info.base_token, base_fees + base_withdraw_fees);
-                }
-                if quote_withdraw_fees != 0 {
-                    let quote_fees = self.withdraw_fees.read(market_info.quote_token);
-                    self
-                        .withdraw_fees
-                        .write(market_info.quote_token, quote_fees + quote_withdraw_fees);
-                }
+            // Update fee balance.
+            if base_withdraw_fees != 0 {
+                let base_fees = self.withdraw_fees.read(market_info.base_token);
+                self.withdraw_fees.write(market_info.base_token, base_fees + base_withdraw_fees);
+            }
+            if quote_withdraw_fees != 0 {
+                let quote_fees = self.withdraw_fees.read(market_info.quote_token);
+                self.withdraw_fees.write(market_info.quote_token, quote_fees + quote_withdraw_fees);
             }
 
             // Update reserves.
@@ -1111,11 +1125,34 @@ mod ReplicatingStrategy {
                         Withdraw {
                             market_id,
                             caller,
-                            base_amount: base_withdraw,
-                            quote_amount: quote_withdraw
+                            base_amount: base_withdraw_gross,
+                            quote_amount: quote_withdraw_gross,
+                            shares,
                         }
                     )
                 );
+            if base_withdraw_fees != 0 {
+                self
+                    .emit(
+                        Event::WithdrawFeeEarned(
+                            WithdrawFeeEarned {
+                                market_id, token: market_info.base_token, amount: base_withdraw_fees
+                            }
+                        )
+                    );
+            }
+            if quote_withdraw_fees != 0 {
+                self
+                    .emit(
+                        Event::WithdrawFeeEarned(
+                            WithdrawFeeEarned {
+                                market_id,
+                                token: market_info.quote_token,
+                                amount: quote_withdraw_fees
+                            }
+                        )
+                    );
+            }
 
             // Return withdrawn amounts.
             (base_withdraw, quote_withdraw)
