@@ -264,7 +264,7 @@ mod Quoter {
             quotes.span()
         }
 
-        // Returns token amounts (including accrued fees) inside a list of liquidity positions.
+        // Proxies call to token amounts (including accrued fees) inside a list of liquidity positions.
         // 
         // # Arguments
         // * `position_ids` - list of position ids
@@ -292,7 +292,7 @@ mod Quoter {
             amounts.span()
         }
 
-        // Returns token amounts accrued inside a list of limit orders.
+        // Proxies call to fetch token amounts accrued inside a list of limit orders.
         // 
         // # Arguments
         // * `order_ids` - list of position ids
@@ -322,7 +322,7 @@ mod Quoter {
             amounts.span()
         }
 
-        // Returns token balances of a user.
+        // Proxies call to query token balances of a user.
         // 
         // # Arguments
         // * `user` - target user
@@ -348,7 +348,7 @@ mod Quoter {
             balances.span()
         }
 
-        // Update market manager.
+        // Set market manager.
         //
         // # Arguments
         // * `market_manager` - market manager address
