@@ -85,6 +85,16 @@ trait IReplicatingStrategy<TContractState> {
     // * `quote_amount` - total quote tokens owned
     fn get_balances(self: @TContractState, market_id: felt252) -> (u256, u256);
 
+    // Get token amounts held in strategy market for a list of markets.
+    // 
+    // # Arguments
+    // * `market_ids` - list of market ids
+    //
+    // # Returns
+    // * `base_amount` - base amount held in strategy market
+    // * `quote_amount` - quote amount held in strategy market
+    fn get_balances_array(self: @TContractState, market_ids: Span<felt252>) -> Span<(u256, u256)>;
+
     // Get user's share of amounts held in strategy, for a list of users.
     // 
     // # Arguments

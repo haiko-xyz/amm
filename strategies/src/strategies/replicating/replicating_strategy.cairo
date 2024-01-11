@@ -651,6 +651,33 @@ mod ReplicatingStrategy {
             (base_amount, quote_amount)
         }
 
+        // Get token amounts held in strategy market for a list of markets.
+        // 
+        // # Arguments
+        // * `market_ids` - list of market ids
+        //
+        // # Returns
+        // * `base_amount` - base amount held in strategy market
+        // * `quote_amount` - quote amount held in strategy market
+        fn get_balances_array(
+            self: @ContractState, market_ids: Span<felt252>
+        ) -> Span<(u256, u256)> {
+            let mut balances: Array<(u256, u256)> = array![];
+            let mut i = 0;
+            loop {
+                if i == market_ids.len() {
+                    break;
+                }
+                let market_id = *market_ids.at(i);
+                let (base_amount, quote_amount) = self.get_balances(market_id);
+                balances.append((base_amount, quote_amount));
+                i += 1;
+            };
+
+            // Return balances.
+            balances.span()
+        }
+
         // Get user's share of amounts held in strategy, for a list of users.
         // 
         // # Arguments
