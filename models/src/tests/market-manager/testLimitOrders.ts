@@ -68,9 +68,7 @@ const testSwapFullyFillsBidLimitOrders = () => {
     0.003,
     true
   )
-  const protocolShare = 0.002
-  const protocolFee = calcFee(fee, protocolShare)
-  const grossAmountIn = new Decimal(amountIn).add(fee).sub(protocolFee)
+  const grossAmountIn = new Decimal(amountIn).add(fee)
 
   console.log({
     baseAmount: new Decimal(grossAmountIn).mul(1e18).toFixed(0, 1),
@@ -87,9 +85,7 @@ const testSwapFullyFillsAskLimitOrders = () => {
     0.003,
     true
   )
-  const protocolShare = 0.002
-  const protocolFee = calcFee(fee, protocolShare)
-  const grossAmountIn = new Decimal(amountIn).add(fee).sub(protocolFee)
+  const grossAmountIn = new Decimal(amountIn).add(fee)
 
   console.log({
     quoteAmount: new Decimal(grossAmountIn).mul(1e18).toFixed(0, 1),
@@ -123,9 +119,7 @@ const testCreateAndCollectFullyFilledBidOrder = () => {
     0.003,
     true
   )
-  const protocolShare = 0.002
-  const protocolFee = calcFee(fee, protocolShare)
-  const grossAmountIn = new Decimal(amountIn).add(fee).sub(protocolFee)
+  const grossAmountIn = new Decimal(amountIn).add(fee)
 
   console.log({
     baseAmount: new Decimal(grossAmountIn).mul(1e18).toFixed(0, 1),
@@ -143,9 +137,7 @@ const testCreateAndCollectFullyFilledAskOrder = () => {
     0.003,
     true
   )
-  const protocolShare = 0.002
-  const protocolFee = calcFee(fee, protocolShare)
-  const grossAmountIn = new Decimal(amountIn).add(fee).sub(protocolFee)
+  const grossAmountIn = new Decimal(amountIn).add(fee)
 
   console.log({
     baseAmount: new Decimal(amountOut).mul(1e18).toFixed(0, 1),
@@ -171,16 +163,11 @@ const testCreateAndCollectPartiallyFilledBidOrder = () => {
     0.003,
     true
   )
-  const protocolShare = 0.002
-  const protocolFee = calcFee(fee, protocolShare)
-  const grossAmountIn = new Decimal(amountIn).add(fee).sub(protocolFee)
-
   console.log("Limit order 1")
   console.log({
     quoteAmount: new Decimal(quoteAmount).mul(1e18).mul(1).div(3).toFixed(0, 1),
     amountFilled: new Decimal(amountOut).mul(1e18).mul(1).div(3).toFixed(0, 1),
-    // fees are forfeited if order is partially filled
-    amountEarned: new Decimal(amountIn).mul(1e18).mul(1).div(3).toFixed(0, 1),
+    amountEarned: new Decimal(amountIn).add(fee).mul(1e18).mul(1).div(3).toFixed(0, 1),
     fee: new Decimal(fee).mul(1e18).mul(1).div(3).toFixed(0, 1),
   })
 
@@ -188,8 +175,7 @@ const testCreateAndCollectPartiallyFilledBidOrder = () => {
   console.log({
     quoteAmount: new Decimal(quoteAmount).mul(1e18).mul(2).div(3).toFixed(0, 1),
     amountFilled: new Decimal(amountOut).mul(1e18).mul(2).div(3).toFixed(0, 1),
-    // forfeited fees get allocated to remaining position instead
-    amountEarned: new Decimal(grossAmountIn).sub(new Decimal(amountIn).div(3)).mul(1e18).toFixed(0, 1),
+    amountEarned: new Decimal(amountIn).add(fee).mul(1e18).mul(2).div(3).toFixed(0, 1),
     fee: new Decimal(fee).mul(1e18).mul(2).div(3).toFixed(0, 1),
   })
 }
@@ -212,10 +198,6 @@ const testCreateAndCollectPartiallyFilledAskOrder = () => {
     0.003,
     true
   )
-  const protocolShare = 0.002
-  const protocolFee = calcFee(fee, protocolShare)
-  const grossAmountIn = new Decimal(amountIn).add(fee).sub(protocolFee)
-
   console.log("Limit order 1")
   console.log({
     baseAmount: new Decimal(baseAmount).mul(1e18).mul(1).div(3).toFixed(0, 1),
@@ -229,8 +211,8 @@ const testCreateAndCollectPartiallyFilledAskOrder = () => {
   console.log({
     baseAmount: new Decimal(baseAmount).mul(1e18).mul(2).div(3).toFixed(0, 1),
     amountFilled: new Decimal(amountOut).mul(1e18).mul(2).div(3).toFixed(0, 1),
-    // forfeited fees get allocated to remaining position instead
-    amountEarned: new Decimal(grossAmountIn).sub(new Decimal(amountIn).div(3)).mul(1e18).toFixed(0, 1),
+    // fees are forfeited if order is partially filled
+    amountEarned: new Decimal(amountIn).mul(1e18).mul(2).div(3).toFixed(0, 1),
     fee: new Decimal(fee).mul(1e18).mul(2).div(3).toFixed(0, 1),
   })
 }
@@ -253,9 +235,7 @@ const testPartiallyFilledBidCorrectlyUnfills = () => {
     0.003,
     true
   )
-  const protocolShare = 0.002
-  const protocolFee = calcFee(fee, protocolShare)
-  const grossAmountIn = new Decimal(amountIn).add(fee).sub(protocolFee)
+  const grossAmountIn = new Decimal(amountIn).add(fee)
 
   console.log("Swap 1 (sell)")
   console.log({
@@ -274,8 +254,7 @@ const testPartiallyFilledBidCorrectlyUnfills = () => {
     fee: fee2,
   } = computeSwapAmount(nextSqrtPrice, nextSqrtPrice2, "1500000", "4", 0.003, true)
 
-  const protocolFee2 = calcFee(fee2, protocolShare)
-  const grossAmountIn2 = new Decimal(amountIn2).add(fee2).sub(protocolFee2)
+  const grossAmountIn2 = new Decimal(amountIn2).add(fee2)
 
   console.log("Swap 2 (buy)")
   console.log({
@@ -302,9 +281,7 @@ const testPartiallyFilledAskCorrectlyUnfills = () => {
     0.003,
     true
   )
-  const protocolShare = 0.002
-  const protocolFee = calcFee(fee, protocolShare)
-  const grossAmountIn = new Decimal(amountIn).add(fee).sub(protocolFee)
+  const grossAmountIn = new Decimal(amountIn).add(fee)
 
   console.log("Swap 1 (buy)")
   console.log({
@@ -323,8 +300,7 @@ const testPartiallyFilledAskCorrectlyUnfills = () => {
     fee: fee2,
   } = computeSwapAmount(nextSqrtPrice, nextSqrtPrice2, "1500000", "4", 0.003, true)
 
-  const protocolFee2 = calcFee(fee2, protocolShare)
-  const grossAmountIn2 = new Decimal(amountIn2).add(fee2).sub(protocolFee2)
+  const grossAmountIn2 = new Decimal(amountIn2).add(fee2)
 
   console.log("Swap 2 (sell)")
   console.log({
@@ -354,8 +330,6 @@ const testLimitOrdersMiscActions = () => {
     fee: fee1a,
   } = computeSwapAmount(sqrtPriceN899, sqrtPriceN900, "150000", "1", 0.003, true)
   const grossAmountIn1a = new Decimal(amountIn1a).add(fee1a)
-  const protocolFee1a = calcFee(fee1a, 0.002)
-  const grossAmountInLessPFee1a = grossAmountIn1a.sub(protocolFee1a)
 
   // Swap leg 1b: swap from -999 to -1000
   const netAmount1b = new Decimal(1).sub(grossAmountIn1a).mul(1 - 0.003)
@@ -365,21 +339,16 @@ const testLimitOrdersMiscActions = () => {
     amountOut: amountOut1b,
     fee: fee1b,
   } = computeSwapAmount(sqrtPriceN999, nextSqrtPrice1b, "200000", new Decimal(1).sub(grossAmountIn1a), 0.003, true)
-  const protocolFee1b = calcFee(fee1b, 0.002)
   const grossAmountIn1b = new Decimal(amountIn1b).add(fee1b)
-  const grossAmountInLessPFee1b = grossAmountIn1b.sub(protocolFee1b)
 
   // Calculate aggregate swap 1 amounts.
   const grossAmountIn1 = new Decimal(grossAmountIn1a).add(grossAmountIn1b)
   const amountOut1 = new Decimal(amountOut1a).add(amountOut1b)
   const fee1 = new Decimal(fee1a).add(fee1b)
 
-  const baseFeeFactor = new Decimal(fee1a)
-    .sub(protocolFee1a)
-    .div(150000)
-    .add(new Decimal(fee1b).sub(protocolFee1b).div(200000))
-  const baseFeeFactorN900 = new Decimal(fee1a).sub(protocolFee1a).div(150000)
-  const baseFeeFactorN1000 = new Decimal(fee1b).sub(protocolFee1b).div(200000)
+  const baseFeeFactor = new Decimal(fee1a).div(150000).add(new Decimal(fee1b).div(200000))
+  const baseFeeFactorN900 = new Decimal(fee1a).div(150000)
+  const baseFeeFactorN1000 = new Decimal(fee1b).div(200000)
   console.log({
     baseFeeFactorN900: baseFeeFactorN900.mul(1e18).toFixed(0, 1),
     baseFeeFactorN1000: baseFeeFactorN1000.mul(1e18).toFixed(0, 1),
@@ -396,10 +365,8 @@ const testLimitOrdersMiscActions = () => {
   const baseReserves = askAlice900BaseAmt
     .add(askBob900BaseAmt)
     .add(askAlice1000BaseAmt)
-    .add(new Decimal(grossAmountInLessPFee1a).mul(2).div(3))
-    .add(protocolFee1b)
-    .add(protocolFee1a)
-    .add(new Decimal(grossAmountInLessPFee1b))
+    .add(new Decimal(grossAmountIn1a).mul(2).div(3))
+    .add(new Decimal(grossAmountIn1b))
   const aliceQuoteSpent = bidAliceN900QuoteAmt.add(bidAliceN1000QuoteAmt)
 
   console.log("Swap 1: Sell")
@@ -407,12 +374,13 @@ const testLimitOrdersMiscActions = () => {
     amountIn: new Decimal(grossAmountIn1).mul(1e18).toFixed(0, 1),
     amountOut: new Decimal(amountOut1).mul(1e18).toFixed(0, 1),
     fee: new Decimal(fee1).mul(1e18).toFixed(0, 1),
-    baseCollect1a: grossAmountInLessPFee1a.mul(1e18).mul(1).div(3).toFixed(0, 1),
+    baseCollect1a: grossAmountIn1a.mul(1e18).mul(1).div(3).toFixed(0, 1),
     currSqrtPrice1b: nextSqrtPrice1b.mul(1e28).toFixed(0, 1),
     baseFeeFactor: baseFeeFactor.mul(1e28).toFixed(0, 1),
-    batchNeg900Base: grossAmountInLessPFee1a.mul(1e18).mul(2).div(3).toFixed(0, 1),
+    // remaining order has fees included as it was fully filled
+    batchNeg900Base: grossAmountIn1a.mul(1e18).mul(2).div(3).toFixed(0, 1),
+    batchNeg1000Base: new Decimal(amountIn1b).add(fee1b).mul(1e18).toFixed(0, 1),
     batchNeg1000Quote: batchNeg1000Quote.mul(1e18).toFixed(0, 1),
-    batchNeg1000Base: grossAmountInLessPFee1b.mul(1e18).toFixed(0, 1),
     baseReseves: baseReserves.mul(1e18).toFixed(0, 1),
     quoteReseves: batchNeg1000Quote.mul(1e18).toFixed(0, 1),
     aliceQuoteSpent: aliceQuoteSpent.mul(1e18).toFixed(0, 1),
@@ -426,9 +394,7 @@ const testLimitOrdersMiscActions = () => {
     amountOut: amountOut2a,
     fee: fee2a,
   } = computeSwapAmount(nextSqrtPrice1b, sqrtPriceN999, "200000", 1, 0.003, true)
-  const protocolFee2a = calcFee(fee2a, 0.002)
   const grossAmountIn2a = new Decimal(amountIn2a).add(fee2a)
-  const grossAmountInLessPFee2a = grossAmountIn2a.sub(protocolFee2a)
 
   // Swap leg 2b: partially fill 2 ask orders at 900
   const netAmount2a = new Decimal(1).sub(grossAmountIn2a).mul(1 - 0.003)
@@ -438,9 +404,7 @@ const testLimitOrdersMiscActions = () => {
     amountOut: amountOut2b,
     fee: fee2b,
   } = computeSwapAmount(sqrtPrice900, nextSqrtPrice2b, "250000", new Decimal(1).sub(grossAmountIn2a), 0.003, true)
-  const protocolFee2b = calcFee(fee2b, 0.002)
   const grossAmountIn2b = new Decimal(amountIn2b).add(fee2b)
-  const grossAmountInLessPFee2b = grossAmountIn2b.sub(protocolFee2b)
 
   // Calculate aggregate swap 2 amounts.
   const grossAmountIn2 = new Decimal(grossAmountIn2a).add(grossAmountIn2b)
@@ -448,12 +412,9 @@ const testLimitOrdersMiscActions = () => {
   const fee2 = new Decimal(fee2a).add(fee2b)
 
   const askBob1000BaseAmt = liquidityToBase(sqrtPrice1000, sqrtPrice1001, "200000")
-  const quoteFeeFactor = new Decimal(fee2a)
-    .sub(protocolFee2a)
-    .div(200000)
-    .add(new Decimal(fee2b).sub(protocolFee2b).div(250000))
-  const quoteFeeFactorN899 = new Decimal(fee2a).sub(protocolFee2a).div(200000)
-  const quoteFeeFactorN999 = new Decimal(fee2b).sub(protocolFee2b).div(250000)
+  const quoteFeeFactor = new Decimal(fee2a).div(200000).add(new Decimal(fee2b).div(250000))
+  const quoteFeeFactorN899 = new Decimal(fee2a).div(200000)
+  const quoteFeeFactorN999 = new Decimal(fee2b).div(250000)
   console.log({
     quoteFeeFactorN899: quoteFeeFactorN899.mul(1e18).toFixed(0, 1),
     quoteFeeFactorN999: quoteFeeFactorN999.mul(1e18).toFixed(0, 1),
@@ -465,15 +426,13 @@ const testLimitOrdersMiscActions = () => {
     amountOut: new Decimal(amountOut2).mul(1e18).toFixed(0, 1),
     fee: new Decimal(fee2).mul(1e18).toFixed(0, 1),
     bobCollect900BaseAmt: askBob900BaseAmt.sub(new Decimal(amountOut2b).mul(2).div(5)).mul(1e18).toFixed(0, 1),
-    // fees are forfeited if order is partially filled
-    bobCollect900QuoteAmt: new Decimal(amountIn2b).mul(2).div(5).mul(1e18).toFixed(0, 1),
+    bobCollect900QuoteAmt: new Decimal(amountIn2b).add(fee2b).mul(2).div(5).mul(1e18).toFixed(0, 1),
     askBob1000BaseAmt: askBob1000BaseAmt.mul(1e18).toFixed(0, 1),
     nextSqrtPrice2b: nextSqrtPrice2b.mul(1e28).toFixed(0, 1),
     baseFeeFactor: baseFeeFactor.mul(1e28).toFixed(0, 1),
     quoteFeeFactor: quoteFeeFactor.mul(1e28).toFixed(0, 1),
     batch900BaseAmt: askAlice900BaseAmt.sub(new Decimal(amountOut2b).mul(3).div(5)).mul(1e18).toFixed(0, 1),
-    // forfeited fees get allocated to remaining position instead
-    batch1000QuoteAmt: grossAmountInLessPFee2b.sub(new Decimal(amountIn2b).mul(2).div(5)).mul(1e18).toFixed(0, 1),
+    batch900QuoteAmt: new Decimal(amountIn2b).add(fee2b).mul(3).div(5).mul(1e18).toFixed(0, 1),
   })
 }
 

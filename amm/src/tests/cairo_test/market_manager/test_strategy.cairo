@@ -1,6 +1,7 @@
 // Core lib imports.
 use starknet::testing::set_contract_address;
 use starknet::deploy_syscall;
+use debug::PrintTrait;
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
@@ -119,7 +120,7 @@ fn test_strategy() {
     let ask = *placed_positions.at(1);
 
     let base_amount_exp = 5940973053462648;
-    let quote_amount_exp = 9999939999999999999;
+    let quote_amount_exp = 10000000000000000000;
     assert(amount_in == amount, 'Amount in');
     assert(approx_eq(amount_out, base_amount_exp, 10), 'Amount out');
     assert(approx_eq(fees, 29999999999999999, 10), 'Fees');

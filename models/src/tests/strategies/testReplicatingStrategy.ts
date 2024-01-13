@@ -228,7 +228,6 @@ const testReplicatingStrategyMultipleSwaps = () => {
 
   // Execute swap 1.
   const swapAmount = 100
-  const protocolShare = 0.002
   const netAmount = new Decimal(swapAmount).mul(1 - swapFeeRate)
   const nextSqrtPrice1 = nextSqrtPriceAmountIn(limitToSqrtPrice(ask.lowerLimit, width), ask.liquidity, netAmount, isBuy)
   const nextLimit1 = Number(sqrtPriceToLimit(nextSqrtPrice1, width))
@@ -251,10 +250,13 @@ const testReplicatingStrategyMultipleSwaps = () => {
     swapFeeRate,
     true
   )
-  const protocolFee = calcFee(fee, protocolShare)
-  const grossAmountIn1 = new Decimal(amountIn).add(fee).sub(protocolFee)
+  console.log({
+    amountIn: new Decimal(amountIn).mul(1e18).toFixed(0, 1),
+    amountOut: new Decimal(amountOut).mul(1e18).toFixed(0, 1),
+    fee: new Decimal(fee).mul(1e18).toFixed(0, 1),
+  })
   const baseAmount2 = new Decimal(baseAmount).sub(amountOut)
-  const quoteAmount2 = new Decimal(quoteAmount).add(grossAmountIn1)
+  const quoteAmount2 = new Decimal(quoteAmount).add(amountIn).add(fee)
 
   // Check rebalancing condition.
   isBuy = false
@@ -385,7 +387,6 @@ const testReplicatingStrategyWithdraw = () => {
   // Calculate next price.
   const swapAmount = 5000
   const swapFeeRate = 0.003
-  const protocolShare = 0.002
   let isBuy = false
   const netAmount = new Decimal(swapAmount).mul(1 - swapFeeRate)
   const nextSqrtPrice = nextSqrtPriceAmountIn(limitToSqrtPrice(bidUpper, width), bidLiquidity, netAmount, isBuy)
@@ -399,11 +400,7 @@ const testReplicatingStrategyWithdraw = () => {
     swapFeeRate,
     true
   )
-  const protocolFee = calcFee(fee, protocolShare)
-  const grossAmountIn = new Decimal(amountIn).add(fee)
-  const grossAmountInLessPfee = grossAmountIn.sub(protocolFee)
-
-  const baseAmountEnd = new Decimal(baseAmount).add(grossAmountInLessPfee)
+  const baseAmountEnd = new Decimal(baseAmount).add(amountIn)
   const quoteAmountEnd = new Decimal(quoteAmount).sub(amountOut)
 
   const sharesWithdraw = new Decimal(bidLiquidity).add(askLiquidity).div(2)
@@ -411,12 +408,12 @@ const testReplicatingStrategyWithdraw = () => {
   const quoteWithdraw = new Decimal(sharesWithdraw).mul(quoteAmountEnd).div(shares)
 
   // The remaining share of collected fees will be leftover as reserves.
-  const baseReserves = new Decimal(fee).sub(protocolFee).div(2)
+  const baseReserves = new Decimal(fee).div(2)
 
   console.log({
     bidSharesInit: new Decimal(bidLiquidity).mul(1e18).toFixed(0, 1),
     askSharesInit: new Decimal(askLiquidity).mul(1e18).toFixed(0, 1),
-    amountIn: new Decimal(grossAmountIn).mul(1e18).toFixed(0, 1),
+    amountIn: new Decimal(amountIn).mul(1e18).toFixed(0, 1),
     amountOut: new Decimal(amountOut).mul(1e18).toFixed(0, 1),
     fee: new Decimal(fee).mul(1e18).toFixed(0, 1),
     baseWithdraw: new Decimal(baseWithdraw).mul(1e18).toFixed(0, 1),
@@ -426,7 +423,7 @@ const testReplicatingStrategyWithdraw = () => {
 }
 
 // testReplicatingStrategyDepositInitial()
-testReplicatingStrategyUpdatePositions()
+// testReplicatingStrategyUpdatePositions()
 // testReplicatingStrategyMultipleSwaps()
 // testReplicatingStrategyDeposit()
-// testReplicatingStrategyWithdraw()
+testReplicatingStrategyWithdraw()

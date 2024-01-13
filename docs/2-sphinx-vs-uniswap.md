@@ -58,7 +58,7 @@ The `MarketManager` contract contains the bulk of the business logic. It is the 
 2. Adding and removing liquidity to new or existing positions
 3. Swapping assets through one or multiple markets
 4. Placing and collecting limit orders
-5. Other miscellaneous actions such as flash loans, protocol fees, sweeping etc
+5. Other miscellaneous actions such as flash loans, sweeping etc
 
 Each market created through `MarketManager` has the option of being deployed with an associated `Strategy`, which defines logic for LPing within that market. More information on this can be found in the [Strategies](#5-strategies) section below.
 

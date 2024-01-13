@@ -39,7 +39,6 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
     params.start_limit = OFFSET - 0; // initial limit
-    params.protocol_share = 0;
     let market_id = create_market(market_manager, params);
 
     // Fund LPs with initial token balances and approve market manager as spender.

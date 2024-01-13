@@ -780,15 +780,15 @@ fn test_update_positions_multiple_swaps() {
     assert(state_2.ask.lower_limit == 7906620 + 741950, 'Ask 2: lower limit');
     assert(state_2.ask.upper_limit == 7906620 + 761950, 'Ask 2: upper limit');
     assert(
-        approx_eq_pct(state_2.bid.liquidity.into(), 289346459271780151386678214, 20),
+        approx_eq_pct(state_2.bid.liquidity.into(), 289346459271936200590250501, 20),
         'Bid 2: liquidity'
     );
     assert(
-        approx_eq_pct(state_2.ask.liquidity.into(), 429192101090792820578334882, 20),
+        approx_eq_pct(state_2.ask.liquidity.into(), 429192101090792820578334730, 20),
         'Ask 2: liquidity'
     );
     assert(
-        approx_eq_pct(market_state.curr_sqrt_price, 404035472140796796041975907438, 20),
+        approx_eq_pct(market_state.curr_sqrt_price, 404035472140796799075583212090, 20),
         'Swap 2: end sqrt price'
     );
     assert(market_state.curr_limit == 7906620 + 739787, 'Swap 2: end limit');
@@ -1706,10 +1706,6 @@ fn test_deposit_deposit_disabled_strategy_owner() {
 fn test_get_balances() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
-    // Remove protocol fee for easier accounting.
-    start_prank(CheatTarget::One(market_manager.contract_address), owner());
-    market_manager.set_protocol_share(market_id, 0);
-
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
     oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5); // 1668.78
@@ -1802,25 +1798,21 @@ fn test_withdraw_all() {
     assert(amount_in == amount, 'Amount in');
     assert(approx_eq_pct(amount_out, 8308093186237340625293077, 20), 'Amount out');
     assert(fees == to_e18(15), 'Fees');
-    let protocol_fee = fee_math::calc_fee(fees, aft.market_state.protocol_share);
-    assert(
-        approx_eq_pct(aft.lp_base_bal, bef.lp_base_bal + bef.market_base_bal - protocol_fee, 20),
-        'LP base'
-    );
+    assert(approx_eq_pct(aft.lp_base_bal, bef.lp_base_bal + bef.market_base_bal, 20), 'LP base');
     assert(
         approx_eq_pct(aft.lp_quote_bal, bef.lp_quote_bal + bef.market_quote_bal, 20), 'LP quote'
     );
     assert(approx_eq_pct(aft.strategy_base_bal, bef.strategy_base_bal, 20), 'Strategy base');
     assert(approx_eq_pct(aft.strategy_quote_bal, bef.strategy_quote_bal, 20), 'Strategy quote');
-    assert(approx_eq_pct(aft.market_base_bal, protocol_fee, 10), 'Market base');
+    assert(approx_eq(aft.market_base_bal, 0, 10), 'Market base');
     assert(approx_eq(aft.market_quote_bal, 0, 10), 'Market quote');
     assert(
-        approx_eq_pct(
-            (aft.strategy_state.bid.liquidity + aft.strategy_state.ask.liquidity).into(), 0, 20
+        approx_eq(
+            (aft.strategy_state.bid.liquidity + aft.strategy_state.ask.liquidity).into(), 0, 10
         ),
         'Liquidity'
     );
-    assert(approx_eq_pct(base_amount, 1004999970000000000000000, 20), 'Base amount');
+    assert(approx_eq_pct(base_amount, 1005000000000000000000000, 20), 'Base amount');
     assert(approx_eq_pct(quote_amount, 1104211906813762659374706922, 20), 'Quote amount');
     assert(approx_eq(aft.strategy_state.base_reserves, 0, 10), 'Base reserves');
     assert(approx_eq(aft.strategy_state.quote_reserves, 0, 10), 'Quote reserves');
@@ -1896,11 +1888,10 @@ fn test_withdraw_partial() {
     assert(amount_in == amount, 'Amount in');
     assert(approx_eq_pct(amount_out, 8308093186237340625293077, 20), 'Amount out');
     assert(fees == to_e18(15), 'Fees');
-    let protocol_fee = fee_math::calc_fee(fees, aft.market_state.protocol_share);
     // Removed liquidity includes entire fee balance. Withdrawn balance should allocate fees pro-rata.
-    let base_remove = (bef.market_base_bal - protocol_fee) / 2;
+    let base_remove = bef.market_base_bal / 2;
     let quote_remove = bef.market_quote_bal / 2;
-    let base_withdraw = base_remove + (fees - protocol_fee) / 2;
+    let base_withdraw = base_remove + fees / 2;
     let quote_withdraw = quote_remove;
     assert(approx_eq_pct(aft.lp_base_bal, bef.lp_base_bal + base_remove, 20), 'LP base');
     assert(approx_eq_pct(aft.lp_quote_bal, bef.lp_quote_bal + quote_remove, 20), 'LP quote');
@@ -1930,7 +1921,7 @@ fn test_withdraw_partial() {
         ),
         'Liquidity'
     );
-    assert(approx_eq_pct(base_amount, 502499985000000000000000, 20), 'Withdraw: base amount');
+    assert(approx_eq_pct(base_amount, 502499999999999999999999, 20), 'Withdraw: base amount');
     assert(approx_eq_pct(quote_amount, 552105953406881329687353461, 20), 'Withdraw: quote amount');
     assert(
         approx_eq_pct(aft.strategy_state.bid.liquidity.into(), 143133473230143906409286587, 20),
@@ -1941,7 +1932,7 @@ fn test_withdraw_partial() {
         'Ask liquidity'
     );
     assert(
-        approx_eq(aft.strategy_state.base_reserves, 7485000000000000000, 10),
+        approx_eq(aft.strategy_state.base_reserves, 7500000000000000000, 10),
         'Withdraw: base reserves'
     );
     assert(approx_eq(aft.strategy_state.quote_reserves, 0, 10), 'Withdraw: quote reserves');
@@ -2048,7 +2039,7 @@ fn test_withdraw_single_sided_liquidity() {
     assert(approx_eq(aft.strategy_quote_bal, bef.strategy_quote_bal, 10), 'Strategy quote');
     assert(approx_eq(aft.market_base_bal, bef.market_base_bal - base_amount, 10), 'Market base');
     assert(
-        approx_eq_pct(aft.market_quote_bal, bef.market_quote_bal - quote_amount, 20), 'Market quote'
+        approx_eq_pct(aft.market_quote_bal, bef.market_quote_bal - quote_amount, 10), 'Market quote'
     );
     assert(approx_eq(aft.strategy_state.base_reserves, 0, 10), 'Base reserves');
     assert(approx_eq(aft.strategy_state.quote_reserves, 0, 10), 'Quote reserves');

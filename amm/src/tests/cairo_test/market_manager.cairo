@@ -14,6 +14,5 @@ mod test_fee_controller;
 mod test_ownable;
 mod test_erc721_positions;
 mod test_whitelist;
-mod test_collect_protocol_fees;
 mod test_sweep;
 mod market_types;

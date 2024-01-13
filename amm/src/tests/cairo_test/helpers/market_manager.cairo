@@ -27,6 +27,9 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 fn deploy_market_manager(owner: ContractAddress,) -> IMarketManagerDispatcher {
     let mut constructor_calldata = ArrayTrait::<felt252>::new();
     owner.serialize(ref constructor_calldata);
+    'Haiko Liquidity Positions'.serialize(ref constructor_calldata);
+    'HAIKO-LP'.serialize(ref constructor_calldata);
+
     let (deployed_address, _) = deploy_syscall(
         MarketManager::TEST_CLASS_HASH.try_into().unwrap(), 0, constructor_calldata.span(), false
     )
@@ -60,7 +63,6 @@ fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketP
             params.strategy,
             params.swap_fee_rate,
             params.fee_controller,
-            params.protocol_share,
             params.start_limit,
             params.controller,
             params.market_configs,

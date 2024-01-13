@@ -16,8 +16,10 @@ use amm::contracts::market_manager::MarketManager::{
     positions::InternalContractMemberStateTrait as PositionStateTrait,
 };
 use amm::contracts::market_manager::MarketManager::MarketManagerInternalTrait;
-use amm::types::core::{MarketState, PartialFillInfo};
+use amm::types::core::MarketState;
 use amm::types::i128::I128Trait;
+
+// use debug::PrintTrait;
 
 // Iteratively execute swap up to next initialised limit price.
 //
@@ -27,16 +29,12 @@ use amm::types::i128::I128Trait;
 // * `amount_rem` - amount remaining to be swapped
 // * `amount_calc` - amount out if exact input or amount in if exact output
 // * `swap_fees` - swap fees
-// * `protocol_fees` - protocol fees
 // * `filled_limits` - array of limits filled during swap execution, plus associated batch id
 // * `threshold_sqrt_price` - price threshold
 // * `fee_rate` - fee rate
 // * `width` - limit width
 // * `is_buy` - whether swap is a buy or sell
 // * `exact_input` - whether swap amount is exact input or output
-//
-// # Returns
-// * `partial_fill_info` - info on final partially filled limit
 fn swap_iter(
     ref self: ContractState,
     market_id: felt252,
@@ -44,19 +42,18 @@ fn swap_iter(
     ref amount_rem: u256,
     ref amount_calc: u256,
     ref swap_fees: u256,
-    ref protocol_fees: u256,
     ref filled_limits: Array<(u32, felt252)>,
     threshold_sqrt_price: Option<u256>,
     fee_rate: u16,
     width: u32,
     is_buy: bool,
     exact_input: bool,
-) -> Option<PartialFillInfo> {
+) {
     // Break loop if amount remaining filled or price threshold reached. 
     if amount_rem == 0
         || (threshold_sqrt_price.is_some()
             && market_state.curr_sqrt_price == threshold_sqrt_price.unwrap()) {
-        return Option::None(());
+        return;
     }
 
     // Snapshot starting state (used below).
@@ -69,7 +66,7 @@ fn swap_iter(
     );
     // If running out of liquidity, we stop the swap execution.
     if target_limit_opt.is_none() {
-        return Option::None(());
+        return;
     }
     // assert(target_limit_opt.is_some(), 'NoLiquidity');
     let target_limit = min(target_limit_opt.unwrap(), price_math::max_limit(width));
@@ -109,18 +106,14 @@ fn swap_iter(
         amount_calc += amount_in_iter + fee_iter;
     }
 
-    // Calculate protocol fees and update swap fee balance.
-    let protocol_fee_iter = fee_math::calc_fee(fee_iter, market_state.protocol_share);
-    protocol_fees += protocol_fee_iter;
-    swap_fees += fee_iter - protocol_fee_iter;
+    // Update swap fee balance.
+    swap_fees += fee_iter;
 
     // Update fee factor.
     // Fee factors are rounded down to ensure LPs can never withdraw more swap fees than
     // accrued over swaps.
     if market_state.liquidity != 0 && fee_iter != 0 {
-        let fee_factor = math::mul_div(
-            fee_iter - protocol_fee_iter, ONE, market_state.liquidity.into(), false
-        );
+        let fee_factor = math::mul_div(fee_iter, ONE, market_state.liquidity.into(), false);
         if is_buy {
             market_state.quote_fee_factor += fee_factor;
         } else {
@@ -170,7 +163,7 @@ fn swap_iter(
 
         // Handle edge case where target limit is min or max.
         if target_limit == price_math::max_limit(width) || target_limit == 0 {
-            return Option::None(());
+            return;
         }
         // If selling, we need to reduce the limit by 1 because searching to the left moves us to
         // the next price boundary. 
@@ -181,14 +174,13 @@ fn swap_iter(
         };
 
         // Recursively call swap_iter.
-        return swap_iter(
+        swap_iter(
             ref self,
             market_id,
             ref market_state,
             ref amount_rem,
             ref amount_calc,
             ref swap_fees,
-            ref protocol_fees,
             ref filled_limits,
             threshold_sqrt_price,
             fee_rate,
@@ -211,20 +203,7 @@ fn swap_iter(
 
         // Update state.
         market_state.curr_limit = new_limit;
-
-        // Handle partial fill by returning info.
-        if curr_limit == next_limit {
-            return Option::Some(
-                PartialFillInfo {
-                    limit: curr_limit,
-                    amount_in: amount_in_iter + fee_iter - protocol_fee_iter,
-                    amount_out: amount_out_iter,
-                }
-            );
-        }
     }
-
-    Option::None(())
 }
 
 // Compute amounts swapped and new price after swapping between two prices.

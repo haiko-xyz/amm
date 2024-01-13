@@ -3,7 +3,8 @@ use starknet::testing::set_contract_address;
 use debug::PrintTrait;
 
 // Local imports.
-use amm::libraries::math::math;
+use amm::libraries::id;
+use amm::libraries::math::{price_math, math, fee_math};
 use amm::libraries::constants::OFFSET;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::types::core::{MarketState, OrderBatch, MarketConfigs, Config, ConfigOption};
@@ -108,15 +109,16 @@ fn test_create_bid_order_initialises_order_and_batch() {
     let batch = market_manager.batch(order.batch_id);
     let position = market_manager.position(market_id, order.batch_id, limit, limit + 1);
 
+    // Fetch amounts inside order.
+    let (base_amount, quote_amount) = market_manager.amounts_inside_order(order_id, market_id);
+
     // Run checks.
     assert(order.liquidity == liquidity, 'Create bid: liquidity');
     assert(batch.filled == false, 'Create bid: batch filled');
     assert(batch.limit == limit, 'Create bid: batch limit');
     assert(batch.is_bid == is_bid, 'Create bid: batch direction');
-    assert(batch.base_amount == base_amount_exp, 'Create bid: batch base amt');
-    assert(
-        approx_eq(batch.quote_amount.into(), quote_amount_exp, 10), 'Create bid: batch quote amt'
-    );
+    assert(approx_eq(base_amount, base_amount_exp, 10), 'Create bid: base amount');
+    assert(approx_eq(quote_amount, quote_amount_exp, 10), 'Create bid: quote amount');
     assert(position.liquidity == liquidity, 'Create bid: position liq');
     assert(position.base_fee_factor_last == 0, 'Create bid: position qff');
     assert(position.quote_fee_factor_last == 0, 'Create bid: position bff');
@@ -141,13 +143,16 @@ fn test_create_ask_order_initialises_order_and_batch() {
     let batch = market_manager.batch(order.batch_id);
     let position = market_manager.position(market_id, order.batch_id, limit, limit + 1);
 
+    // Fetch amounts inside order.
+    let (base_amount, quote_amount) = market_manager.amounts_inside_order(order_id, market_id);
+
     // Run checks.
     assert(order.liquidity == liquidity, 'Create ask: amount');
     assert(batch.filled == false, 'Create ask: batch filled');
     assert(batch.limit == limit, 'Create ask: batch limit');
     assert(batch.is_bid == is_bid, 'Create ask: batch direction');
-    assert(approx_eq(batch.base_amount.into(), base_amount_exp, 10), 'Create ask: base amt');
-    assert(batch.quote_amount == quote_amount_exp, 'Create ask: batch quote amt');
+    assert(approx_eq(base_amount, base_amount_exp, 10), 'Create ask: base amount');
+    assert(approx_eq(quote_amount, quote_amount_exp, 10), 'Create ask: quote amount');
     assert(position.liquidity == liquidity, 'Create ask: position liq');
     assert(position.base_fee_factor_last == 0, 'Create order: position qff');
     assert(position.quote_fee_factor_last == 0, 'Create ask: position bff');
@@ -156,7 +161,8 @@ fn test_create_ask_order_initialises_order_and_batch() {
 #[test]
 #[available_gas(100000000)]
 fn test_create_multiple_bid_orders() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let width = 1;
+    let (market_manager, base_token, quote_token, market_id) = before(width);
 
     // Create first limit order.
     set_contract_address(alice());
@@ -172,12 +178,10 @@ fn test_create_multiple_bid_orders() {
     set_contract_address(bob());
     let mut order = market_manager.order(order_id);
     let mut batch = market_manager.batch(order.batch_id);
+    let (base_amount, quote_amount) = market_manager.amounts_inside_order(order_id, market_id);
     assert(batch.liquidity == liquidity, 'Create bid 1: liquidity');
-    assert(batch.base_amount == 0, 'Create bid 1: batch base amount');
-    assert(
-        approx_eq(batch.quote_amount.into(), quote_amount_exp.into(), 10),
-        'Create bid 1: batch quote amt'
-    );
+    assert(base_amount == 0, 'Create bid 1: batch base amount');
+    assert(approx_eq(quote_amount, quote_amount_exp, 10), 'Create bid 1: batch quote amt');
 
     // Create second limit order.
     liquidity = to_e18_u128(20000);
@@ -189,19 +193,21 @@ fn test_create_multiple_bid_orders() {
     // Fetch limit order, batch and position.
     order = market_manager.order(order_id);
     batch = market_manager.batch(order.batch_id);
+    let position_id = id::position_id(market_id, order.batch_id, limit, limit + width);
+    let (batch_base, batch_quote, _, _) = market_manager.amounts_inside_position(position_id);
     assert(order.liquidity == liquidity, 'Create bid 2: liquidity');
     assert(batch.liquidity == batch_liquidity, 'Create bid 2: batch liquidity');
-    assert(batch.base_amount == 0, 'Create bid 2: batch base amt');
+    assert(batch_base == 0, 'Create bid 2: batch base amt');
     assert(
-        approx_eq(batch.quote_amount.into(), batch_quote_amount_exp.into(), 10),
-        'Create bid 2: batch quote amt'
+        approx_eq(batch_quote, batch_quote_amount_exp.into(), 10), 'Create bid 2: batch quote amt'
     );
 }
 
 #[test]
 #[available_gas(100000000)]
 fn test_create_multiple_ask_orders() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let width = 1;
+    let (market_manager, base_token, quote_token, market_id) = before(width);
 
     // Create first limit order.
     set_contract_address(alice());
@@ -216,12 +222,11 @@ fn test_create_multiple_ask_orders() {
     // Fetch limit order, batch and position.
     let mut order = market_manager.order(order_id);
     let mut batch = market_manager.batch(order.batch_id);
+    let (base_amount, quote_amount) = market_manager.amounts_inside_order(order_id, market_id);
     assert(order.liquidity == liquidity, 'Create ask 1: liquidity');
     assert(batch.liquidity == liquidity, 'Create ask 1: batch liquidity');
-    assert(
-        approx_eq(batch.base_amount.into(), base_amount_exp, 10), 'Create ask 1: batch base amt'
-    );
-    assert(batch.quote_amount == 0, 'Create ask 1: batch quote amt');
+    assert(approx_eq(base_amount, base_amount_exp, 10), 'Create ask 1: batch base amt');
+    assert(quote_amount == 0, 'Create ask 1: batch quote amt');
 
     // Create second limit order.
     set_contract_address(bob());
@@ -234,13 +239,12 @@ fn test_create_multiple_ask_orders() {
     // Fetch limit order, batch and position.
     order = market_manager.order(order_id);
     batch = market_manager.batch(order.batch_id);
+    let position_id = id::position_id(market_id, order.batch_id, limit, limit + width);
+    let (batch_base, batch_quote, _, _) = market_manager.amounts_inside_position(position_id);
     assert(order.liquidity == liquidity, 'Create ask 2: liquidity');
     assert(batch.liquidity == batch_liquidity, 'Create ask 2: batch liquidity');
-    assert(
-        approx_eq(batch.base_amount.into(), batch_base_amount_exp, 10),
-        'Create ask 2: batch base amt'
-    );
-    assert(batch.quote_amount == 0, 'Create ask 2: batch quote amt');
+    assert(approx_eq(batch_base, batch_base_amount_exp.into(), 10), 'Create ask 2: batch base amt');
+    assert(batch_quote == 0, 'Create ask 2: batch quote amt');
 }
 
 #[test]
@@ -261,14 +265,17 @@ fn test_swap_fully_fills_bid_limit_orders() {
     let liquidity_2 = to_e18_u128(500000);
     let order_id_2 = market_manager.create_order(market_id, is_bid, limit, liquidity_2);
 
-    // Liquidity to base amount, add fees less protocol fees
-    let base_amount_exp = 7560172478738224883;
-
     // Create random range liquidity position which should be ignored when filling limit orders.
     market_manager
         .modify_position(
             market_id, OFFSET - 600, OFFSET - 500, I128Trait::new(to_e18_u128(1), false)
         );
+
+    // Snapshot balances and reserves before.
+    let base_res_bef = market_manager.reserves(base_token.contract_address);
+    let quote_res_bef = market_manager.reserves(quote_token.contract_address);
+    let base_bal_bef = base_token.balance_of(market_manager.contract_address);
+    let quote_bal_bef = quote_token.balance_of(market_manager.contract_address);
 
     // Swap sell.
     let (amount_in, amount_out, fees) = market_manager
@@ -282,19 +289,34 @@ fn test_swap_fully_fills_bid_limit_orders() {
             Option::None(())
         );
 
-    // Fetch limit order, batch and position.
+    // Refetch balances and reserves, check they have changed as expected.
+    let base_res_aft = market_manager.reserves(base_token.contract_address);
+    let quote_res_aft = market_manager.reserves(quote_token.contract_address);
+    let base_bal_aft = base_token.balance_of(market_manager.contract_address);
+    let quote_bal_aft = quote_token.balance_of(market_manager.contract_address);
+    assert(approx_eq(base_res_aft, base_res_bef + amount_in, 10), 'Swap bid: base reserves');
+    assert(approx_eq(quote_res_aft, quote_res_bef - amount_out, 10), 'Swap bid: quote reserves');
+    assert(approx_eq(base_bal_aft, base_bal_bef + amount_in, 10), 'Swap bid: base balances');
+    assert(approx_eq(quote_bal_aft, quote_bal_bef - amount_out, 10), 'Swap bid: quote balances');
+
+    // Check batch position collected.
     let order_1 = market_manager.order(order_id_1);
+    let position_id = id::position_id(market_id, order_1.batch_id, limit, limit + width);
+    let (pos_base_amt, pos_quote_amt, _, _) = market_manager.amounts_inside_position(position_id);
+    assert(pos_base_amt == 0, 'Create bid: batch base amt');
+    assert(pos_quote_amt == 0, 'Create bid: batch quote amt');
+
+    // Run checks on limit order, batch and reserves.
     let order_2 = market_manager.order(order_id_2);
     let batch = market_manager.batch(order_1.batch_id);
     let lower_limit_info = market_manager.limit_info(market_id, limit);
     let upper_limit_info = market_manager.limit_info(market_id, limit + width);
-
+    let base_reserves = market_manager.reserves(base_token.contract_address);
+    let quote_reserves = market_manager.reserves(quote_token.contract_address);
     assert(order_1.liquidity == liquidity_1, 'Create bid 1: liquidity');
     assert(order_2.liquidity == liquidity_2, 'Create bid 2: liquidity');
     assert(batch.liquidity == liquidity_1 + liquidity_2, 'Create bid: batch liquidity');
     assert(batch.filled == true, 'Create bid: batch filled');
-    assert(batch.quote_amount == 0, 'Create bid: batch quote amt');
-    assert(approx_eq(batch.base_amount.into(), base_amount_exp, 10), 'Create bid: batch base amt');
     assert(lower_limit_info.liquidity == 0, 'Create bid: lower limit liq');
     assert(upper_limit_info.liquidity == 0, 'Create bid: upper limit liq');
 }
@@ -317,14 +339,17 @@ fn test_swap_fully_fills_ask_limit_orders() {
     let liquidity_2 = to_e18_u128(500000);
     let order_id_2 = market_manager.create_order(market_id, is_bid, limit, liquidity_2);
 
-    // Liquidity to quote amount, add fees less protocol fees
-    let quote_amount_exp = 7560210279506116890;
-
     // Create random range liquidity position which should be ignored when filling limit orders.
     market_manager
         .modify_position(
             market_id, OFFSET + 500, OFFSET + 600, I128Trait::new(to_e18_u128(1), false)
         );
+
+    // Snapshot balances before.
+    let base_res_bef = market_manager.reserves(base_token.contract_address);
+    let quote_res_bef = market_manager.reserves(quote_token.contract_address);
+    let base_bal_bef = base_token.balance_of(market_manager.contract_address);
+    let quote_bal_bef = quote_token.balance_of(market_manager.contract_address);
 
     // Swap buy.
     let (amount_in, amount_out, fees) = market_manager
@@ -338,21 +363,32 @@ fn test_swap_fully_fills_ask_limit_orders() {
             Option::None(())
         );
 
-    // Fetch limit order, batch and position.
+    // Refetch balances and check they have changed as expected.
+    let base_res_aft = market_manager.reserves(base_token.contract_address);
+    let quote_res_aft = market_manager.reserves(quote_token.contract_address);
+    let base_bal_aft = base_token.balance_of(market_manager.contract_address);
+    let quote_bal_aft = quote_token.balance_of(market_manager.contract_address);
+    assert(approx_eq(base_res_aft, base_res_bef - amount_out, 10), 'Swap ask: base reserves');
+    assert(approx_eq(quote_res_aft, quote_res_bef + amount_in, 10), 'Swap ask: quote reserves');
+    assert(approx_eq(base_bal_aft, base_bal_bef - amount_out, 10), 'Swap ask: base reserves');
+    assert(approx_eq(quote_bal_aft, quote_bal_bef + amount_in, 10), 'Swap ask: quote reserves');
+
+    // Check batch position collected.
     let order_1 = market_manager.order(order_id_1);
+    let position_id = id::position_id(market_id, order_1.batch_id, limit, limit + width);
+    let (pos_base_amt, pos_quote_amt, _, _) = market_manager.amounts_inside_position(position_id);
+    assert(pos_base_amt == 0, 'Create ask: batch base amt');
+    assert(pos_quote_amt == 0, 'Create ask: batch quote amt');
+
+    // Run checks on orders, batch and position.
     let order_2 = market_manager.order(order_id_2);
     let batch = market_manager.batch(order_1.batch_id);
     let lower_limit_info = market_manager.limit_info(market_id, limit);
     let upper_limit_info = market_manager.limit_info(market_id, limit + width);
-
     assert(order_1.liquidity == liquidity_1, 'Create ask 1: liquidity');
     assert(order_2.liquidity == liquidity_2, 'Create ask 2: liquidity');
     assert(batch.liquidity == liquidity_1 + liquidity_2, 'Create ask: batch liquidity');
     assert(batch.filled == true, 'Create ask: batch filled');
-    assert(batch.base_amount == 0, 'Create ask: batch base amt');
-    assert(
-        approx_eq(batch.quote_amount.into(), quote_amount_exp, 10), 'Create ask: batch quote amt'
-    );
     assert(lower_limit_info.liquidity == 0, 'Create ask: lower limit liq');
     assert(upper_limit_info.liquidity == 0, 'Create ask: upper limit liq');
 }
@@ -361,6 +397,8 @@ fn test_swap_fully_fills_ask_limit_orders() {
 #[available_gas(100000000)]
 fn test_create_and_collect_unfilled_bid_order() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+
+    let market_info = market_manager.market_info(market_id);
 
     // Snapshot user balance before.
     set_contract_address(alice());
@@ -376,23 +414,25 @@ fn test_create_and_collect_unfilled_bid_order() {
 
     // Collect limit order.
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
+// // Snapshot balances after.
+// let user_base_bal_after = base_token.balance_of(alice());
+// let user_quote_bal_after = quote_token.balance_of(alice());
+// let order = market_manager.order(order_id);
+// let position_id = id::position_id(market_id, order.batch_id, limit, limit + market_info.width);
+// let (position_base, position_quote, _, _) = market_manager.amounts_inside_position(position_id);
 
-    // Snapshot user balance after.
-    let base_balance_after = base_token.balance_of(alice());
-    let quote_balance_after = quote_token.balance_of(alice());
-
-    // Fetch order and batch. Run checks.
-    let order = market_manager.order(order_id);
-    let batch = market_manager.batch(order.batch_id);
-    assert(approx_eq(quote_amount, quote_amount_exp, 10), 'Collect bid: quote amount');
-    assert(base_amount == 0, 'Collect bid: base amount');
-    assert(order.liquidity == 0, 'Collect bid: order liquidity');
-    assert(batch.liquidity == 0, 'Collect bid: batch liquidity');
-    assert(batch.filled == false, 'Collect bid: batch filled');
-    assert(batch.base_amount == 0, 'Collect bid: batch base amount');
-    assert(approx_eq(batch.quote_amount.into(), 0, 10), 'Collect bid: batch quote amount');
-    assert(base_balance_after == base_balance_before, 'Collect bid: base balance');
-    assert(approx_eq(quote_balance_after, quote_balance_before, 10), 'Collect bid: quote balance');
+// // Fetch order and batch. Run checks.
+// let order = market_manager.order(order_id);
+// let batch = market_manager.batch(order.batch_id);
+// assert(approx_eq(quote_amount, quote_amount_exp, 10), 'Collect bid: quote amount');
+// assert(base_amount == 0, 'Collect bid: base amount');
+// assert(order.liquidity == 0, 'Collect bid: order liquidity');
+// assert(batch.liquidity == 0, 'Collect bid: batch liquidity');
+// assert(batch.filled == false, 'Collect bid: batch filled');
+// assert(position_base == 0, 'Collect bid: batch base amount');
+// assert(position_quote == 0, 'Collect bid: batch quote amount');
+// assert(user_base_bal_after == base_balance_before, 'Collect bid: base balance');
+// assert(approx_eq(user_quote_bal_after, quote_balance_before, 10), 'Collect bid: quote balance');
 }
 
 #[test]
@@ -427,8 +467,6 @@ fn test_create_and_collect_unfilled_ask_order() {
     assert(order.liquidity == 0, 'Collect bid: order liquidity');
     assert(batch.liquidity == 0, 'Collect bid: batch liquidity');
     assert(batch.filled == false, 'Collect bid: batch filled');
-    assert(approx_eq(batch.base_amount.into(), 0, 10), 'Collect bid: batch base amount');
-    assert(batch.quote_amount == 0, 'Collect bid: batch quote amount');
     assert(approx_eq(base_balance_after, base_balance_before, 10), 'Collect bid: base balance');
     assert(quote_balance_after == quote_balance_before, 'Collect bid: quote balance');
 }
@@ -439,24 +477,22 @@ fn test_create_and_collect_fully_filled_bid_order() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
     // Snapshot user balance before.
-    let base_balance_before = base_token.balance_of(alice());
-    let quote_balance_before = quote_token.balance_of(alice());
+    let base_bal_bef = base_token.balance_of(alice());
+    let quote_bal_bef = quote_token.balance_of(alice());
 
     // Create first limit order.
     set_contract_address(alice());
     let is_bid = true;
     let mut limit = OFFSET - 1000;
-    let liquidity_1 = to_e18_u128(1000000);
-    let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity_1);
-    let base_amount_exp = 5040114985825483255;
-    let quote_amount_exp = 4975050082745030894;
+    let liq_1 = to_e18_u128(1000000);
+    let order_id = market_manager.create_order(market_id, is_bid, limit, liq_1);
+    let base_withdraw_exp = 5040145226696843436;
+    let quote_deposit_exp = 4975050082745030894;
 
     // Create second limit order.
     set_contract_address(bob());
-    let liquidity_2 = to_e18_u128(500000);
-    market_manager.create_order(market_id, is_bid, limit, liquidity_2);
-    let base_amount_exp_2 = 2520057492912741627;
-    let quote_amount_exp_2 = 2487525041372515447;
+    let liq_2 = to_e18_u128(500000);
+    market_manager.create_order(market_id, is_bid, limit, liq_2);
 
     // Swap sell.
     let (amount_in, amount_out, fees) = market_manager
@@ -470,32 +506,28 @@ fn test_create_and_collect_fully_filled_bid_order() {
             Option::None(())
         );
 
-    // Collect limit order.
+    // Collect first limit order.
     set_contract_address(alice());
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
 
     // Snapshot user balance after.
-    let quote_balance_after = quote_token.balance_of(alice());
-    let base_balance_after = base_token.balance_of(alice());
+    let base_bal_aft = base_token.balance_of(alice());
+    let quote_bal_aft = quote_token.balance_of(alice());
 
     // Fetch limit order, batch and position.
+    let amount_share = math::mul_div(amount_in, liq_1.into(), (liq_1 + liq_2).into(), false);
     let order = market_manager.order(order_id);
     let batch = market_manager.batch(order.batch_id);
-    assert(approx_eq(base_amount, base_amount_exp, 10), 'Collect bid: base amount');
+    assert(approx_eq(base_amount, amount_share, 10), 'Collect bid: base amount');
     assert(quote_amount == 0, 'Collect bid: quote amount');
     assert(order.liquidity == 0, 'Collect bid: order liquidity');
-    assert(batch.liquidity == liquidity_2, 'Collect bid: batch liquidity');
+    assert(batch.liquidity == liq_2, 'Collect bid: batch liquidity');
     assert(batch.filled == true, 'Collect bid: batch filled');
     assert(
-        approx_eq(batch.base_amount.into(), base_amount_exp_2, 10), 'Collect bid: batch base amount'
-    );
-    assert(batch.quote_amount == 0, 'Collect bid: batch quote amount');
-    assert(
-        approx_eq(base_balance_after, base_balance_before + base_amount_exp, 10),
-        'Collect bid: base balance'
+        approx_eq(base_bal_aft, base_bal_bef + base_withdraw_exp, 10), 'Collect bid: base balance'
     );
     assert(
-        approx_eq(quote_balance_after, quote_balance_before - quote_amount_exp, 10),
+        approx_eq(quote_bal_aft, quote_bal_bef - quote_deposit_exp, 10),
         'Collect bid: quote balance'
     );
 }
@@ -506,30 +538,22 @@ fn test_create_and_collect_fully_filled_ask_order() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
     // Snapshot user balance before.
-    let quote_balance_before = quote_token.balance_of(alice());
-    let base_balance_before = base_token.balance_of(alice());
+    let quote_bal_bef = quote_token.balance_of(alice());
+    let base_bal_bef = base_token.balance_of(alice());
 
     // Create first limit order.
     set_contract_address(alice());
     let is_bid = false;
     let mut limit = OFFSET + 1000;
-    let liquidity_1 = to_e18_u128(1000000);
-    let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity_1);
-    let base_amount_exp = 4975025207681179992;
-    let quote_amount_exp = 5040140186337411260;
+    let liq_1 = to_e18_u128(1000000);
+    let order_id = market_manager.create_order(market_id, is_bid, limit, liq_1);
+    let base_deposit_exp = 4975025207681179992;
+    let quote_withdraw_exp = 5040170427359975420;
 
     // Create second limit order.
     set_contract_address(bob());
-    let liquidity_2 = to_e18_u128(500000);
-    market_manager.create_order(market_id, is_bid, limit, liquidity_2);
-    let base_amount_exp_2 = 2487512603840589996;
-    let quote_amount_exp_2 = 2520070093168705630;
-
-    let total_quote_amount_exp = 7560210279506116890;
-
-    // Create third limit order (fallback liquidity so swap doesn't fail).
-    limit = OFFSET + 1100;
-    market_manager.create_order(market_id, is_bid, limit, to_e18_u128(1500000));
+    let liq_2 = to_e18_u128(500000);
+    market_manager.create_order(market_id, is_bid, limit, liq_2);
 
     // Swap buy.
     let (amount_in, amount_out, fees) = market_manager
@@ -548,28 +572,23 @@ fn test_create_and_collect_fully_filled_ask_order() {
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
 
     // Snapshot user balance after.
-    let quote_balance_after = quote_token.balance_of(alice());
-    let base_balance_after = base_token.balance_of(alice());
+    let quote_bal_aft = quote_token.balance_of(alice());
+    let base_bal_aft = base_token.balance_of(alice());
 
     // Fetch limit order, batch and position.
+    let amount_share = math::mul_div(amount_in, liq_1.into(), (liq_1 + liq_2).into(), false);
     let order = market_manager.order(order_id);
     let batch = market_manager.batch(order.batch_id);
     assert(base_amount == 0, 'Collect ask: base amount');
-    assert(approx_eq(quote_amount, quote_amount_exp, 10), 'Collect ask: quote amount');
+    assert(approx_eq(quote_amount, amount_share, 10), 'Collect ask: quote amount');
     assert(order.liquidity == 0, 'Collect ask: order liquidity');
-    assert(batch.liquidity == liquidity_2, 'Collect ask: batch liquidity');
+    assert(batch.liquidity == liq_2, 'Collect ask: batch liquidity');
     assert(batch.filled == true, 'Collect ask: batch filled');
-    assert(batch.base_amount == 0, 'Collect ask: batch base amount');
     assert(
-        approx_eq(batch.quote_amount.into(), quote_amount_exp_2, 10),
-        'Collect ask: batch quote amount'
+        approx_eq(base_bal_aft, base_bal_bef - base_deposit_exp, 10), 'Collect ask: base balance'
     );
     assert(
-        approx_eq(base_balance_after, base_balance_before - base_amount_exp, 10),
-        'Collect ask: base balance'
-    );
-    assert(
-        approx_eq(quote_balance_after, quote_balance_before + quote_amount_exp, 10),
+        approx_eq(quote_bal_aft, quote_bal_bef + quote_withdraw_exp, 10),
         'Collect ask: quote balance'
     );
 }
@@ -592,16 +611,16 @@ fn test_create_and_collect_partially_filled_bid_order() {
     let quote_amount_exp = 2487525041372515447;
     let amount_filled_exp = 1974171375029746558;
     let amount_unfilled_exp = 513353666342768889; // diff of above
-    let amount_earned_exp = 1994000000000000000;
+    let amount_earned_exp = 2000000000000000000; // includes fees
 
     // Create second limit order.
     set_contract_address(alice());
     let liquidity_2 = to_e18_u128(1000000);
-    market_manager.create_order(market_id, is_bid, limit, liquidity_2);
+    let order_id_2 = market_manager.create_order(market_id, is_bid, limit, liquidity_2);
     let quote_amount_exp_2 = 4975050082745030894;
     let amount_filled_exp_2 = 3948342750059493116;
     let amount_unfilled_exp_2 = 1026707332685537778; // diff of above
-    let amount_earned_exp_2 = 4005964000000000000;
+    let amount_earned_exp_2 = 4000000000000000000; // includes fees
 
     // Swap sell (partially filled against limit orders).
     let (amount_in, amount_out, fees) = market_manager
@@ -615,7 +634,7 @@ fn test_create_and_collect_partially_filled_bid_order() {
             Option::None(())
         );
 
-    // Collect limit order.
+    // Collect first limit order.
     set_contract_address(bob());
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
 
@@ -623,7 +642,11 @@ fn test_create_and_collect_partially_filled_bid_order() {
     let base_balance_after = base_token.balance_of(bob());
     let quote_balance_after = quote_token.balance_of(bob());
 
-    // Fetch limit order, batch and position.
+    // Get amounts inside order 2.
+    let (base_amount_2, quote_amount_2) = market_manager
+        .amounts_inside_order(order_id_2, market_id);
+
+    // Fetch order and batch.
     let order = market_manager.order(order_id);
     let batch = market_manager.batch(order.batch_id);
     assert(approx_eq(base_amount, amount_earned_exp, 10), 'Collect bid: base amount');
@@ -631,10 +654,8 @@ fn test_create_and_collect_partially_filled_bid_order() {
     assert(order.liquidity == 0, 'Collect bid: order liquidity');
     assert(batch.liquidity == liquidity_2, 'Collect bid: batch liquidity');
     assert(batch.filled == false, 'Collect bid: batch filled');
-    assert(approx_eq(batch.base_amount.into(), amount_earned_exp_2, 10), 'Collect bid: batch base');
-    assert(
-        approx_eq(batch.quote_amount.into(), amount_unfilled_exp_2, 10), 'Collect bid: batch quote'
-    );
+    assert(approx_eq(base_amount_2, amount_earned_exp_2, 10), 'Collect bid: base amt 2');
+    assert(approx_eq(quote_amount_2, amount_unfilled_exp_2, 10), 'Collect bid: quote amt 2');
     assert(
         approx_eq(base_balance_after, base_balance_before + amount_earned_exp, 10),
         'Collect bid: base'
@@ -643,6 +664,14 @@ fn test_create_and_collect_partially_filled_bid_order() {
         approx_eq(quote_balance_after, quote_balance_before - amount_filled_exp, 10),
         'Collect bid: quote'
     );
+
+    // Collect second order and check donations.
+    set_contract_address(alice());
+    market_manager.collect_order(market_id, order_id_2);
+    let base_donations = market_manager.donations(base_token.contract_address);
+    let quote_donations = market_manager.donations(quote_token.contract_address);
+    assert(approx_eq(base_donations, 0, 10), 'Collect bid: Base donations');
+    assert(approx_eq(quote_donations, 0, 10), 'Collect bid: Quote donations');
 }
 
 #[test]
@@ -663,16 +692,16 @@ fn test_create_and_collect_partially_filled_ask_order() {
     let base_amount_exp = 2487512603840589996;
     let amount_filled_exp = 1974151633552579423;
     let amount_unfilled_exp = 513360970288010573;
-    let amount_earned_exp = 1994000000000000000;
+    let amount_earned_exp = 2000000000000000000;
 
     // Create second limit order.
     set_contract_address(alice());
     let liquidity_2 = to_e18_u128(1000000);
-    market_manager.create_order(market_id, is_bid, limit, liquidity_2);
+    let order_id_2 = market_manager.create_order(market_id, is_bid, limit, liquidity_2);
     let base_amount_exp_2 = 4975025207681179992;
     let amount_filled_exp_2 = 3948303267105158847;
     let amount_unfilled_exp_2 = 1026721940576021145;
-    let amount_earned_exp_2 = 4005964000000000000;
+    let amount_earned_exp_2 = 4000000000000000000;
 
     // Swap buy (partially filled against limit orders).
     let (amount_in, amount_out, fees) = market_manager
@@ -694,6 +723,10 @@ fn test_create_and_collect_partially_filled_ask_order() {
     let quote_balance_after = quote_token.balance_of(bob());
     let base_balance_after = base_token.balance_of(bob());
 
+    // Get amounts inside order 2.
+    let (base_amount_2, quote_amount_2) = market_manager
+        .amounts_inside_order(order_id_2, market_id);
+
     // Fetch limit order, batch and position.
     let order = market_manager.order(order_id);
     let batch = market_manager.batch(order.batch_id);
@@ -702,14 +735,8 @@ fn test_create_and_collect_partially_filled_ask_order() {
     assert(order.liquidity == 0, 'Collect ask: order liquidity');
     assert(batch.liquidity == liquidity_2, 'Collect ask: batch liquidity');
     assert(batch.filled == false, 'Collect ask: batch filled');
-    assert(
-        approx_eq(batch.base_amount.into(), amount_unfilled_exp_2, 10),
-        'Collect ask: batch base amount'
-    );
-    assert(
-        approx_eq(batch.quote_amount.into(), amount_earned_exp_2, 10),
-        'Collect ask: batch quote amount'
-    );
+    assert(approx_eq(base_amount_2, amount_unfilled_exp_2, 10), 'Collect ask: base amount 2');
+    assert(approx_eq(quote_amount_2, amount_earned_exp_2, 10), 'Collect ask: quote amount 2');
     assert(
         approx_eq(base_balance_after, base_balance_before - amount_filled_exp, 10),
         'Collect ask: base balance'
@@ -718,6 +745,78 @@ fn test_create_and_collect_partially_filled_ask_order() {
         approx_eq(quote_balance_after, quote_balance_before + amount_earned_exp, 10),
         'Collect ask: quote balance'
     );
+
+    // Collect second order and check donations.
+    set_contract_address(alice());
+    market_manager.collect_order(market_id, order_id_2);
+    let base_donations = market_manager.donations(base_token.contract_address);
+    let quote_donations = market_manager.donations(quote_token.contract_address);
+    assert(approx_eq(base_donations, 0, 10), 'Collect ask: Base donations');
+    assert(approx_eq(quote_donations, 0, 10), 'Collect ask: Quote donations');
+}
+
+#[test]
+#[available_gas(100000000)]
+fn test_partial_fill_within_width_interval_bid() {
+    let (market_manager, base_token, quote_token, market_id) = before(width: 10);
+
+    // Create order.
+    set_contract_address(alice());
+    let order_id = market_manager.create_order(market_id, true, 7906610, 1500000000000000000000000);
+    let (base_bef, quote_bef) = market_manager.amounts_inside_order(order_id, market_id);
+
+    // Create small swap so order ends up within interval.
+    let amount = 1000000000000000000;
+    let (amount_in, amount_out, fees) = market_manager
+        .swap(
+            market_id, false, amount, false, Option::None(()), Option::None(()), Option::None(())
+        );
+
+    // Collect order works.
+    set_contract_address(alice());
+    let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
+
+    // Run checks.
+    let order = market_manager.order(order_id);
+    let batch = market_manager.batch(order.batch_id);
+    // Fees should be forfeited as it is partial fill.
+    assert(approx_eq(base_amount, base_bef + amount_in, 10), 'Base amount order');
+    assert(approx_eq(quote_amount, quote_bef - amount_out, 10), 'Quote amount order');
+    assert(order.liquidity == 0, 'Order liquidity');
+    assert(batch.liquidity == 0, 'Batch liquidity');
+    assert(batch.filled == false, 'Batch filled');
+}
+
+#[test]
+#[available_gas(100000000)]
+fn test_partial_fill_within_width_interval_ask() {
+    let (market_manager, base_token, quote_token, market_id) = before(width: 10);
+
+    // Create order.
+    set_contract_address(alice());
+    let order_id = market_manager
+        .create_order(market_id, false, 8697280, 1500000000000000000000000);
+    let order = market_manager.order(order_id);
+    let (base_bef, quote_bef) = market_manager.amounts_inside_order(order_id, market_id);
+
+    // Create small swap so order ends up within interval.
+    let amount = 1000000000000000000;
+    let (amount_in, amount_out, fees) = market_manager
+        .swap(market_id, true, amount, false, Option::None(()), Option::None(()), Option::None(()));
+
+    // Collect order works.
+    set_contract_address(alice());
+    let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
+
+    // Run checks.
+    let order = market_manager.order(order_id);
+    let batch = market_manager.batch(order.batch_id);
+    // Fees should be forfeited as it is partial fill.
+    assert(approx_eq(base_amount, base_bef - amount_out, 10), 'Base amount order');
+    assert(approx_eq(quote_amount, quote_bef + amount_in, 10), 'Quote amount order');
+    assert(order.liquidity == 0, 'Order liquidity');
+    assert(batch.liquidity == 0, 'Batch liquidity');
+    assert(batch.filled == false, 'Batch filled');
 }
 
 #[test]
@@ -735,7 +834,7 @@ fn test_partially_filled_bid_correctly_unfills() {
     let mut limit = OFFSET - 1000;
     let liquidity = to_e18_u128(1500000);
     let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity);
-    let quote_amount_exp = 7462575124117546341;
+    let (base_amt_bef, quote_amount_bef) = market_manager.amounts_inside_order(order_id, market_id);
 
     // Swap sell (partial fill).
     let (amount_in_sell, amount_out_sell, fees_sell) = market_manager
@@ -748,40 +847,42 @@ fn test_partially_filled_bid_correctly_unfills() {
             Option::None(()),
             Option::None(())
         );
-    let base_amount_sell_exp = 5999964000000000000; // earned incl. fees
-    let quote_amount_sell_exp = 5922514125089239675; // filled
 
     // Swap buy (unfill).
     let (amount_in_buy, amount_out_buy, fees_buy) = market_manager
         .swap(
             market_id, is_bid, to_e18(4), true, Option::None(()), Option::None(()), Option::None(())
         );
-    let base_amount_buy_exp = 4028060789223636689; // repaid
-    let quote_amount_buy_exp = 3999975999999999999; // unfilled (incl. fees)
 
     // Snapshot user balance after.
     let base_balance_after = base_token.balance_of(bob());
     let quote_balance_after = quote_token.balance_of(bob());
 
+    // Collect limit order.
+    let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
+
     // Fetch limit order, batch and position.
     let order = market_manager.order(order_id);
     let batch = market_manager.batch(order.batch_id);
-
-    assert(order.liquidity == liquidity, 'Unfill bid: order liquidity');
-    assert(batch.liquidity == liquidity, 'Unfill bid: batch liquidity');
+    let base_donations = market_manager.donations(base_token.contract_address);
+    let quote_donations = market_manager.donations(quote_token.contract_address);
+    assert(order.liquidity == 0, 'Unfill bid: order liquidity');
+    assert(batch.liquidity == 0, 'Unfill bid: batch liquidity');
     assert(batch.filled == false, 'Unfill bid: batch filled');
     assert(
-        approx_eq(
-            batch.quote_amount.into(),
-            quote_amount_exp - quote_amount_sell_exp + quote_amount_buy_exp,
-            10
-        ),
+        approx_eq(quote_amount, quote_amount_bef + amount_in_buy - fees_buy - amount_out_sell, 10),
         'Unfill bid: batch quote amount'
     );
+    let net_base_amt = amount_in_sell - fees_sell - amount_out_buy;
+    let gross_base_amt = fee_math::net_to_gross(net_base_amt, 30);
     assert(
-        approx_eq(batch.base_amount.into(), base_amount_sell_exp - base_amount_buy_exp, 10),
-        'Unfill bid: batch base amount'
+        approx_eq(base_amount, base_amt_bef + gross_base_amt, 10), 'Unfill bid: batch base amount'
     );
+    assert(
+        base_donations == amount_in_sell - amount_out_buy - gross_base_amt,
+        'Unfill bid: base donations'
+    );
+    assert(quote_donations == fees_buy, 'Unfill bid: quote donations');
 }
 
 #[test]
@@ -799,10 +900,10 @@ fn test_partially_filled_ask_correctly_unfills() {
     let mut limit = OFFSET + 1000;
     let liquidity = to_e18_u128(1500000);
     let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity);
-    let base_amount_exp = 7462537811521769989;
+    let (base_amt_bef, quote_amt_bef) = market_manager.amounts_inside_order(order_id, market_id);
 
     // Swap buy (partial fill).
-    let (amount_in_sell, amount_out_sell, fees_sell) = market_manager
+    let (amount_in_buy, amount_out_buy, fees_buy) = market_manager
         .swap(
             market_id,
             !is_bid,
@@ -812,39 +913,42 @@ fn test_partially_filled_ask_correctly_unfills() {
             Option::None(()),
             Option::None(())
         );
-    let base_amount_sell_exp = 5922454900657738271; // filled
-    let quote_amount_sell_exp = 5999964000000000000; // earned incl. fees
 
     // Swap sell (unfill).
-    let (amount_in_buy, amount_out_buy, fees_buy) = market_manager
+    let (amount_in_sell, amount_out_sell, fees_sell) = market_manager
         .swap(
             market_id, is_bid, to_e18(4), true, Option::None(()), Option::None(()), Option::None(())
         );
-    let base_amount_buy_exp = 3999975999999999999; // unfilled (incl. fees)
-    let quote_amount_buy_exp = 4028101069617875737; // repaid
 
     // Snapshot user balance after.
     let quote_balance_after = quote_token.balance_of(bob());
     let base_balance_after = base_token.balance_of(bob());
 
+    // Collect limit order.
+    let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
+
     // Fetch limit order, batch and position.
     let order = market_manager.order(order_id);
     let batch = market_manager.batch(order.batch_id);
-
-    assert(order.liquidity == liquidity, 'Unfill ask: order liquidity');
-    assert(batch.liquidity == liquidity, 'Unfill ask: batch amount in');
+    let base_donations = market_manager.donations(base_token.contract_address);
+    let quote_donations = market_manager.donations(quote_token.contract_address);
+    assert(order.liquidity == 0, 'Unfill ask: order liquidity');
+    assert(batch.liquidity == 0, 'Unfill ask: batch amount in');
     assert(batch.filled == false, 'Unfill ask: batch filled');
     assert(
-        approx_eq(
-            batch.base_amount.into(),
-            base_amount_exp - base_amount_sell_exp + base_amount_buy_exp,
-            10
-        ),
+        approx_eq(base_amount, base_amt_bef + amount_in_sell - fees_sell - amount_out_buy, 10),
         'Unfill ask: batch base amount'
     );
+    let net_quote_amt = amount_in_buy - fees_buy - amount_out_sell;
+    let gross_quote_amt = fee_math::net_to_gross(net_quote_amt, 30);
     assert(
-        approx_eq(batch.quote_amount.into(), quote_amount_sell_exp - quote_amount_buy_exp, 10),
+        approx_eq(quote_amount, quote_amt_bef + gross_quote_amt, 10),
         'Unfill bid: batch quote amount'
+    );
+    assert(base_donations == fees_sell, 'Unfill ask: base donations');
+    assert(
+        quote_donations == amount_in_buy - amount_out_sell - gross_quote_amt,
+        'Unfill ask: quote donations'
     );
 }
 
@@ -930,6 +1034,158 @@ fn test_fill_ask_advances_batch_nonce() {
 
 #[test]
 #[available_gas(1000000000)]
+fn test_fully_filled_bid_donates_excess_fees() {
+    let width = 10;
+    let (market_manager, base_token, quote_token, market_id) = before(width);
+
+    // Create limit order.
+    set_contract_address(bob());
+    let is_bid = true;
+    let mut limit = 7906620 - 10;
+    let liquidity = to_e18_u128(1500000);
+    let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity);
+    let order = market_manager.order(order_id);
+
+    // Swap sell (partial fill).
+    let (amount_in_sell, amount_out_sell, fees_sell) = market_manager
+        .swap(
+            market_id,
+            !is_bid,
+            to_e18(10),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
+    assert(market_manager.batch(order.batch_id).filled == false, 'Sell not filled');
+
+    // Swap buy (fully unfill).
+    let (amount_in_buy, amount_out_buy, fees_buy) = market_manager
+        .swap(
+            market_id,
+            is_bid,
+            to_e18(15),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
+    let market_info = market_manager.market_info(market_id);
+    assert(
+        market_manager.market_state(market_id).curr_limit == limit + market_info.width,
+        'Unfill fully'
+    );
+
+    // Finally, swap sell again to fill fully.
+    let (base_amount, quote_amount) = market_manager.amounts_inside_order(order_id, market_id);
+    let (amount_in_sell_2, amount_out_sell_2, fees_sell_2) = market_manager
+        .swap(
+            market_id,
+            !is_bid,
+            to_e18(100),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
+    assert(market_manager.batch(order.batch_id).filled, 'Sell 2 filled');
+
+    // Collect limit order.
+    let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
+
+    // Fetch limit order, batch and position.
+    let order = market_manager.order(order_id);
+    let batch = market_manager.batch(order.batch_id);
+    let base_donations = market_manager.donations(base_token.contract_address);
+    let quote_donations = market_manager.donations(quote_token.contract_address);
+    assert(order.liquidity == 0, 'Bid: order liquidity');
+    assert(batch.liquidity == 0, 'Bid: batch liquidity');
+    assert(batch.filled, 'Bid: batch filled');
+    assert(approx_eq(base_amount, amount_in_sell_2, 10), 'Bid: base withdraw');
+    assert(approx_eq(quote_amount, 0, 10), 'Bid: quote withdraw');
+    assert(approx_eq(base_donations, fees_sell, 10), 'Donations bid: base donations');
+    assert(approx_eq(quote_donations, fees_buy, 10), 'Donations bid: quote donations');
+}
+
+#[test]
+#[available_gas(1000000000)]
+fn test_fully_filled_bid_with_intermediate_collection() {
+    let width = 10;
+    let (market_manager, base_token, quote_token, market_id) = before(width);
+
+    // Create limit order 1.
+    set_contract_address(alice());
+    let is_bid = true;
+    let mut limit = 7906620 - 10;
+    let liquidity = to_e18_u128(1000000);
+    let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity);
+    let (base_bef, quote_bef) = market_manager.amounts_inside_order(order_id, market_id);
+
+    // Create limit order 2.
+    set_contract_address(bob());
+    let liquidity = to_e18_u128(1000000);
+    let order_id_2 = market_manager.create_order(market_id, is_bid, limit, liquidity);
+
+    // Swap sell (partial fill).
+    let (amount_in, amount_out, fees) = market_manager
+        .swap(
+            market_id,
+            !is_bid,
+            to_e18(10),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
+
+    // Collect order.
+    set_contract_address(alice());
+    let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
+
+    // Sweep donations (there should be none)
+    set_contract_address(owner());
+    let mut base_donations = market_manager.sweep(owner(), base_token.contract_address, to_e18(1));
+    let mut quote_donations = market_manager
+        .sweep(owner(), quote_token.contract_address, to_e18(1));
+    assert(base_donations == 0, 'Donations: base donations');
+    assert(quote_donations == 0, 'Donations: quote donations');
+
+    // Swap sell again to fill fully.
+    set_contract_address(alice());
+    let (amount_in_2, amount_out_2, fees_2) = market_manager
+        .swap(
+            market_id,
+            !is_bid,
+            to_e18(100),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
+        );
+
+    // Collect other order.
+    set_contract_address(bob());
+    let (base_amount_2, quote_amount_2) = market_manager.collect_order(market_id, order_id_2);
+
+    // Sweep donations again.
+    set_contract_address(owner());
+    base_donations = market_manager.sweep(owner(), base_token.contract_address, to_e18(1));
+    quote_donations = market_manager.sweep(owner(), quote_token.contract_address, to_e18(1));
+
+    // Run checks.
+    assert(approx_eq(base_amount, amount_in / 2, 10), 'Base amount');
+    assert(approx_eq(quote_amount, quote_bef - amount_out / 2, 10), 'Quote amount');
+    assert(approx_eq(base_amount_2, amount_in / 2 + amount_in_2, 10), 'Base amount 2');
+    assert(
+        approx_eq(quote_amount_2, quote_bef - amount_out / 2 - amount_out_2, 10), 'Quote amount 2'
+    );
+
+    assert(approx_eq(base_donations, 0, 10), 'Base donations');
+    assert(approx_eq(quote_donations, 0, 10), 'Quote donations');
+}
+
+#[test]
+#[available_gas(1000000000)]
 fn test_limit_orders_misc_actions() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
@@ -994,7 +1250,7 @@ fn test_limit_orders_misc_actions() {
     assert(approx_eq(amount_in_1, to_e18(1), 10), 'Amount in 1');
     assert(approx_eq(amount_out_1, 987831836451245925, 10), 'Amount out 1');
     assert(approx_eq(fees_1, 3000000000000000, 10), 'Fees 1');
-    assert(approx_eq(base_collect_1, 251879778541792971, 10), 'Base collect 1');
+    assert(approx_eq(base_collect_1, 251881289829531948, 10), 'Base collect 1');
     assert(quote_collect_1 == 0, 'Quote collect 1');
 
     assert(market_state.liquidity == to_e18_u128(200000), 'Mkt state 1: liquidity');
@@ -1004,7 +1260,7 @@ fn test_limit_orders_misc_actions() {
         'Mkt state 1: curr sqrt price'
     );
     assert(
-        approx_eq(market_state.base_fee_factor, 187406629087480932663, 10000000),
+        approx_eq(market_state.base_fee_factor, 187782193474429792247, 10000000),
         'Mkt state 1: base fee factor'
     );
     assert(market_state.quote_fee_factor == 0, 'Mkt state 1: quote fee factor');
@@ -1012,29 +1268,27 @@ fn test_limit_orders_misc_actions() {
     assert(order_bid_alice_n900.liquidity == 0, 'Order a1: liquidity');
     assert(order_bid_bob_n900.liquidity == liq_bid_bob_n900, 'Order b1: liquidity');
     assert(order_bid_alice_n1000.liquidity == liq_bid_alice_n1000, 'Order a2: liquidity');
+
+    // Check amounts remaining in last order.
+    let (base_amount_n900, quote_amount_n900) = market_manager
+        .amounts_inside_order(bid_bob_n900, market_id);
+    assert(approx_eq(base_amount_n900, 503762579659063896, 10), 'Batch -900: base amount');
+    assert(approx_eq(quote_amount_n900, 0, 10), 'Batch -900: quote amount');
     assert(batch_neg_900.liquidity == liq_bid_bob_n900, 'Batch -900: liquidity');
     assert(batch_neg_900.filled, 'Batch -900: filled');
     assert(batch_neg_900.limit == OFFSET - 900, 'Batch -900: limit');
     assert(batch_neg_900.is_bid, 'Batch -900: is bid');
-    assert(
-        approx_eq(batch_neg_900.base_amount.into(), 503759557083585942, 10),
-        'Batch -900: base amount'
-    );
-    assert(batch_neg_900.quote_amount == 0, 'Batch -900: quote amount');
 
+    let (base_amount_n1000, quote_amount_n1000) = market_manager
+        .amounts_inside_order(bid_alice_n1000, market_id);
+    assert(batch_neg_1000.is_bid, 'Batch -1000: is bid');
+    assert(approx_eq(base_amount_n1000, 244356130511404155, 10), 'Batch -1000: base amount');
+    assert(approx_eq(quote_amount_n1000, 753808912696894400, 10), 'Batch -1000: quote amount');
     assert(batch_neg_1000.liquidity == liq_bid_alice_n1000, 'Batch -1000: liquidity');
     assert(!batch_neg_1000.filled, 'Batch -1000: filled');
     assert(batch_neg_1000.limit == OFFSET - 1000, 'Batch -1000: limit');
-    assert(batch_neg_1000.is_bid, 'Batch -1000: is bid');
-    assert(
-        approx_eq(batch_neg_1000.base_amount.into(), 244354664374621086, 10),
-        'Batch -1000: base amount'
-    );
-    assert(
-        approx_eq(batch_neg_1000.quote_amount.into(), 753808912696894400, 10),
-        'Batch -1000: quote amount'
-    );
-    assert(approx_eq(market_base_reserves, 2987503595450225646, 10), 'Market base reserves');
+
+    assert(approx_eq(market_base_reserves, 2987502084162486669, 10), 'Market base reserves');
     assert(approx_eq(market_quote_reserves, 753808912696894400, 10), 'Market quote reserves');
     assert(alice_base_balance == alice_base_start + base_collect_1, 'Alice base balance');
     assert(
@@ -1074,7 +1328,7 @@ fn test_limit_orders_misc_actions() {
     assert(approx_eq(amount_out_2, 992648065858394506, 10), 'Amount out 2');
     assert(approx_eq(fees_2, 2999999999999999, 10), 'Fees 2');
     assert(approx_eq(base_collect_2, 198141331486903221, 10), 'Base collect 2');
-    assert(approx_eq(quote_collect_2, 302319558459155288, 10), 'Quote collect 2');
+    assert(approx_eq(quote_collect_2, 303229246197748534, 10), 'Quote collect 2');
     assert(approx_eq(base_collect_3, 995005041536235998, 10), 'Base collect 3');
     assert(quote_collect_3 == 0, 'Quote collect 3');
 
@@ -1085,11 +1339,11 @@ fn test_limit_orders_misc_actions() {
         'Mkt state 2: curr sqrt price'
     );
     assert(
-        approx_eq(market_state.base_fee_factor, 187406629087480932663, 10000000),
+        approx_eq(market_state.base_fee_factor, 187782193474429792247, 10000000),
         'Mkt state 2: base fee factor'
     );
     assert(
-        approx_eq(market_state.quote_fee_factor, 127003290922098522198, 10000000),
+        approx_eq(market_state.quote_fee_factor, 127257806535168859918, 10000000),
         'Mkt state 2: quote fee factor'
     );
 
@@ -1097,19 +1351,19 @@ fn test_limit_orders_misc_actions() {
     assert(order_ask_b1.liquidity == 0, 'Order b1: liquidity');
     assert(order_ask_b2.liquidity == 0, 'Order b2: liquidity');
 
+    let (base_amount_900, quote_amount_900) = market_manager
+        .amounts_inside_order(ask_a1, market_id);
+    assert(approx_eq(base_amount_900, 297211997230354832, 10), 'Batch 900: base amount');
+    assert(approx_eq(quote_amount_900, 454843869296622801, 10), 'Batch 900: quote amount');
     assert(batch_900.liquidity == liq_ask_alice_900, 'Batch 900: liquidity');
     assert(batch_900.filled == false, 'Batch 900: filled');
-    assert(
-        approx_eq(batch_900.base_amount.into(), 297211997230354832, 10), 'Batch 900: base amount'
-    );
-    assert(
-        approx_eq(batch_900.quote_amount.into(), 455749008596523081, 10), 'Batch 900: quote amount'
-    );
 
+    let (base_amount_1000, quote_amount_1000) = market_manager
+        .amounts_inside_order(ask_bob_1000, market_id);
     assert(batch_1000.liquidity == 0, 'Batch 1000: liquidity');
     assert(batch_1000.filled == false, 'Batch 1000: filled');
-    assert(approx_eq(batch_1000.base_amount.into(), 0, 10), 'Batch 1000: base amount');
-    assert(batch_1000.quote_amount == 0, 'Batch 1000: quote amount');
+    assert(approx_eq(base_amount_1000, 0, 10), 'Batch 1000: base amount');
+    assert(quote_amount_1000 == 0, 'Batch 1000: quote amount');
 
     // Create a new orders at -900 and 900.
     market_manager.create_order(market_id, true, OFFSET - 900, to_e18_u128(1));

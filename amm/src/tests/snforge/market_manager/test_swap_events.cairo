@@ -196,7 +196,6 @@ fn test_swap_events_no_strategy_limit_orders_fully_filled() {
     // Swapping should fire `Swap` and `ModifyPosition`.
     let is_buy = true;
     let exact_input = true;
-    let protocol_share = 20;
     let (amount_in, amount_out, fees) = market_manager
         .swap(
             market_id, is_buy, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
@@ -216,9 +215,9 @@ fn test_swap_events_no_strategy_limit_orders_fully_filled() {
                             upper_limit: limit + width,
                             liquidity_delta: I128Trait::new(liquidity, true),
                             base_amount: I256Zeroable::zero(),
-                            quote_amount: I256Trait::new(50175106233504235, true),
+                            quote_amount: I256Trait::new(50175407285947951, true),
                             base_fees: 0,
-                            quote_fees: 150225169414127,
+                            quote_fees: 150526221857843,
                             is_limit_order: true,
                         }
                     )

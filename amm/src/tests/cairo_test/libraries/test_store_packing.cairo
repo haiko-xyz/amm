@@ -72,7 +72,6 @@ fn test_store_packing_market_state() {
         curr_sqrt_price: 111111000000000000,
         quote_fee_factor: 7123981237891236712313,
         base_fee_factor: 3650171973094710571238267576572937,
-        protocol_share: 1000,
         curr_limit: 11093740
     };
 
@@ -89,7 +88,6 @@ fn test_store_packing_market_state() {
     assert(
         unpacked.quote_fee_factor == market_state.quote_fee_factor, 'Market state: quote fee factor'
     );
-    assert(unpacked.protocol_share == market_state.protocol_share, 'Market state: protocol share');
     assert(unpacked.curr_limit == market_state.curr_limit, 'Market state: curr limit');
 }
 

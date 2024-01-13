@@ -143,7 +143,6 @@ enum ConfigOption {
 // * `liquidity` - active liquidity in market
 // * `curr_limit` - current limit (shifted)
 // * `curr_sqrt_price` - current sqrt price of market (constrained to felt252)
-// * `protocol_share` - protocol share denominated 0.01% shares of swap fees (e.g. 500 = 5%)
 // * `base_fee_factor` - accumulated base fees per unit of liquidity (constrained to felt252)
 // * `quote_fee_factor` - accumulated quote fees per unit of liquidity (constrained to felt252)
 #[derive(Copy, Drop, Serde, PartialEq, Default)]
@@ -151,7 +150,6 @@ struct MarketState {
     liquidity: u128,
     curr_limit: u32,
     curr_sqrt_price: u256,
-    protocol_share: u16,
     base_fee_factor: u256,
     quote_fee_factor: u256,
 }
@@ -196,8 +194,8 @@ struct Position {
 // * `filled` - whether batch has been fully filled and removed from order book
 // * `limit` - limit of batch
 // * `is_bid` - whether limit orders are bids or asks
-// * `base_amount` - total base amount
-// * `quote_amount` - total quote amount
+// * `base_amount` - base amounts withdrawn and pending collection
+// * `quote_amount` - quote amounts withdrawn and pending collection
 #[derive(Copy, Drop, Serde, PartialEq)]
 struct OrderBatch {
     liquidity: u128,
@@ -216,18 +214,6 @@ struct OrderBatch {
 struct LimitOrder {
     batch_id: felt252,
     liquidity: u128,
-}
-
-// Information about a partial fill.
-//
-// * `limit` - limit price
-// * `amount_in` - amount swapped in from partial fill, inclusive of fees
-// * `amount_out` - amount swapped out from partial fill
-#[derive(Copy, Drop, Serde)]
-struct PartialFillInfo {
-    limit: u32,
-    amount_in: u256,
-    amount_out: u256,
 }
 
 // Information about a swap.
@@ -315,7 +301,7 @@ struct PackedMarketInfo {
 // * `curr_sqrt_price` - curr_sqrt_price (constrained to felt252)
 // * `base_fee_factor` - base_fee_factor (constrained to felt252)
 // * `quote_fee_factor` - quote_fee_factor (constrained to felt252)
-// * `slab0` - `protocol_share` + `curr_limit` + `liquidity`
+// * `slab0` - `curr_limit` + `liquidity`
 #[derive(starknet::Store)]
 struct PackedMarketState {
     curr_sqrt_price: felt252,
