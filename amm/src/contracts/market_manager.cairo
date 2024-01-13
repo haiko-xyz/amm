@@ -92,7 +92,7 @@ mod MarketManager {
         // Indexed by asset
         reserves: LegacyMap::<ContractAddress, u256>,
         donations: LegacyMap::<ContractAddress, u256>,
-        flash_loan_fee: LegacyMap::<ContractAddress, u16>,
+        flash_loan_fee_rate: LegacyMap::<ContractAddress, u16>,
         #[substorage(v0)]
         erc721: ERC721Component::Storage,
         #[substorage(v0)]
@@ -387,8 +387,8 @@ mod MarketManager {
             }
         }
 
-        fn flash_loan_fee(self: @ContractState, token: ContractAddress) -> u16 {
-            self.flash_loan_fee.read(token)
+        fn flash_loan_fee_rate(self: @ContractState, token: ContractAddress) -> u16 {
+            self.flash_loan_fee_rate.read(token)
         }
 
         fn position(
@@ -612,7 +612,6 @@ mod MarketManager {
         // * `width` - limit width of market
         // * `strategy` - strategy contract address, or 0 if no strategy
         // * `swap_fee_rate` - swap fee denominated in bps
-        // * `flash_loan_fee` - flash loan fee denominated in bps
         // * `fee_controller` - fee controller contract address
         // * `start_limit` - initial limit (shifted)
         // * `controller` - market controller for upgrading market configs, or 0 if none
@@ -1353,7 +1352,7 @@ mod MarketManager {
             assert(amount > 0, 'LoanAmtZero');
 
             // Calculate flash loan fee.
-            let fee_rate = self.flash_loan_fee.read(token);
+            let fee_rate = self.flash_loan_fee_rate.read(token);
             let fees = fee_math::calc_fee(amount, fee_rate);
 
             // Snapshot balance before. Check sufficient tokens to finance loan.
@@ -1363,6 +1362,7 @@ mod MarketManager {
             assert(amount <= balance, 'LoanInsufficient');
 
             // Transfer tokens to caller.
+            let token_contract = IERC20Dispatcher { contract_address: token };
             let borrower = get_caller_address();
             token_contract.transfer(borrower, amount);
 
@@ -1374,9 +1374,7 @@ mod MarketManager {
             // Return balance with fees.
             token_contract.transfer_from(borrower, contract, amount + fees);
 
-            // Update reserves.
-            let reserves = self.reserves.read(token);
-            self.reserves.write(token, reserves + fees);
+            // We do not update reserves so that fees can be collected via `sweep`.
 
             // Emit event.
             self.emit(Event::FlashLoan(FlashLoan { borrower, token, amount }));
@@ -1527,18 +1525,18 @@ mod MarketManager {
             self.emit(Event::ChangeOwner(ChangeOwner { old: old_owner, new: queued_owner }));
         }
 
-        // Set flash loan fee.
+        // Set flash loan fee rate.
         // Callable by owner only.
         //
         // # Arguments
         // * `token` - contract address of the token borrowed
         // * `fee` - flash loan fee denominated in bps
-        fn set_flash_loan_fee(ref self: ContractState, token: ContractAddress, fee: u16,) {
+        fn set_flash_loan_fee_rate(ref self: ContractState, token: ContractAddress, fee: u16,) {
             self.assert_only_owner();
             assert(fee <= fee_math::MAX_FEE_RATE, 'FeeOF');
-            let old_fee = self.flash_loan_fee.read(token);
+            let old_fee = self.flash_loan_fee_rate.read(token);
             assert(old_fee != fee, 'SameFee');
-            self.flash_loan_fee.write(token, fee);
+            self.flash_loan_fee_rate.write(token, fee);
             self.emit(Event::ChangeFlashLoanFee(ChangeFlashLoanFee { token, fee }));
         }
 

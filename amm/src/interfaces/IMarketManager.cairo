@@ -38,8 +38,8 @@ trait IMarketManager<TContractState> {
     // Get market swap fee rate.
     fn swap_fee_rate(self: @TContractState, market_id: felt252) -> u16;
 
-    // Get market flash loan fee.
-    fn flash_loan_fee(self: @TContractState, token: ContractAddress) -> u16;
+    // Get market flash loan fee rate.
+    fn flash_loan_fee_rate(self: @TContractState, token: ContractAddress) -> u16;
 
     // Get position info.
     fn position(
@@ -421,13 +421,13 @@ trait IMarketManager<TContractState> {
     // Part 2 of 2 step process to transfer ownership.
     fn accept_owner(ref self: TContractState);
 
-    // Set flash loan fee.
+    // Set flash loan fee rate.
     // Callable by owner only.
     //
     // # Arguments
     // * `token` - contract address of the token borrowed
     // * `fee` - flash loan fee denominated in bps
-    fn set_flash_loan_fee(ref self: TContractState, token: ContractAddress, fee: u16);
+    fn set_flash_loan_fee_rate(ref self: TContractState, token: ContractAddress, fee: u16);
 
     // Set market configs.
     // Callable by market owner only. Enforces checks that each config is upgradeable.
