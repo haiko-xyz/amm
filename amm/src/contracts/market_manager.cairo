@@ -1164,8 +1164,8 @@ mod MarketManager {
                 ._swap_multiple(in_token, out_token, amount, route, deadline, false);
 
             // Check amount against threshold.
-            if threshold_amount.is_some() {
-                assert(amount_out >= threshold_amount.unwrap(), 'ThresholdAmount');
+            if threshold_amount.is_some() && amount_out < threshold_amount.unwrap() {
+                panic(array!['ThresholdAmount', amount_out.low.into(), amount_out.high.into()]);
             }
 
             // Increment swap id.
@@ -1973,14 +1973,12 @@ mod MarketManager {
             // Check swap amount against amount threshold.
             if threshold_amount.is_some() {
                 let threshold_amount_val = threshold_amount.unwrap();
-                assert(
-                    if exact_input {
-                        amount_out >= threshold_amount_val
-                    } else {
-                        amount_in <= threshold_amount_val
-                    },
-                    'ThresholdAmount'
-                );
+                if exact_input && (amount_out < threshold_amount_val) {
+                    panic(array!['ThresholdAmount', amount_out.low.into(), amount_out.high.into()]);
+                }
+                if !exact_input && (amount_in > threshold_amount_val) {
+                    panic(array!['ThresholdAmount', amount_in.low.into(), amount_in.high.into()]);
+                }
             }
 
             // Return amounts if quote mode.
