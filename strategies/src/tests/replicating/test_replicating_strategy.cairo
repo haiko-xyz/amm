@@ -191,8 +191,9 @@ fn test_queued_and_placed_positions() {
     oracle.set_data_with_USD_hop('ETH', 'USDC', 180000000000, 8, 999, 5);
 
     // Get queued position.
+    let swap_params = SwapParams { is_buy: true, exact_input: true, amount: to_e18(1000), };
     let strategy_alt = IStrategyDispatcher { contract_address: strategy.contract_address };
-    let queued_positions = strategy_alt.queued_positions(market_id);
+    let queued_positions = strategy_alt.queued_positions(market_id, Option::Some(swap_params));
     let next_bid = *queued_positions.at(0);
     let next_ask = *queued_positions.at(1);
 
@@ -202,9 +203,9 @@ fn test_queued_and_placed_positions() {
     market_manager
         .swap(
             market_id,
-            true,
-            to_e18(1000),
-            true,
+            swap_params.is_buy,
+            swap_params.amount,
+            swap_params.exact_input,
             Option::None(()),
             Option::None(()),
             Option::None(())
@@ -230,7 +231,7 @@ fn test_queued_positions_uninitialised_market() {
 
     // Fetch queued positions for uninitialised market.
     let strategy_alt = IStrategyDispatcher { contract_address: strategy.contract_address };
-    let queued_positions = strategy_alt.queued_positions(1);
+    let queued_positions = strategy_alt.queued_positions(1, Option::None(()));
     let next_bid = *queued_positions.at(0);
     let next_ask = *queued_positions.at(1);
 
@@ -1031,14 +1032,7 @@ fn test_update_positions_not_market_manager() {
     let strategy_alt = IStrategyDispatcher { contract_address: strategy.contract_address };
     strategy_alt
         .update_positions(
-            market_id,
-            SwapParams {
-                is_buy: true,
-                amount: to_e18(1000),
-                exact_input: true,
-                threshold_sqrt_price: Option::None(()),
-                deadline: Option::None(()),
-            }
+            market_id, SwapParams { is_buy: true, amount: to_e18(1000), exact_input: true, }
         );
 }
 
@@ -1054,14 +1048,7 @@ fn test_update_positions_market_not_initialised() {
 
     strategy_alt
         .update_positions(
-            market_id,
-            SwapParams {
-                is_buy: true,
-                amount: to_e18(1000),
-                exact_input: true,
-                threshold_sqrt_price: Option::None(()),
-                deadline: Option::None(()),
-            }
+            market_id, SwapParams { is_buy: true, amount: to_e18(1000), exact_input: true, }
         );
 
     // Check event not emitted.
@@ -1085,14 +1072,7 @@ fn test_update_positions_market_paused() {
     let strategy_alt = IStrategyDispatcher { contract_address: strategy.contract_address };
     strategy_alt
         .update_positions(
-            market_id,
-            SwapParams {
-                is_buy: true,
-                amount: to_e18(1000),
-                exact_input: true,
-                threshold_sqrt_price: Option::None(()),
-                deadline: Option::None(()),
-            }
+            market_id, SwapParams { is_buy: true, amount: to_e18(1000), exact_input: true, }
         );
 
     // Check event not emitted.
@@ -3221,7 +3201,7 @@ fn oracle_prices() -> Array<u128> {
 }
 
 #[test]
-fn test_swap_cases() {
+fn test_swap_cases_and_quoting() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
 
     // Set oracle price.
@@ -3273,9 +3253,25 @@ fn test_swap_cases() {
             Option::None(()),
             Option::None(()),
         );
+        // Fetch quote
+        let quote = market_manager
+            .unsafe_quote(
+                market_id, swap_case.is_buy, swap_case.amount, swap_case.exact_input, false
+            );
+
         start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
         start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
         let (amount_in, amount_out, fees) = swap(market_manager, params);
+
+        // Check quote if threshold price is not enabled.
+        if swap_case.threshold_sqrt_price == Option::None(()) {
+            let amount = if swap_case.exact_input {
+                amount_out
+            } else {
+                amount_in
+            };
+            assert(quote == amount, 'Incorrect quote: Case 1' + index.into());
+        }
 
         'amount_in'.print();
         amount_in.print();
@@ -3284,17 +3280,17 @@ fn test_swap_cases() {
         'fees'.print();
         fees.print();
 
-        // Return position base amount.
-        let bid = strategy.bid(market_id);
-        let ask = strategy.ask(market_id);
-        let bid_position = market_manager
-            .position(
-                market_id, strategy.contract_address.into(), bid.lower_limit, bid.upper_limit
-            );
-        let ask_position = market_manager
-            .position(
-                market_id, strategy.contract_address.into(), ask.lower_limit, ask.upper_limit
-            );
+        // // Return position base amount.
+        // let bid = strategy.bid(market_id);
+        // let ask = strategy.ask(market_id);
+        // let bid_position = market_manager
+        //     .position(
+        //         market_id, strategy.contract_address.into(), bid.lower_limit, bid.upper_limit
+        //     );
+        // let ask_position = market_manager
+        //     .position(
+        //         market_id, strategy.contract_address.into(), ask.lower_limit, ask.upper_limit
+        //     );
 
         index += 1;
     };

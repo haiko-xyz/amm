@@ -163,7 +163,9 @@ mod ManualStrategy {
         }
 
         // Get queued positions.
-        fn queued_positions(self: @ContractState, market_id: felt252) -> Span<PositionInfo> {
+        fn queued_positions(
+            self: @ContractState, market_id: felt252, swap_params: Option<SwapParams>
+        ) -> Span<PositionInfo> {
             // Fetch strategy state.
             let mut bid = self.bid.read();
             let mut ask = self.ask.read();
@@ -242,7 +244,7 @@ mod ManualStrategy {
             let mut ask = self.ask.read();
 
             // Fetch new bid and ask positions.
-            let queued_positions = self.queued_positions(market_id);
+            let queued_positions = self.queued_positions(market_id, Option::Some(params));
             let next_bid = *queued_positions.at(0);
             let next_ask = *queued_positions.at(1);
             let update_bid: bool = next_bid != bid;
