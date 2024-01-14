@@ -221,15 +221,11 @@ struct LimitOrder {
 // * `is_buy` - whether swap is buy or sell
 // * `amount` - amount swapped in or out
 // * `exact_input` - whether amount is exact input or exact output
-// * `threshold_sqrt_price` - minimum sqrt price for sell or maximum sqrt price for buy
-// * `deadline` - deadline for swap
 #[derive(Copy, Drop, Serde)]
 struct SwapParams {
     is_buy: bool,
     amount: u256,
     exact_input: bool,
-    threshold_sqrt_price: Option<u256>,
-    deadline: Option<u64>,
 }
 
 // Strategy position info.

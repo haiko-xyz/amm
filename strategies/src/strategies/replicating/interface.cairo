@@ -3,7 +3,7 @@ use starknet::ContractAddress;
 use starknet::class_hash::ClassHash;
 
 // Local imports.
-use amm::types::core::PositionInfo;
+use amm::types::core::{PositionInfo, SwapParams};
 use strategies::strategies::replicating::types::{StrategyParams, OracleParams, StrategyState};
 
 
