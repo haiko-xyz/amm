@@ -13,6 +13,8 @@ mod Quoter {
     use starknet::class_hash::ClassHash;
 
     // Local imports.
+    use amm::libraries::math::{price_math, liquidity_math};
+    use amm::types::i128::{I128Trait, i128};
     use amm::interfaces::{
         IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait}, IQuoter::IQuoter
     };
@@ -346,6 +348,35 @@ mod Quoter {
                 i += 1;
             };
             balances.span()
+        }
+
+        // Find approval amounts for creating a new market.
+        // 
+        // # Arguments
+        // * `width` - market width
+        // * `start_limit` - start limit at which market is initialised
+        // * `lower_limit` - lower limit of posiiton
+        // * `upper_limit` - upper limit of position
+        // * `liquidity_delta` - liquidity delta
+        //
+        // # Returns
+        // * `base_amount` - amount of base tokens to approve
+        // * `quote_amount` - amount of quote tokens to approve
+        fn new_market_position_approval_amounts(
+            self: @ContractState,
+            width: u32,
+            start_limit: u32,
+            lower_limit: u32,
+            upper_limit: u32,
+            liquidity_delta: u128,
+        ) -> (u256, u256) {
+            let (base_amount, quote_amount) = liquidity_math::liquidity_to_amounts(
+                I128Trait::new(liquidity_delta, false),
+                price_math::limit_to_sqrt_price(start_limit, width),
+                price_math::limit_to_sqrt_price(lower_limit, width),
+                price_math::limit_to_sqrt_price(upper_limit, width),
+            );
+            (base_amount.val, quote_amount.val)
         }
 
         // Set market manager.

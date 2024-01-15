@@ -11,12 +11,14 @@ use amm::libraries::math::{math, price_math, liquidity_math};
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_SCALED, ONE};
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
+use amm::interfaces::IQuoter::{IQuoterDispatcher, IQuoterDispatcherTrait};
 use amm::types::core::MarketState;
 use amm::types::i128::{i128, I128Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position, swap
 };
 use amm::tests::cairo_test::helpers::token::{deploy_token, fund, approve};
+use amm::tests::cairo_test::helpers::quoter::deploy_quoter;
 use amm::tests::common::params::{
     owner, alice, treasury, default_token_params, default_market_params, modify_position_params,
     swap_params
@@ -1005,6 +1007,17 @@ fn test_swap_cases() {
                 let start_sqrt_price = market_manager.curr_sqrt_price(market_id);
                 _print_index('*** SWAP 01', swap_index).print();
 
+                let unsafe_quote = market_manager
+                    .unsafe_quote(
+                        market_id, swap_case.is_buy, swap_case.amount, swap_case.exact_input, false
+                    );
+
+                // Deploy quoter.
+                let quoter = deploy_quoter(owner(), market_manager.contract_address);
+                let quote = quoter
+                    .quote(market_id, swap_case.is_buy, swap_case.amount, swap_case.exact_input);
+                assert(unsafe_quote == quote, _print_index('quote 01', swap_index));
+
                 let mut params = swap_params(
                     alice(),
                     market_id,
@@ -1012,7 +1025,12 @@ fn test_swap_cases() {
                     swap_case.exact_input,
                     swap_case.amount,
                     swap_case.threshold_sqrt_price,
-                    Option::None(()),
+                    // Quotes don't check for threshold prices, so disable threshold amount if we are supply a threshold price.
+                    if swap_case.threshold_sqrt_price == Option::None(()) {
+                        Option::Some(quote)
+                    } else {
+                        Option::None(())
+                    },
                     Option::None(()),
                 );
                 let (amount_in, amount_out, fees) = swap(market_manager, params);
