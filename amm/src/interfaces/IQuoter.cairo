@@ -47,6 +47,15 @@ trait IQuoter<TContractState> {
         self: @TContractState, user: ContractAddress, tokens: Span<ContractAddress>
     ) -> Span<(u256, u8)>;
 
+    fn new_market_position_approval_amounts(
+        self: @TContractState,
+        width: u32,
+        start_limit: u32,
+        lower_limit: u32,
+        upper_limit: u32,
+        liquidity_delta: u128,
+    ) -> (u256, u256);
+
     fn set_market_manager(ref self: TContractState, market_manager: ContractAddress);
 
     fn upgrade(ref self: TContractState, new_class_hash: ClassHash);
