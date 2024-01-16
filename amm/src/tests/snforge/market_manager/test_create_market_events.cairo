@@ -83,14 +83,6 @@ fn test_create_market_event() {
                         }
                     )
                 ),
-                (
-                    market_manager.contract_address,
-                    MarketManager::Event::ChangeProtocolShare(
-                        MarketManager::ChangeProtocolShare {
-                            market_id, protocol_share: params.protocol_share,
-                        }
-                    )
-                )
             ]
         );
 }

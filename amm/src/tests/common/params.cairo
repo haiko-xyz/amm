@@ -38,7 +38,6 @@ struct CreateMarketParams {
     strategy: ContractAddress,
     swap_fee_rate: u16,
     fee_controller: ContractAddress,
-    protocol_share: u16,
     start_limit: u32,
     controller: ContractAddress,
     market_configs: Option<MarketConfigs>,
@@ -145,7 +144,6 @@ fn default_market_params() -> CreateMarketParams {
         swap_fee_rate: 30, // 0.3%
         fee_controller: ContractAddressZeroable::zero(), // Replaced with actual address on deployment
         strategy: ContractAddressZeroable::zero(), // Replaced with actual address on deployment
-        protocol_share: 20, // 0.2%
         start_limit: OFFSET + 749558,
         controller: ContractAddressZeroable::zero(),
         market_configs: Option::None(())

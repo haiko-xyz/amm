@@ -58,7 +58,6 @@ fn test_create_market_initialises_immutables() {
     assert(market_info.strategy == params.strategy, 'Create mkt: strategy');
     assert(market_info.swap_fee_rate == params.swap_fee_rate, 'Create mkt: swap fee');
     assert(market_info.fee_controller == params.fee_controller, 'Create mkt: fee controller');
-    assert(market_state.protocol_share == params.protocol_share, 'Create mkt: protocol share');
 }
 
 #[test]
@@ -82,7 +81,6 @@ fn test_create_market_initialises_state() {
             .curr_sqrt_price == price_math::limit_to_sqrt_price(params.start_limit, params.width),
         'Create mkt: initial sqrt price'
     );
-    // assert(market_state.protocol_share == params.protocol_share, 'Create mkt: protocol share');
     assert(market_state.base_fee_factor == 0, 'Create mkt: base fee factor');
     assert(market_state.quote_fee_factor == 0, 'Create mkt: quote fee factor');
 }
@@ -252,22 +250,6 @@ fn test_create_market_fee_rate_overflow() {
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
     params.swap_fee_rate = 10001;
-
-    create_market(market_manager, params);
-}
-
-#[test]
-#[available_gas(2000000000)]
-#[should_panic(expected: ('ProtocolShareOF', 'ENTRYPOINT_FAILED',))]
-fn test_create_market_protocol_share_overflow() {
-    // Deploy market manager and tokens.
-    let (market_manager, base_token, quote_token) = before();
-
-    // Create market.
-    let mut params = default_market_params();
-    params.base_token = base_token.contract_address;
-    params.quote_token = quote_token.contract_address;
-    params.protocol_share = 10001;
 
     create_market(market_manager, params);
 }

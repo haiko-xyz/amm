@@ -14,7 +14,7 @@ The `MarketManager` contract is the main entrypoint for user interactions. It is
 2. Adding and removing liquidity to / from new or existing positions
 3. Swapping assets through one or multiple markets
 4. Placing and collecting limit orders
-5. Other miscellaneous actions such as flash loans, protocol fees, sweeping etc
+5. Other miscellaneous actions such as flash loans, sweeping etc
 
 ### `Strategy`
 

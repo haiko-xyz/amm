@@ -22,12 +22,12 @@ const TWO_POW_6: felt252 = 0x40;
 const TWO_POW_16: felt252 = 0x10000;
 const TWO_POW_32: felt252 = 0x100000000;
 const TWO_POW_38: felt252 = 0x4000000000;
-const TWO_POW_48: felt252 = 0x1000000000000;
 const TWO_POW_64: felt252 = 0x10000000000000000;
 const TWO_POW_96: felt252 = 0x1000000000000000000000000;
 const TWO_POW_124: felt252 = 0x10000000000000000000000000000000;
 const TWO_POW_128: felt252 = 0x100000000000000000000000000000000;
 const TWO_POW_160: felt252 = 0x10000000000000000000000000000000000000000;
+const TWO_POW_161: felt252 = 0x20000000000000000000000000000000000000000;
 const TWO_POW_192: felt252 = 0x1000000000000000000000000000000000000000000000000;
 const TWO_POW_196: felt252 = 0x10000000000000000000000000000000000000000000000000;
 const TWO_POW_200: felt252 = 0x100000000000000000000000000000000000000000000000000;
@@ -45,10 +45,8 @@ const TWO_POW_222: felt252 = 0x4000000000000000000000000000000000000000000000000
 const MASK_1: u256 = 0x1;
 const MASK_2: u256 = 0x3;
 const MASK_4: u256 = 0xf;
-const MASK_8: u256 = 0xff;
 const MASK_16: u256 = 0xffff;
 const MASK_32: u256 = 0xffffffff;
-const MASK_64: u256 = 0xffffffffffffffff;
 const MASK_128: u256 = 0xffffffffffffffffffffffffffffffff;
 
 ////////////////////////////////
@@ -95,9 +93,8 @@ impl MarketStateStorePacking of StorePacking<MarketState, PackedMarketState> {
             .try_into()
             .expect('QuoteFeeFactorOF');
 
-        let mut slab0: u256 = value.protocol_share.into();
-        slab0 += value.curr_limit.into() * TWO_POW_16.into();
-        slab0 += value.liquidity.into() * TWO_POW_48.into();
+        let mut slab0: u256 = value.curr_limit.into();
+        slab0 += value.liquidity.into() * TWO_POW_32.into();
 
         PackedMarketState {
             curr_sqrt_price, base_fee_factor, quote_fee_factor, slab0: slab0.try_into().unwrap(),
@@ -108,20 +105,14 @@ impl MarketStateStorePacking of StorePacking<MarketState, PackedMarketState> {
         let curr_sqrt_price: u256 = value.curr_sqrt_price.into();
         let base_fee_factor: u256 = value.base_fee_factor.into();
         let quote_fee_factor: u256 = value.quote_fee_factor.into();
-        let protocol_share: u16 = (value.slab0.into() & MASK_16.into()).try_into().unwrap();
-        let curr_limit: u32 = ((value.slab0.into() / TWO_POW_16.into()) & MASK_32.into())
-            .try_into()
-            .unwrap();
-        let liquidity: u128 = ((value.slab0.into() / TWO_POW_48.into()) & MASK_128.into())
-            .try_into()
-            .unwrap();
+        let curr_limit: u32 = (value.slab0.into() & MASK_32.into()).try_into().unwrap();
+        let liquidity: u256 = value.slab0.into() / TWO_POW_32.into();
 
         MarketState {
-            liquidity,
+            liquidity: liquidity.try_into().unwrap(),
             curr_sqrt_price,
             base_fee_factor,
             quote_fee_factor,
-            protocol_share,
             curr_limit,
         }
     }

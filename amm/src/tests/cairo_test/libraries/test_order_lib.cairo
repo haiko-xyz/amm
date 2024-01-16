@@ -37,7 +37,6 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
     params.start_limit = OFFSET - 0; // initial limit
-    params.protocol_share = 0;
     let market_id = create_market(market_manager, params);
 
     // Fund LPs with initial token balances and approve market manager as spender.
@@ -89,9 +88,9 @@ fn test_amounts_inside_order_bid() {
     );
     let (amount_in, amount_out, fees) = swap(market_manager, params);
 
-    // Check amounts inside order. Expect fees to be forfeited.
+    // Check amounts inside order. Expect fees earned on partial fill to be paid.
     let (base_amount, quote_amount) = market_manager.amounts_inside_order(order_id, market_id);
-    assert(approx_eq(base_amount, (amount_in - fees) / 2, 10), 'Base amount 1');
+    assert(approx_eq(base_amount, amount_in / 2, 10), 'Base amount 1');
     assert(approx_eq(quote_amount, (99501001654900617 - amount_out) / 2, 10), 'Quote amount 1');
 
     // Fully fill order.
@@ -135,10 +134,10 @@ fn test_amounts_inside_order_ask() {
     );
     let (amount_in, amount_out, fees) = swap(market_manager, params);
 
-    // Check amounts inside order. Expect fees to be forfeited.
+    // Check amounts inside order. Expect fees earned on partial fill to be paid.
     let (base_amount, quote_amount) = market_manager.amounts_inside_order(order_id, market_id);
     assert(approx_eq(base_amount, (99500504153623599 - amount_out) / 2, 10), 'Base amount 1');
-    assert(approx_eq(quote_amount, (amount_in - fees) / 2, 10), 'Quote amount 1');
+    assert(approx_eq(quote_amount, amount_in / 2, 10), 'Quote amount 1');
 
     // Fully fill order.
     params.amount = to_e18(1);

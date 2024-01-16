@@ -117,7 +117,7 @@ fn before(
 // 11. Swap sell never decreases base fee factor, and never changes quote fee factor.
 // 12. If swap does not change market sqrt price, liquidity is not changed either.
 // 13. Amounts inside position are equal to amounts withdrawn.
-// 14. Amounts paid out plus retained protocol fees should be lower than or equal to amounts paid in.
+// 14. Amounts paid out should be lower than or equal to amounts paid in.
 // 15. Adding then removing liquidity works, and results in same reserves and liquidity (+ epsilon)
 // 16. Removing liquidity on position with amount 0 never fails, and does not change market liquidity.
 // 17. Swapping amount in and back out in 0 fee market yields same reserves and liquidity (+ epsilon).
@@ -287,11 +287,6 @@ fn test_invariants_set1(
                 Option::None(())
             );
             let (amount_in, amount_out, fees) = swap(market_manager, params);
-            if is_buy {
-                quote_protocol_fees += fee_math::calc_fee(fees, market_state_start.protocol_share);
-            } else {
-                base_protocol_fees += fee_math::calc_fee(fees, market_state_start.protocol_share);
-            }
 
             // Snapshot end state.
             let market_state_end = market_manager.market_state(market_id);
@@ -374,8 +369,8 @@ fn test_invariants_set1(
     let end_bal = _snapshot_balances(market_manager, base_token, quote_token, alice());
     let base_diff = max(start_bal.base, end_bal.base) - min(start_bal.base, end_bal.base);
     let quote_diff = max(start_bal.quote, end_bal.quote) - min(start_bal.quote, end_bal.quote);
-    assert(base_diff >= base_protocol_fees, 'Invariant 14: base');
-    assert(quote_diff >= quote_protocol_fees, 'Invariant 14: quote');
+    assert(base_diff >= 0, 'Invariant 14: base');
+    assert(quote_diff >= 0, 'Invariant 14: quote');
 
     // Sum liquidity delta over limits and check invariants.
     let mut cumul_liquidity = I128Zeroable::zero();

@@ -38,11 +38,8 @@ trait IMarketManager<TContractState> {
     // Get market swap fee rate.
     fn swap_fee_rate(self: @TContractState, market_id: felt252) -> u16;
 
-    // Get market flash loan fee.
-    fn flash_loan_fee(self: @TContractState, token: ContractAddress) -> u16;
-
-    // Get market protocol share.
-    fn protocol_share(self: @TContractState, market_id: felt252) -> u16;
+    // Get market flash loan fee rate.
+    fn flash_loan_fee_rate(self: @TContractState, token: ContractAddress) -> u16;
 
     // Get position info.
     fn position(
@@ -100,11 +97,11 @@ trait IMarketManager<TContractState> {
         self: @TContractState, market_id: felt252, is_buy: bool, width: u32, start_limit: u32
     ) -> Option<u32>;
 
+    // Get donations.
+    fn donations(self: @TContractState, asset: ContractAddress) -> u256;
+
     // Get token reserves.
     fn reserves(self: @TContractState, asset: ContractAddress) -> u256;
-
-    // Get accumulated protocol fees for token.
-    fn protocol_fees(self: @TContractState, asset: ContractAddress) -> u256;
 
     // Returns total amount of tokens and accrued fees inside of a liquidity position.
     // 
@@ -165,7 +162,6 @@ trait IMarketManager<TContractState> {
     // * `swap_fee_rate` - swap fee denominated in bps
     // * `flash_loan_fee` - flash loan fee denominated in bps
     // * `fee_controller` - fee controller contract address
-    // * `protocol_share` - protocol share denominated in 0.01% shares of swap fee (e.g. 500 = 5%)
     // * `start_limit` - initial limit (shifted)
     // * `controller` - market controller for upgrading market configs, or 0 if none
     // * `configs` - (optional) custom market configurations
@@ -180,7 +176,6 @@ trait IMarketManager<TContractState> {
         strategy: ContractAddress,
         swap_fee_rate: u16,
         fee_controller: ContractAddress,
-        protocol_share: u16,
         start_limit: u32,
         controller: ContractAddress,
         configs: Option<MarketConfigs>,
@@ -401,20 +396,6 @@ trait IMarketManager<TContractState> {
     // * `market_id` - market id
     fn whitelist(ref self: TContractState, market_ids: Array<felt252>);
 
-    // Collect protocol fees.
-    // Callable by owner only.
-    //
-    // # Arguments
-    // * `receiver` - Recipient of collected fees
-    // * `token` - Token to collect fees in
-    // * `amount` - Amount of fees requested
-    // 
-    // # Returns
-    // * `amount` - Amount of fees collected
-    fn collect_protocol_fees(
-        ref self: TContractState, receiver: ContractAddress, token: ContractAddress, amount: u256,
-    ) -> u256;
-
     // Sweeps excess tokens from contract.
     // Used to collect tokens sent to contract by mistake.
     //
@@ -440,21 +421,13 @@ trait IMarketManager<TContractState> {
     // Part 2 of 2 step process to transfer ownership.
     fn accept_owner(ref self: TContractState);
 
-    // Set flash loan fee.
+    // Set flash loan fee rate.
     // Callable by owner only.
     //
     // # Arguments
     // * `token` - contract address of the token borrowed
     // * `fee` - flash loan fee denominated in bps
-    fn set_flash_loan_fee(ref self: TContractState, token: ContractAddress, fee: u16);
-
-    // Set protocol share for a given market.
-    // Callable by owner only.
-    // 
-    // # Arguments
-    // * `market_id` - market id
-    // * `protocol_share` - protocol share
-    fn set_protocol_share(ref self: TContractState, market_id: felt252, protocol_share: u16);
+    fn set_flash_loan_fee_rate(ref self: TContractState, token: ContractAddress, fee: u16);
 
     // Set market configs.
     // Callable by market owner only. Enforces checks that each config is upgradeable.

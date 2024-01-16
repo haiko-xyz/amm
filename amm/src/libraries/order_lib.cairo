@@ -1,4 +1,5 @@
 // Core lib imports.
+use cmp::min;
 use starknet::ContractAddress;
 use starknet::get_caller_address;
 
@@ -13,6 +14,8 @@ use amm::contracts::market_manager::MarketManager::{
     batches::InternalContractMemberStateTrait as BatchStateTrait,
     positions::InternalContractMemberStateTrait as PositionStateTrait,
     market_info::InternalContractMemberStateTrait as MarketInfoStateTrait,
+    market_state::InternalContractMemberStateTrait as MarketStateStateTrait,
+    donations::InternalContractMemberStateTrait as DonationStateTrait,
 };
 use amm::types::core::{OrderBatch, LimitInfo};
 use amm::types::i128::{i128, I128Trait};
@@ -20,13 +23,16 @@ use amm::types::i128::{i128, I128Trait};
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
+// use debug::PrintTrait;
+
 // Returns total amount of tokens inside of a limit order.
-// User's share of batch is calculated based on the liquidity of their order relative to the 
-// total liquidity of the batch. If we are collecting from the batch and it has not yet been 
-// filled, we need to first remove our share of batch liquidity from the pool. However, if 
-// the batch has accrued fees (e.g. through partial fills), it will also withdraw all fees
-// from the position. To discourage this, fees are forfeited and not paid out to the user if 
-// they collect from an unfilled batch.
+// User's position is calculated based on the liquidity of their order relative to the
+//  total liquidity of the batch. Fully filled orders are paid their prorata share of 
+// fees (up to the swap fee rate), while unfilled or partially filled orders always 
+// forfeit fees. This is to prevent depositors from opportunistically placing orders in
+// batches with existing accrued fee balances and withdrawing them immediately. In 
+// addition, all orders in markets with a variable fee controller must forfeit fees to 
+// prevent potential insolvency from fee rate updates. 
 // 
 // # Arguments
 // * `order_id` - order id
@@ -40,34 +46,35 @@ fn amounts_inside_order(
 ) -> (u256, u256) {
     // Get order and batch info.
     let market_info = self.market_info.read(market_id);
+    let market_state = self.market_state.read(market_id);
     let order = self.orders.read(order_id);
     let batch = self.batches.read(order.batch_id);
 
     // Handle empty batch.
-    if batch.liquidity == 0 {
+    if order.liquidity == 0 {
         return (0, 0);
     }
 
-    // Calculate batch token amounts.
-    let (batch_base, batch_quote) = if !batch.filled {
-        let position_id = id::position_id(
-            market_id, order.batch_id, batch.limit, batch.limit + market_info.width
-        );
-        let (base_amount, quote_amount, _, _) = liquidity_lib::amounts_inside_position(
-            self, position_id
-        );
-        (base_amount, quote_amount)
-    } else {
-        (batch.base_amount.into(), batch.quote_amount.into())
-    };
+    // Calculate order amounts.
+    let (base_amount_excl_fees, quote_amount_excl_fees) = liquidity_math::liquidity_to_amounts(
+        I128Trait::new(order.liquidity, true),
+        market_state.curr_sqrt_price,
+        price_math::limit_to_sqrt_price(batch.limit, market_info.width),
+        price_math::limit_to_sqrt_price(batch.limit + market_info.width, market_info.width),
+    );
+    let mut base_amount = base_amount_excl_fees.val;
+    let mut quote_amount = quote_amount_excl_fees.val;
 
-    // Allocate batch liquidity to order.
-    let base_amount = math::mul_div(
-        batch_base, order.liquidity.into(), batch.liquidity.into(), false
-    );
-    let quote_amount = math::mul_div(
-        batch_quote, order.liquidity.into(), batch.liquidity.into(), false
-    );
+    // Calculate accrued fees on filled portion of order. Note that fees are always forfeited
+    // if the market uses a variable fee controller, to avoid potential insolvency from fee
+    // rate updates.
+    if market_info.fee_controller.is_zero() {
+        if batch.is_bid {
+            base_amount = fee_math::net_to_gross(base_amount, market_info.swap_fee_rate);
+        } else {
+            quote_amount = fee_math::net_to_gross(quote_amount, market_info.swap_fee_rate);
+        }
+    }
 
     (base_amount, quote_amount)
 }
@@ -83,6 +90,8 @@ fn amounts_inside_order(
 fn fill_limits(
     ref self: ContractState, market_id: felt252, width: u32, filled_limits: Span<(u32, felt252)>,
 ) {
+    let market_info = self.market_info.read(market_id);
+
     let mut i = filled_limits.len();
     loop {
         if i == 0 {
@@ -101,18 +110,16 @@ fn fill_limits(
                 limit,
                 limit + width,
                 I128Trait::new(batch.liquidity, true),
-                true
+                true,
             );
 
-        // Update batch info. If partial fills and unfills occured prior to the batch being fully
-        // filled, the batch could have accrued swap fees in the opposite asset. Therefore, they
-        // should be paid out to limit order placers. 
+        // Update batch info. 
         batch.filled = true;
-        batch.base_amount = base_amount.val.try_into().expect('BatchBaseAmtOF');
-        batch.quote_amount = quote_amount.val.try_into().expect('BatchQuoteAmtOF');
+        batch.base_amount += base_amount.val.try_into().expect('BatchBaseFilledOF');
+        batch.quote_amount += quote_amount.val.try_into().expect('BatchQuoteFilledOF');
         self.batches.write(batch_id, batch);
 
-        // Update limit info. Limit info is changed by `modify_position` so must be refetched here.
+        // Update limit info. Limit info is changed by `modify_position` so must be fetched here.
         let mut limit_info = self.limit_info.read((market_id, limit));
         limit_info.nonce += 1;
         self.limit_info.write((market_id, limit), limit_info);
@@ -120,59 +127,4 @@ fn fill_limits(
         // Move to next order.
         i -= 1;
     };
-}
-
-// Partially fill orders at the given limit.
-// Calling `swap` may result in partially filling liquidity at a limit. This function updates the
-// current order batch for the partially filled amount, either filling if swap is in the opposite
-// direction of the order, or unfilling if swap is in the same direction as the order.
-//
-// # Arguments
-// * `market_id` - market ID
-// * `limit` - limit of market
-// * `amount_in` - amount in
-// * `amount_out` - amount out
-// * `is_buy` - whether the order is a buy order
-fn fill_partial_limit(
-    ref self: ContractState,
-    market_id: felt252,
-    limit: u32,
-    amount_in: u256,
-    amount_out: u256,
-    is_buy: bool,
-) {
-    // Get limit and batch info.
-    let partial_limit_info = self.limit_info.read((market_id, limit));
-    let batch_id = id::batch_id(market_id, limit, partial_limit_info.nonce);
-    let mut batch = self.batches.read(batch_id);
-
-    // Return if batch does not exist.
-    if batch.liquidity == 0 {
-        return;
-    }
-    // Otherwise, update for partial fill.
-    // Fill
-    let amount_in_u128: u128 = amount_in.try_into().expect('AmountInU128OF');
-    let amount_out_u128: u128 = amount_out.try_into().expect('AmountOutU128OF');
-    if is_buy != batch.is_bid {
-        if batch.is_bid {
-            batch.quote_amount -= amount_out_u128;
-            batch.base_amount += amount_in_u128;
-        } else {
-            batch.base_amount -= amount_out_u128;
-            batch.quote_amount += amount_in_u128;
-        }
-    } // Unfill 
-    else {
-        if batch.is_bid {
-            batch.quote_amount += amount_in_u128;
-            batch.base_amount -= amount_out_u128;
-        } else {
-            batch.base_amount += amount_in_u128;
-            batch.quote_amount -= amount_out_u128;
-        }
-    }
-
-    // Commit changes.
-    self.batches.write(batch_id, batch);
 }

@@ -441,8 +441,6 @@ fn test_modify_position_below_curr_price_cases() {
 #[available_gas(1000000000)]
 fn test_collect_fees() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
-    set_contract_address(owner());
-    market_manager.set_protocol_share(market_id, 0);
 
     // Create position
     set_contract_address(alice());
@@ -497,8 +495,6 @@ fn test_collect_fees() {
 #[available_gas(1000000000)]
 fn test_collect_fees_multiple_lps() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
-    set_contract_address(owner());
-    market_manager.set_protocol_share(market_id, 0);
 
     // Alice creates position
     set_contract_address(alice());
@@ -553,8 +549,6 @@ fn test_collect_fees_multiple_lps() {
 #[available_gas(1000000000)]
 fn test_collect_fees_intermediate_withdrawal() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
-    set_contract_address(owner());
-    market_manager.set_protocol_share(market_id, 0);
 
     // Alice creates position
     set_contract_address(alice());
@@ -617,97 +611,6 @@ fn test_collect_fees_intermediate_withdrawal() {
         quote_amount_a1.val + quote_amount_a2.val + quote_amount_b.val == quote_fees_exp,
         'Quote fees'
     );
-}
-
-#[test]
-#[available_gas(100000000)]
-fn test_modify_position_accumulates_protocol_fees() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
-
-    // Create position
-    let lower_limit = OFFSET - MIN_LIMIT;
-    let upper_limit = OFFSET + MAX_LIMIT;
-    let liquidity = I128Trait::new(to_e28_u128(1), false);
-    market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
-
-    // Execute some swaps
-    let mut is_buy = true;
-    let mut amount = to_e28(1);
-    let exact_input = true;
-    market_manager
-        .swap(
-            market_id,
-            is_buy,
-            amount,
-            exact_input,
-            Option::None(()),
-            Option::None(()),
-            Option::None(())
-        );
-    is_buy = false;
-    market_manager
-        .swap(
-            market_id,
-            is_buy,
-            amount,
-            exact_input,
-            Option::None(()),
-            Option::None(()),
-            Option::None(())
-        );
-
-    // Check protocol fees
-    let base_protocol_fees = market_manager.protocol_fees(market_manager.base_token(market_id));
-    let quote_protocol_fees = market_manager.protocol_fees(market_manager.quote_token(market_id));
-    assert(base_protocol_fees == 60000000000000000000000, 'Base protocol fees');
-    assert(quote_protocol_fees == 60000000000000000000000, 'Quote protocol fees');
-}
-
-#[test]
-#[available_gas(100000000)]
-fn test_modify_position_zero_protocol_fees() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
-    set_contract_address(owner());
-    market_manager.set_protocol_share(market_id, 0);
-
-    // Create position
-    set_contract_address(alice());
-    let lower_limit = OFFSET - MIN_LIMIT;
-    let upper_limit = OFFSET + MAX_LIMIT;
-    let liquidity = I128Trait::new(to_e28_u128(1), false);
-    market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity);
-
-    // Execute some swaps
-    let mut is_buy = true;
-    let mut amount = to_e28(1);
-    let exact_input = true;
-    market_manager
-        .swap(
-            market_id,
-            is_buy,
-            amount,
-            exact_input,
-            Option::None(()),
-            Option::None(()),
-            Option::None(())
-        );
-    is_buy = false;
-    market_manager
-        .swap(
-            market_id,
-            is_buy,
-            amount,
-            exact_input,
-            Option::None(()),
-            Option::None(()),
-            Option::None(())
-        );
-
-    // Check protocol fees
-    let base_protocol_fees = market_manager.protocol_fees(market_manager.base_token(market_id));
-    let quote_protocol_fees = market_manager.protocol_fees(market_manager.quote_token(market_id));
-    assert(base_protocol_fees == 0, 'Base protocol fees');
-    assert(quote_protocol_fees == 0, 'Quote protocol fees');
 }
 
 #[test]

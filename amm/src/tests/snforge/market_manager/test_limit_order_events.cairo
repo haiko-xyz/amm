@@ -177,12 +177,12 @@ fn test_collect_partially_filled_order_events() {
 
     let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
 
-    // Creating an order should fire an event.
+    // Creating a bid should fire an event.
     let curr_limit = OFFSET;
     let width = 1;
     let is_bid = true;
     let limit = OFFSET - 1000;
-    let liquidity_delta = to_e18_u128(10000);
+    let liquidity_delta = to_e18_u128(100000);
     let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity_delta);
     let order = market_manager.order(order_id);
 
@@ -267,6 +267,7 @@ fn test_collect_partially_filled_order_events() {
     let upper_limit_info = market_manager.limit_info(market_id, limit + width);
 
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
+
     spy
         .assert_emitted(
             @array![
@@ -280,9 +281,9 @@ fn test_collect_partially_filled_order_events() {
                             upper_limit: limit + width,
                             liquidity_delta: I128Trait::new(liquidity_delta, true),
                             // base amount is different because fees are forfeited for partial fills
-                            base_amount: I256Trait::new(base_amount, true),
-                            quote_amount: I256Trait::new(quote_amount, true),
-                            base_fees: 150901948087303,
+                            base_amount: I256Trait::new(base_amount - 1, true), // rounding error
+                            quote_amount: I256Trait::new(0, true),
+                            base_fees: 1512043568009053,
                             quote_fees: 0,
                             is_limit_order: true,
                         }
@@ -298,8 +299,8 @@ fn test_collect_partially_filled_order_events() {
                             limit,
                             batch_id: order.batch_id,
                             is_bid,
-                            base_amount,
-                            quote_amount,
+                            base_amount: base_amount,
+                            quote_amount: 0,
                         }
                     )
                 )
@@ -376,8 +377,7 @@ fn test_collect_fully_filled_order_events() {
         );
 
     let market_state = market_manager.market_state(market_id);
-    let protocol_fees = fee_math::calc_fee(fees, market_state.protocol_share);
-    let base_amount_exp = 50401149858254832;
+    let base_amount_exp = 50401452266968435;
     spy
         .assert_emitted(
             @array![
@@ -390,9 +390,9 @@ fn test_collect_fully_filled_order_events() {
                             lower_limit: limit,
                             upper_limit: limit + width,
                             liquidity_delta: I128Trait::new(liquidity_delta, true),
-                            base_amount: I256Trait::new(base_amount_exp, true),
+                            base_amount: I256Trait::new(amount_in - 1, true), // rounding error
                             quote_amount: I256Trait::new(0, true),
-                            base_fees: fees - protocol_fees,
+                            base_fees: fees,
                             quote_fees: 0,
                             is_limit_order: true,
                         }

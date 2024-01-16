@@ -99,8 +99,8 @@ fn test_flash_loan() {
 
     // Set flash loan fee.
     set_contract_address(owner());
-    market_manager.set_flash_loan_fee(base_token.contract_address, 10);
-    market_manager.set_flash_loan_fee(quote_token.contract_address, 25);
+    market_manager.set_flash_loan_fee_rate(base_token.contract_address, 10);
+    market_manager.set_flash_loan_fee_rate(quote_token.contract_address, 25);
 
     // Borrow max amount of both assets. 
     set_contract_address(loan_receiver.contract_address);
@@ -112,8 +112,17 @@ fn test_flash_loan() {
     let quote_end = quote_token.balance_of(loan_receiver.contract_address);
 
     // Check that fee is deducted.
-    assert(base_end == base_start - 487703376934855107, 'Base loan fee');
-    assert(quote_end == quote_start - 1219258442337137768, 'Quote loan fee');
+    let base_fee_exp = 487703376934855107;
+    let quote_fee_exp = 1219258442337137768;
+    assert(base_end == base_start - base_fee_exp, 'Base loan fee');
+    assert(quote_end == quote_start - quote_fee_exp, 'Quote loan fee');
+
+    // Collect fee via sweep.
+    set_contract_address(owner());
+    let base_collected = market_manager.sweep(owner(), base_token.contract_address, base_fee_exp);
+    let quote_collected = market_manager.sweep(owner(), quote_token.contract_address, quote_fee_exp);
+    assert(base_collected == base_fee_exp, 'Base collected');
+    assert(quote_collected == quote_fee_exp, 'Quote collected');
 }
 
 #[test]
@@ -142,8 +151,8 @@ fn test_flash_loan_insufficient_balance() {
 
     // Set flash loan fee.
     set_contract_address(owner());
-    market_manager.set_flash_loan_fee(base_token.contract_address, 10);
-    market_manager.set_flash_loan_fee(quote_token.contract_address, 25);
+    market_manager.set_flash_loan_fee_rate(base_token.contract_address, 10);
+    market_manager.set_flash_loan_fee_rate(quote_token.contract_address, 25);
 
     // Flash loan and don't return amount.
     set_contract_address(loan_receiver.contract_address);
@@ -179,8 +188,8 @@ fn test_flash_loan_stealer() {
 
     // Set flash loan fee.
     set_contract_address(owner());
-    market_manager.set_flash_loan_fee(base_token.contract_address, 10);
-    market_manager.set_flash_loan_fee(quote_token.contract_address, 25);
+    market_manager.set_flash_loan_fee_rate(base_token.contract_address, 10);
+    market_manager.set_flash_loan_fee_rate(quote_token.contract_address, 25);
 
     // Flash loan and try to deposit the amount as liquidity.
     set_contract_address(loan_receiver.contract_address);
@@ -205,7 +214,7 @@ fn test_set_flash_loan_fee_not_owner() {
     let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true, false);
 
     set_contract_address(loan_receiver.contract_address);
-    market_manager.set_flash_loan_fee(base_token.contract_address, 10);
+    market_manager.set_flash_loan_fee_rate(base_token.contract_address, 10);
 }
 
 #[test]
@@ -215,6 +224,6 @@ fn test_set_flash_loan_fee_unchanged() {
     let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true, false);
 
     set_contract_address(owner());
-    let flash_loan_fee = market_manager.flash_loan_fee(base_token.contract_address);
-    market_manager.set_flash_loan_fee(base_token.contract_address, flash_loan_fee);
+    let flash_loan_fee_rate = market_manager.flash_loan_fee_rate(base_token.contract_address);
+    market_manager.set_flash_loan_fee_rate(base_token.contract_address, flash_loan_fee_rate);
 }

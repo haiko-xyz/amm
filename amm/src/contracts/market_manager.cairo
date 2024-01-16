@@ -42,7 +42,8 @@ mod MarketManager {
     use openzeppelin::token::erc721::interface::{IERC721Dispatcher, IERC721DispatcherTrait};
     use openzeppelin::introspection::src5::SRC5Component;
 
-    // use snforge_std::PrintTrait;
+    // use debug::PrintTrait;
+    use snforge_std::PrintTrait;
 
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
@@ -64,11 +65,6 @@ mod MarketManager {
         // Ownable
         owner: ContractAddress,
         queued_owner: ContractAddress,
-        // Global information
-        // Indexed by asset
-        reserves: LegacyMap::<ContractAddress, u256>,
-        protocol_fees: LegacyMap::<ContractAddress, u256>,
-        flash_loan_fee: LegacyMap::<ContractAddress, u16>,
         // Market information
         // Indexed by market_id = hash(base_token, quote_token, width, strategy, fee_controller, controller)
         market_info: LegacyMap::<felt252, MarketInfo>,
@@ -92,6 +88,11 @@ mod MarketManager {
         limit_tree_l1: LegacyMap::<(felt252, u32), felt252>,
         // Indexed by (market_id: felt252, seg_index_l2: u32)
         limit_tree_l2: LegacyMap::<(felt252, u32), felt252>,
+        // Global information
+        // Indexed by asset
+        reserves: LegacyMap::<ContractAddress, u256>,
+        donations: LegacyMap::<ContractAddress, u256>,
+        flash_loan_fee_rate: LegacyMap::<ContractAddress, u16>,
         #[substorage(v0)]
         erc721: ERC721Component::Storage,
         #[substorage(v0)]
@@ -113,11 +114,10 @@ mod MarketManager {
         MultiSwap: MultiSwap,
         FlashLoan: FlashLoan,
         Whitelist: Whitelist,
-        CollectProtocolFee: CollectProtocolFee,
+        Donate: Donate,
         Sweep: Sweep,
         ChangeOwner: ChangeOwner,
         ChangeFlashLoanFee: ChangeFlashLoanFee,
-        ChangeProtocolShare: ChangeProtocolShare,
         SetMarketConfigs: SetMarketConfigs,
         #[flat]
         ERC721Event: ERC721Component::Event,
@@ -245,18 +245,16 @@ mod MarketManager {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct CollectProtocolFee {
-        #[key]
-        receiver: ContractAddress,
-        #[key]
-        token: ContractAddress,
-        amount: u256
-    }
-
-    #[derive(Drop, starknet::Event)]
     struct Whitelist {
         #[key]
         market_id: felt252
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct Donate {
+        #[key]
+        token: ContractAddress,
+        amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -284,13 +282,6 @@ mod MarketManager {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct ChangeProtocolShare {
-        #[key]
-        market_id: felt252,
-        protocol_share: u16,
-    }
-
-    #[derive(Drop, starknet::Event)]
     struct SetMarketConfigs {
         #[key]
         market_id: felt252,
@@ -313,10 +304,12 @@ mod MarketManager {
     ////////////////////////////////
 
     #[constructor]
-    fn constructor(ref self: ContractState, owner: ContractAddress) {
+    fn constructor(
+        ref self: ContractState, owner: ContractAddress, name: felt252, symbol: felt252
+    ) {
         self.owner.write(owner);
         self.swap_id.write(1);
-        self.erc721.initializer('Sphinx Liquidity Positions', 'SPHINX-LP');
+        self.erc721.initializer(name, symbol);
 
         self
             .emit(
@@ -394,12 +387,8 @@ mod MarketManager {
             }
         }
 
-        fn flash_loan_fee(self: @ContractState, token: ContractAddress) -> u16 {
-            self.flash_loan_fee.read(token)
-        }
-
-        fn protocol_share(self: @ContractState, market_id: felt252) -> u16 {
-            self.market_state.read(market_id).protocol_share
+        fn flash_loan_fee_rate(self: @ContractState, token: ContractAddress) -> u16 {
+            self.flash_loan_fee_rate.read(token)
         }
 
         fn position(
@@ -475,12 +464,12 @@ mod MarketManager {
             tree::next_limit(self, market_id, is_buy, width, start_limit)
         }
 
-        fn reserves(self: @ContractState, asset: ContractAddress) -> u256 {
-            self.reserves.read(asset)
+        fn donations(self: @ContractState, asset: ContractAddress) -> u256 {
+            self.donations.read(asset)
         }
 
-        fn protocol_fees(self: @ContractState, asset: ContractAddress) -> u256 {
-            self.protocol_fees.read(asset)
+        fn reserves(self: @ContractState, asset: ContractAddress) -> u256 {
+            self.reserves.read(asset)
         }
 
         // Returns total amount of tokens and accrued fees inside of a liquidity position.
@@ -623,9 +612,7 @@ mod MarketManager {
         // * `width` - limit width of market
         // * `strategy` - strategy contract address, or 0 if no strategy
         // * `swap_fee_rate` - swap fee denominated in bps
-        // * `flash_loan_fee` - flash loan fee denominated in bps
         // * `fee_controller` - fee controller contract address
-        // * `protocol_share` - protocol share denominated in 0.01% shares of swap fee (e.g. 500 = 5%)
         // * `start_limit` - initial limit (shifted)
         // * `controller` - market controller for upgrading market configs, or 0 if none
         // * `configs` - (optional) custom market configurations
@@ -640,7 +627,6 @@ mod MarketManager {
             strategy: ContractAddress,
             swap_fee_rate: u16,
             fee_controller: ContractAddress,
-            protocol_share: u16,
             start_limit: u32,
             controller: ContractAddress,
             configs: Option<MarketConfigs>,
@@ -650,7 +636,6 @@ mod MarketManager {
             assert(width != 0, 'WidthZero');
             assert(width <= MAX_WIDTH, 'WidthOF');
             assert(swap_fee_rate <= fee_math::MAX_FEE_RATE, 'FeeRateOF');
-            assert(protocol_share <= fee_math::MAX_FEE_RATE, 'ProtocolShareOF');
             assert(start_limit < MAX_LIMIT_SHIFTED, 'StartLimitOF');
 
             // Check tokens exist.
@@ -681,7 +666,6 @@ mod MarketManager {
             let mut market_state: MarketState = Default::default();
             market_state.curr_limit = start_limit;
             market_state.curr_sqrt_price = start_sqrt_price;
-            market_state.protocol_share = protocol_share;
             self.market_state.write(market_id, market_state);
 
             // Emit events.
@@ -702,14 +686,6 @@ mod MarketManager {
                         }
                     )
                 );
-            if protocol_share != 0 {
-                self
-                    .emit(
-                        Event::ChangeProtocolShare(
-                            ChangeProtocolShare { market_id, protocol_share }
-                        )
-                    );
-            }
             if configs.is_some() {
                 let configs = configs.unwrap();
                 self
@@ -855,23 +831,14 @@ mod MarketManager {
             }
             order.liquidity += liquidity_delta;
 
-            // Prevent depositing if partially filled.
-            // This shouldn't happen as we run checks on the limit above.
-            assert(batch.base_amount == 0 || batch.quote_amount == 0, 'PartialFill');
-
             // If this is the first order of batch, initialise immutables.
             if batch.limit == 0 {
                 batch.limit = limit;
                 batch.is_bid = is_bid;
             }
-
-            // Update batch amounts.
+            // Update batch liquidity. Note batch amounts are not updated here as they are only used
+            // for storing collected fees and filled balances.
             batch.liquidity += liquidity_delta;
-            if is_bid {
-                batch.quote_amount += quote_amount.val.try_into().expect('BatchQuoteAmtOF');
-            } else {
-                batch.base_amount += base_amount.val.try_into().expect('BatchBaseAmtOF');
-            };
 
             // Commit state updates.
             self.batches.write(batch_id, batch);
@@ -916,7 +883,6 @@ mod MarketManager {
         ) -> (u256, u256) {
             // Fetch market info, order and batch.
             let market_info = self.market_info.read(market_id);
-            let market_state = self.market_state.read(market_id);
             let mut order = self.orders.read(order_id);
 
             // Run checks.
@@ -932,40 +898,84 @@ mod MarketManager {
             let order_id_exp = id::order_id(order.batch_id, caller);
             assert(order_id == order_id_exp, 'OrderOwnerOnly');
 
-            // Calculate withdraw amounts. User's share of batch is calculated based on
-            // the liquidity of their order relative to the total liquidity of the batch.
-            // If we are collecting from the batch and it has not yet been filled, we need to 
-            // first remove our share of batch liquidity from the pool. However, if the batch
-            // has accrued fees (e.g. through partial fills), it will also withdraw all fees
-            // from the position. To discourage this, fees are forfeited and not paid out to
-            // the user if they collect from an unfilled batch.
+            // Calculate withdraw amounts. User's position is calculated based on the liquidity
+            // of their order relative to the total liquidity of the batch. Fully or partially filled 
+            // orders are paid their prorata share of fees (up to the swap fee rate), while unfilled
+            // orders forfeit fees. This is to prevent depositors from opportunistically placing orders 
+            // in batches with existing accrued fee balances and withdrawing them immediately. In 
+            // addition, all orders in markets with a variable fee controller must forfeit fees to 
+            // prevent potential insolvency from fee rate updates. 
             let mut batch = self.batches.read(order.batch_id);
-            let (base_amount, quote_amount) = if !batch.filled {
-                let (base_amount, quote_amount, base_fees, quote_fees) = self
+            let (mut base_amount, mut quote_amount) = if !batch.filled {
+                // If the order has not yet been filled, first withdraw from batch position.
+                let (base_amt_incl_fees, quote_amt_incl_fees, base_fees, quote_fees) = self
                     ._modify_position(
                         order.batch_id,
                         market_id,
                         batch.limit,
                         batch.limit + market_info.width,
                         I128Trait::new(order.liquidity, true),
-                        true
+                        true,
                     );
-                (base_amount.val - base_fees, quote_amount.val - quote_fees)
+
+                // Add withdrawn amounts to batch.
+                batch.base_amount += base_amt_incl_fees.val.try_into().expect('BatchBaseAmtOF');
+                batch.quote_amount += quote_amt_incl_fees.val.try_into().expect('BatchQuoteAmtOF');
+
+                // Return withdraw amount.
+                (base_amt_incl_fees.val - base_fees, quote_amt_incl_fees.val - quote_fees)
             } else {
-                // Round down token amounts when withdrawing.
-                let base_amount = math::mul_div(
-                    batch.base_amount.into(), order.liquidity.into(), batch.liquidity.into(), false
+                // If the batch is fully filled, calculate withdraw amounts based on the order's 
+                // liquidity and swap fee rate.
+                let market_state = self.market_state.read(market_id);
+                let (base_amount, quote_amount) = liquidity_math::liquidity_to_amounts(
+                    I128Trait::new(order.liquidity, false),
+                    market_state.curr_sqrt_price,
+                    price_math::limit_to_sqrt_price(batch.limit, market_info.width),
+                    price_math::limit_to_sqrt_price(
+                        batch.limit + market_info.width, market_info.width
+                    ),
                 );
-                let quote_amount = math::mul_div(
-                    batch.quote_amount.into(), order.liquidity.into(), batch.liquidity.into(), false
-                );
-                (base_amount, quote_amount)
+                (base_amount.val, quote_amount.val)
             };
+
+            // Amount so far excludes due swap fees. Add swap fees on filled portion of order.
+            // Fees are forfeited if market uses a variable fee controller.
+            if market_info.fee_controller.is_zero() {
+                if batch.is_bid {
+                    base_amount = fee_math::net_to_gross(base_amount, market_info.swap_fee_rate);
+                } else {
+                    quote_amount = fee_math::net_to_gross(quote_amount, market_info.swap_fee_rate);
+                }
+            }
+
+            // Update batch amounts for filled orders. We cap deductions at available 
+            // amounts to prevent failures due to rounding errors. 
+            let base_amount_u128 = base_amount.try_into().expect('BatchBaseAmtOF');
+            let quote_amount_u128 = quote_amount.try_into().expect('BatchQuoteAmtOF');
+            batch.base_amount -= min(base_amount_u128, batch.base_amount);
+            batch.quote_amount -= min(quote_amount_u128, batch.quote_amount);
+
+            // Finally, if this is the last order of the batch, donate remaining fees.
+            if batch.liquidity == order.liquidity {
+                if batch.base_amount != 0 {
+                    let base_donations = self.donations.read(market_info.base_token);
+                    let amount: u256 = batch.base_amount.into();
+                    self.donations.write(market_info.base_token, base_donations + amount);
+                    self.emit(Event::Donate(Donate { token: market_info.base_token, amount }));
+                }
+                if batch.quote_amount != 0 {
+                    let quote_donations = self.donations.read(market_info.quote_token);
+                    let amount: u256 = batch.quote_amount.into();
+                    self.donations.write(market_info.quote_token, quote_donations + amount);
+                    self.emit(Event::Donate(Donate { token: market_info.quote_token, amount }));
+                }
+                batch.base_amount = 0;
+                batch.quote_amount = 0;
+            }
 
             // Update order and batch.
             batch.liquidity -= order.liquidity;
-            batch.base_amount -= base_amount.try_into().expect('BatchBaseAmtOF');
-            batch.quote_amount -= quote_amount.try_into().expect('BatchQuoteAmtOF');
             order.liquidity = 0;
 
             // Commit state updates.
@@ -973,19 +983,16 @@ mod MarketManager {
             self.orders.write(order_id, order);
 
             // Update reserves.
-            let market_info = self.market_info.read(market_id);
-            if base_amount > 0 {
-                let mut base_reserves = self.reserves.read(market_info.base_token);
-                base_reserves -= base_amount;
-                self.reserves.write(market_info.base_token, base_reserves);
+            if base_amount != 0 {
+                let base_reserves = self.reserves.read(market_info.base_token);
+                self.reserves.write(market_info.base_token, base_reserves - base_amount);
             }
-            if quote_amount > 0 {
-                let mut quote_reserves = self.reserves.read(market_info.quote_token);
-                quote_reserves -= quote_amount;
-                self.reserves.write(market_info.quote_token, quote_reserves);
+            if quote_amount != 0 {
+                let quote_reserves = self.reserves.read(market_info.quote_token);
+                self.reserves.write(market_info.quote_token, quote_reserves - quote_amount);
             }
 
-            // Transfer tokens to caller.
+            // Transfer withdrawn amounts to caller.
             let market_info = self.market_info.read(market_id);
             if base_amount > 0 {
                 let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
@@ -996,7 +1003,6 @@ mod MarketManager {
                 quote_token.transfer(caller, quote_amount);
             }
 
-            // Emit event.
             self
                 .emit(
                     Event::CollectOrder(
@@ -1346,7 +1352,7 @@ mod MarketManager {
             assert(amount > 0, 'LoanAmtZero');
 
             // Calculate flash loan fee.
-            let fee_rate = self.flash_loan_fee.read(token);
+            let fee_rate = self.flash_loan_fee_rate.read(token);
             let fees = fee_math::calc_fee(amount, fee_rate);
 
             // Snapshot balance before. Check sufficient tokens to finance loan.
@@ -1356,6 +1362,7 @@ mod MarketManager {
             assert(amount <= balance, 'LoanInsufficient');
 
             // Transfer tokens to caller.
+            let token_contract = IERC20Dispatcher { contract_address: token };
             let borrower = get_caller_address();
             token_contract.transfer(borrower, amount);
 
@@ -1367,13 +1374,7 @@ mod MarketManager {
             // Return balance with fees.
             token_contract.transfer_from(borrower, contract, amount + fees);
 
-            // Update reserves.
-            let reserves = self.reserves.read(token);
-            self.reserves.write(token, reserves + fees);
-
-            // Update protocol fees.
-            let protocol_fees = self.protocol_fees.read(token);
-            self.protocol_fees.write(token, protocol_fees + fees);
+            // We do not update reserves so that fees can be collected via `sweep`.
 
             // Emit event.
             self.emit(Event::FlashLoan(FlashLoan { borrower, token, amount }));
@@ -1450,65 +1451,16 @@ mod MarketManager {
             }
         }
 
-        // Collect protocol fees.
-        // Callable by owner only.
-        //
-        // # Arguments
-        // * `receiver` - Recipient of collected fees
-        // * `token` - Token to collect fees in
-        // * `amount` - Amount of fees requested
-        // 
-        // # Returns
-        // * `amount` - Amount of fees collected
-        fn collect_protocol_fees(
-            ref self: ContractState,
-            receiver: ContractAddress,
-            token: ContractAddress,
-            amount: u256,
-        ) -> u256 {
-            // Verify caller.
-            self.assert_only_owner();
-
-            // Cap amount requested at available. Update protocol fee balance.
-            let protocol_fees = self.protocol_fees.read(token);
-            let capped = min(amount, protocol_fees);
-            self.protocol_fees.write(token, protocol_fees - capped);
-
-            // Return if no fees to collect.
-            if capped == 0 {
-                return 0;
-            }
-
-            // Update reserves.
-            let reserves = self.reserves.read(token);
-            self.reserves.write(token, reserves - capped);
-
-            // Transfer tokens to recipient.
-            let token_contract = IERC20Dispatcher { contract_address: token };
-            token_contract.transfer(receiver, capped);
-
-            // Emit event.
-            self
-                .emit(
-                    Event::CollectProtocolFee(
-                        CollectProtocolFee { receiver, token, amount: capped }
-                    )
-                );
-
-            // Return amount collected.
-            capped
-        }
-
         // Sweeps excess tokens from contract.
-        // Used to collect tokens sent to contract by mistake.
+        // Used to collect donations and tokens sent to contract by mistake.
         //
         // # Arguments
-        // * `receiver` - Recipient of swept tokens
-        // * `token` - Token to sweep
-        // * `amount` - Requested amount of token to sweep
+        // * `receiver` - recipient of swept tokens
+        // * `token` - token to sweep
+        // * `amount` - requested amount of token to sweep
         //
         // # Returns
-        // * `amount_collected` - Amount of base token swept
+        // * `amount_collected` - amount of base token swept
         fn sweep(
             ref self: ContractState,
             receiver: ContractAddress,
@@ -1528,16 +1480,20 @@ mod MarketManager {
             // Calculate amounts.
             let reserves = self.reserves.read(token);
             let balance = token_contract.balance_of(contract);
-            let amount_collected = if balance > reserves {
-                min(amount, balance - reserves)
-            } else {
-                0
-            };
+            let donations = self.donations.read(token);
+            let dust = balance - reserves;
+
+            let amount_collected = min(amount, donations + dust);
+
+            // Update donations and reserves.
+            let donations_withdrawn = min(amount_collected, donations);
+            self.donations.write(token, donations - donations_withdrawn);
+            let new_reserves = reserves - min(reserves, donations_withdrawn);
+            self.reserves.write(token, new_reserves);
 
             if amount_collected > 0 {
                 // Transfer tokens to receiver.
                 token_contract.transfer(receiver, amount_collected);
-
                 // Emit event.
                 self.emit(Event::Sweep(Sweep { receiver, token, amount: amount_collected }));
             }
@@ -1569,40 +1525,19 @@ mod MarketManager {
             self.emit(Event::ChangeOwner(ChangeOwner { old: old_owner, new: queued_owner }));
         }
 
-        // Set flash loan fee.
+        // Set flash loan fee rate.
         // Callable by owner only.
         //
         // # Arguments
         // * `token` - contract address of the token borrowed
         // * `fee` - flash loan fee denominated in bps
-        fn set_flash_loan_fee(ref self: ContractState, token: ContractAddress, fee: u16,) {
+        fn set_flash_loan_fee_rate(ref self: ContractState, token: ContractAddress, fee: u16,) {
             self.assert_only_owner();
             assert(fee <= fee_math::MAX_FEE_RATE, 'FeeOF');
-            let old_fee = self.flash_loan_fee.read(token);
+            let old_fee = self.flash_loan_fee_rate.read(token);
             assert(old_fee != fee, 'SameFee');
-            self.flash_loan_fee.write(token, fee);
+            self.flash_loan_fee_rate.write(token, fee);
             self.emit(Event::ChangeFlashLoanFee(ChangeFlashLoanFee { token, fee }));
-        }
-
-        // Set protocol share for a given market.
-        // Callable by owner only.
-        // 
-        // # Arguments
-        // * `market_id` - market id
-        // * `protocol_share` - protocol share
-        fn set_protocol_share(ref self: ContractState, market_id: felt252, protocol_share: u16,) {
-            self.assert_only_owner();
-            assert(protocol_share <= fee_math::MAX_FEE_RATE, 'ProtocolShareOF');
-
-            let mut market_state = self.market_state.read(market_id);
-            assert(market_state.protocol_share != protocol_share, 'SameProtocolShare');
-            market_state.protocol_share = protocol_share;
-            self.market_state.write(market_id, market_state);
-
-            self
-                .emit(
-                    Event::ChangeProtocolShare(ChangeProtocolShare { market_id, protocol_share })
-                );
         }
 
         // Set market configs.
@@ -1722,8 +1657,8 @@ mod MarketManager {
             );
 
             // Update reserves and transfer tokens.
-            // That is, unless modifying liquidity as part of a limit order. In this case, do nothing
-            // because tokens are transferred only when the order is collected.
+            // That is, unless modifying liquidity as part of a limit order, where instead tokens are 
+            // transferred only when the order is collected.
             if !is_limit_order || !liquidity_delta.sign {
                 // Update reserves.
                 if base_amount.val != 0 {
@@ -1885,7 +1820,6 @@ mod MarketManager {
             let mut amount_rem = amount;
             let mut amount_calc = 0;
             let mut swap_fees = 0;
-            let mut protocol_fees = 0;
             let mut filled_limits: Array<(u32, felt252)> = array![];
 
             // Execute swap.
@@ -1893,14 +1827,13 @@ mod MarketManager {
             // If the final limit is partially filled, details of this are returned to correctly
             // update the limit order batch.
             market_state = self.market_state.read(market_id);
-            let partial_fill_info = swap_lib::swap_iter(
+            swap_lib::swap_iter(
                 ref self,
                 market_id,
                 ref market_state,
                 ref amount_rem,
                 ref amount_calc,
                 ref swap_fees,
-                ref protocol_fees,
                 ref filled_limits,
                 threshold_sqrt_price,
                 fee_rate,
@@ -1932,18 +1865,7 @@ mod MarketManager {
 
             // Return amounts if quote mode.
             if quote_mode {
-                return (amount_in, amount_out, swap_fees + protocol_fees);
-            }
-
-            // Calculate protocol fee and update fee balances. Write updates to storage.
-            if is_buy {
-                let mut quote_protocol_fees = self.protocol_fees.read(market_info.quote_token);
-                quote_protocol_fees += protocol_fees;
-                self.protocol_fees.write(market_info.quote_token, quote_protocol_fees);
-            } else {
-                let mut base_protocol_fees = self.protocol_fees.read(market_info.base_token);
-                base_protocol_fees += protocol_fees;
-                self.protocol_fees.write(market_info.base_token, base_protocol_fees);
+                return (amount_in, amount_out, swap_fees);
             }
 
             // Commit update to market state.
@@ -1970,19 +1892,6 @@ mod MarketManager {
                 );
             }
 
-            // Handle partially filled limit order. Must be done after state updates above.
-            if partial_fill_info.is_some() {
-                let partial_fill_info = partial_fill_info.unwrap();
-                order_lib::fill_partial_limit(
-                    ref self,
-                    market_id,
-                    partial_fill_info.limit,
-                    partial_fill_info.amount_in,
-                    partial_fill_info.amount_out,
-                    is_buy,
-                );
-            }
-
             // Transfer tokens between payer, receiver and contract.
             let contract = get_contract_address();
             IERC20Dispatcher { contract_address: in_token }
@@ -2000,7 +1909,7 @@ mod MarketManager {
                             exact_input,
                             amount_in,
                             amount_out,
-                            fees: swap_fees + protocol_fees,
+                            fees: swap_fees,
                             end_limit: market_state.curr_limit,
                             end_sqrt_price: market_state.curr_sqrt_price,
                             market_liquidity: market_state.liquidity,
@@ -2010,7 +1919,7 @@ mod MarketManager {
                 );
 
             // Return amounts.
-            (amount_in, amount_out, swap_fees + protocol_fees)
+            (amount_in, amount_out, swap_fees)
         }
 
         // Internal function to swap tokens across multiple markets in a multi-hop route.

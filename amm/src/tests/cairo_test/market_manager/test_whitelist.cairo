@@ -68,7 +68,6 @@ fn test_create_market_not_whitelisted() {
             contract_address_const::<0x0>(),
             10,
             contract_address_const::<0x0>(),
-            0,
             OFFSET + 0,
             contract_address_const::<0x0>(),
             Option::None(()),
