@@ -120,7 +120,8 @@ fn test_flash_loan() {
     // Collect fee via sweep.
     set_contract_address(owner());
     let base_collected = market_manager.sweep(owner(), base_token.contract_address, base_fee_exp);
-    let quote_collected = market_manager.sweep(owner(), quote_token.contract_address, quote_fee_exp);
+    let quote_collected = market_manager
+        .sweep(owner(), quote_token.contract_address, quote_fee_exp);
     assert(base_collected == base_fee_exp, 'Base collected');
     assert(quote_collected == quote_fee_exp, 'Quote collected');
 }
