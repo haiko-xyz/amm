@@ -16,3 +16,4 @@ mod test_erc721_positions;
 mod test_whitelist;
 mod test_sweep;
 mod market_types;
+mod benchmark_gas;

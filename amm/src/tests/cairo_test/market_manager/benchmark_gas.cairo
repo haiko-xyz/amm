@@ -1,3 +1,6 @@
+use debug::PrintTrait;
+use starknet::testing::set_contract_address;
+
 // Local imports.
 use amm::libraries::constants::OFFSET;
 use amm::libraries::id;
@@ -5,9 +8,9 @@ use amm::libraries::math::{fee_math, price_math};
 use amm::types::i128::I128Trait;
 use amm::contracts::market_manager::MarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
-use amm::tests::snforge::helpers::{
+use amm::tests::cairo_test::helpers::{
     market_manager::{deploy_market_manager, create_market},
-    token::{declare_token, deploy_token, fund, approve},
+    token::{deploy_token, fund, approve},
 };
 use amm::tests::common::params::{
     owner, alice, treasury, token_params, default_market_params, default_token_params
@@ -15,9 +18,6 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::{to_e28, to_e18, to_e18_u128, to_e28_u128, encode_sqrt_price};
 
 // External imports.
-use snforge_std::{
-    start_prank, declare, PrintTrait, spy_events, SpyOn, EventSpy, EventAssertions, CheatTarget
-};
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
@@ -28,16 +28,15 @@ fn setup_deploy_and_approve() -> (
     IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 ) {
     // Deploy market manager.
-    let class = declare('MarketManager');
-    let market_manager = deploy_market_manager(class, owner());
+    let market_manager = deploy_market_manager(owner());
 
     // Deploy tokens.
     let (treasury, base_token_params, quote_token_params) = default_token_params();
-    let erc20_class = declare_token();
-    let base_token = deploy_token(erc20_class, base_token_params);
-    let quote_token = deploy_token(erc20_class, quote_token_params);
+    let base_token = deploy_token(base_token_params);
+    let quote_token = deploy_token(quote_token_params);
 
     // Fund LP with initial token balances and approve market manager as spender.
+    
     let initial_base_amount = to_e28(500000000000000);
     let initial_quote_amount = to_e28(10000000000000000000000000);
     fund(base_token, alice(), initial_base_amount);
@@ -100,12 +99,14 @@ fn setup_create_market(
 // Benchmark 1: Create market
 
 #[test]
+#[available_gas(1000000000)]
 fn before_benchmark_create_market() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     assert(true, 'Test complete');
 }
 
 #[test]
+#[available_gas(1000000000)]
 fn benchmark_create_market() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
 
@@ -122,13 +123,14 @@ fn benchmark_create_market() {
 // Benchmark 2: Add liquidity at previously uninitialised limit
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_add_liquidity_at_prev_uninitialised_tick() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager, base_token, quote_token);
     // Initialise top layer of tree with a nearby position. This layer will already be initialised 
     // the majority of the time, assuming an existing initialised limit exists between 50-200% of 
     // the new limit, so we exclude it from the benchmark.
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 11200, OFFSET - 11100, I128Trait::new(to_e18_u128(10000), false)
@@ -136,6 +138,7 @@ fn before_benchmark_add_liquidity_at_prev_uninitialised_tick() {
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_add_liquidity_at_prev_uninitialised_tick() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager, base_token, quote_token);
@@ -143,7 +146,7 @@ fn benchmark_add_liquidity_at_prev_uninitialised_tick() {
     // Initialise top layer of tree with a nearby position. This layer will already be initialised 
     // the majority of the time, assuming an existing initialised limit exists between 50-200% of 
     // the new limit, so we exclude it from the benchmark.
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 11200, OFFSET - 11100, I128Trait::new(to_e18_u128(10000), false)
@@ -159,10 +162,11 @@ fn benchmark_add_liquidity_at_prev_uninitialised_tick() {
 // Benchmark 3: Add liquidity at previously initialised limit
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_add_liquidity_at_prev_initialised_tick() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager, base_token, quote_token);
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 1000, I128Trait::new(to_e18_u128(10000), false)
@@ -170,10 +174,11 @@ fn before_benchmark_add_liquidity_at_prev_initialised_tick() {
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_add_liquidity_at_prev_initialised_tick() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager, base_token, quote_token);
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 1000, I128Trait::new(to_e18_u128(10000), false)
@@ -188,10 +193,11 @@ fn benchmark_add_liquidity_at_prev_initialised_tick() {
 // Benchmark 4: Add liquidity at prev. initialised lower + uninitialised upper limit
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_add_liquidity_at_prev_initialised_lower_uninitialised_upper_tick() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager, base_token, quote_token);
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 1000, I128Trait::new(to_e18_u128(10000), false)
@@ -199,10 +205,11 @@ fn before_benchmark_add_liquidity_at_prev_initialised_lower_uninitialised_upper_
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_add_liquidity_at_prev_initialised_lower_uninitialised_upper_tick() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager, base_token, quote_token);
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 1000, I128Trait::new(to_e18_u128(10000), false)
@@ -217,10 +224,11 @@ fn benchmark_add_liquidity_at_prev_initialised_lower_uninitialised_upper_tick() 
 // Benchmark 5: Remove partial liquidity from position (no fees)
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_remove_partial_liquidity_no_fees() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager, base_token, quote_token);
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
 
     // Initialise top layer of tree with a nearby position. This layer will already be initialised
     // the majority of the time, assuming an existing initialised limit exists between 50-200% of
@@ -238,10 +246,11 @@ fn before_benchmark_remove_partial_liquidity_no_fees() {
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_remove_partial_liquidity_no_fees() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager, base_token, quote_token);
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
 
     // Initialise top layer of tree with a nearby position. This layer will already be initialised
     // the majority of the time, assuming an existing initialised limit exists between 50-200% of
@@ -266,12 +275,13 @@ fn benchmark_remove_partial_liquidity_no_fees() {
 // Benchmark 6: Remove all liquidity from position (no fees)
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_remove_all_liquidity_no_fees() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager, base_token, quote_token);
 
     // Initialise top layer of tree with a nearby position.
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1200, OFFSET - 1100, I128Trait::new(to_e18_u128(10000), false)
@@ -283,13 +293,14 @@ fn before_benchmark_remove_all_liquidity_no_fees() {
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_remove_all_liquidity_no_fees() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager, base_token, quote_token);
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
 
     // Initialise top layer of tree with a nearby position.
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1200, OFFSET - 1100, I128Trait::new(to_e18_u128(10000), false)
@@ -308,11 +319,12 @@ fn benchmark_remove_all_liquidity_no_fees() {
 // Benchmark 7: Remove all liquidity from position (with fees)
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_remove_all_liquidity_with_fees() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager, base_token, quote_token);
     // Initialise top layer of tree with a nearby position.
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1200, OFFSET - 1100, I128Trait::new(to_e18_u128(10000), false)
@@ -328,11 +340,12 @@ fn before_benchmark_remove_all_liquidity_with_fees() {
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_remove_all_liquidity_with_fees() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager, base_token, quote_token);
     // Initialise top layer of tree with a nearby position.
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1200, OFFSET - 1100, I128Trait::new(to_e18_u128(10000), false)
@@ -346,7 +359,7 @@ fn benchmark_remove_all_liquidity_with_fees() {
             market_id, true, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
         );
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     let lower_tick = OFFSET - 1000;
     let upper_tick = OFFSET + 1000;
     let liquidity_delta = I128Trait::new(to_e18_u128(10000), true);
@@ -356,10 +369,11 @@ fn benchmark_remove_all_liquidity_with_fees() {
 // Benchmark 8: Collect fees from position
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_collect_fees_from_position() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 1000, I128Trait::new(to_e18_u128(10000), false)
@@ -371,10 +385,11 @@ fn before_benchmark_collect_fees_from_position() {
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_collect_fees_from_position() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 1000, I128Trait::new(to_e18_u128(10000), false)
@@ -384,7 +399,7 @@ fn benchmark_collect_fees_from_position() {
             market_id, true, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
         );
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(market_id, OFFSET - 1000, OFFSET + 1000, I128Trait::new(0, false));
 }
@@ -392,17 +407,19 @@ fn benchmark_collect_fees_from_position() {
 // Benchmark 9: Swap with zero liquidity
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_swap_with_zero_liquidity() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     setup_create_market(market_manager, base_token, quote_token);
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_swap_with_zero_liquidity() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager, base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .swap(
             market_id, true, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
@@ -412,11 +429,12 @@ fn benchmark_swap_with_zero_liquidity() {
 // Benchmark 10: Swap with normal liquidity, within 1 limit
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_swap_with_within_1_tick() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager, base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 1000, I128Trait::new(to_e18_u128(1000), false)
@@ -424,11 +442,12 @@ fn before_benchmark_swap_with_within_1_tick() {
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_swap_with_within_1_tick() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 1000, I128Trait::new(to_e18_u128(1000), false)
@@ -443,11 +462,12 @@ fn benchmark_swap_with_within_1_tick() {
 // Benchmark 11: Swap with 1 tick crossed
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_swap_with_1_tick_crossed() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 1000, I128Trait::new(to_e18_u128(1000), false)
@@ -459,11 +479,12 @@ fn before_benchmark_swap_with_1_tick_crossed() {
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_swap_with_1_tick_crossed() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 1000, I128Trait::new(to_e18_u128(1000), false)
@@ -486,11 +507,12 @@ fn benchmark_swap_with_1_tick_crossed() {
 // Benchmark 12: Swap with 2 ticks crossed
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_swap_with_2_ticks_crossed() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 1000, I128Trait::new(to_e18_u128(1000), false)
@@ -502,11 +524,12 @@ fn before_benchmark_swap_with_2_ticks_crossed() {
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_swap_with_2_ticks_crossed() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 1000, I128Trait::new(to_e18_u128(1000), false)
@@ -532,11 +555,12 @@ fn benchmark_swap_with_2_ticks_crossed() {
 // Benchmark 13: Swap with 4 ticks crossed
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_swap_with_4_ticks_crossed() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 10000, I128Trait::new(to_e18_u128(1000), false)
@@ -552,11 +576,12 @@ fn before_benchmark_swap_with_4_ticks_crossed() {
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_swap_with_4_ticks_crossed() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 10000, I128Trait::new(to_e18_u128(1000), false)
@@ -586,11 +611,12 @@ fn benchmark_swap_with_4_ticks_crossed() {
 // Benchmark 14: Swap with 4 ticks crossed (wide interval)
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_swap_with_4_ticks_crossed_wide_interval() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 100000, I128Trait::new(to_e18_u128(1000), false)
@@ -606,11 +632,12 @@ fn before_benchmark_swap_with_4_ticks_crossed_wide_interval() {
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_swap_with_4_ticks_crossed_wide_interval() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 100000, I128Trait::new(to_e18_u128(1000), false)
@@ -641,11 +668,12 @@ fn benchmark_swap_with_4_ticks_crossed_wide_interval() {
 // Benchmark 15: Swap with 6 ticks crossed
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_swap_with_6_ticks_crossed() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 10000, I128Trait::new(to_e18_u128(1000), false)
@@ -665,11 +693,12 @@ fn before_benchmark_swap_with_6_ticks_crossed() {
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_swap_with_6_ticks_crossed() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 10000, I128Trait::new(to_e18_u128(1000), false)
@@ -703,11 +732,12 @@ fn benchmark_swap_with_6_ticks_crossed() {
 // Benchmark 16: Swap with 6 ticks crossed (wide interval)
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_swap_with_6_ticks_crossed_wide_interval() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 100000, I128Trait::new(to_e18_u128(1000), false)
@@ -727,11 +757,12 @@ fn before_benchmark_swap_with_6_ticks_crossed_wide_interval() {
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_swap_with_6_ticks_crossed_wide_interval() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 100000, I128Trait::new(to_e18_u128(1000), false)
@@ -765,11 +796,12 @@ fn benchmark_swap_with_6_ticks_crossed_wide_interval() {
 // Benchmark 17: Swap with 10 ticks crossed
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_swap_with_10_ticks_crossed() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 10000, I128Trait::new(to_e18_u128(1000), false)
@@ -797,11 +829,12 @@ fn before_benchmark_swap_with_10_ticks_crossed() {
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_swap_with_10_ticks_crossed() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 10000, I128Trait::new(to_e18_u128(1000), false)
@@ -843,11 +876,12 @@ fn benchmark_swap_with_10_ticks_crossed() {
 // Benchmark 18: Swap with 10 ticks crossed (wide interval)
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_swap_with_10_ticks_crossed_wide_interval() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 100000, I128Trait::new(to_e18_u128(1000), false)
@@ -875,11 +909,12 @@ fn before_benchmark_swap_with_10_ticks_crossed_wide_interval() {
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_swap_with_10_ticks_crossed_wide_interval() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     market_manager
         .modify_position(
             market_id, OFFSET - 1000, OFFSET + 100000, I128Trait::new(to_e18_u128(1000), false)
@@ -921,11 +956,12 @@ fn benchmark_swap_with_10_ticks_crossed_wide_interval() {
 // Benchmark 19: Swap with 20 ticks crossed (wide interval)
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_swap_with_20_ticks_crossed() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager, base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     let positions = array![
         (OFFSET - 1000, OFFSET + 10000),
         (OFFSET + 1, OFFSET + 499),
@@ -962,12 +998,13 @@ fn before_benchmark_swap_with_20_ticks_crossed() {
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_swap_with_20_ticks_crossed() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager, base_token, quote_token);
 
     // Place positions
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     let positions = array![
         (OFFSET - 1000, OFFSET + 10000),
         (OFFSET + 500, OFFSET + 999),
@@ -1011,12 +1048,13 @@ fn benchmark_swap_with_20_ticks_crossed() {
 // Benchmark 20: Swap with 20 ticks crossed (wide interval)
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_swap_with_20_ticks_crossed_wide_interval() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
     // Place positions
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     let positions = array![
         (OFFSET - 1000, OFFSET + 100000),
         (OFFSET + 1, OFFSET + 4999),
@@ -1046,12 +1084,13 @@ fn before_benchmark_swap_with_20_ticks_crossed_wide_interval() {
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_swap_with_20_ticks_crossed_wide_interval() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
     // Place positions
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     let positions = array![
         (OFFSET - 1000, OFFSET + 100000),
         (OFFSET + 1, OFFSET + 4999),
@@ -1096,21 +1135,23 @@ fn benchmark_swap_with_20_ticks_crossed_wide_interval() {
 // Benchmark 21: Swap across a limit order, partial fill (cross 1 tick)
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_swap_limit_order_partial_fill() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     let order_id = market_manager
         .create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_swap_limit_order_partial_fill() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     let order_id = market_manager
         .create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
     market_manager
@@ -1126,21 +1167,23 @@ fn benchmark_swap_limit_order_partial_fill() {
 // Benchmark 22: Swap across a limit order, full fill (cross 1 tick)
 
 #[test]
+#[available_gas(100000000000)]
 fn before_benchmark_swap_limit_order_full_fill() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     let order_id = market_manager
         .create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
 }
 
 #[test]
+#[available_gas(100000000000)]
 fn benchmark_swap_limit_order_full_fill() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    set_contract_address(alice());
     let order_id = market_manager
         .create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
     market_manager
