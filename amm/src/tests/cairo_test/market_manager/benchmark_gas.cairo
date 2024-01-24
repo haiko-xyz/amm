@@ -9,8 +9,7 @@ use amm::types::i128::I128Trait;
 use amm::contracts::market_manager::MarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::tests::cairo_test::helpers::{
-    market_manager::{deploy_market_manager, create_market},
-    token::{deploy_token, fund, approve},
+    market_manager::{deploy_market_manager, create_market}, token::{deploy_token, fund, approve},
 };
 use amm::tests::common::params::{
     owner, alice, treasury, token_params, default_market_params, default_token_params
@@ -36,7 +35,7 @@ fn setup_deploy_and_approve() -> (
     let quote_token = deploy_token(quote_token_params);
 
     // Fund LP with initial token balances and approve market manager as spender.
-    
+
     let initial_base_amount = to_e28(500000000000000);
     let initial_quote_amount = to_e28(10000000000000000000000000);
     fund(base_token, alice(), initial_base_amount);
@@ -543,13 +542,12 @@ fn benchmark_swap_with_2_ticks_crossed() {
         .swap(
             market_id, true, to_e18(3), true, Option::None(()), Option::None(()), Option::None(())
         );
-
-    // let mut position_id = id::position_id(market_id, alice().into(), OFFSET + 100, OFFSET + 300);
-    // let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
-    // assert(base_amount == 0, '2 ticks crossed A');
-    // position_id = id::position_id(market_id, alice().into(), OFFSET - 1000, OFFSET + 1000);
-    // let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
-    // assert(base_amount != 0, '2 ticks crossed B');
+// let mut position_id = id::position_id(market_id, alice().into(), OFFSET + 100, OFFSET + 300);
+// let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+// assert(base_amount == 0, '2 ticks crossed A');
+// position_id = id::position_id(market_id, alice().into(), OFFSET - 1000, OFFSET + 1000);
+// let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+// assert(base_amount != 0, '2 ticks crossed B');
 }
 
 // Benchmark 13: Swap with 4 ticks crossed
@@ -599,13 +597,12 @@ fn benchmark_swap_with_4_ticks_crossed() {
         .swap(
             market_id, true, to_e18(70), true, Option::None(()), Option::None(()), Option::None(())
         );
-
-    // let mut position_id = id::position_id(market_id, alice().into(), OFFSET + 5000, OFFSET + 7000);
-    // let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
-    // assert(base_amount == 0, '4 ticks crossed A');
-    // position_id = id::position_id(market_id, alice().into(), OFFSET - 1000, OFFSET + 10000);
-    // let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
-    // assert(base_amount != 0, '4 ticks crossed B');
+// let mut position_id = id::position_id(market_id, alice().into(), OFFSET + 5000, OFFSET + 7000);
+// let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+// assert(base_amount == 0, '4 ticks crossed A');
+// position_id = id::position_id(market_id, alice().into(), OFFSET - 1000, OFFSET + 10000);
+// let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+// assert(base_amount != 0, '4 ticks crossed B');
 }
 
 // Benchmark 14: Swap with 4 ticks crossed (wide interval)
@@ -655,13 +652,12 @@ fn benchmark_swap_with_4_ticks_crossed_wide_interval() {
         .swap(
             market_id, true, to_e18(800), true, Option::None(()), Option::None(()), Option::None(())
         );
-
-    // let mut position_id = id::position_id(market_id, alice().into(), OFFSET + 50000, OFFSET + 70000);
-    // let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
-    // assert(base_amount == 0, '4 ticks crossed wide A');
-    // position_id = id::position_id(market_id, alice().into(), OFFSET - 1000, OFFSET + 100000);
-    // let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
-    // assert(base_amount != 0, '4 ticks crossed wide B');
+// let mut position_id = id::position_id(market_id, alice().into(), OFFSET + 50000, OFFSET + 70000);
+// let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+// assert(base_amount == 0, '4 ticks crossed wide A');
+// position_id = id::position_id(market_id, alice().into(), OFFSET - 1000, OFFSET + 100000);
+// let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+// assert(base_amount != 0, '4 ticks crossed wide B');
 }
 
 
@@ -720,13 +716,12 @@ fn benchmark_swap_with_6_ticks_crossed() {
         .swap(
             market_id, true, to_e18(65), true, Option::None(()), Option::None(()), Option::None(())
         );
-
-    // let mut position_id = id::position_id(market_id, alice().into(), OFFSET + 6000, OFFSET + 7000);
-    // let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
-    // assert(base_amount == 0, '6 ticks crossed A');
-    // position_id = id::position_id(market_id, alice().into(), OFFSET - 1000, OFFSET + 10000);
-    // let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
-    // assert(base_amount != 0, '6 ticks crossed B');
+// let mut position_id = id::position_id(market_id, alice().into(), OFFSET + 6000, OFFSET + 7000);
+// let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+// assert(base_amount == 0, '6 ticks crossed A');
+// position_id = id::position_id(market_id, alice().into(), OFFSET - 1000, OFFSET + 10000);
+// let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+// assert(base_amount != 0, '6 ticks crossed B');
 }
 
 // Benchmark 16: Swap with 6 ticks crossed (wide interval)
@@ -784,13 +779,12 @@ fn benchmark_swap_with_6_ticks_crossed_wide_interval() {
         .swap(
             market_id, true, to_e18(850), true, Option::None(()), Option::None(()), Option::None(())
         );
-
-    // let mut position_id = id::position_id(market_id, alice().into(), OFFSET + 60000, OFFSET + 70000);
-    // let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
-    // assert(base_amount == 0, '6 ticks crossed A wide');
-    // position_id = id::position_id(market_id, alice().into(), OFFSET - 1000, OFFSET + 100000);
-    // let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
-    // assert(base_amount != 0, '6 ticks crossed B wide');
+// let mut position_id = id::position_id(market_id, alice().into(), OFFSET + 60000, OFFSET + 70000);
+// let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+// assert(base_amount == 0, '6 ticks crossed A wide');
+// position_id = id::position_id(market_id, alice().into(), OFFSET - 1000, OFFSET + 100000);
+// let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+// assert(base_amount != 0, '6 ticks crossed B wide');
 }
 
 // Benchmark 17: Swap with 10 ticks crossed
@@ -864,13 +858,12 @@ fn benchmark_swap_with_10_ticks_crossed() {
         .swap(
             market_id, true, to_e18(70), true, Option::None(()), Option::None(()), Option::None(())
         );
-
-    // let mut position_id = id::position_id(market_id, alice().into(), OFFSET + 8000, OFFSET + 9000);
-    // let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
-    // assert(base_amount == 0, '10 ticks crossed A');
-    // position_id = id::position_id(market_id, alice().into(), OFFSET - 1000, OFFSET + 10000);
-    // let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
-    // assert(base_amount != 0, '10 ticks crossed B');
+// let mut position_id = id::position_id(market_id, alice().into(), OFFSET + 8000, OFFSET + 9000);
+// let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+// assert(base_amount == 0, '10 ticks crossed A');
+// position_id = id::position_id(market_id, alice().into(), OFFSET - 1000, OFFSET + 10000);
+// let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+// assert(base_amount != 0, '10 ticks crossed B');
 }
 
 // Benchmark 18: Swap with 10 ticks crossed (wide interval)
@@ -944,13 +937,12 @@ fn benchmark_swap_with_10_ticks_crossed_wide_interval() {
         .swap(
             market_id, true, to_e18(900), true, Option::None(()), Option::None(()), Option::None(())
         );
-
-    // let mut position_id = id::position_id(market_id, alice().into(), OFFSET + 80000, OFFSET + 90000);
-    // let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
-    // assert(base_amount == 0, '10 ticks crossed wide A');
-    // position_id = id::position_id(market_id, alice().into(), OFFSET - 1000, OFFSET + 100000);
-    // let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
-    // assert(base_amount != 0, '10 ticks crossed wide B');
+// let mut position_id = id::position_id(market_id, alice().into(), OFFSET + 80000, OFFSET + 90000);
+// let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+// assert(base_amount == 0, '10 ticks crossed wide A');
+// position_id = id::position_id(market_id, alice().into(), OFFSET - 1000, OFFSET + 100000);
+// let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+// assert(base_amount != 0, '10 ticks crossed wide B');
 }
 
 // Benchmark 19: Swap with 20 ticks crossed (wide interval)
@@ -990,9 +982,7 @@ fn before_benchmark_swap_with_20_ticks_crossed() {
         }
         let (start, end) = *positions.at(i);
         market_manager
-            .modify_position(
-                market_id, start, end, I128Trait::new(to_e18_u128(1000), false)
-            );
+            .modify_position(market_id, start, end, I128Trait::new(to_e18_u128(1000), false));
         i += 1;
     };
 }
@@ -1025,9 +1015,7 @@ fn benchmark_swap_with_20_ticks_crossed() {
         }
         let (start, end) = *positions.at(i);
         market_manager
-            .modify_position(
-                market_id, start, end, I128Trait::new(to_e18_u128(1000), false)
-            );
+            .modify_position(market_id, start, end, I128Trait::new(to_e18_u128(1000), false));
         i += 1;
     };
 
@@ -1038,10 +1026,12 @@ fn benchmark_swap_with_20_ticks_crossed() {
         );
 
     let mut position_id = id::position_id(market_id, alice().into(), OFFSET + 9000, OFFSET + 9999);
-    let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+    let (mut base_amount, mut quote_amount, _, _) = market_manager
+        .amounts_inside_position(position_id);
     assert(base_amount == 0, '20 ticks crossed A');
     position_id = id::position_id(market_id, alice().into(), OFFSET - 1000, OFFSET + 10000);
-    let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+    let (mut base_amount, mut quote_amount, _, _) = market_manager
+        .amounts_inside_position(position_id);
     assert(base_amount != 0, '20 ticks crossed B');
 }
 
@@ -1076,9 +1066,7 @@ fn before_benchmark_swap_with_20_ticks_crossed_wide_interval() {
         }
         let (start, end) = *positions.at(i);
         market_manager
-            .modify_position(
-                market_id, start, end, I128Trait::new(to_e18_u128(1000), false)
-            );
+            .modify_position(market_id, start, end, I128Trait::new(to_e18_u128(1000), false));
         i += 1;
     };
 }
@@ -1112,23 +1100,31 @@ fn benchmark_swap_with_20_ticks_crossed_wide_interval() {
         }
         let (start, end) = *positions.at(i);
         market_manager
-            .modify_position(
-                market_id, start, end, I128Trait::new(to_e18_u128(1000), false)
-            );
+            .modify_position(market_id, start, end, I128Trait::new(to_e18_u128(1000), false));
         i += 1;
     };
 
     // Execute swap.
     market_manager
         .swap(
-            market_id, true, to_e18(1300), true, Option::None(()), Option::None(()), Option::None(())
+            market_id,
+            true,
+            to_e18(1300),
+            true,
+            Option::None(()),
+            Option::None(()),
+            Option::None(())
         );
 
-    let mut position_id = id::position_id(market_id, alice().into(), OFFSET + 90000, OFFSET + 99999);
-    let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+    let mut position_id = id::position_id(
+        market_id, alice().into(), OFFSET + 90000, OFFSET + 99999
+    );
+    let (mut base_amount, mut quote_amount, _, _) = market_manager
+        .amounts_inside_position(position_id);
     assert(base_amount == 0, '20 ticks crossed A wide');
     position_id = id::position_id(market_id, alice().into(), OFFSET - 1000, OFFSET + 100000);
-    let (mut base_amount, mut quote_amount, _, _) = market_manager.amounts_inside_position(position_id);
+    let (mut base_amount, mut quote_amount, _, _) = market_manager
+        .amounts_inside_position(position_id);
     assert(base_amount != 0, '20 ticks crossed B wide');
 }
 
@@ -1141,8 +1137,7 @@ fn before_benchmark_swap_limit_order_partial_fill() {
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
     set_contract_address(alice());
-    let order_id = market_manager
-        .create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
+    let order_id = market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
 }
 
 #[test]
@@ -1152,8 +1147,7 @@ fn benchmark_swap_limit_order_partial_fill() {
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
     set_contract_address(alice());
-    let order_id = market_manager
-        .create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
+    let order_id = market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
     market_manager
         .swap(
             market_id, true, to_e18(2), true, Option::None(()), Option::None(()), Option::None(())
@@ -1173,8 +1167,7 @@ fn before_benchmark_swap_limit_order_full_fill() {
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
     set_contract_address(alice());
-    let order_id = market_manager
-        .create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
+    let order_id = market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
 }
 
 #[test]
@@ -1184,8 +1177,7 @@ fn benchmark_swap_limit_order_full_fill() {
     let market_id = setup_create_market(market_manager.clone(), base_token, quote_token);
 
     set_contract_address(alice());
-    let order_id = market_manager
-        .create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
+    let order_id = market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
     market_manager
         .swap(
             market_id, true, to_e18(5), true, Option::None(()), Option::None(()), Option::None(())
@@ -1195,5 +1187,5 @@ fn benchmark_swap_limit_order_full_fill() {
     let (base_amount, quote_amount) = market_manager.amounts_inside_order(market_id, order_id);
     assert(base_amount == 0 && quote_amount != 0, 'Full fill');
 }
-
 // Benchmark 23: Create limit order
+
