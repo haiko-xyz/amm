@@ -202,6 +202,29 @@ trait IMarketManager<TContractState> {
         liquidity_delta: i128,
     ) -> (i256, i256, u256, u256);
 
+    // As with `modify_position`, but with a referrer.
+    //
+    // # Arguments
+    // * `market_id` - Market ID
+    // * `lower_limit` - Lower limit at which position starts
+    // * `upper_limit` - Higher limit at which position ends
+    // * `liquidity_delta` - Amount of liquidity to add or remove
+    // * `referrer` - Referrer address
+    //
+    // # Returns
+    // * `base_amount` - Amount of base tokens transferred in (+ve) or out (-ve), including fees
+    // * `quote_amount` - Amount of quote tokens transferred in (+ve) or out (-ve), including fees
+    // * `base_fees` - Amount of base tokens collected in fees
+    // * `quote_fees` - Amount of quote tokens collected in fees
+    fn modify_position_with_referrer(
+        ref self: TContractState,
+        market_id: felt252,
+        lower_limit: u32,
+        upper_limit: u32,
+        liquidity_delta: i128,
+        referrer: ContractAddress,
+    ) -> (i256, i256, u256, u256);
+
     // Create a new limit order.
     // Must be placed below the current limit for bids, or above the current limit for asks.
     // 

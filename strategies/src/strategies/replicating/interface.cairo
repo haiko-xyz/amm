@@ -174,6 +174,24 @@ trait IReplicatingStrategy<TContractState> {
         ref self: TContractState, market_id: felt252, base_amount: u256, quote_amount: u256
     ) -> u256;
 
+    // Same as `deposit_initial`, but with a referrer.
+    //
+    // # Arguments
+    // * `market_id` - market id
+    // * `base_amount` - base asset to deposit
+    // * `quote_amount` - quote asset to deposit
+    // * `referrer` - referrer address
+    //
+    // # Returns
+    // * `shares` - pool shares minted in the form of liquidity
+    fn deposit_initial_with_referrer(
+        ref self: TContractState,
+        market_id: felt252,
+        base_amount: u256,
+        quote_amount: u256,
+        referrer: ContractAddress
+    ) -> u256;
+
     // Deposit liquidity to strategy.
     //
     // # Arguments
@@ -187,6 +205,26 @@ trait IReplicatingStrategy<TContractState> {
     // * `shares` - pool shares minted
     fn deposit(
         ref self: TContractState, market_id: felt252, base_amount: u256, quote_amount: u256
+    ) -> (u256, u256, u256);
+
+    // Same as `deposit`, but with a referrer.
+    //
+    // # Arguments
+    // * `market_id` - market id
+    // * `base_amount` - base asset desired
+    // * `quote_amount` - quote asset desired
+    // * `referrer` - referrer address
+    //
+    // # Returns
+    // * `base_amount` - base asset deposited
+    // * `quote_amount` - quote asset deposited
+    // * `shares` - pool shares minted
+    fn deposit_with_referrer(
+        ref self: TContractState,
+        market_id: felt252,
+        base_amount: u256,
+        quote_amount: u256,
+        referrer: ContractAddress
     ) -> (u256, u256, u256);
 
     // Burn pool shares and withdraw funds from strategy.

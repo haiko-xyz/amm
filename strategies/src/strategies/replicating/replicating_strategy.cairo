@@ -105,6 +105,7 @@ mod ReplicatingStrategy {
         ChangeOracle: ChangeOracle,
         Pause: Pause,
         Unpause: Unpause,
+        Referral: Referral,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -232,6 +233,13 @@ mod ReplicatingStrategy {
     struct Unpause {
         #[key]
         market_id: felt252,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct Referral {
+        #[key]
+        caller: ContractAddress,
+        referrer: ContractAddress,
     }
 
     ////////////////////////////////
@@ -938,6 +946,34 @@ mod ReplicatingStrategy {
             shares
         }
 
+        // Same as `deposit_initial`, but with a referrer.
+        //
+        // # Arguments
+        // * `market_id` - market id
+        // * `base_amount` - base asset to deposit
+        // * `quote_amount` - quote asset to deposit
+        // * `referrer` - referrer address
+        //
+        // # Returns
+        // * `shares` - pool shares minted in the form of liquidity
+        fn deposit_initial_with_referrer(
+            ref self: ContractState,
+            market_id: felt252,
+            base_amount: u256,
+            quote_amount: u256,
+            referrer: ContractAddress
+        ) -> u256 {
+            // Check referrer is non-null.
+            assert(referrer.is_non_zero(), 'ReferrerZero');
+
+            // Emit referrer event. 
+            let caller = get_caller_address();
+            self.emit(Event::Referral(Referral { caller, referrer, }));
+
+            // Deposit initial.
+            self.deposit_initial(market_id, base_amount, quote_amount)
+        }
+
         // Deposit liquidity to strategy.
         //
         // # Arguments
@@ -1029,6 +1065,36 @@ mod ReplicatingStrategy {
                 );
 
             (base_deposit, quote_deposit, shares)
+        }
+
+        // Same as `deposit`, but with a referrer.
+        //
+        // # Arguments
+        // * `market_id` - market id
+        // * `base_amount` - base asset desired
+        // * `quote_amount` - quote asset desired
+        // * `referrer` - referrer address
+        //
+        // # Returns
+        // * `base_amount` - base asset deposited
+        // * `quote_amount` - quote asset deposited
+        // * `shares` - pool shares minted
+        fn deposit_with_referrer(
+            ref self: ContractState,
+            market_id: felt252,
+            base_amount: u256,
+            quote_amount: u256,
+            referrer: ContractAddress
+        ) -> (u256, u256, u256) {
+            // Check referrer is non-null.
+            assert(referrer.is_non_zero(), 'ReferrerZero');
+
+            // Emit referrer event. 
+            let caller = get_caller_address();
+            self.emit(Event::Referral(Referral { caller, referrer, }));
+
+            // Deposit.
+            self.deposit(market_id, base_amount, quote_amount)
         }
 
         // Burn pool shares and withdraw funds from strategy.
