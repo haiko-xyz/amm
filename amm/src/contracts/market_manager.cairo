@@ -119,6 +119,7 @@ mod MarketManager {
         ChangeOwner: ChangeOwner,
         ChangeFlashLoanFee: ChangeFlashLoanFee,
         SetMarketConfigs: SetMarketConfigs,
+        Referral: Referral,
         #[flat]
         ERC721Event: ERC721Component::Event,
         #[flat]
@@ -279,6 +280,13 @@ mod MarketManager {
         #[key]
         token: ContractAddress,
         fee: u16,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct Referral {
+        #[key]
+        caller: ContractAddress,
+        referrer: ContractAddress,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -720,6 +728,7 @@ mod MarketManager {
         // * `lower_limit` - Lower limit at which position starts
         // * `upper_limit` - Higher limit at which position ends
         // * `liquidity_delta` - Amount of liquidity to add or remove
+        // * `referrer` - Referrer address, or 0 if none
         //
         // # Returns
         // * `base_amount` - Amount of base tokens transferred in (+ve) or out (-ve), including fees
@@ -759,6 +768,39 @@ mod MarketManager {
                 ._modify_position(
                     caller, market_id, lower_limit, upper_limit, liquidity_delta, false
                 )
+        }
+
+        // As with `modify_position`, but with a referrer.
+        //
+        // # Arguments
+        // * `market_id` - Market ID
+        // * `lower_limit` - Lower limit at which position starts
+        // * `upper_limit` - Higher limit at which position ends
+        // * `liquidity_delta` - Amount of liquidity to add or remove
+        // * `referrer` - Referrer address
+        //
+        // # Returns
+        // * `base_amount` - Amount of base tokens transferred in (+ve) or out (-ve), including fees
+        // * `quote_amount` - Amount of quote tokens transferred in (+ve) or out (-ve), including fees
+        // * `base_fees` - Amount of base tokens collected in fees
+        // * `quote_fees` - Amount of quote tokens collected in fees
+        fn modify_position_with_referrer(
+            ref self: ContractState,
+            market_id: felt252,
+            lower_limit: u32,
+            upper_limit: u32,
+            liquidity_delta: i128,
+            referrer: ContractAddress,
+        ) -> (i256, i256, u256, u256) {
+            // Check referrer is non-null.
+            assert(referrer.is_non_zero(), 'ReferrerZero');
+
+            // Emit referrer event. 
+            let caller = get_caller_address();
+            self.emit(Event::Referral(Referral { caller, referrer, }));
+
+            // Modify position.
+            self.modify_position(market_id, lower_limit, upper_limit, liquidity_delta)
         }
 
         // Create a new limit order.
