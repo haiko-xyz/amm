@@ -1,6 +1,6 @@
 # Replicating Strategy
 
-This document describes the [Replicating Strategy](../strategies/src/strategies/replicating/replicating_strategy.cairo) for Sphinx.
+This document describes the [Replicating Strategy](../strategies/src/strategies/replicating/replicating_strategy.cairo) for Haiko.
 
 At a high level, the strategy seeks to replicate the actions of sophisticated market makers on external exchanges by placing up to two liquidity positions (bid and ask) around a reference oracle price.
 

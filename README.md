@@ -1,11 +1,11 @@
-# Sphinx AMM
+# Haiko AMM
 
-This repo contains the core contracts of Sphinx AMM.
+This repo contains the core contracts of Haiko AMM.
 
 You can get started by reading through the following docs:
 
 - [Technical Overview](./docs/1-technical-overview.md)
-- [Comparison of Sphinx vs Uniswap](./docs/2-sphinx-vs-uniswap.md)
+- [Comparison of Haiko vs Uniswap](./docs/2-haiko-vs-uniswap.md)
 - [Using the Test Suite](./docs/4-testing-suite.md)
 - [List of WIP Test Cases and Features](./docs/3-wip.md)
 

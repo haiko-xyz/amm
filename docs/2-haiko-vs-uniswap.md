@@ -1,6 +1,6 @@
-# Sphinx vs Uniswap
+# Haiko vs Uniswap
 
-This document compares Sphinx's AMM implementation to Uniswap's [V3](https://github.com/Uniswap/v3-core) and [V4](https://github.com/Uniswap/v4-core) implementations. It aims to identify key differences in order to assist auditors with their review of the Sphinx codebase.
+This document compares Haiko's AMM implementation to Uniswap's [V3](https://github.com/Uniswap/v3-core) and [V4](https://github.com/Uniswap/v4-core) implementations. It aims to identify key differences in order to assist auditors with their review of the Haiko codebase.
 
 It should be read alongside the [Technical Overview](./1-technical-overview.md) for a high-level understanding of the protocol.
 
@@ -16,7 +16,7 @@ It should be read alongside the [Technical Overview](./1-technical-overview.md) 
 
 ## 1. Naming conventions
 
-The table below summarises the key terminology used by Sphinx, and their closest analogue from Uniswap.
+The table below summarises the key terminology used by Haiko, and their closest analogue from Uniswap.
 
 | Term                 | Equivalent to                                         |
 | -------------------- | ----------------------------------------------------- |
@@ -46,11 +46,11 @@ Fee factor is identical to fee growth inside.
 
 #### Threshold price
 
-Threshold price is identical to sqrt price limit. The difference in naming is for clarity and to avoid reusing the term 'limit', which has a different meaning in Sphinx.
+Threshold price is identical to sqrt price limit. The difference in naming is for clarity and to avoid reusing the term 'limit', which has a different meaning in Haiko.
 
 ## 2. Contract architecture
 
-Sphinx abandons the factory pattern in favour of a single `MarketManager` contract. In this respect, it is more similar to Uniswap V4. Managing all interactions through a single contract offers gas optimisations and a simpler architecture.
+Haiko abandons the factory pattern in favour of a single `MarketManager` contract. In this respect, it is more similar to Uniswap V4. Managing all interactions through a single contract offers gas optimisations and a simpler architecture.
 
 The `MarketManager` contract contains the bulk of the business logic. It is the main entrypoint for:
 
@@ -62,11 +62,11 @@ The `MarketManager` contract contains the bulk of the business logic. It is the 
 
 Each market created through `MarketManager` has the option of being deployed with an associated `Strategy`, which defines logic for LPing within that market. More information on this can be found in the [Strategies](#5-strategies) section below.
 
-The current `sphinx` repo is a monorepo containing both the core AMM logic (under `/amm`) as well as a library of reusable strategies (under `/strategies`). This helps with code reuse, as most of the strategies import libraries from the core protocol.
+The current `amm` repo is a monorepo containing both the core AMM logic (under `/amm`) as well as a library of reusable strategies (under `/strategies`). This helps with code reuse, as most of the strategies import libraries from the core protocol.
 
 ## 3. Market types
 
-Sphinx offers Flexible Liquidity Schemas, allowing markets to be deployed as V2 pools, V3 pools, or start as one and upgrade to the other over time.
+Haiko offers Flexible Liquidity Schemas, allowing markets to be deployed as V2 pools, V3 pools, or start as one and upgrade to the other over time.
 
 Three market types are available:
 
@@ -80,9 +80,9 @@ Upgrading to a Concentrated Market is achieved by removing this requirement.
 
 ## 4. Limit orders
 
-Sphinx supports limit orders, which are implemented as abstractions over regular liquidity positions by automatically removing liquidity once the position is filled.
+Haiko supports limit orders, which are implemented as abstractions over regular liquidity positions by automatically removing liquidity once the position is filled.
 
-In Uniswap V4, limit orders are proposed to be implemented as hooks, whereas in Sphinx they are integrated into the core protocol itself. This allows strategies to easily place limit orders without having to worry about their underlying implementation.
+In Uniswap V4, limit orders are proposed to be implemented as hooks, whereas in Haiko they are integrated into the core protocol itself. This allows strategies to easily place limit orders without having to worry about their underlying implementation.
 
 Limit orders use a batching mechanism for efficient filling, as follows:
 
@@ -101,7 +101,7 @@ Specifically, any time a swap is executed, a designated `updatePositions()` func
 
 Note that strategies are not trading strategies, but rather market making strategies. They help LPs automatically manage liquidity positions without the overhead of active management.
 
-The `sphinx` repo contains a library of reusable strategies under `/strategies`. These are designed to be as generic as possible, implementing a minimal `IStrategy` interface, and can be used across multiple markets. They are also designed to be easily extensible, allowing developers to modify and create their own custom strategies.
+The `amm` repo contains a library of reusable strategies under `/strategies`. These are designed to be as generic as possible, implementing a minimal `IStrategy` interface, and can be used across multiple markets. They are also designed to be easily extensible, allowing developers to modify and create their own custom strategies.
 
 ## 6. Limits vs Ticks
 
@@ -117,11 +117,11 @@ Storing limits in a tree structure allows efficient traversal when searching for
 
 > Note: this section deals with lower level implementation details.
 
-Sphinx uses `X28` fixed point numbers (28 decimals) stored inside a `u256` to handle decimal numbers, including:
+Haiko uses `X28` fixed point numbers (28 decimals) stored inside a `u256` to handle decimal numbers, including:
 
 - Sqrt prices
 - Base and quote fee factors
 
 Token amounts, as well as liquidity units, are represented as unscaled integers corresponding to the token's decimals as per their ERC20 specification (standardised at `18` for Starknet).
 
-In Uniswap V3, all prices are represented as `u160` fixed point numbers, with 96 bits for the integer part and 64 bits for the fractional part. The 28 decimals used by Sphinx roughly corresponds to comparable 93 bits of precision.
+In Uniswap V3, all prices are represented as `u160` fixed point numbers, with 96 bits for the integer part and 64 bits for the fractional part. The 28 decimals used by Haiko roughly corresponds to comparable 93 bits of precision.

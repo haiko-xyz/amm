@@ -1,8 +1,8 @@
 # Technical overview
 
-This document provides a technical overview of Sphinx's smart contracts. It focuses on the five main functions called by users, breaking down their internal call logic and mapping interactions with external `Strategy` contracts.
+This document provides a technical overview of Haiko's smart contracts. It focuses on the five main functions called by users, breaking down their internal call logic and mapping interactions with external `Strategy` contracts.
 
-It may be helpful to first review the Naming Conventions section of [Sphinx vs Uniswap](./2-sphinx-vs-uniswap.md) before reading this document.
+It may be helpful to first review the Naming Conventions section of [Haiko vs Uniswap](./2-haiko-vs-uniswap.md) before reading this document.
 
 ## Contracts
 
@@ -167,7 +167,7 @@ The filling of limit orders is handled in the `swap()` function. While iterating
 
 Collecting a limit order returns any filled and unfilled amounts to the order owner.
 
-In a traditional order book setting, proceeds from filled limit orders are automatically returned to the swapper. Alternatively, the order can be manually cancelled to return any unfilled or partially filled proceeds. In Sphinx, both actions are combined into a single `collect_order()` function to achieve the desired outcome while remaining gas efficient.
+In a traditional order book setting, proceeds from filled limit orders are automatically returned to the swapper. Alternatively, the order can be manually cancelled to return any unfilled or partially filled proceeds. In Haiko, both actions are combined into a single `collect_order()` function to achieve the desired outcome while remaining gas efficient.
 
 ```rust
 fn collect_order(

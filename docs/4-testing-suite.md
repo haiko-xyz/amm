@@ -1,6 +1,6 @@
 # Testing suite
 
-Sphinx uses both the native Cairo runner and [Starknet Foundry](https://github.com/foundry-rs/starknet-foundry/tree/master) for testing:
+Haiko uses both the native Cairo runner and [Starknet Foundry](https://github.com/foundry-rs/starknet-foundry/tree/master) for testing:
 
 1. `cairo-test` is used for the majority of unit and integration tests. These can be found under [`amm/tests/cairo-test`](../amm/src/tests/cairo_test).
 2. `starknet-foundry` is used for more complex tests such as fuzzing, invariant tests, fork tests, etc. These can be found under [`amm/tests/snforge`](../amm/src/tests/snforge).
@@ -19,7 +19,7 @@ When writing new test cases, it is recommended to use these libraries to ensure 
 
 ## Models
 
-Sphinx's execution logic is relatively complex. To help with testing, we rely on a set of [models](../models) to replicate the computations under each test case. The models produce a set of canonical results that can be compared to test outputs.
+Haiko's execution logic is relatively complex. To help with testing, we rely on a set of [models](../models) to replicate the computations under each test case. The models produce a set of canonical results that can be compared to test outputs.
 
 The models are written in Typescript and run on `decimal.js`, a high precision math library. They are designed to be as simple as possible to minimise the risk of bugs, although of course they are not guaranteed to be bug free.
 
