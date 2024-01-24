@@ -61,7 +61,8 @@ fn test_create_market_whitelisted_tokens_work() {
 
     // Whitelist tokens.
     set_contract_address(owner());
-    market_manager.whitelist_tokens(array![base_token.contract_address, quote_token.contract_address]);
+    market_manager
+        .whitelist_tokens(array![base_token.contract_address, quote_token.contract_address]);
 
     // Create market.
     let mut params = default_market_params();
@@ -102,7 +103,8 @@ fn test_create_market_whitelisted_pair_with_strategy() {
 
     // Whitelist tokens.
     set_contract_address(owner());
-    market_manager.whitelist_tokens(array![base_token.contract_address, quote_token.contract_address]);
+    market_manager
+        .whitelist_tokens(array![base_token.contract_address, quote_token.contract_address]);
 
     // Create market.
     let mut params = default_market_params();
@@ -121,7 +123,8 @@ fn test_create_market_whitelisted_pair_with_fee_controller() {
 
     // Whitelist tokens.
     set_contract_address(owner());
-    market_manager.whitelist_tokens(array![base_token.contract_address, quote_token.contract_address]);
+    market_manager
+        .whitelist_tokens(array![base_token.contract_address, quote_token.contract_address]);
 
     // Create market.
     let mut params = default_market_params();
@@ -140,7 +143,8 @@ fn test_create_market_whitelisted_pair_with_controller() {
 
     // Whitelist tokens.
     set_contract_address(owner());
-    market_manager.whitelist_tokens(array![base_token.contract_address, quote_token.contract_address]);
+    market_manager
+        .whitelist_tokens(array![base_token.contract_address, quote_token.contract_address]);
 
     // Create market.
     let mut params = default_market_params();

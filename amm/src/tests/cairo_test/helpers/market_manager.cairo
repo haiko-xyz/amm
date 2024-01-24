@@ -58,7 +58,9 @@ fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketP
     create_market_without_whitelisting(market_manager, params)
 }
 
-fn create_market_without_whitelisting(market_manager: IMarketManagerDispatcher, params: CreateMarketParams) -> felt252 {
+fn create_market_without_whitelisting(
+    market_manager: IMarketManagerDispatcher, params: CreateMarketParams
+) -> felt252 {
     set_contract_address(params.owner);
     market_manager
         .create_market(
