@@ -51,10 +51,17 @@ fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketP
             controller: params.controller,
         }
     );
-    let whitelisted = market_manager.is_whitelisted(market_id);
+    let whitelisted = market_manager.is_market_whitelisted(market_id);
     if !whitelisted {
-        market_manager.whitelist(array![market_id]);
+        market_manager.whitelist_markets(array![market_id]);
     }
+    create_market_without_whitelisting(market_manager, params)
+}
+
+fn create_market_without_whitelisting(
+    market_manager: IMarketManagerDispatcher, params: CreateMarketParams
+) -> felt252 {
+    set_contract_address(params.owner);
     market_manager
         .create_market(
             params.base_token,

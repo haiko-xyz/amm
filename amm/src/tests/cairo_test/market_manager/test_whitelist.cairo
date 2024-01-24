@@ -8,7 +8,9 @@ use amm::libraries::math::price_math;
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_WIDTH};
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
-use amm::tests::cairo_test::helpers::market_manager::{deploy_market_manager, create_market};
+use amm::tests::cairo_test::helpers::market_manager::{
+    deploy_market_manager, create_market, create_market_without_whitelisting
+};
 use amm::tests::cairo_test::helpers::token::deploy_token;
 use amm::tests::common::params::{owner, alice, default_token_params, default_market_params};
 
@@ -52,6 +54,24 @@ fn test_create_market_whitelisted_works() {
 }
 
 #[test]
+#[available_gas(40000000)]
+fn test_create_market_whitelisted_tokens_work() {
+    // Deploy market manager and tokens.
+    let (market_manager, base_token, quote_token) = before();
+
+    // Whitelist tokens.
+    set_contract_address(owner());
+    market_manager
+        .whitelist_tokens(array![base_token.contract_address, quote_token.contract_address]);
+
+    // Create market.
+    let mut params = default_market_params();
+    params.base_token = base_token.contract_address;
+    params.quote_token = quote_token.contract_address;
+    create_market_without_whitelisting(market_manager, params);
+}
+
+#[test]
 #[available_gas(2000000000)]
 #[should_panic(expected: ('NotWhitelisted', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_not_whitelisted() {
@@ -76,19 +96,79 @@ fn test_create_market_not_whitelisted() {
 
 #[test]
 #[available_gas(2000000000)]
+#[should_panic(expected: ('NotWhitelisted', 'ENTRYPOINT_FAILED',))]
+fn test_create_market_whitelisted_pair_with_strategy() {
+    // Deploy market manager and tokens.
+    let (market_manager, base_token, quote_token) = before();
+
+    // Whitelist tokens.
+    set_contract_address(owner());
+    market_manager
+        .whitelist_tokens(array![base_token.contract_address, quote_token.contract_address]);
+
+    // Create market.
+    let mut params = default_market_params();
+    params.base_token = base_token.contract_address;
+    params.quote_token = quote_token.contract_address;
+    params.strategy = contract_address_const::<0x123>();
+    create_market_without_whitelisting(market_manager, params);
+}
+
+#[test]
+#[available_gas(2000000000)]
+#[should_panic(expected: ('NotWhitelisted', 'ENTRYPOINT_FAILED',))]
+fn test_create_market_whitelisted_pair_with_fee_controller() {
+    // Deploy market manager and tokens.
+    let (market_manager, base_token, quote_token) = before();
+
+    // Whitelist tokens.
+    set_contract_address(owner());
+    market_manager
+        .whitelist_tokens(array![base_token.contract_address, quote_token.contract_address]);
+
+    // Create market.
+    let mut params = default_market_params();
+    params.base_token = base_token.contract_address;
+    params.quote_token = quote_token.contract_address;
+    params.fee_controller = contract_address_const::<0x123>();
+    create_market_without_whitelisting(market_manager, params);
+}
+
+#[test]
+#[available_gas(2000000000)]
+#[should_panic(expected: ('NotWhitelisted', 'ENTRYPOINT_FAILED',))]
+fn test_create_market_whitelisted_pair_with_controller() {
+    // Deploy market manager and tokens.
+    let (market_manager, base_token, quote_token) = before();
+
+    // Whitelist tokens.
+    set_contract_address(owner());
+    market_manager
+        .whitelist_tokens(array![base_token.contract_address, quote_token.contract_address]);
+
+    // Create market.
+    let mut params = default_market_params();
+    params.base_token = base_token.contract_address;
+    params.quote_token = quote_token.contract_address;
+    params.controller = contract_address_const::<0x123>();
+    create_market_without_whitelisting(market_manager, params);
+}
+
+#[test]
+#[available_gas(2000000000)]
 #[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
-fn test_whitelist_not_owner() {
+fn test_whitelist_market_not_owner() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
 
     set_contract_address(alice());
-    market_manager.whitelist(array![123]);
+    market_manager.whitelist_markets(array![123]);
 }
 
 #[test]
 #[available_gas(2000000000)]
 #[should_panic(expected: ('AlreadyWhitelisted', 'ENTRYPOINT_FAILED',))]
-fn test_whitelist_twice() {
+fn test_whitelist_market_twice() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
 
@@ -98,5 +178,5 @@ fn test_whitelist_twice() {
     params.quote_token = quote_token.contract_address;
     let market_id = create_market(market_manager, params);
 
-    market_manager.whitelist(array![market_id]);
+    market_manager.whitelist_markets(array![market_id]);
 }

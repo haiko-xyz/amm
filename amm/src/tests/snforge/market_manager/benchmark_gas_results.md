@@ -98,15 +98,21 @@
     2. Gross: 14251.68
     3. Net: 7938.56
 19. Swap with 20 ticks crossed
-    1. Before:
-    2. Gross:
-    3. Net:
+    1. Before: 10740.32
+    2. Gross: 23672.32
+    3. Net: 12932.00
 20. Swap with 20 ticks crossed (wide interval)
-    1. Before:
-    2. Gross:
-    3. Net:
+    1. Before: 11811.84
+    2. Gross: 25934.24
+    3. Net: 14122.40
 21. Swap across a limit order, partial fill (cross 1 tick)
+    1. Before: 1244.16
+    2. Gross: 3769.12
+    3. Net: 2312.16
 22. Swap across a limit order, full fill (cross 1 tick)
+    1. Before: 1244.16
+    2. Gross: 3556.32
+    3. Net: 2312.16
 23. Create limit order
 24. Collect unfilled limit order
 25. Collect partially filled limit order
