@@ -11,12 +11,14 @@ use amm::libraries::math::{math, price_math, liquidity_math};
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_SCALED, ONE};
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
+use amm::interfaces::IQuoter::{IQuoterDispatcher, IQuoterDispatcherTrait};
 use amm::types::core::MarketState;
 use amm::types::i128::{i128, I128Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position, swap
 };
 use amm::tests::cairo_test::helpers::token::{deploy_token, fund, approve};
+use amm::tests::cairo_test::helpers::quoter::deploy_quoter;
 use amm::tests::common::params::{
     owner, alice, treasury, default_token_params, default_market_params, modify_position_params,
     swap_params
@@ -84,6 +86,22 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
     approve(quote_token, alice(), market_manager.contract_address, initial_quote_amount);
 
     (market_manager, base_token, quote_token)
+}
+
+fn before_with_market() -> (
+    IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, felt252
+) {
+    let (market_manager, base_token, quote_token) = before();
+
+    // Create the market.
+    let mut params = default_market_params();
+    params.base_token = base_token.contract_address;
+    params.quote_token = quote_token.contract_address;
+    params.start_limit = price_math::offset(10) - 0;
+    params.width = 10;
+    let market_id = create_market(market_manager, params);
+
+    (market_manager, base_token, quote_token, market_id)
 }
 
 fn market_state_test_cases() -> Array<MarketStateCase> {
@@ -989,6 +1007,17 @@ fn test_swap_cases() {
                 let start_sqrt_price = market_manager.curr_sqrt_price(market_id);
                 _print_index('*** SWAP 01', swap_index).print();
 
+                let unsafe_quote = market_manager
+                    .unsafe_quote(
+                        market_id, swap_case.is_buy, swap_case.amount, swap_case.exact_input, false
+                    );
+
+                // Deploy quoter.
+                let quoter = deploy_quoter(owner(), market_manager.contract_address);
+                let quote = quoter
+                    .quote(market_id, swap_case.is_buy, swap_case.amount, swap_case.exact_input);
+                assert(unsafe_quote == quote, _print_index('quote 01', swap_index));
+
                 let mut params = swap_params(
                     alice(),
                     market_id,
@@ -996,7 +1025,12 @@ fn test_swap_cases() {
                     swap_case.exact_input,
                     swap_case.amount,
                     swap_case.threshold_sqrt_price,
-                    Option::None(()),
+                    // Quotes don't check for threshold prices, so disable threshold amount if we are supply a threshold price.
+                    if swap_case.threshold_sqrt_price == Option::None(()) {
+                        Option::Some(quote)
+                    } else {
+                        Option::None(())
+                    },
                     Option::None(()),
                 );
                 let (amount_in, amount_out, fees) = swap(market_manager, params);
@@ -1092,6 +1126,125 @@ fn test_swap_cases() {
 
         index += 1;
     };
+}
+
+#[test]
+#[available_gas(15000000000)]
+fn test_swap_threshold_amount_exact_input() {
+    let (market_manager, base_token, quote_token, market_id) = before_with_market();
+
+    // Mint positions.
+    let mut params = modify_position_params(
+        alice(),
+        market_id,
+        price_math::offset(10) - 100,
+        price_math::offset(10) + 100,
+        I128Trait::new(to_e28_u128(2), false),
+    );
+    modify_position(market_manager, params);
+
+    // Swap with threshold amount.
+    let mut params = swap_params(
+        alice(),
+        market_id,
+        true,
+        true,
+        to_e18(1),
+        Option::None(()),
+        Option::Some(996000000000000000),
+        Option::None(())
+    );
+    swap(market_manager, params);
+}
+
+#[test]
+#[should_panic(expected: ('ThresholdAmount', 996999999950299550, 0, 'ENTRYPOINT_FAILED'))]
+#[available_gas(15000000000)]
+fn test_swap_threshold_amount_exact_input_fails() {
+    let (market_manager, base_token, quote_token, market_id) = before_with_market();
+
+    // Mint positions.
+    let mut params = modify_position_params(
+        alice(),
+        market_id,
+        price_math::offset(10) - 100,
+        price_math::offset(10) + 100,
+        I128Trait::new(to_e28_u128(2), false),
+    );
+    modify_position(market_manager, params);
+
+    // Swap with threshold amount.
+    let mut params = swap_params(
+        alice(),
+        market_id,
+        true,
+        true,
+        to_e18(1),
+        Option::None(()),
+        Option::Some(997000000000000000),
+        Option::None(())
+    );
+    swap(market_manager, params);
+}
+
+#[test]
+#[available_gas(15000000000)]
+fn test_swap_threshold_amount_exact_output() {
+    let (market_manager, base_token, quote_token, market_id) = before_with_market();
+
+    // Mint positions.
+    let mut params = modify_position_params(
+        alice(),
+        market_id,
+        price_math::offset(10) - 100,
+        price_math::offset(10) + 100,
+        I128Trait::new(to_e28_u128(2), false),
+    );
+    modify_position(market_manager, params);
+
+    // Swap with threshold amount.
+    let mut params = swap_params(
+        alice(),
+        market_id,
+        true,
+        false,
+        to_e18(1),
+        Option::None(()),
+        Option::Some(1004000000000000000),
+        Option::None(())
+    );
+    swap(market_manager, params);
+}
+
+#[test]
+#[should_panic(expected: ('ThresholdAmount', 1003009027131394184, 0, 'ENTRYPOINT_FAILED'))]
+#[available_gas(15000000000)]
+fn test_swap_threshold_amount_exact_output_fails() {
+    let (market_manager, base_token, quote_token, market_id) = before_with_market();
+
+    // Mint positions.
+    let mut params = modify_position_params(
+        alice(),
+        market_id,
+        price_math::offset(10) - 100,
+        price_math::offset(10) + 100,
+        I128Trait::new(to_e28_u128(2), false),
+    );
+    modify_position(market_manager, params);
+
+    // Swap with threshold amount.
+    let mut params = swap_params(
+        alice(),
+        market_id,
+        true,
+        false,
+        to_e18(1),
+        Option::None(()),
+        Option::Some(1003000000000000000),
+        Option::None(())
+    );
+    let (amount_in, _, _) = swap(market_manager, params);
+    amount_in.print();
 }
 
 ////////////////////////////////

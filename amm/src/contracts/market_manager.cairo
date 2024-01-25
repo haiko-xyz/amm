@@ -43,7 +43,7 @@ mod MarketManager {
     use openzeppelin::introspection::src5::SRC5Component;
 
     // use debug::PrintTrait;
-    use snforge_std::PrintTrait;
+    // use snforge_std::PrintTrait;
 
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
@@ -1164,8 +1164,8 @@ mod MarketManager {
                 ._swap_multiple(in_token, out_token, amount, route, deadline, false);
 
             // Check amount against threshold.
-            if threshold_amount.is_some() {
-                assert(amount_out >= threshold_amount.unwrap(), 'ThresholdAmount');
+            if threshold_amount.is_some() && amount_out < threshold_amount.unwrap() {
+                panic(array!['ThresholdAmount', amount_out.low.into(), amount_out.high.into()]);
             }
 
             // Increment swap id.
@@ -1303,13 +1303,36 @@ mod MarketManager {
             if market_info.strategy.is_non_zero() && !ignore_strategy {
                 let strategy = IStrategyDispatcher { contract_address: market_info.strategy };
                 let placed_positions = strategy.placed_positions(market_id);
-                let queued_positions = strategy.queued_positions(market_id);
-                quote_lib::populate_limits(
-                    ref queued_deltas, ref target_limits, ref market_state, placed_positions, true
-                );
-                quote_lib::populate_limits(
-                    ref queued_deltas, ref target_limits, ref market_state, queued_positions, false
-                );
+                let swap_params = SwapParams { is_buy, amount, exact_input };
+                let queued_positions = strategy
+                    .queued_positions(market_id, Option::Some(swap_params));
+                // Only populate deltas if positions are updated, otherwise we would be duplicating
+                // liquidity already deposited into the market.
+                let mut i = 0;
+                loop {
+                    if i == placed_positions.len() {
+                        break;
+                    }
+                    let placed_position = *placed_positions.at(i);
+                    let queued_position = *queued_positions.at(i);
+                    if placed_position != queued_position {
+                        quote_lib::populate_limit(
+                            ref queued_deltas,
+                            ref target_limits,
+                            ref market_state,
+                            placed_position,
+                            true
+                        );
+                        quote_lib::populate_limit(
+                            ref queued_deltas,
+                            ref target_limits,
+                            ref market_state,
+                            queued_position,
+                            false
+                        );
+                    }
+                    i += 1;
+                };
             }
 
             // Get swap fee. 
@@ -1899,10 +1922,7 @@ mod MarketManager {
             let caller = get_caller_address();
             if market_info.strategy.is_non_zero() {
                 IStrategyDispatcher { contract_address: market_info.strategy }
-                    .update_positions(
-                        market_id,
-                        SwapParams { is_buy, amount, exact_input, threshold_sqrt_price, deadline }
-                    );
+                    .update_positions(market_id, SwapParams { is_buy, amount, exact_input });
             }
 
             // Get swap fee. 
@@ -1953,14 +1973,12 @@ mod MarketManager {
             // Check swap amount against amount threshold.
             if threshold_amount.is_some() {
                 let threshold_amount_val = threshold_amount.unwrap();
-                assert(
-                    if exact_input {
-                        amount_out >= threshold_amount_val
-                    } else {
-                        amount_in <= threshold_amount_val
-                    },
-                    'ThresholdAmount'
-                );
+                if exact_input && (amount_out < threshold_amount_val) {
+                    panic(array!['ThresholdAmount', amount_out.low.into(), amount_out.high.into()]);
+                }
+                if !exact_input && (amount_in > threshold_amount_val) {
+                    panic(array!['ThresholdAmount', amount_in.low.into(), amount_in.high.into()]);
+                }
             }
 
             // Return amounts if quote mode.

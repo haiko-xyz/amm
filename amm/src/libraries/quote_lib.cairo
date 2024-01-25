@@ -21,6 +21,7 @@ use amm::contracts::market_manager::MarketManager::MarketManagerInternalTrait;
 use amm::types::core::{MarketState, PositionInfo};
 use amm::types::i128::{i128, I128Trait};
 
+// use snforge_std::PrintTrait;
 
 // Iteratively simulate swap up to next initialised limit price.
 //
@@ -125,17 +126,11 @@ fn quote_iter(
         let mut cumul_liquidity_delta = I128Trait::new(0, false);
 
         // Calculate liquidity deltas from queued strategy positions.
-        let queued_delta = queued_deltas.get(target_limit.into());
-        match match_nullable(queued_delta) {
-            FromNullableResult::Null => {},
-            FromNullableResult::NotNull(queued_delta) => {
-                let mut signed_queued_delta = queued_delta.unbox();
-                if !is_buy {
-                    signed_queued_delta.sign = !signed_queued_delta.sign;
-                }
-                cumul_liquidity_delta += signed_queued_delta;
-            },
+        let mut queued_delta = unbox_delta(ref queued_deltas, target_limit);
+        if !is_buy {
+            queued_delta.sign = !queued_delta.sign;
         }
+        cumul_liquidity_delta += queued_delta;
 
         // Calculate regular liquidity delta.
         let limit_info = self.limit_info.read((market_id, target_limit));
@@ -233,29 +228,43 @@ fn next_limit(target_limits: Span<u32>, is_buy: bool, curr_limit: u32,) -> Optio
 // * `market_state` - ref to market state
 // * `positions` - list of queued positions to update
 // * `is_placed` - whether positions are placed or queued
-fn populate_limits(
+fn populate_limit(
     ref queued_deltas: Felt252Dict<Nullable<i128>>,
     ref target_limits: Array<u32>,
     ref market_state: MarketState,
-    positions: Span<PositionInfo>,
+    position: PositionInfo,
     is_placed: bool,
 ) {
-    let mut i = 0;
     let curr_limit = market_state.curr_limit;
-    loop {
-        if i >= positions.len() {
-            break;
+    if position.lower_limit <= curr_limit && position.upper_limit > curr_limit {
+        if is_placed {
+            market_state.liquidity -= position.liquidity;
+        } else {
+            market_state.liquidity += position.liquidity;
         }
-        let pos = *positions.at(i);
-        if pos.lower_limit <= curr_limit && pos.upper_limit > curr_limit {
-            market_state.liquidity -= pos.liquidity;
-        }
-        let lower_liq = nullable_from_box(BoxTrait::new(I128Trait::new(pos.liquidity, is_placed)));
-        let upper_liq = nullable_from_box(BoxTrait::new(I128Trait::new(pos.liquidity, !is_placed)));
-        queued_deltas.insert(pos.lower_limit.into(), lower_liq);
-        queued_deltas.insert(pos.upper_limit.into(), upper_liq);
-        target_limits.append(pos.lower_limit);
-        target_limits.append(pos.upper_limit);
-        i += 1;
-    };
+    }
+    let mut lower_liq_delta = unbox_delta(ref queued_deltas, position.lower_limit);
+    let mut upper_liq_delta = unbox_delta(ref queued_deltas, position.upper_limit);
+    lower_liq_delta += I128Trait::new(position.liquidity, is_placed);
+    upper_liq_delta += I128Trait::new(position.liquidity, !is_placed);
+
+    let lower_liq = nullable_from_box(BoxTrait::new(lower_liq_delta));
+    let upper_liq = nullable_from_box(BoxTrait::new(upper_liq_delta));
+    queued_deltas.insert(position.lower_limit.into(), lower_liq);
+    queued_deltas.insert(position.upper_limit.into(), upper_liq);
+    target_limits.append(position.lower_limit);
+    target_limits.append(position.upper_limit);
+}
+
+// Helper function to unbox liquidity delta from dictionary.
+//
+// # Arguments
+// * `queued_deltas` - ref to mapping of limit to liquidity deltas
+// * `target_limit` - target limit to unbox
+fn unbox_delta(ref queued_deltas: Felt252Dict<Nullable<i128>>, target_limit: u32) -> i128 {
+    let queued_delta = queued_deltas.get(target_limit.into());
+    match match_nullable(queued_delta) {
+        FromNullableResult::Null => I128Trait::new(0, false),
+        FromNullableResult::NotNull(queued_delta) => { queued_delta.unbox() }
+    }
 }

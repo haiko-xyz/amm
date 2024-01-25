@@ -26,8 +26,13 @@ trait IStrategy<TContractState> {
     fn placed_positions(self: @TContractState, market_id: felt252) -> Span<PositionInfo>;
 
     // Get list of positions queued to be placed by strategy on next `swap` update. If no updates
-    // are queued, the returned list will match the list returned by `placed_positions`.
-    fn queued_positions(self: @TContractState, market_id: felt252) -> Span<PositionInfo>;
+    // are queued, the returned list will match the list returned by `placed_positions`. Note that 
+    // the queued positions may differ depending on the incoming swap, as this may be used to
+    // decide whether to rebalance the strategy. If `swap_params` is `None`, the queued positions 
+    // will be calculated assuming the strategy always rebalances.
+    fn queued_positions(
+        self: @TContractState, market_id: felt252, swap_params: Option<SwapParams>
+    ) -> Span<PositionInfo>;
 
     ////////////////////////////////
     // EXTERNAL

@@ -319,11 +319,14 @@ mod ReplicatingStrategy {
         }
 
         // Get list of positions queued to be placed by strategy on next `swap` update. If no updates
-        // are queued, the returned list will match the list returned by `placed_positions`.
+        // are queued, the returned list will match the list returned by `placed_positions`. Note that
+        // the list of queued positions can differ depending on the incoming swap. 
         // 
         // # Returns
         // * `positions` - list of positions
-        fn queued_positions(self: @ContractState, market_id: felt252) -> Span<PositionInfo> {
+        fn queued_positions(
+            self: @ContractState, market_id: felt252, swap_params: Option<SwapParams>
+        ) -> Span<PositionInfo> {
             // Fetch market info.
             let market_manager = self.market_manager.read();
             let market_info = market_manager.market_info(market_id);
@@ -334,15 +337,75 @@ mod ReplicatingStrategy {
             }
 
             // Fetch strategy info.
-            let params = self.strategy_params.read(market_id);
             let state = self.strategy_state.read(market_id);
-            let bid = state.bid;
-            let ask = state.ask;
+            let curr_limit = market_manager.curr_limit(market_id);
+            let (price, is_valid) = self.get_oracle_price(market_id);
+            let oracle_limit = price_math::price_to_limit(price, market_info.width, true);
+
+            // If oracle price is invalid or strategy is paused, return null positions.
+            if !is_valid || state.is_paused || !state.is_initialised {
+                return array![Default::default(), Default::default()].span();
+            }
+
+            // Figure out whether strategy will rebalance. If swap params are not provided, assume
+            // rebalancing is performed, as we are placing initial positions.
+            let rebalance = match swap_params {
+                Option::Some(params) => {
+                    // If expected LVR from filling the swap at current price is lower than expected 
+                    // fees, then do not update position. We evaluate LVR at the inside quote to 
+                    // simplify calculations.
+                    // The inside quote is:
+                    //   - For buys:
+                    //      - max(curr price, ask lower price) if curr price > bid upper price
+                    //      - max(curr price, bid lower price) if curr price <= bid upper price
+                    //   - For sells:
+                    //      - min(curr price, bid upper price) if curr price < ask lower price
+                    //      - min(curr price, ask upper price) if curr price < ask lower price
+                    // LVR is calculated as:
+                    //   - (oracle price / inside quote - 1) * amount if buying
+                    //   - (inside quote / oracle price - 1) * amount if selling
+                    // We rebalance only if LVR is greater than expected fees.
+                    let fee_rate = market_manager.swap_fee_rate(market_id);
+                    let fee_rate_scaled = math::mul_div(
+                        fee_rate.into(), ONE, MAX_FEE_RATE.into(), false
+                    );
+                    let log2: u256 = price_math::_log2(ONE + fee_rate_scaled);
+                    let threshold_limits: u32 = (log2 / LOG2_1_00001).try_into().unwrap();
+                    if params.is_buy {
+                        let exec_price = if curr_limit > state.bid.upper_limit {
+                            max(curr_limit, state.ask.lower_limit)
+                        } else {
+                            max(curr_limit, state.bid.lower_limit)
+                        };
+                        oracle_limit > exec_price + threshold_limits
+                    } else {
+                        let exec_price = if curr_limit < state.ask.lower_limit {
+                            min(curr_limit, state.bid.upper_limit)
+                        } else {
+                            min(curr_limit, state.ask.upper_limit)
+                        };
+                        exec_price > oracle_limit + threshold_limits
+                    }
+                },
+                Option::None(()) => true,
+            };
+
+            // If strategy will not rebalance, return current positions.
+            if !rebalance {
+                return array![state.bid, state.ask].span();
+            }
+
+            // Calculate new positions. Fetch strategy params.
+            let params = self.strategy_params.read(market_id);
 
             // Fetch amounts in existing position.
             let contract: felt252 = get_contract_address().into();
-            let bid_pos_id = id::position_id(market_id, contract, bid.lower_limit, bid.upper_limit);
-            let ask_pos_id = id::position_id(market_id, contract, ask.lower_limit, ask.upper_limit);
+            let bid_pos_id = id::position_id(
+                market_id, contract, state.bid.lower_limit, state.bid.upper_limit
+            );
+            let ask_pos_id = id::position_id(
+                market_id, contract, state.ask.lower_limit, state.ask.upper_limit
+            );
             let (bid_base, bid_quote, bid_base_fees, bid_quote_fees) = market_manager
                 .amounts_inside_position(bid_pos_id);
             let (ask_base, ask_quote, ask_base_fees, ask_quote_fees) = market_manager
@@ -418,47 +481,8 @@ mod ReplicatingStrategy {
                 return;
             }
 
-            // Fetch strategy info.
-            let width = market_manager.width(market_id);
-            let curr_limit = market_manager.curr_limit(market_id);
-            let oracle_limit = price_math::price_to_limit(price, width, true);
-
-            // Run rebalancing condition. 
-            // If expected LVR from filling the swap at current price is lower than expected fees, 
-            // then do not update position. We evaluate LVR at the inside quote to simplify calculations.
-            // The inside quote is:
-            //   - For buys:
-            //      - max(curr price, ask lower price) if curr price > bid upper price
-            //      - max(curr price, bid lower price) if curr price <= bid upper price
-            //   - For sells:
-            //      - min(curr price, bid upper price) if curr price < ask lower price
-            //      - min(curr price, ask upper price) if curr price < ask lower price
-            // LVR is calculated as:
-            //   - (oracle price / inside quote - 1) * amount if buying
-            //   - (inside quote / oracle price - 1) * amount if selling
-            // We rebalance only if LVR is greater than expected fees.
-            let fee_rate = market_manager.swap_fee_rate(market_id);
-            let fee_rate_scaled = math::mul_div(fee_rate.into(), ONE, MAX_FEE_RATE.into(), false);
-            let log2: u256 = price_math::_log2(ONE + fee_rate_scaled);
-            let threshold_limits: u32 = (log2 / LOG2_1_00001).try_into().unwrap();
-            let rebalance = if params.is_buy {
-                let exec_price = if curr_limit > state.bid.upper_limit {
-                    max(curr_limit, state.ask.lower_limit)
-                } else {
-                    max(curr_limit, state.bid.lower_limit)
-                };
-                oracle_limit > exec_price + threshold_limits
-            } else {
-                let exec_price = if curr_limit < state.ask.lower_limit {
-                    min(curr_limit, state.bid.upper_limit)
-                } else {
-                    min(curr_limit, state.ask.upper_limit)
-                };
-                exec_price > oracle_limit + threshold_limits
-            };
-            if rebalance {
-                self._update_positions(market_id);
-            }
+            // Check whether strategy will rebalance.
+            self._update_positions(market_id, Option::Some(params));
         }
     }
 
@@ -921,7 +945,7 @@ mod ReplicatingStrategy {
             // Approve max spend by market manager. Place initial positions.
             base_token.approve(market_manager.contract_address, BoundedU256::max());
             quote_token.approve(market_manager.contract_address, BoundedU256::max());
-            let (bid, ask) = self._update_positions(market_id);
+            let (bid, ask) = self._update_positions(market_id, Option::None(()));
 
             // Check that both positions are placed. If neither position is placed, for example if the
             // oracle price is invalid, this will cause `deposit` to fail. Further, if the oracle price
@@ -1119,8 +1143,6 @@ mod ReplicatingStrategy {
 
             // Fetch current market state
             let market_manager = self.market_manager.read();
-            let market_state = market_manager.market_state(market_id);
-            let market_info = market_manager.market_info(market_id);
             let total_deposits = self.total_deposits.read(market_id);
             let mut state = self.strategy_state.read(market_id);
 
@@ -1192,6 +1214,7 @@ mod ReplicatingStrategy {
             }
 
             // Update fee balance.
+            let market_info = market_manager.market_info(market_id);
             if base_withdraw_fees != 0 {
                 let base_fees = self.withdraw_fees.read(market_info.base_token);
                 self.withdraw_fees.write(market_info.base_token, base_fees + base_withdraw_fees);
@@ -1488,12 +1511,13 @@ mod ReplicatingStrategy {
         //
         // # Arguments
         // * `market_id` - market id of strategy
+        // * `swap_params` - (optional) swap params
         //
         // # Returns
         // * `bid` - new optimal bid position
         // * `ask` - new optimal ask position
         fn _update_positions(
-            ref self: ContractState, market_id: felt252
+            ref self: ContractState, market_id: felt252, swap_params: Option<SwapParams>
         ) -> (PositionInfo, PositionInfo) {
             // Fetch market and strategy state.
             let market_manager = self.market_manager.read();
@@ -1501,7 +1525,7 @@ mod ReplicatingStrategy {
 
             // Fetch new bid and ask positions.
             // If the old positions are the same as the new positions, no updates will be made.
-            let queued_positions = self.queued_positions(market_id);
+            let queued_positions = self.queued_positions(market_id, swap_params);
             let next_bid = *queued_positions.at(0);
             let next_ask = *queued_positions.at(1);
             let update_bid: bool = next_bid != state.bid;
