@@ -968,7 +968,9 @@ mod ReplicatingStrategy {
 
             // Emit referrer event. 
             let caller = get_caller_address();
-            self.emit(Event::Referral(Referral { caller, referrer, }));
+            if caller != referrer {
+                self.emit(Event::Referral(Referral { caller, referrer, }));
+            }
 
             // Deposit initial.
             self.deposit_initial(market_id, base_amount, quote_amount)
@@ -1091,7 +1093,9 @@ mod ReplicatingStrategy {
 
             // Emit referrer event. 
             let caller = get_caller_address();
-            self.emit(Event::Referral(Referral { caller, referrer, }));
+            if caller != referrer {
+                self.emit(Event::Referral(Referral { caller, referrer, }));
+            }
 
             // Deposit.
             self.deposit(market_id, base_amount, quote_amount)

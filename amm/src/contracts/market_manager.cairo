@@ -824,7 +824,9 @@ mod MarketManager {
 
             // Emit referrer event. 
             let caller = get_caller_address();
-            self.emit(Event::Referral(Referral { caller, referrer, }));
+            if caller != referrer {
+                self.emit(Event::Referral(Referral { caller, referrer, }));
+            }
 
             // Modify position.
             self.modify_position(market_id, lower_limit, upper_limit, liquidity_delta)
