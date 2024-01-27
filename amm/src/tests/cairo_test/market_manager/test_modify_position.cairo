@@ -858,8 +858,8 @@ fn _snapshot_state(
     lower_limit: u32,
     upper_limit: u32
 ) -> (u256, u256, LimitInfo, LimitInfo) {
-    let base_balance = base_token.balance_of(market_manager.contract_address);
-    let quote_balance = quote_token.balance_of(market_manager.contract_address);
+    let base_balance = base_token.balanceOf(market_manager.contract_address);
+    let quote_balance = quote_token.balanceOf(market_manager.contract_address);
     let lower_limit_info = market_manager.limit_info(market_id, lower_limit);
     let upper_limit_info = market_manager.limit_info(market_id, upper_limit);
 

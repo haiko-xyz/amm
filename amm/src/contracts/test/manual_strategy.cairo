@@ -74,7 +74,7 @@ mod ManualStrategy {
     use amm::types::i128::{I128Trait, i128};
 
     // External imports.
-    use openzeppelin::token::erc20::interface::{ERC20ABI, IERC20Dispatcher, IERC20DispatcherTrait};
+    use openzeppelin::token::erc20::interface::{ERC20ABI, ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
     #[storage]
     struct Storage {
@@ -346,14 +346,14 @@ mod ManualStrategy {
             let caller = get_caller_address();
 
             // Transfer balances and approve market manager as spender.
-            let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
-            let quote_token = IERC20Dispatcher { contract_address: market_info.quote_token };
+            let base_token = ERC20ABIDispatcher { contract_address: market_info.base_token };
+            let quote_token = ERC20ABIDispatcher { contract_address: market_info.quote_token };
             if base_amount != 0 {
-                base_token.transfer_from(caller, contract, base_amount);
+                base_token.transferFrom(caller, contract, base_amount);
                 base_token.approve(market_manager.contract_address, BoundedU256::max());
             }
             if quote_amount != 0 {
-                quote_token.transfer_from(caller, contract, quote_amount);
+                quote_token.transferFrom(caller, contract, quote_amount);
                 quote_token.approve(market_manager.contract_address, BoundedU256::max());
             }
 
@@ -397,8 +397,8 @@ mod ManualStrategy {
             }
 
             // Transfer balances.
-            let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
-            let quote_token = IERC20Dispatcher { contract_address: market_info.quote_token };
+            let base_token = ERC20ABIDispatcher { contract_address: market_info.base_token };
+            let quote_token = ERC20ABIDispatcher { contract_address: market_info.quote_token };
             let caller = get_caller_address();
             if base_reserves != 0 {
                 base_token.transfer(caller, base_reserves);

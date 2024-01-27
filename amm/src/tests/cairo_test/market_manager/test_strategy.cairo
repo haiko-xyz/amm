@@ -97,8 +97,8 @@ fn test_strategy() {
     let (market_manager, base_token, quote_token, market_id, strategy) = before();
 
     // Snapshot initial balances.
-    let base_balance_start = base_token.balance_of(owner());
-    let quote_balance_start = quote_token.balance_of(owner());
+    let base_balance_start = base_token.balanceOf(owner());
+    let quote_balance_start = quote_token.balanceOf(owner());
 
     // Set positions and deposit liquidity.
     set_contract_address(owner());
@@ -136,8 +136,8 @@ fn test_strategy() {
     strategy.withdraw();
 
     // Snapshot end balances.
-    let base_balance_end = base_token.balance_of(owner());
-    let quote_balance_end = quote_token.balance_of(owner());
+    let base_balance_end = base_token.balanceOf(owner());
+    let quote_balance_end = quote_token.balanceOf(owner());
 
     // Check balances.
     assert(approx_eq(base_balance_start - base_balance_end, base_amount_exp, 10), 'Base balance');

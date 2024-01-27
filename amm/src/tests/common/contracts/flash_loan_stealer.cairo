@@ -2,7 +2,7 @@
 // was able to borrow funds from the market and deposit the same funds as liquidity to the market.
 // Because the market implemented checks on its token balance before and after the loan, the borrower
 // was able to withdraw the borrowed funds without returning them. This is no longer possible as 
-// `flash_loan` now uses an explicit `transfer_from` operation to retrieve borrowed funds + fees.
+// `flash_loan` now uses an explicit `transferFrom` operation to retrieve borrowed funds + fees.
 
 #[starknet::contract]
 mod FlashLoanStealer {
@@ -16,7 +16,7 @@ mod FlashLoanStealer {
     use amm::types::i128::{i128, I128Trait};
     use amm::tests::common::utils::{to_e28, to_e18_u128};
 
-    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
     #[storage]
     struct Storage {
@@ -57,7 +57,7 @@ mod FlashLoanStealer {
             market_manager.modify_position(market_id, lower_limit, upper_limit, liquidity_delta);
 
             // Approve market manager to transfer back borrowed funds plus fees
-            let token_dispatcher = IERC20Dispatcher { contract_address: token };
+            let token_dispatcher = ERC20ABIDispatcher { contract_address: token };
             token_dispatcher.approve(market_manager_addr, amount + fee);
         }
     }

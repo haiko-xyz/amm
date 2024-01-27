@@ -342,7 +342,7 @@ mod Quoter {
                     break;
                 }
                 let dispatcher = ERC20ABIDispatcher { contract_address: *tokens.at(i) };
-                let balance = dispatcher.balance_of(user);
+                let balance = dispatcher.balanceOf(user);
                 let decimals = dispatcher.decimals();
                 balances.append((balance, decimals));
                 i += 1;

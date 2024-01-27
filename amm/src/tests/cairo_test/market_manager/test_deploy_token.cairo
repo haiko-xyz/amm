@@ -23,7 +23,7 @@ fn test_deploy_token_initialises_immutables() {
     assert(token.decimals() == 18, 'Deploy token: Wrong decimals');
     assert(token.total_supply() == params.initial_supply, 'Deploy token: Wrong init supply');
     assert(
-        token.balance_of(params.recipient) == params.initial_supply,
+        token.balanceOf(params.recipient) == params.initial_supply,
         'Deploy token: Wrong recipient B'
     );
 }

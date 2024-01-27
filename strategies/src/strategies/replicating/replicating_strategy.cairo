@@ -32,7 +32,7 @@ mod ReplicatingStrategy {
     };
 
     // External imports.
-    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
     // use snforge_std::PrintTrait;
 
@@ -929,13 +929,13 @@ mod ReplicatingStrategy {
             // Fetch dispatchers.
             let market_manager = self.market_manager.read();
             let market_info = market_manager.market_info(market_id);
-            let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
-            let quote_token = IERC20Dispatcher { contract_address: market_info.quote_token };
+            let base_token = ERC20ABIDispatcher { contract_address: market_info.base_token };
+            let quote_token = ERC20ABIDispatcher { contract_address: market_info.quote_token };
 
             // Deposit tokens to reserves
             let contract = get_contract_address();
-            base_token.transfer_from(caller, contract, base_amount);
-            quote_token.transfer_from(caller, contract, quote_amount);
+            base_token.transferFrom(caller, contract, base_amount);
+            quote_token.transferFrom(caller, contract, quote_amount);
 
             // Update reserves. Must be committed to state for `_update_positions` to place positions.
             state.base_reserves += base_amount;
@@ -1056,14 +1056,14 @@ mod ReplicatingStrategy {
             // Transfer tokens into contract.
             let contract = get_contract_address();
             if base_deposit != 0 {
-                let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
-                assert(base_token.balance_of(caller) >= base_deposit, 'DepositBase');
-                base_token.transfer_from(caller, contract, base_deposit);
+                let base_token = ERC20ABIDispatcher { contract_address: market_info.base_token };
+                assert(base_token.balanceOf(caller) >= base_deposit, 'DepositBase');
+                base_token.transferFrom(caller, contract, base_deposit);
             }
             if quote_deposit != 0 {
-                let quote_token = IERC20Dispatcher { contract_address: market_info.quote_token };
-                assert(quote_token.balance_of(caller) >= quote_deposit, 'DepositQuote');
-                quote_token.transfer_from(caller, contract, quote_deposit);
+                let quote_token = ERC20ABIDispatcher { contract_address: market_info.quote_token };
+                assert(quote_token.balanceOf(caller) >= quote_deposit, 'DepositQuote');
+                quote_token.transferFrom(caller, contract, quote_deposit);
             }
 
             // Update reserves.
@@ -1230,11 +1230,11 @@ mod ReplicatingStrategy {
             // Transfer tokens to caller.
             let contract = get_contract_address();
             if base_withdraw != 0 {
-                let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
+                let base_token = ERC20ABIDispatcher { contract_address: market_info.base_token };
                 base_token.transfer(caller, base_withdraw);
             }
             if quote_withdraw != 0 {
-                let quote_token = IERC20Dispatcher { contract_address: market_info.quote_token };
+                let quote_token = ERC20ABIDispatcher { contract_address: market_info.quote_token };
                 quote_token.transfer(caller, quote_withdraw);
             }
 
@@ -1305,7 +1305,7 @@ mod ReplicatingStrategy {
             self.withdraw_fees.write(token, fees);
 
             // Transfer fees to caller.
-            let dispatcher = IERC20Dispatcher { contract_address: token };
+            let dispatcher = ERC20ABIDispatcher { contract_address: token };
             dispatcher.transfer(get_caller_address(), amount);
 
             // Emit event.

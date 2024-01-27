@@ -2,7 +2,7 @@
 mod FlashLoanReceiver {
     use starknet::ContractAddress;
     use amm::interfaces::ILoanReceiver::ILoanReceiver;
-    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
     #[storage]
     struct Storage {
@@ -26,7 +26,7 @@ mod FlashLoanReceiver {
         fn on_flash_loan(
             ref self: ContractState, token: ContractAddress, amount: u256, fee: u256,
         ) {
-            let dispatcher = IERC20Dispatcher { contract_address: token };
+            let dispatcher = ERC20ABIDispatcher { contract_address: token };
             dispatcher.approve(self.market_manager.read(), amount + fee);
         }
     }

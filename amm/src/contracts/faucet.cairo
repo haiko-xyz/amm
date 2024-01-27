@@ -33,7 +33,7 @@ mod Faucet {
     use super::IFaucet;
 
     // External imports.
-    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
     #[storage]
     struct Storage {
@@ -111,9 +111,9 @@ mod Faucet {
         }
 
         fn balance(self: @ContractState, token: ContractAddress) -> u256 {
-            let token_contract = IERC20Dispatcher { contract_address: token };
+            let token_contract = ERC20ABIDispatcher { contract_address: token };
             let contract = get_contract_address();
-            token_contract.balance_of(contract)
+            token_contract.balanceOf(contract)
         }
 
         fn is_claimed(self: @ContractState, address: ContractAddress) -> bool {
@@ -145,8 +145,8 @@ mod Faucet {
                 }
                 let token = self.tokens.read(index);
                 let amount = self.amounts.read(token);
-                let token_contract = IERC20Dispatcher { contract_address: token };
-                assert(token_contract.balance_of(contract) >= amount, 'INSUFF_BALANCE');
+                let token_contract = ERC20ABIDispatcher { contract_address: token };
+                assert(token_contract.balanceOf(contract) >= amount, 'INSUFF_BALANCE');
                 token_contract.transfer(caller, amount);
                 index += 1;
             };
@@ -172,7 +172,7 @@ mod Faucet {
         fn withdraw(ref self: ContractState, token: ContractAddress, amount: u256) {
             let owner = self.owner.read();
             assert(owner == get_caller_address(), 'NOT_OWNER');
-            let token_contract = IERC20Dispatcher { contract_address: token };
+            let token_contract = ERC20ABIDispatcher { contract_address: token };
             token_contract.transfer(owner, amount);
             self.emit(Event::Withdraw(Withdraw { token, amount }));
         }

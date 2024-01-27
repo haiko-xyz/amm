@@ -104,12 +104,12 @@ fn test_flash_loan() {
 
     // Borrow max amount of both assets. 
     set_contract_address(loan_receiver.contract_address);
-    let base_start = base_token.balance_of(loan_receiver.contract_address);
-    let quote_start = quote_token.balance_of(loan_receiver.contract_address);
+    let base_start = base_token.balanceOf(loan_receiver.contract_address);
+    let quote_start = quote_token.balanceOf(loan_receiver.contract_address);
     market_manager.flash_loan(base_token.contract_address, 487703376934855106884);
     market_manager.flash_loan(quote_token.contract_address, 487703376934855106884);
-    let base_end = base_token.balance_of(loan_receiver.contract_address);
-    let quote_end = quote_token.balance_of(loan_receiver.contract_address);
+    let base_end = base_token.balanceOf(loan_receiver.contract_address);
+    let quote_end = quote_token.balanceOf(loan_receiver.contract_address);
 
     // Check that fee is deducted.
     let base_fee_exp = 487703376934855107;
@@ -164,7 +164,7 @@ fn test_flash_loan_insufficient_balance() {
 // was able to borrow funds from the market and deposit the same funds as liquidity to the market.
 // Because the market implemented checks on its token balance before and after the loan, the borrower
 // was able to withdraw the borrowed funds without returning them. This is no longer possible as 
-// `flash_loan` now uses an explicit `transfer_from` operation to retrieve borrowed funds + fees.
+// `flash_loan` now uses an explicit `transferFrom` operation to retrieve borrowed funds + fees.
 #[test]
 #[should_panic(
     expected: (

@@ -588,8 +588,8 @@ fn _snapshot_balances(
     quote_token: ERC20ABIDispatcher,
     lp: ContractAddress,
 ) -> Balances {
-    let base = base_token.balance_of(lp);
-    let quote = quote_token.balance_of(lp);
+    let base = base_token.balanceOf(lp);
+    let quote = quote_token.balanceOf(lp);
 
     Balances { base, quote }
 }

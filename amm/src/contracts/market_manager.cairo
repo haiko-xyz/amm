@@ -34,10 +34,7 @@ mod MarketManager {
     };
 
     // External imports.
-    use openzeppelin::token::erc20::interface::{
-        IERC20Dispatcher, IERC20DispatcherTrait, IERC20MetadataDispatcher,
-        IERC20MetadataDispatcherTrait
-    };
+    use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
     use openzeppelin::token::erc721::erc721::ERC721Component;
     use openzeppelin::token::erc721::interface::{IERC721Dispatcher, IERC721DispatcherTrait};
     use openzeppelin::introspection::src5::SRC5Component;
@@ -52,6 +49,9 @@ mod MarketManager {
     impl ERC721Impl = ERC721Component::ERC721Impl<ContractState>;
     #[abi(embed_v0)]
     impl ERC721MetadataImpl = ERC721Component::ERC721MetadataImpl<ContractState>;
+    #[abi(embed_v0)]
+    impl ERC721CamelOnlyImpl = ERC721Component::ERC721CamelOnlyImpl<ContractState>;
+
     impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
     #[abi(embed_v0)]
     impl SRC5Impl = SRC5Component::SRC5Impl<ContractState>;
@@ -659,8 +659,8 @@ mod MarketManager {
             assert(start_limit < MAX_LIMIT_SHIFTED, 'StartLimitOF');
 
             // Check tokens exist.
-            IERC20MetadataDispatcher { contract_address: base_token }.name();
-            IERC20MetadataDispatcher { contract_address: quote_token }.name();
+            ERC20ABIDispatcher { contract_address: base_token }.name();
+            ERC20ABIDispatcher { contract_address: quote_token }.name();
 
             // Initialise market info, first checking the market does not already exist.
             // A market is uniquely identified by the base and quote token, market width, swap fee,
@@ -1066,11 +1066,11 @@ mod MarketManager {
             // Transfer withdrawn amounts to caller.
             let market_info = self.market_info.read(market_id);
             if base_amount > 0 {
-                let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
+                let base_token = ERC20ABIDispatcher { contract_address: market_info.base_token };
                 base_token.transfer(caller, base_amount);
             }
             if quote_amount > 0 {
-                let quote_token = IERC20Dispatcher { contract_address: market_info.quote_token };
+                let quote_token = ERC20ABIDispatcher { contract_address: market_info.quote_token };
                 quote_token.transfer(caller, quote_amount);
             }
 
@@ -1450,13 +1450,13 @@ mod MarketManager {
             let fees = fee_math::calc_fee(amount, fee_rate);
 
             // Snapshot balance before. Check sufficient tokens to finance loan.
-            let token_contract = IERC20Dispatcher { contract_address: token };
+            let token_contract = ERC20ABIDispatcher { contract_address: token };
             let contract = get_contract_address();
-            let balance = token_contract.balance_of(contract);
+            let balance = token_contract.balanceOf(contract);
             assert(amount <= balance, 'LoanInsufficient');
 
             // Transfer tokens to caller.
-            let token_contract = IERC20Dispatcher { contract_address: token };
+            let token_contract = ERC20ABIDispatcher { contract_address: token };
             let borrower = get_caller_address();
             token_contract.transfer(borrower, amount);
 
@@ -1466,7 +1466,7 @@ mod MarketManager {
                 .on_flash_loan(token, amount, fees);
 
             // Return balance with fees.
-            token_contract.transfer_from(borrower, contract, amount + fees);
+            token_contract.transferFrom(borrower, contract, amount + fees);
 
             // We do not update reserves so that fees can be collected via `sweep`.
 
@@ -1598,11 +1598,11 @@ mod MarketManager {
 
             // Initialise variables.
             let contract = get_contract_address();
-            let token_contract = IERC20Dispatcher { contract_address: token };
+            let token_contract = ERC20ABIDispatcher { contract_address: token };
 
             // Calculate amounts.
             let reserves = self.reserves.read(token);
-            let balance = token_contract.balance_of(contract);
+            let balance = token_contract.balanceOf(contract);
             let donations = self.donations.read(token);
             let dust = balance - reserves;
 
@@ -1804,37 +1804,37 @@ mod MarketManager {
                 // Transfer tokens from payer to contract.
                 let contract = get_contract_address();
                 if base_amount.val > 0 {
-                    let base_token = IERC20Dispatcher { contract_address: market_info.base_token };
+                    let base_token = ERC20ABIDispatcher { contract_address: market_info.base_token };
                     if base_amount.sign {
                         assert(
-                            base_token.balance_of(contract) >= base_amount.val,
+                            base_token.balanceOf(contract) >= base_amount.val,
                             'ModifyPosBaseTransfer'
                         );
                         base_token.transfer(caller, base_amount.val);
                     } else {
                         assert(
-                            base_token.balance_of(caller) >= base_amount.val,
+                            base_token.balanceOf(caller) >= base_amount.val,
                             'ModifyPosBaseTransferFrom'
                         );
-                        base_token.transfer_from(caller, contract, base_amount.val);
+                        base_token.transferFrom(caller, contract, base_amount.val);
                     }
                 }
                 if quote_amount.val > 0 {
-                    let quote_token = IERC20Dispatcher {
+                    let quote_token = ERC20ABIDispatcher {
                         contract_address: market_info.quote_token
                     };
                     if quote_amount.sign {
                         assert(
-                            quote_token.balance_of(contract) >= quote_amount.val,
+                            quote_token.balanceOf(contract) >= quote_amount.val,
                             'ModifyPosQuoteTransfer'
                         );
                         quote_token.transfer(caller, quote_amount.val);
                     } else {
                         assert(
-                            quote_token.balance_of(caller) >= quote_amount.val,
+                            quote_token.balanceOf(caller) >= quote_amount.val,
                             'ModifyPosQuoteTransferFrom'
                         );
-                        quote_token.transfer_from(caller, contract, quote_amount.val);
+                        quote_token.transferFrom(caller, contract, quote_amount.val);
                     }
                 }
             }
@@ -2012,9 +2012,9 @@ mod MarketManager {
 
             // Transfer tokens between payer, receiver and contract.
             let contract = get_contract_address();
-            IERC20Dispatcher { contract_address: in_token }
-                .transfer_from(caller, contract, amount_in);
-            IERC20Dispatcher { contract_address: out_token }.transfer(caller, amount_out);
+            ERC20ABIDispatcher { contract_address: in_token }
+                .transferFrom(caller, contract, amount_in);
+            ERC20ABIDispatcher { contract_address: out_token }.transfer(caller, amount_out);
 
             // Emit event.
             self

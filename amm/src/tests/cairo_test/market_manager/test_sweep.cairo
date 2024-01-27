@@ -49,7 +49,7 @@ fn test_sweep() {
     let (market_manager, base_token, quote_token) = before();
 
     // Snapshot alice starting balance.
-    let balance_start = base_token.balance_of(alice());
+    let balance_start = base_token.balanceOf(alice());
 
     // Transfer tokens into contract.
     set_contract_address(alice());
@@ -60,7 +60,7 @@ fn test_sweep() {
     let amount = market_manager.sweep(alice(), base_token.contract_address, 1000);
 
     // Snapshot alice ending balance.
-    let balance_end = base_token.balance_of(alice());
+    let balance_end = base_token.balanceOf(alice());
 
     // Check amounts recovered.
     assert(balance_start == balance_end, 'Sweep: user balance');

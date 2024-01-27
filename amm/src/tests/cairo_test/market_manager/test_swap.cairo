@@ -1258,8 +1258,8 @@ fn _snapshot_state(
     quote_token: ERC20ABIDispatcher,
 ) -> (MarketState, u256, u256, u128, u32, u256) {
     let market_state = market_manager.market_state(market_id);
-    let base_balance = base_token.balance_of(market_manager.contract_address);
-    let quote_balance = quote_token.balance_of(market_manager.contract_address);
+    let base_balance = base_token.balanceOf(market_manager.contract_address);
+    let quote_balance = quote_token.balanceOf(market_manager.contract_address);
     let liquidity = market_manager.liquidity(market_id);
     let limit = market_manager.curr_limit(market_id);
     let sqrt_price = market_manager.curr_sqrt_price(market_id);

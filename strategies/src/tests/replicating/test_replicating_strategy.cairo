@@ -3322,12 +3322,12 @@ fn _snapshot_state(
     quote_token: ERC20ABIDispatcher,
     lp: ContractAddress,
 ) -> Snapshot {
-    let lp_base_bal = base_token.balance_of(lp);
-    let lp_quote_bal = quote_token.balance_of(lp);
-    let strategy_base_bal = base_token.balance_of(strategy.contract_address);
-    let strategy_quote_bal = quote_token.balance_of(strategy.contract_address);
-    let market_base_bal = base_token.balance_of(market_manager.contract_address);
-    let market_quote_bal = quote_token.balance_of(market_manager.contract_address);
+    let lp_base_bal = base_token.balanceOf(lp);
+    let lp_quote_bal = quote_token.balanceOf(lp);
+    let strategy_base_bal = base_token.balanceOf(strategy.contract_address);
+    let strategy_quote_bal = quote_token.balanceOf(strategy.contract_address);
+    let market_base_bal = base_token.balanceOf(market_manager.contract_address);
+    let market_quote_bal = quote_token.balanceOf(market_manager.contract_address);
     let market_base_res = market_manager.reserves(base_token.contract_address);
     let market_quote_res = market_manager.reserves(quote_token.contract_address);
     let market_state = market_manager.market_state(market_id);

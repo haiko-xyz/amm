@@ -274,8 +274,8 @@ fn test_swap_fully_fills_bid_limit_orders() {
     // Snapshot balances and reserves before.
     let base_res_bef = market_manager.reserves(base_token.contract_address);
     let quote_res_bef = market_manager.reserves(quote_token.contract_address);
-    let base_bal_bef = base_token.balance_of(market_manager.contract_address);
-    let quote_bal_bef = quote_token.balance_of(market_manager.contract_address);
+    let base_bal_bef = base_token.balanceOf(market_manager.contract_address);
+    let quote_bal_bef = quote_token.balanceOf(market_manager.contract_address);
 
     // Swap sell.
     let (amount_in, amount_out, fees) = market_manager
@@ -292,8 +292,8 @@ fn test_swap_fully_fills_bid_limit_orders() {
     // Refetch balances and reserves, check they have changed as expected.
     let base_res_aft = market_manager.reserves(base_token.contract_address);
     let quote_res_aft = market_manager.reserves(quote_token.contract_address);
-    let base_bal_aft = base_token.balance_of(market_manager.contract_address);
-    let quote_bal_aft = quote_token.balance_of(market_manager.contract_address);
+    let base_bal_aft = base_token.balanceOf(market_manager.contract_address);
+    let quote_bal_aft = quote_token.balanceOf(market_manager.contract_address);
     assert(approx_eq(base_res_aft, base_res_bef + amount_in, 10), 'Swap bid: base reserves');
     assert(approx_eq(quote_res_aft, quote_res_bef - amount_out, 10), 'Swap bid: quote reserves');
     assert(approx_eq(base_bal_aft, base_bal_bef + amount_in, 10), 'Swap bid: base balances');
@@ -348,8 +348,8 @@ fn test_swap_fully_fills_ask_limit_orders() {
     // Snapshot balances before.
     let base_res_bef = market_manager.reserves(base_token.contract_address);
     let quote_res_bef = market_manager.reserves(quote_token.contract_address);
-    let base_bal_bef = base_token.balance_of(market_manager.contract_address);
-    let quote_bal_bef = quote_token.balance_of(market_manager.contract_address);
+    let base_bal_bef = base_token.balanceOf(market_manager.contract_address);
+    let quote_bal_bef = quote_token.balanceOf(market_manager.contract_address);
 
     // Swap buy.
     let (amount_in, amount_out, fees) = market_manager
@@ -366,8 +366,8 @@ fn test_swap_fully_fills_ask_limit_orders() {
     // Refetch balances and check they have changed as expected.
     let base_res_aft = market_manager.reserves(base_token.contract_address);
     let quote_res_aft = market_manager.reserves(quote_token.contract_address);
-    let base_bal_aft = base_token.balance_of(market_manager.contract_address);
-    let quote_bal_aft = quote_token.balance_of(market_manager.contract_address);
+    let base_bal_aft = base_token.balanceOf(market_manager.contract_address);
+    let quote_bal_aft = quote_token.balanceOf(market_manager.contract_address);
     assert(approx_eq(base_res_aft, base_res_bef - amount_out, 10), 'Swap ask: base reserves');
     assert(approx_eq(quote_res_aft, quote_res_bef + amount_in, 10), 'Swap ask: quote reserves');
     assert(approx_eq(base_bal_aft, base_bal_bef - amount_out, 10), 'Swap ask: base reserves');
@@ -402,8 +402,8 @@ fn test_create_and_collect_unfilled_bid_order() {
 
     // Snapshot user balance before.
     set_contract_address(alice());
-    let base_balance_before = base_token.balance_of(alice());
-    let quote_balance_before = quote_token.balance_of(alice());
+    let base_balance_before = base_token.balanceOf(alice());
+    let quote_balance_before = quote_token.balanceOf(alice());
 
     // Create limit order.
     let is_bid = true;
@@ -415,8 +415,8 @@ fn test_create_and_collect_unfilled_bid_order() {
     // Collect limit order.
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
 // // Snapshot balances after.
-// let user_base_bal_after = base_token.balance_of(alice());
-// let user_quote_bal_after = quote_token.balance_of(alice());
+// let user_base_bal_after = base_token.balanceOf(alice());
+// let user_quote_bal_after = quote_token.balanceOf(alice());
 // let order = market_manager.order(order_id);
 // let position_id = id::position_id(market_id, order.batch_id, limit, limit + market_info.width);
 // let (position_base, position_quote, _, _) = market_manager.amounts_inside_position(position_id);
@@ -442,8 +442,8 @@ fn test_create_and_collect_unfilled_ask_order() {
 
     // Snapshot user balance before.
     set_contract_address(alice());
-    let quote_balance_before = quote_token.balance_of(alice());
-    let base_balance_before = base_token.balance_of(alice());
+    let quote_balance_before = quote_token.balanceOf(alice());
+    let base_balance_before = base_token.balanceOf(alice());
 
     // Create limit order.
     let is_bid = false;
@@ -456,8 +456,8 @@ fn test_create_and_collect_unfilled_ask_order() {
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
 
     // Snapshot user balance after.
-    let base_balance_after = base_token.balance_of(alice());
-    let quote_balance_after = quote_token.balance_of(alice());
+    let base_balance_after = base_token.balanceOf(alice());
+    let quote_balance_after = quote_token.balanceOf(alice());
 
     // Fetch order and batch. Run checks.
     let order = market_manager.order(order_id);
@@ -477,8 +477,8 @@ fn test_create_and_collect_fully_filled_bid_order() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
     // Snapshot user balance before.
-    let base_bal_bef = base_token.balance_of(alice());
-    let quote_bal_bef = quote_token.balance_of(alice());
+    let base_bal_bef = base_token.balanceOf(alice());
+    let quote_bal_bef = quote_token.balanceOf(alice());
 
     // Create first limit order.
     set_contract_address(alice());
@@ -511,8 +511,8 @@ fn test_create_and_collect_fully_filled_bid_order() {
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
 
     // Snapshot user balance after.
-    let base_bal_aft = base_token.balance_of(alice());
-    let quote_bal_aft = quote_token.balance_of(alice());
+    let base_bal_aft = base_token.balanceOf(alice());
+    let quote_bal_aft = quote_token.balanceOf(alice());
 
     // Fetch limit order, batch and position.
     let amount_share = math::mul_div(amount_in, liq_1.into(), (liq_1 + liq_2).into(), false);
@@ -538,8 +538,8 @@ fn test_create_and_collect_fully_filled_ask_order() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
     // Snapshot user balance before.
-    let quote_bal_bef = quote_token.balance_of(alice());
-    let base_bal_bef = base_token.balance_of(alice());
+    let quote_bal_bef = quote_token.balanceOf(alice());
+    let base_bal_bef = base_token.balanceOf(alice());
 
     // Create first limit order.
     set_contract_address(alice());
@@ -572,8 +572,8 @@ fn test_create_and_collect_fully_filled_ask_order() {
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
 
     // Snapshot user balance after.
-    let quote_bal_aft = quote_token.balance_of(alice());
-    let base_bal_aft = base_token.balance_of(alice());
+    let quote_bal_aft = quote_token.balanceOf(alice());
+    let base_bal_aft = base_token.balanceOf(alice());
 
     // Fetch limit order, batch and position.
     let amount_share = math::mul_div(amount_in, liq_1.into(), (liq_1 + liq_2).into(), false);
@@ -599,8 +599,8 @@ fn test_create_and_collect_partially_filled_bid_order() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
     // Snapshot user balance before.
-    let base_balance_before = base_token.balance_of(bob());
-    let quote_balance_before = quote_token.balance_of(bob());
+    let base_balance_before = base_token.balanceOf(bob());
+    let quote_balance_before = quote_token.balanceOf(bob());
 
     // Create first limit order.
     set_contract_address(bob());
@@ -639,8 +639,8 @@ fn test_create_and_collect_partially_filled_bid_order() {
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
 
     // Snapshot user balance after.
-    let base_balance_after = base_token.balance_of(bob());
-    let quote_balance_after = quote_token.balance_of(bob());
+    let base_balance_after = base_token.balanceOf(bob());
+    let quote_balance_after = quote_token.balanceOf(bob());
 
     // Get amounts inside order 2.
     let (base_amount_2, quote_amount_2) = market_manager
@@ -680,8 +680,8 @@ fn test_create_and_collect_partially_filled_ask_order() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
     // Snapshot user balance before.
-    let base_balance_before = base_token.balance_of(bob());
-    let quote_balance_before = quote_token.balance_of(bob());
+    let base_balance_before = base_token.balanceOf(bob());
+    let quote_balance_before = quote_token.balanceOf(bob());
 
     // Create first limit order.
     set_contract_address(bob());
@@ -720,8 +720,8 @@ fn test_create_and_collect_partially_filled_ask_order() {
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
 
     // Snapshot user balance after.
-    let quote_balance_after = quote_token.balance_of(bob());
-    let base_balance_after = base_token.balance_of(bob());
+    let quote_balance_after = quote_token.balanceOf(bob());
+    let base_balance_after = base_token.balanceOf(bob());
 
     // Get amounts inside order 2.
     let (base_amount_2, quote_amount_2) = market_manager
@@ -825,8 +825,8 @@ fn test_partially_filled_bid_correctly_unfills() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
     // Snapshot user balance before.
-    let base_balance_before = base_token.balance_of(bob());
-    let quote_balance_before = quote_token.balance_of(bob());
+    let base_balance_before = base_token.balanceOf(bob());
+    let quote_balance_before = quote_token.balanceOf(bob());
 
     // Create limit order.
     set_contract_address(bob());
@@ -855,8 +855,8 @@ fn test_partially_filled_bid_correctly_unfills() {
         );
 
     // Snapshot user balance after.
-    let base_balance_after = base_token.balance_of(bob());
-    let quote_balance_after = quote_token.balance_of(bob());
+    let base_balance_after = base_token.balanceOf(bob());
+    let quote_balance_after = quote_token.balanceOf(bob());
 
     // Collect limit order.
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
@@ -891,8 +891,8 @@ fn test_partially_filled_ask_correctly_unfills() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
     // Snapshot user balance before.
-    let base_balance_before = base_token.balance_of(bob());
-    let quote_balance_before = quote_token.balance_of(bob());
+    let base_balance_before = base_token.balanceOf(bob());
+    let quote_balance_before = quote_token.balanceOf(bob());
 
     // Create first limit order.
     set_contract_address(bob());
@@ -921,8 +921,8 @@ fn test_partially_filled_ask_correctly_unfills() {
         );
 
     // Snapshot user balance after.
-    let quote_balance_after = quote_token.balance_of(bob());
-    let base_balance_after = base_token.balance_of(bob());
+    let quote_balance_after = quote_token.balanceOf(bob());
+    let base_balance_after = base_token.balanceOf(bob());
 
     // Collect limit order.
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
@@ -1216,10 +1216,10 @@ fn test_limit_orders_misc_actions() {
     // Snapshot balances.
     let market_base_start = market_manager.reserves(base_token.contract_address);
     let market_quote_start = market_manager.reserves(quote_token.contract_address);
-    let alice_base_start = base_token.balance_of(alice());
-    let alice_quote_start = quote_token.balance_of(alice());
-    let bob_base_start = base_token.balance_of(bob());
-    let bob_quote_start = quote_token.balance_of(bob());
+    let alice_base_start = base_token.balanceOf(alice());
+    let alice_quote_start = quote_token.balanceOf(alice());
+    let bob_base_start = base_token.balanceOf(bob());
+    let bob_quote_start = quote_token.balanceOf(bob());
 
     // Swap 1: Sell to fill both bid orders at -900 and partially fill one at -1000.
     set_contract_address(charlie());
@@ -1241,10 +1241,10 @@ fn test_limit_orders_misc_actions() {
     let batch_neg_1000 = market_manager.batch(order_bid_alice_n1000.batch_id);
     let mut market_base_reserves = market_manager.reserves(base_token.contract_address);
     let mut market_quote_reserves = market_manager.reserves(quote_token.contract_address);
-    let mut alice_base_balance = base_token.balance_of(alice());
-    let mut alice_quote_balance = quote_token.balance_of(alice());
-    let mut bob_base_balance = base_token.balance_of(bob());
-    let mut bob_quote_balance = quote_token.balance_of(bob());
+    let mut alice_base_balance = base_token.balanceOf(alice());
+    let mut alice_quote_balance = quote_token.balanceOf(alice());
+    let mut bob_base_balance = base_token.balanceOf(bob());
+    let mut bob_quote_balance = quote_token.balanceOf(bob());
 
     // Check state.
     assert(approx_eq(amount_in_1, to_e18(1), 10), 'Amount in 1');

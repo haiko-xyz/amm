@@ -87,8 +87,8 @@ fn test_mint_position() {
     let collection = ERC721ABIDispatcher { contract_address: market_manager.contract_address };
     let position_info = market_manager.ERC721_position_info(position_id);
     let market_info = market_manager.market_info(market_id);
-    assert(collection.balance_of(alice()) == 1, 'ERC721 balance');
-    assert(collection.owner_of(position_id.into()) == alice(), 'ERC721 owner');
+    assert(collection.balanceOf(alice()) == 1, 'ERC721 balance');
+    assert(collection.ownerOf(position_id.into()) == alice(), 'ERC721 owner');
     assert(position_info.base_token == base_token.contract_address, 'Base token');
     assert(position_info.quote_token == quote_token.contract_address, 'Quote token');
     assert(position_info.lower_limit == lower_limit, 'Lower limit');
@@ -164,8 +164,8 @@ fn test_burn_position() {
     // Fetch ERC721 position and check info.
     let collection = ERC721ABIDispatcher { contract_address: market_manager.contract_address };
     let position_info = market_manager.ERC721_position_info(position_id);
-    assert(collection.balance_of(alice()) == 1, 'ERC721 balance');
-    assert(collection.owner_of(position_id.into()) == alice(), 'ERC721 owner');
+    assert(collection.balanceOf(alice()) == 1, 'ERC721 balance');
+    assert(collection.ownerOf(position_id.into()) == alice(), 'ERC721 owner');
     assert(position_info.liquidity == 0, 'Liquidity');
     assert(position_info.base_amount == 0, 'Base amount');
     assert(position_info.quote_amount == 0, 'Quote amount');
@@ -174,7 +174,7 @@ fn test_burn_position() {
     market_manager.burn(position_id);
 
     // Check position was removed.
-    assert(collection.balance_of(alice()) == 0, 'ERC721 balance');
+    assert(collection.balanceOf(alice()) == 0, 'ERC721 balance');
 }
 
 #[test]
@@ -209,7 +209,7 @@ fn test_burn_position_allowed_by_approved() {
     market_manager.burn(position_id);
 
     // Check position was removed.
-    assert(collection.balance_of(alice()) == 0, 'ERC721 balance');
+    assert(collection.balanceOf(alice()) == 0, 'ERC721 balance');
 }
 
 #[test]
