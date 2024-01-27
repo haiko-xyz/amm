@@ -13,7 +13,7 @@ mod FeeController {
         self.swap_fee_rate.write(swap_fee_rate);
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl FeeController of IFeeController<ContractState> {
         fn swap_fee_rate(self: @ContractState) -> u16 {
             self.swap_fee_rate.read()

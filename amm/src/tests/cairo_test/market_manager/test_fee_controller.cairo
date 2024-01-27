@@ -42,7 +42,7 @@ fn before(
     let market_manager = deploy_market_manager(owner);
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
 
@@ -77,7 +77,7 @@ fn before(
 #[available_gas(15000000000)]
 fn test_fee_controller() {
     let fee_rate = 30;
-    let (market_manager, base_token, quote_token, market_id, fee_controller) = before(fee_rate);
+    let (market_manager, _base_token, _quote_token, market_id, _fee_controller) = before(fee_rate);
 
     // Create position.
     let lower_limit = OFFSET - 1000;
@@ -97,7 +97,7 @@ fn test_fee_controller() {
         Option::None(()),
         Option::None(()),
     );
-    let (amount_in, amount_out, fees) = swap(market_manager, params);
+    let (_amount_in, _amount_out, fees) = swap(market_manager, params);
 
     // Check fees.
     assert(fees == 3000000000000000, 'Fee controller fees');
@@ -108,7 +108,7 @@ fn test_fee_controller() {
 #[available_gas(15000000000)]
 fn test_fee_controller_fee_rate_overflow() {
     let fee_rate = 10001;
-    let (market_manager, base_token, quote_token, market_id, fee_controller) = before(fee_rate);
+    let (market_manager, _base_token, _quote_token, market_id, _fee_controller) = before(fee_rate);
 
     // Create position.
     let lower_limit = OFFSET - 1000;

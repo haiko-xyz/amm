@@ -41,7 +41,7 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
     let market_manager = deploy_market_manager(owner);
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
 

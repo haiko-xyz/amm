@@ -74,7 +74,9 @@ mod ManualStrategy {
     use amm::types::i128::{I128Trait, i128};
 
     // External imports.
-    use openzeppelin::token::erc20::interface::{ERC20ABI, ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
+    use openzeppelin::token::erc20::interface::{
+        ERC20ABI, ERC20ABIDispatcher, ERC20ABIDispatcherTrait
+    };
 
     #[storage]
     struct Storage {
@@ -134,7 +136,7 @@ mod ManualStrategy {
         }
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl Strategy of IStrategy<ContractState> {
         // Get market manager contract address
         fn market_manager(self: @ContractState) -> ContractAddress {
@@ -237,7 +239,6 @@ mod ManualStrategy {
 
             // Fetch existing state.
             let market_id = self.market_id.read();
-            let width = market_manager.width(market_id);
             let mut base_reserves = self.base_reserves.read();
             let mut quote_reserves = self.quote_reserves.read();
             let mut bid = self.bid.read();
@@ -309,7 +310,7 @@ mod ManualStrategy {
         }
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl ManualStrategy of IManualStrategy<ContractState> {
         // Initialise strategy. Only callable by contract owner.
         //

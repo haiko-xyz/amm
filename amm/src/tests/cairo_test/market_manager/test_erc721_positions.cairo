@@ -40,7 +40,7 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
     let market_manager = deploy_market_manager(owner);
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
 
@@ -106,7 +106,7 @@ fn test_mint_position() {
 #[should_panic(expected: ('NotOwnerOrNull', 'ENTRYPOINT_FAILED',))]
 #[available_gas(100000000)]
 fn test_mint_empty_position() {
-    let (market_manager, base_token, quote_token, market_id) = before();
+    let (market_manager, _base_token, _quote_token, market_id) = before();
 
     // Mint non-existent position.
     let lower_limit = OFFSET - 1000;
@@ -119,7 +119,7 @@ fn test_mint_empty_position() {
 #[should_panic(expected: ('NotOwnerOrNull', 'ENTRYPOINT_FAILED',))]
 #[available_gas(100000000)]
 fn test_mint_position_not_owner() {
-    let (market_manager, base_token, quote_token, market_id) = before();
+    let (market_manager, _base_token, _quote_token, market_id) = before();
 
     // Create position
     set_contract_address(alice());
@@ -142,7 +142,7 @@ fn test_mint_position_not_owner() {
 #[test]
 #[available_gas(100000000)]
 fn test_burn_position() {
-    let (market_manager, base_token, quote_token, market_id) = before();
+    let (market_manager, _base_token, _quote_token, market_id) = before();
 
     // Create position
     let lower_limit = OFFSET - 1000;
@@ -180,7 +180,7 @@ fn test_burn_position() {
 #[test]
 #[available_gas(100000000)]
 fn test_burn_position_allowed_by_approved() {
-    let (market_manager, base_token, quote_token, market_id) = before();
+    let (market_manager, _base_token, _quote_token, market_id) = before();
 
     // Create position
     set_contract_address(alice());
@@ -216,7 +216,7 @@ fn test_burn_position_allowed_by_approved() {
 #[should_panic(expected: ('NotApprovedOrOwner', 'ENTRYPOINT_FAILED',))]
 #[available_gas(100000000)]
 fn test_burn_position_not_owner() {
-    let (market_manager, base_token, quote_token, market_id) = before();
+    let (market_manager, _base_token, _quote_token, market_id) = before();
 
     // Create position
     set_contract_address(alice());
@@ -245,7 +245,7 @@ fn test_burn_position_not_owner() {
 #[should_panic(expected: ('NotCleared', 'ENTRYPOINT_FAILED',))]
 #[available_gas(100000000)]
 fn test_burn_position_not_cleared() {
-    let (market_manager, base_token, quote_token, market_id) = before();
+    let (market_manager, _base_token, _quote_token, market_id) = before();
 
     // Create position
     let lower_limit = OFFSET - 1000;
@@ -268,7 +268,7 @@ fn test_burn_position_not_cleared() {
 #[should_panic(expected: ('ERC721: invalid token ID', 'ENTRYPOINT_FAILED',))]
 #[available_gas(100000000)]
 fn test_burn_position_nonexistent_token() {
-    let (market_manager, base_token, quote_token, market_id) = before();
+    let (market_manager, _base_token, _quote_token, _market_id) = before();
 
     market_manager.burn(1);
 }

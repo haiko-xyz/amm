@@ -21,6 +21,11 @@ mod Quoter {
 
     // Third party imports.
     use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
+    use openzeppelin::upgrades::UpgradeableComponent;
+
+    component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
+
+    impl InternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
 
     ////////////////////////////////
     // STORAGE
@@ -30,6 +35,19 @@ mod Quoter {
     struct Storage {
         owner: ContractAddress,
         market_manager: ContractAddress,
+        #[substorage(v0)]
+        upgradeable: UpgradeableComponent::Storage,
+    }
+
+    ////////////////////////////////
+    // EVENT
+    ////////////////////////////////
+
+    #[event]
+    #[derive(Drop, starknet::Event)]
+    enum Event {
+        #[flat]
+        UpgradeableEvent: UpgradeableComponent::Event
     }
 
     ////////////////////////////////
@@ -51,7 +69,7 @@ mod Quoter {
         }
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl Quoter of IQuoter<ContractState> {
         // Get owner.
         //
@@ -387,15 +405,10 @@ mod Quoter {
             self.assert_only_owner();
             self.market_manager.write(market_manager);
         }
+    }
 
-        // Upgrade contract class.
-        // Callable by owner only.
-        //
-        // # Arguments
-        // # `new_class_hash` - New class hash of the contract
-        fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
-            self.assert_only_owner();
-            replace_class_syscall(new_class_hash);
-        }
+    #[external(v0)]
+    fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+        self.upgradeable._upgrade(new_class_hash);
     }
 }

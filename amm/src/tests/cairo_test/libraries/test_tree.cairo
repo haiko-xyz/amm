@@ -12,7 +12,7 @@ use amm::tests::common::params;
 use amm::tests::cairo_test::helpers::token::deploy_token;
 use amm::tests::cairo_test::helpers::market_manager::{deploy_market_manager, create_market};
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
-use amm::tests::common::contracts::tree_contract::{
+use amm::tests::mocks::tree_contract::{
     TestTreeContract, ITestTreeContractDispatcher, ITestTreeContractDispatcherTrait
 };
 
@@ -34,7 +34,7 @@ fn before() -> (
     let market_manager = deploy_market_manager(params::owner());
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = params::default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = params::default_token_params();
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
 
@@ -78,7 +78,7 @@ fn setup_test_cases(tree_contract: ITestTreeContractDispatcher, market_id: felt2
 #[test]
 #[available_gas(2000000000)]
 fn test_get_and_flip_bit() {
-    let (market_manager, base_token, quote_token, market_id, tree_contract) = before();
+    let (_market_manager, _base_token, _quote_token, market_id, tree_contract) = before();
 
     let mut limit = 1;
     assert(tree_contract.get(market_id, 1, limit) == false, 'get(1, init)');
@@ -114,7 +114,7 @@ fn test_get_and_flip_bit() {
 #[test]
 #[available_gas(2000000000)]
 fn test_next_limit_buy_cases_width_1() {
-    let (market_manager, base_token, quote_token, market_id, tree_contract) = before();
+    let (_market_manager, _base_token, _quote_token, market_id, tree_contract) = before();
 
     // Setup some initial test cases.
     setup_test_cases(tree_contract, market_id);
@@ -148,7 +148,7 @@ fn test_next_limit_buy_cases_width_1() {
 #[test]
 #[available_gas(2000000000)]
 fn test_next_limit_sell_cases_width_1() {
-    let (market_manager, base_token, quote_token, market_id, tree_contract) = before();
+    let (_market_manager, _base_token, _quote_token, market_id, tree_contract) = before();
 
     // Setup some initial test cases.
     setup_test_cases(tree_contract, market_id);

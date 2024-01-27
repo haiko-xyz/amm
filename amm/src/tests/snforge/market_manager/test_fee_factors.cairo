@@ -59,7 +59,7 @@ fn before() -> (IMarketManagerDispatcher, felt252, ERC20ABIDispatcher, ERC20ABID
     let market_manager = deploy_market_manager(class, owner());
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let erc20_class = declare_token();
     let base_token = deploy_token(erc20_class, base_token_params);
     let quote_token = deploy_token(erc20_class, quote_token_params);
@@ -121,7 +121,7 @@ fn test_fee_factor_invariants(
     swap9_amount: u32,
     swap10_amount: u32,
 ) {
-    let (market_manager, market_id, base_token, quote_token) = before();
+    let (market_manager, market_id, _base_token, _quote_token) = before();
 
     // Initialise position params.
     let pos1_lower_limit = OFFSET - 32768 + min(pos1_limit1, pos1_limit2).into();
@@ -201,7 +201,7 @@ fn test_fee_factor_invariants(
         }
 
         // Snapshot state before.
-        let (market_state_bef, position_states_bef) = snapshot_all(
+        let (_market_state_bef, position_states_bef) = snapshot_all(
             market_manager, market_id, position_params
         );
 
@@ -275,7 +275,7 @@ fn test_fee_factor_invariants(
         let (lower_limit, upper_limit, _, rem_liq) = *position_params.at(m);
 
         // Snapshot state before.
-        let (before_mkt, before_pos) = snapshot_single(
+        let (_before_mkt, before_pos) = snapshot_single(
             market_manager, market_id, lower_limit, upper_limit
         );
 
@@ -315,16 +315,19 @@ fn test_fee_factor_invariants(
             // Execute swap to randomise market conditions.
             let amount = *swap_amounts.at(m);
             let is_buy = amount % 2 == 0;
-            let mut params = swap_params(
-                alice(),
-                market_id,
-                is_buy,
-                true,
-                amount.into(),
-                Option::None(()),
-                Option::None(()),
-                Option::None(())
-            );
+            if amount != 0 {
+                let mut params = swap_params(
+                    alice(),
+                    market_id,
+                    is_buy,
+                    true,
+                    amount.into(),
+                    Option::None(()),
+                    Option::None(()),
+                    Option::None(())
+                );
+                swap(market_manager, params);
+            }
         }
 
         m += 1;
@@ -358,7 +361,7 @@ fn snapshot_all(
         }
 
         // Fetch position params.
-        let (lower_limit, upper_limit, liquidity, _) = *position_params.at(i);
+        let (lower_limit, upper_limit, _, _) = *position_params.at(i);
 
         // Fetch position.
         let position = market_manager.position(market_id, alice().into(), lower_limit, upper_limit);

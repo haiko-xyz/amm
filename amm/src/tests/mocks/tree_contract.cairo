@@ -16,17 +16,16 @@ mod TestTreeContract {
     use amm::libraries::tree;
     use amm::contracts::market_manager::MarketManager;
     use amm::contracts::market_manager::MarketManager::{
-        ContractState as MMContractState,
-        limit_tree_l0::InternalContractMemberStateTrait as LimittreeL0StateTrait,
-        limit_tree_l1::InternalContractMemberStateTrait as LimittreeL1StateTrait,
-        limit_tree_l2::InternalContractMemberStateTrait as LimittreeL2StateTrait,
+        ContractState as MMContractState, // limit_tree_l0::InternalContractMemberStateTrait as LimittreeL0StateTrait,
+    // limit_tree_l1::InternalContractMemberStateTrait as LimittreeL1StateTrait,
+    // limit_tree_l2::InternalContractMemberStateTrait as LimittreeL2StateTrait,
     };
     use super::ITestTreeContract;
 
     #[storage]
     struct Storage {}
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl TestTreeContract of ITestTreeContract<ContractState> {
         fn get(self: @ContractState, market_id: felt252, width: u32, limit: u32) -> bool {
             let state: MMContractState = MarketManager::unsafe_new_contract_state();

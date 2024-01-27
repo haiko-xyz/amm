@@ -14,7 +14,7 @@ use amm::tests::cairo_test::helpers::market_manager::{
 use amm::tests::cairo_test::helpers::{
     token::{deploy_token, fund, approve}, quoter::deploy_quoter, strategy::deploy_manual_strategy,
 };
-use amm::contracts::test::manual_strategy::{
+use amm::contracts::mocks::manual_strategy::{
     ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
 };
 use amm::tests::common::params::{
@@ -59,7 +59,7 @@ fn before() -> (
     let market_manager = deploy_market_manager(owner);
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
 
@@ -174,7 +174,7 @@ fn swap_test_cases() -> Array<SwapCase> {
 #[test]
 #[available_gas(15000000000)]
 fn test_quote_with_strategy() {
-    let (market_manager, base_token, quote_token, market_id, quoter, strategy) = before();
+    let (market_manager, _base_token, _quote_token, market_id, quoter, strategy) = before();
 
     // Iterate through swap test cases.
     set_contract_address(alice());

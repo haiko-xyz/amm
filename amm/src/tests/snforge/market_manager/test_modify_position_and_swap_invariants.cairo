@@ -72,7 +72,7 @@ fn before(
     let market_manager = deploy_market_manager(manager, owner());
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
 
     let base_token = deploy_token(token, base_token_params);
     let quote_token = deploy_token(token, quote_token_params);
@@ -224,8 +224,6 @@ fn test_invariants_set1(
     );
 
     // Snapshot start state and initialise fee counters.
-    let mut base_protocol_fees = 0;
-    let mut quote_protocol_fees = 0;
     let start_bal = _snapshot_balances(market_manager, base_token, quote_token, alice());
 
     // Place positions.
@@ -286,7 +284,7 @@ fn test_invariants_set1(
                 Option::None(()),
                 Option::None(())
             );
-            let (amount_in, amount_out, fees) = swap(market_manager, params);
+            swap(market_manager, params);
 
             // Snapshot end state.
             let market_state_end = market_manager.market_state(market_id);
@@ -526,7 +524,7 @@ fn test_invariants_set3(
                 Option::None(()),
                 Option::None(())
             );
-            let (amount_in, amount_out, fees) = swap(market_manager, params);
+            let (_amount_in, amount_out, _fees) = swap(market_manager, params);
             // Swap back out.
             params.amount = amount_out;
             params.is_buy = !is_buy;

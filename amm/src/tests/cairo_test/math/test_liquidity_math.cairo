@@ -78,7 +78,6 @@ fn test_add_delta_underflow() {
 /////////////////////////////////////
 
 fn test_cases_set1() -> Span<TestCase> {
-    let one: u128 = 10000000000000000000000000000;
     let cases: Span<TestCase> = array![
         TestCase {
             lower_sqrt_price: encode_sqrt_price(1, 1),

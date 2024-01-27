@@ -52,7 +52,7 @@ mod StorePackingContract {
     #[constructor]
     fn constructor(ref self: ContractState,) {}
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl StorePackingContract of IStorePackingContract<ContractState> {
         ////////////////////////////////
         // VIEW FUNCTIONS

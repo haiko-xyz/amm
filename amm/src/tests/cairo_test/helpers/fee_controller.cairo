@@ -3,7 +3,7 @@ use core::result::ResultTrait;
 use starknet::deploy_syscall;
 use starknet::ContractAddress;
 
-use amm::tests::common::contracts::fee_controller::FeeController;
+use amm::tests::mocks::fee_controller::FeeController;
 use amm::tests::common::params::{fee_controller_params, FeeControllerParams};
 use amm::interfaces::IFeeController::{
     IFeeController, IFeeControllerDispatcher, IFeeControllerDispatcherTrait

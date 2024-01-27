@@ -13,9 +13,9 @@ use amm::libraries::constants::{ONE, MAX_SQRT_PRICE};
 use amm::contracts::market_manager::MarketManager::ContractState;
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::contracts::market_manager::MarketManager::{
-    limit_info::InternalContractMemberStateTrait as LimitInfoStateTrait,
-    batches::InternalContractMemberStateTrait as BatchStateTrait,
-    positions::InternalContractMemberStateTrait as PositionStateTrait,
+    __member_module_limit_info::InternalContractMemberStateTrait as LimitInfoStateTrait,
+    __member_module_batches::InternalContractMemberStateTrait as BatchStateTrait,
+    __member_module_positions::InternalContractMemberStateTrait as PositionStateTrait,
 };
 use amm::contracts::market_manager::MarketManager::MarketManagerInternalTrait;
 use amm::types::core::{MarketState, PositionInfo};

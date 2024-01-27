@@ -39,7 +39,7 @@ fn before(
     let market_manager = deploy_market_manager(owner);
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
 
@@ -69,7 +69,7 @@ fn before(
 #[test]
 #[available_gas(1000000000)]
 fn test_reinitialise_fee_factor() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
     // Create position
     let lower_limit = OFFSET - 1000;
@@ -95,7 +95,7 @@ fn test_reinitialise_fee_factor() {
         Option::None(()),
         Option::None(()),
     );
-    let (amount_in, amount_out, fee) = swap(market_manager, swap_params);
+    swap(market_manager, swap_params);
 
     // Swap back.
     is_buy = true;

@@ -150,7 +150,6 @@ trait IMarketManager<TContractState> {
     // Returns information about ERC721 position.
     fn ERC721_position_info(self: @TContractState, token_id: felt252) -> ERC721PositionInfo;
 
-
     ////////////////////////////////
     // EXTERNAL
     ////////////////////////////////
@@ -469,11 +468,4 @@ trait IMarketManager<TContractState> {
     // * `market_id` - market id'
     // * `new_configs` - new market configs
     fn set_market_configs(ref self: TContractState, market_id: felt252, new_configs: MarketConfigs);
-
-    // Upgrade contract class.
-    // Callable by owner only.
-    //
-    // # Arguments
-    // * `new_class_hash` - new class hash of contract
-    fn upgrade(ref self: TContractState, new_class_hash: ClassHash);
 }

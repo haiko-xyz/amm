@@ -34,7 +34,7 @@ fn before() -> (
     let market_manager = deploy_market_manager(owner);
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
 
@@ -66,7 +66,7 @@ fn before() -> (
 #[test]
 #[available_gas(15000000000)]
 fn test_amounts_inside_position_array() {
-    let (market_manager, base_token, quote_token, market_id, quoter) = before();
+    let (market_manager, _base_token, _quote_token, market_id, quoter) = before();
 
     // Mint position 1.
     let params_1 = modify_position_params(

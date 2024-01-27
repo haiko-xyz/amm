@@ -29,7 +29,7 @@ fn before() -> (IMarketManagerDispatcher, felt252, ERC20ABIDispatcher, ERC20ABID
     let market_manager = deploy_market_manager(class, owner());
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let erc20_class = declare_token();
     let base_token = deploy_token(erc20_class, base_token_params);
     let quote_token = deploy_token(erc20_class, quote_token_params);
@@ -64,15 +64,13 @@ fn before() -> (IMarketManagerDispatcher, felt252, ERC20ABIDispatcher, ERC20ABID
 //  4. Removing liquidity - should fire `ModifyPosition`
 #[test]
 fn test_modify_position_events() {
-    let (market_manager, market_id, base_token, quote_token) = before();
+    let (market_manager, market_id, _base_token, _quote_token) = before();
 
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
 
     let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
 
     // Creating a position should fire an event.
-    let curr_limit = OFFSET;
-    let width = 1;
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
     let mut liquidity_delta = I128Trait::new(to_e18_u128(10000), false);

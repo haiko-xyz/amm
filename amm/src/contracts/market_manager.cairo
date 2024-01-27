@@ -38,12 +38,14 @@ mod MarketManager {
     use openzeppelin::token::erc721::erc721::ERC721Component;
     use openzeppelin::token::erc721::interface::{IERC721Dispatcher, IERC721DispatcherTrait};
     use openzeppelin::introspection::src5::SRC5Component;
+    use openzeppelin::upgrades::UpgradeableComponent;
 
     // use debug::PrintTrait;
     // use snforge_std::PrintTrait;
 
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
+    component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
 
     #[abi(embed_v0)]
     impl ERC721Impl = ERC721Component::ERC721Impl<ContractState>;
@@ -55,6 +57,9 @@ mod MarketManager {
     impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
     #[abi(embed_v0)]
     impl SRC5Impl = SRC5Component::SRC5Impl<ContractState>;
+
+    impl InternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
+
 
     ////////////////////////////////
     // STORAGE
@@ -98,6 +103,8 @@ mod MarketManager {
         erc721: ERC721Component::Storage,
         #[substorage(v0)]
         src5: SRC5Component::Storage,
+        #[substorage(v0)]
+        upgradeable: UpgradeableComponent::Storage,
     }
 
     ////////////////////////////////
@@ -126,6 +133,8 @@ mod MarketManager {
         ERC721Event: ERC721Component::Event,
         #[flat]
         SRC5Event: SRC5Component::Event,
+        #[flat]
+        UpgradeableEvent: UpgradeableComponent::Event
     }
 
     #[derive(Drop, starknet::Event)]
@@ -360,7 +369,7 @@ mod MarketManager {
         }
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl MarketManager of IMarketManager<ContractState> {
         ////////////////////////////////
         // VIEW FUNCTIONS
@@ -1721,17 +1730,11 @@ mod MarketManager {
                     )
                 );
         }
+    }
 
-        // Upgrade contract class.
-        // Callable by owner only.
-        // TODO: add timelock
-        //
-        // # Arguments
-        // * `new_class_hash` - new class hash of contract
-        fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
-            self.assert_only_owner();
-            replace_class_syscall(new_class_hash);
-        }
+    #[external(v0)]
+    fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+        self.upgradeable._upgrade(new_class_hash);
     }
 
     #[generate_trait]
@@ -1763,7 +1766,6 @@ mod MarketManager {
         ) -> (i256, i256, u256, u256) {
             // Fetch market info and caller.
             let market_info = self.market_info.read(market_id);
-            let market_state = self.market_state.read(market_id);
             let valid_limits = self.market_configs.read(market_id).limits.value;
             let caller = get_caller_address();
 
@@ -1804,7 +1806,9 @@ mod MarketManager {
                 // Transfer tokens from payer to contract.
                 let contract = get_contract_address();
                 if base_amount.val > 0 {
-                    let base_token = ERC20ABIDispatcher { contract_address: market_info.base_token };
+                    let base_token = ERC20ABIDispatcher {
+                        contract_address: market_info.base_token
+                    };
                     if base_amount.sign {
                         assert(
                             base_token.balanceOf(contract) >= base_amount.val,
@@ -1913,9 +1917,6 @@ mod MarketManager {
             if deadline.is_some() {
                 assert(deadline.unwrap() >= get_block_timestamp(), 'Expired');
             }
-
-            // Snapshot sqrt price before swap.
-            let curr_sqrt_price_start = market_state.curr_sqrt_price;
 
             // Execute strategy if it exists.
             // Strategy positions are updated before the swap occurs.

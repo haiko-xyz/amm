@@ -8,7 +8,7 @@ use amm::libraries::math::{fee_math, price_math, liquidity_math};
 use amm::types::i128::{I128Trait, I128Zeroable};
 use amm::types::i256::{I256Trait, I256Zeroable};
 use amm::contracts::market_manager::MarketManager;
-use amm::contracts::test::manual_strategy::{
+use amm::contracts::mocks::manual_strategy::{
     ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
 };
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
@@ -47,7 +47,7 @@ fn _before(
     let market_manager = deploy_market_manager(class, owner());
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let erc20_class = declare_token();
     let base_token = deploy_token(erc20_class, base_token_params);
     let quote_token = deploy_token(erc20_class, quote_token_params);
@@ -134,7 +134,7 @@ fn before_strategy() -> (
 
 #[test]
 fn test_swap_events_no_strategy_or_limit_orders_filled() {
-    let (market_manager, market_id, base_token, quote_token) = before();
+    let (market_manager, market_id, _base_token, _quote_token) = before();
 
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
 
@@ -180,7 +180,7 @@ fn test_swap_events_no_strategy_or_limit_orders_filled() {
 
 #[test]
 fn test_swap_events_no_strategy_limit_orders_fully_filled() {
-    let (market_manager, market_id, base_token, quote_token) = before();
+    let (market_manager, market_id, _base_token, _quote_token) = before();
 
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
 
@@ -246,23 +246,20 @@ fn test_swap_events_no_strategy_limit_orders_fully_filled() {
 
 #[test]
 fn test_swap_no_strategy_limit_orders_partially_filled() {
-    let (market_manager, market_id, base_token, quote_token) = before();
+    let (market_manager, market_id, _base_token, _quote_token) = before();
 
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
 
     // Create ask limit order.
     let limit = OFFSET + 100;
-    let width = 1;
     let liquidity = to_e18_u128(10000);
-    let order_id = market_manager.create_order(market_id, false, limit, liquidity);
-    let order = market_manager.order(order_id);
+    market_manager.create_order(market_id, false, limit, liquidity);
 
     let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
 
     // Swapping should fire `Swap` and `ModifyPosition`.
     let is_buy = true;
     let exact_input = true;
-    let protocol_share = 20;
     let (amount_in, amount_out, fees) = market_manager
         .swap(
             market_id, is_buy, 100000, true, Option::None(()), Option::None(()), Option::None(())
@@ -296,7 +293,7 @@ fn test_swap_no_strategy_limit_orders_partially_filled() {
 
 #[test]
 fn test_swap_events_with_strategy() {
-    let (market_manager, market_id, base_token, quote_token, strategy) = before_strategy();
+    let (market_manager, market_id, _base_token, _quote_token, strategy) = before_strategy();
 
     // Set positions and deposit liquidity.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -338,7 +335,6 @@ fn test_swap_events_with_strategy() {
     // Swapping should fire `Swap` and 2 x `ModifyPosition`.
     let is_buy = true;
     let exact_input = true;
-    let protocol_share = 20;
     let (amount_in, amount_out, fees) = market_manager
         .swap(
             market_id, is_buy, 100000, true, Option::None(()), Option::None(()), Option::None(())

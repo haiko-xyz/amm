@@ -11,9 +11,9 @@ use amm::libraries::constants::{ONE, MAX_SQRT_PRICE};
 use amm::contracts::market_manager::MarketManager::ContractState;
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::contracts::market_manager::MarketManager::{
-    limit_info::InternalContractMemberStateTrait as LimitInfoStateTrait,
-    batches::InternalContractMemberStateTrait as BatchStateTrait,
-    positions::InternalContractMemberStateTrait as PositionStateTrait,
+    __member_module_limit_info::InternalContractMemberStateTrait as LimitInfoStateTrait,
+    __member_module_batches::InternalContractMemberStateTrait as BatchStateTrait,
+    __member_module_positions::InternalContractMemberStateTrait as PositionStateTrait,
 };
 use amm::contracts::market_manager::MarketManager::MarketManagerInternalTrait;
 use amm::types::core::MarketState;
@@ -191,7 +191,6 @@ fn swap_iter(
         );
     } else if market_state.curr_sqrt_price != start_sqrt_price {
         // If sqrt price has changed, calculate new limit.
-        let curr_limit = market_state.curr_limit;
         let next_limit = price_math::sqrt_price_to_limit(next_sqrt_price, width);
 
         // To handle imprecision at limit boundaries, constrain next limit so it is never lower

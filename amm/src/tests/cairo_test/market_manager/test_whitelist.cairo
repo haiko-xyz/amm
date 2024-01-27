@@ -29,7 +29,7 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
     let market_manager = deploy_market_manager(owner);
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
 
@@ -159,7 +159,7 @@ fn test_create_market_whitelisted_pair_with_controller() {
 #[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
 fn test_whitelist_market_not_owner() {
     // Deploy market manager and tokens.
-    let (market_manager, base_token, quote_token) = before();
+    let (market_manager, _base_token, _quote_token) = before();
 
     set_contract_address(alice());
     market_manager.whitelist_markets(array![123]);

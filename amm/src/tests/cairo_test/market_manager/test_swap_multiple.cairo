@@ -82,7 +82,7 @@ fn before() -> (
 #[test]
 #[available_gas(15000000000)]
 fn test_swap_multiple() {
-    let (market_manager, eth, btc, usdc, eth_usdc_id, btc_usdc_id) = before();
+    let (market_manager, eth, btc, _usdc, eth_usdc_id, btc_usdc_id) = before();
 
     // Add liquidity positions.
     set_contract_address(alice());
@@ -125,7 +125,7 @@ fn test_swap_multiple() {
 #[should_panic(expected: ('RouteMismatch', 'ENTRYPOINT_FAILED',))]
 #[available_gas(15000000000)]
 fn test_swap_multiple_invalid_path() {
-    let (market_manager, eth, btc, usdc, eth_usdc_id, btc_usdc_id) = before();
+    let (market_manager, eth, btc, _usdc, eth_usdc_id, btc_usdc_id) = before();
 
     // Swap ETH for BTC - wrong path order.
     set_contract_address(alice());
@@ -138,5 +138,5 @@ fn test_swap_multiple_invalid_path() {
         Option::None(()),
         Option::None(()),
     );
-    let amount_out = swap_multiple(market_manager, swap_params);
+    swap_multiple(market_manager, swap_params);
 }

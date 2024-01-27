@@ -56,7 +56,7 @@ mod MockPragmaOracle {
         volatility: LegacyMap::<felt252, (u128, u32)>,
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl MockPragmaOracle of IMockPragmaOracle<ContractState> {
         fn get_data_with_USD_hop(
             self: @ContractState,
@@ -99,7 +99,7 @@ mod MockPragmaOracle {
             let (price, decimals, last_updated_timestamp, num_sources_aggregated) =
                 match data_type {
                 DataType::SpotEntry(x) => self.usd_prices.read(x),
-                DataType::FutureEntry((x, y)) => self.usd_prices.read(x),
+                DataType::FutureEntry((x, _y)) => self.usd_prices.read(x),
                 DataType::GenericEntry(x) => self.usd_prices.read(x),
             };
             PragmaPricesResponse {
@@ -122,7 +122,7 @@ mod MockPragmaOracle {
             let data = (price, decimals, last_updated_timestamp, num_sources_aggregated);
             match data_type {
                 DataType::SpotEntry(x) => self.usd_prices.write(x, data),
-                DataType::FutureEntry((x, y)) => self.usd_prices.write(x, data),
+                DataType::FutureEntry((x, _y)) => self.usd_prices.write(x, data),
                 DataType::GenericEntry(x) => self.usd_prices.write(x, data),
             }
         }
@@ -137,7 +137,7 @@ mod MockPragmaOracle {
         ) -> (u128, u32) {
             match data_type {
                 DataType::SpotEntry(x) => self.volatility.read(x),
-                DataType::FutureEntry((x, y)) => self.volatility.read(x),
+                DataType::FutureEntry((x, _y)) => self.volatility.read(x),
                 DataType::GenericEntry(x) => self.volatility.read(x),
             }
         }

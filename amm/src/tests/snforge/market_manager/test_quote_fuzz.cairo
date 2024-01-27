@@ -15,7 +15,7 @@ use amm::interfaces::{
     IStrategy::{IStrategyDispatcher, IStrategyDispatcherTrait},
     IQuoter::{IQuoterDispatcher, IQuoterDispatcherTrait}
 };
-use amm::contracts::test::manual_strategy::{
+use amm::contracts::mocks::manual_strategy::{
     ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
 };
 use amm::tests::common::params::{

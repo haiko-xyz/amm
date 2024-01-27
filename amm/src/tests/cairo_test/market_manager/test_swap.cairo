@@ -73,7 +73,7 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
     let market_manager = deploy_market_manager(owner);
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
 
@@ -1131,7 +1131,7 @@ fn test_swap_cases() {
 #[test]
 #[available_gas(15000000000)]
 fn test_swap_threshold_amount_exact_input() {
-    let (market_manager, base_token, quote_token, market_id) = before_with_market();
+    let (market_manager, _base_token, _quote_token, market_id) = before_with_market();
 
     // Mint positions.
     let mut params = modify_position_params(
@@ -1161,7 +1161,7 @@ fn test_swap_threshold_amount_exact_input() {
 #[should_panic(expected: ('ThresholdAmount', 996999999950299550, 0, 'ENTRYPOINT_FAILED'))]
 #[available_gas(15000000000)]
 fn test_swap_threshold_amount_exact_input_fails() {
-    let (market_manager, base_token, quote_token, market_id) = before_with_market();
+    let (market_manager, _base_token, _quote_token, market_id) = before_with_market();
 
     // Mint positions.
     let mut params = modify_position_params(
@@ -1190,7 +1190,7 @@ fn test_swap_threshold_amount_exact_input_fails() {
 #[test]
 #[available_gas(15000000000)]
 fn test_swap_threshold_amount_exact_output() {
-    let (market_manager, base_token, quote_token, market_id) = before_with_market();
+    let (market_manager, _base_token, _quote_token, market_id) = before_with_market();
 
     // Mint positions.
     let mut params = modify_position_params(
@@ -1220,7 +1220,7 @@ fn test_swap_threshold_amount_exact_output() {
 #[should_panic(expected: ('ThresholdAmount', 1003009027131394184, 0, 'ENTRYPOINT_FAILED'))]
 #[available_gas(15000000000)]
 fn test_swap_threshold_amount_exact_output_fails() {
-    let (market_manager, base_token, quote_token, market_id) = before_with_market();
+    let (market_manager, _base_token, _quote_token, market_id) = before_with_market();
 
     // Mint positions.
     let mut params = modify_position_params(

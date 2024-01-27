@@ -2,7 +2,7 @@
 use starknet::ContractAddress;
 
 // Local imports.
-use amm::contracts::test::manual_strategy::{
+use amm::contracts::mocks::manual_strategy::{
     ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
 };
 

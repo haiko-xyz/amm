@@ -26,7 +26,7 @@ use strategies::strategies::replicating::{
     replicating_strategy::ReplicatingStrategy,
     interface::{IReplicatingStrategyDispatcher, IReplicatingStrategyDispatcherTrait},
     pragma::{DataType, PragmaPricesResponse}, types::{StrategyParams, StrategyState},
-    test::mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
+    mocks::mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
 };
 use strategies::tests::replicating::helpers::{
     deploy_replicating_strategy, deploy_mock_pragma_oracle
@@ -73,7 +73,7 @@ fn before(
     let market_manager = deploy_market_manager(manager_class, owner);
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let erc20_class = declare('ERC20');
     let base_token = deploy_token(erc20_class, base_token_params);
     let quote_token = deploy_token(erc20_class, quote_token_params);
@@ -223,7 +223,7 @@ fn test_queued_and_placed_positions() {
 
 #[test]
 fn test_queued_positions_uninitialised_market() {
-    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+    let (_market_manager, _base_token, _quote_token, _market_id, oracle, strategy) = before(true);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);

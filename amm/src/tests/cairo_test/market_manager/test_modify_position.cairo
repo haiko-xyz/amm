@@ -54,7 +54,7 @@ fn _before(
     let market_manager = deploy_market_manager(owner);
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
 
@@ -440,7 +440,7 @@ fn test_modify_position_below_curr_price_cases() {
 #[test]
 #[available_gas(1000000000)]
 fn test_collect_fees() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
     // Create position
     set_contract_address(alice());
@@ -494,7 +494,7 @@ fn test_collect_fees() {
 #[test]
 #[available_gas(1000000000)]
 fn test_collect_fees_multiple_lps() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
     // Alice creates position
     set_contract_address(alice());
@@ -548,7 +548,7 @@ fn test_collect_fees_multiple_lps() {
 #[test]
 #[available_gas(1000000000)]
 fn test_collect_fees_intermediate_withdrawal() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
     // Alice creates position
     set_contract_address(alice());
@@ -617,7 +617,7 @@ fn test_collect_fees_intermediate_withdrawal() {
 #[available_gas(100000000)]
 fn test_modify_position_clears_single_limit_if_other_active() {
     let width = 1;
-    let (market_manager, base_token, quote_token, market_id) = before(width);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width);
     set_contract_address(alice());
 
     // Case 1: Clears lower only if upper still used.
@@ -660,7 +660,7 @@ fn test_modify_position_clears_single_limit_if_other_active() {
 #[available_gas(100000000)]
 #[should_panic(expected: ('LimitsUnordered', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_limits_unordered() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
     // Create position
     let lower_limit = OFFSET + 1235;
@@ -675,7 +675,7 @@ fn test_modify_position_limits_unordered() {
 #[should_panic(expected: ('NotMultipleOfWidth', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_lower_limit_not_multiple_of_width() {
     let width = 25;
-    let (market_manager, base_token, quote_token, market_id) = before(width);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width);
 
     // Create position
     let lower_limit = OFFSET - 46;
@@ -690,7 +690,7 @@ fn test_modify_position_lower_limit_not_multiple_of_width() {
 #[should_panic(expected: ('NotMultipleOfWidth', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_upper_limit_not_multiple_of_width() {
     let width = 25;
-    let (market_manager, base_token, quote_token, market_id) = before(width);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width);
 
     // Create position
     let lower_limit = OFFSET;
@@ -704,7 +704,7 @@ fn test_modify_position_upper_limit_not_multiple_of_width() {
 #[available_gas(100000000)]
 #[should_panic(expected: ('UpperLimitOF', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_upper_limit_overflow() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
     // Create position
     let lower_limit = OFFSET + 1235;
@@ -718,7 +718,7 @@ fn test_modify_position_upper_limit_overflow() {
 #[available_gas(100000000)]
 #[should_panic(expected: ('LimitLiqOF', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_liq_at_limit_overflow_width_1() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
     // Create position
     let lower_limit = OFFSET + 1235;
@@ -732,7 +732,7 @@ fn test_modify_position_liq_at_limit_overflow_width_1() {
 #[available_gas(100000000)]
 #[should_panic(expected: ('LimitLiqOF', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_liq_at_limit_overflow_width_25() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 25);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 25);
 
     // Create position
     let lower_limit = price_math::offset(25) - 25;
@@ -746,7 +746,7 @@ fn test_modify_position_liq_at_limit_overflow_width_25() {
 #[available_gas(100000000)]
 #[should_panic(expected: ('UpdateLimitLiq', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_remove_more_than_position() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 25);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 25);
 
     // Create position
     let lower_limit = price_math::offset(25) - 25;
@@ -767,7 +767,7 @@ fn test_modify_position_remove_more_than_position() {
 #[available_gas(100000000)]
 #[should_panic(expected: ('AddLiqDisabled', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_in_positions_disabled_market() {
-    let (market_manager, base_token, quote_token, market_id) = before_no_positions();
+    let (market_manager, _base_token, _quote_token, market_id) = before_no_positions();
 
     // Create position
     let lower_limit = OFFSET - 25;
@@ -781,7 +781,7 @@ fn test_modify_position_in_positions_disabled_market() {
 #[available_gas(100000000)]
 #[should_panic(expected: ('LimitsOutOfRange', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_concentrated_in_linear_market() {
-    let (market_manager, base_token, quote_token, market_id) = before_linear();
+    let (market_manager, _base_token, _quote_token, market_id) = before_linear();
 
     // Create position
     let lower_limit = OFFSET - 25;
@@ -814,9 +814,7 @@ fn _modify_position_and_run_checks(
 
     // Create position
     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
-    let (base_amount, quote_amount, base_fees, quote_fees) = modify_position(
-        market_manager, params
-    );
+    modify_position(market_manager, params);
 
     // Snapshot state after
     let (base_bal_aft, quote_bal_aft, lower_limit_aft, upper_limit_aft) = _snapshot_state(

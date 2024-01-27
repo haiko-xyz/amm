@@ -14,7 +14,7 @@ mod FlashLoanReceiver {
         self.market_manager.write(market_manager);
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl LoanReceiver of ILoanReceiver<ContractState> {
         // Callback function for flash loan.
         // Receiver must approve market manager to transfer back the borrowed tokens plus fees.

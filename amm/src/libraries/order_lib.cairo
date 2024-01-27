@@ -9,13 +9,13 @@ use amm::libraries::math::{math, price_math, fee_math, liquidity_math};
 use amm::libraries::constants::ONE;
 use amm::contracts::market_manager::MarketManager::{ContractState, MarketManagerInternalTrait};
 use amm::contracts::market_manager::MarketManager::{
-    orders::InternalContractMemberStateTrait as OrderStateTrait,
-    limit_info::InternalContractMemberStateTrait as LimitInfoStateTrait,
-    batches::InternalContractMemberStateTrait as BatchStateTrait,
-    positions::InternalContractMemberStateTrait as PositionStateTrait,
-    market_info::InternalContractMemberStateTrait as MarketInfoStateTrait,
-    market_state::InternalContractMemberStateTrait as MarketStateStateTrait,
-    donations::InternalContractMemberStateTrait as DonationStateTrait,
+    __member_module_orders::InternalContractMemberStateTrait as OrderStateTrait,
+    __member_module_limit_info::InternalContractMemberStateTrait as LimitInfoStateTrait,
+    __member_module_batches::InternalContractMemberStateTrait as BatchStateTrait,
+    __member_module_positions::InternalContractMemberStateTrait as PositionStateTrait,
+    __member_module_market_info::InternalContractMemberStateTrait as MarketInfoStateTrait,
+    __member_module_market_state::InternalContractMemberStateTrait as MarketStateStateTrait,
+    __member_module_donations::InternalContractMemberStateTrait as DonationStateTrait,
 };
 use amm::types::core::{OrderBatch, LimitInfo};
 use amm::types::i128::{i128, I128Trait};
@@ -90,8 +90,6 @@ fn amounts_inside_order(
 fn fill_limits(
     ref self: ContractState, market_id: felt252, width: u32, filled_limits: Span<(u32, felt252)>,
 ) {
-    let market_info = self.market_info.read(market_id);
-
     let mut i = filled_limits.len();
     loop {
         if i == 0 {
@@ -103,7 +101,7 @@ fn fill_limits(
         let mut batch = self.batches.read(batch_id);
 
         // Remove liquidity from position.
-        let (base_amount, quote_amount, base_fees, quote_fees) = self
+        let (base_amount, quote_amount, _base_fees, _quote_fees) = self
             ._modify_position(
                 batch_id,
                 market_id,

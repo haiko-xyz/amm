@@ -33,7 +33,7 @@ fn before() -> (IMarketManagerDispatcher, felt252, ERC20ABIDispatcher, ERC20ABID
     let market_manager = deploy_market_manager(class, owner());
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let erc20_class = declare_token();
     let base_token = deploy_token(erc20_class, base_token_params);
     let quote_token = deploy_token(erc20_class, quote_token_params);
@@ -69,14 +69,13 @@ fn before() -> (IMarketManagerDispatcher, felt252, ERC20ABIDispatcher, ERC20ABID
 
 #[test]
 fn test_collect_unfilled_order_events() {
-    let (market_manager, market_id, base_token, quote_token) = before();
+    let (market_manager, market_id, _base_token, _quote_token) = before();
 
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
 
     let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
 
     // Creating an order should fire an event.
-    let curr_limit = OFFSET;
     let width = 1;
     let is_bid = true;
     let limit = OFFSET - 1000;
@@ -129,7 +128,7 @@ fn test_collect_unfilled_order_events() {
         );
 
     // Collect order should fire an event.
-    let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
+    let (_base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
     spy
         .assert_emitted(
             @array![
@@ -171,14 +170,13 @@ fn test_collect_unfilled_order_events() {
 
 #[test]
 fn test_collect_partially_filled_order_events() {
-    let (market_manager, market_id, base_token, quote_token) = before();
+    let (market_manager, market_id, _base_token, _quote_token) = before();
 
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
 
     let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
 
     // Creating a bid should fire an event.
-    let curr_limit = OFFSET;
     let width = 1;
     let is_bid = true;
     let limit = OFFSET - 1000;
@@ -262,11 +260,7 @@ fn test_collect_partially_filled_order_events() {
         );
 
     // Collect order should fire both `ModifyPosition` and `CollectOrder` events.
-    let position = market_manager.position(market_id, order.batch_id, limit, limit + width);
-    let lower_limit_info = market_manager.limit_info(market_id, limit);
-    let upper_limit_info = market_manager.limit_info(market_id, limit + width);
-
-    let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
+    let (base_amount, _quote_amount) = market_manager.collect_order(market_id, order_id);
 
     spy
         .assert_emitted(
@@ -310,14 +304,13 @@ fn test_collect_partially_filled_order_events() {
 
 #[test]
 fn test_collect_fully_filled_order_events() {
-    let (market_manager, market_id, base_token, quote_token) = before();
+    let (market_manager, market_id, _base_token, _quote_token) = before();
 
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
 
     let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
 
     // Creating an order should fire an event.
-    let curr_limit = OFFSET;
     let width = 1;
     let is_bid = true;
     let limit = OFFSET - 1000;
@@ -377,7 +370,6 @@ fn test_collect_fully_filled_order_events() {
         );
 
     let market_state = market_manager.market_state(market_id);
-    let base_amount_exp = 50401452266968435;
     spy
         .assert_emitted(
             @array![

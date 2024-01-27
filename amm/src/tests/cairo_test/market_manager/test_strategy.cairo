@@ -7,7 +7,7 @@ use debug::PrintTrait;
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::libraries::math::price_math;
 use amm::libraries::math::liquidity_math;
-use amm::contracts::test::manual_strategy::{
+use amm::contracts::mocks::manual_strategy::{
     ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
 };
 use amm::interfaces::IMarketManager::{
@@ -46,7 +46,7 @@ fn before() -> (
     let market_manager = deploy_market_manager(owner);
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
 

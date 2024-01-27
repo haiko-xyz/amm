@@ -17,7 +17,6 @@ trait IFaucet<TContractState> {
     fn withdraw(ref self: TContractState, token: ContractAddress, amount: u256);
     fn set_amount(ref self: TContractState, token: ContractAddress, amount: u256);
     fn set_owner(ref self: TContractState, owner: ContractAddress);
-    fn upgrade(ref self: TContractState, new_class_hash: ClassHash);
 }
 
 #[starknet::contract]
@@ -34,6 +33,11 @@ mod Faucet {
 
     // External imports.
     use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
+    use openzeppelin::upgrades::UpgradeableComponent;
+
+    component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
+
+    impl InternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
 
     #[storage]
     struct Storage {
@@ -44,6 +48,8 @@ mod Faucet {
         amounts: LegacyMap::<ContractAddress, u256>,
         claimed: LegacyMap::<ContractAddress, bool>,
         owner: ContractAddress,
+        #[substorage(v0)]
+        upgradeable: UpgradeableComponent::Storage,
     }
 
     #[event]
@@ -55,6 +61,8 @@ mod Faucet {
         SetClaimed: SetClaimed,
         Withdraw: Withdraw,
         SetToken: SetToken,
+        #[flat]
+        UpgradeableEvent: UpgradeableComponent::Event
     }
 
     #[derive(Drop, starknet::Event)]
@@ -96,7 +104,7 @@ mod Faucet {
         self.owner.write(owner);
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl Faucet of IFaucet<ContractState> {
         fn token(self: @ContractState, slot: u32) -> ContractAddress {
             self.tokens.read(slot)
@@ -182,15 +190,10 @@ mod Faucet {
             self.owner.write(owner);
             self.emit(Event::ChangeOwner(ChangeOwner { owner }))
         }
+    }
 
-        // Temporary function to allow upgrading while deployed on testnet.
-        // Callable by owner only.
-        //
-        // # Arguments
-        // # `new_class_hash` - New class hash of the contract
-        fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
-            assert(self.owner.read() == get_caller_address(), 'NOT_OWNER');
-            replace_class_syscall(new_class_hash);
-        }
+    #[external(v0)]
+    fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+        self.upgradeable._upgrade(new_class_hash);
     }
 }

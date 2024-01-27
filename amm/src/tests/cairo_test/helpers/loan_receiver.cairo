@@ -5,8 +5,8 @@ use option::OptionTrait;
 use array::ArrayTrait;
 use starknet::{ContractAddress, ClassHash, deploy_syscall};
 
-use amm::tests::common::contracts::flash_loan_receiver::FlashLoanReceiver;
-use amm::tests::common::contracts::flash_loan_stealer::FlashLoanStealer;
+use amm::tests::mocks::flash_loan_receiver::FlashLoanReceiver;
+use amm::tests::mocks::flash_loan_stealer::FlashLoanStealer;
 use amm::interfaces::ILoanReceiver::{
     ILoanReceiver, ILoanReceiverDispatcher, ILoanReceiverDispatcherTrait
 };

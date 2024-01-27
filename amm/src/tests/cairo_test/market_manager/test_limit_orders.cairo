@@ -33,7 +33,7 @@ fn _before(
     let market_manager = deploy_market_manager(owner());
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_, base_token_params, quote_token_params) = default_token_params();
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
 
@@ -93,7 +93,7 @@ fn before_no_orders() -> (
 #[test]
 #[available_gas(100000000)]
 fn test_create_bid_order_initialises_order_and_batch() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
     // Create limit order.
     set_contract_address(alice());
@@ -127,7 +127,7 @@ fn test_create_bid_order_initialises_order_and_batch() {
 #[test]
 #[available_gas(100000000)]
 fn test_create_ask_order_initialises_order_and_batch() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
     // Create limit order.
     set_contract_address(alice());
@@ -162,7 +162,7 @@ fn test_create_ask_order_initialises_order_and_batch() {
 #[available_gas(100000000)]
 fn test_create_multiple_bid_orders() {
     let width = 1;
-    let (market_manager, base_token, quote_token, market_id) = before(width);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width);
 
     // Create first limit order.
     set_contract_address(alice());
@@ -207,7 +207,7 @@ fn test_create_multiple_bid_orders() {
 #[available_gas(100000000)]
 fn test_create_multiple_ask_orders() {
     let width = 1;
-    let (market_manager, base_token, quote_token, market_id) = before(width);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width);
 
     // Create first limit order.
     set_contract_address(alice());
@@ -278,7 +278,7 @@ fn test_swap_fully_fills_bid_limit_orders() {
     let quote_bal_bef = quote_token.balanceOf(market_manager.contract_address);
 
     // Swap sell.
-    let (amount_in, amount_out, fees) = market_manager
+    let (amount_in, amount_out, _fees) = market_manager
         .swap(
             market_id,
             !is_bid,
@@ -311,8 +311,8 @@ fn test_swap_fully_fills_bid_limit_orders() {
     let batch = market_manager.batch(order_1.batch_id);
     let lower_limit_info = market_manager.limit_info(market_id, limit);
     let upper_limit_info = market_manager.limit_info(market_id, limit + width);
-    let base_reserves = market_manager.reserves(base_token.contract_address);
-    let quote_reserves = market_manager.reserves(quote_token.contract_address);
+    market_manager.reserves(base_token.contract_address);
+    market_manager.reserves(quote_token.contract_address);
     assert(order_1.liquidity == liquidity_1, 'Create bid 1: liquidity');
     assert(order_2.liquidity == liquidity_2, 'Create bid 2: liquidity');
     assert(batch.liquidity == liquidity_1 + liquidity_2, 'Create bid: batch liquidity');
@@ -352,7 +352,7 @@ fn test_swap_fully_fills_ask_limit_orders() {
     let quote_bal_bef = quote_token.balanceOf(market_manager.contract_address);
 
     // Swap buy.
-    let (amount_in, amount_out, fees) = market_manager
+    let (amount_in, amount_out, _fees) = market_manager
         .swap(
             market_id,
             !is_bid,
@@ -414,25 +414,26 @@ fn test_create_and_collect_unfilled_bid_order() {
 
     // Collect limit order.
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
-// // Snapshot balances after.
-// let user_base_bal_after = base_token.balanceOf(alice());
-// let user_quote_bal_after = quote_token.balanceOf(alice());
-// let order = market_manager.order(order_id);
-// let position_id = id::position_id(market_id, order.batch_id, limit, limit + market_info.width);
-// let (position_base, position_quote, _, _) = market_manager.amounts_inside_position(position_id);
 
-// // Fetch order and batch. Run checks.
-// let order = market_manager.order(order_id);
-// let batch = market_manager.batch(order.batch_id);
-// assert(approx_eq(quote_amount, quote_amount_exp, 10), 'Collect bid: quote amount');
-// assert(base_amount == 0, 'Collect bid: base amount');
-// assert(order.liquidity == 0, 'Collect bid: order liquidity');
-// assert(batch.liquidity == 0, 'Collect bid: batch liquidity');
-// assert(batch.filled == false, 'Collect bid: batch filled');
-// assert(position_base == 0, 'Collect bid: batch base amount');
-// assert(position_quote == 0, 'Collect bid: batch quote amount');
-// assert(user_base_bal_after == base_balance_before, 'Collect bid: base balance');
-// assert(approx_eq(user_quote_bal_after, quote_balance_before, 10), 'Collect bid: quote balance');
+    // Snapshot balances after.
+    let user_base_bal_after = base_token.balanceOf(alice());
+    let user_quote_bal_after = quote_token.balanceOf(alice());
+    let order = market_manager.order(order_id);
+    let position_id = id::position_id(market_id, order.batch_id, limit, limit + market_info.width);
+    let (position_base, position_quote, _, _) = market_manager.amounts_inside_position(position_id);
+
+    // Fetch order and batch. Run checks.
+    let order = market_manager.order(order_id);
+    let batch = market_manager.batch(order.batch_id);
+    assert(approx_eq(quote_amount, quote_amount_exp, 10), 'Collect bid: quote amount');
+    assert(base_amount == 0, 'Collect bid: base amount');
+    assert(order.liquidity == 0, 'Collect bid: order liquidity');
+    assert(batch.liquidity == 0, 'Collect bid: batch liquidity');
+    assert(batch.filled == false, 'Collect bid: batch filled');
+    assert(position_base == 0, 'Collect bid: batch base amount');
+    assert(position_quote == 0, 'Collect bid: batch quote amount');
+    assert(user_base_bal_after == base_balance_before, 'Collect bid: base balance');
+    assert(approx_eq(user_quote_bal_after, quote_balance_before, 10), 'Collect bid: quote balance');
 }
 
 #[test]
@@ -495,7 +496,7 @@ fn test_create_and_collect_fully_filled_bid_order() {
     market_manager.create_order(market_id, is_bid, limit, liq_2);
 
     // Swap sell.
-    let (amount_in, amount_out, fees) = market_manager
+    let (amount_in, _amount_out, _fees) = market_manager
         .swap(
             market_id,
             !is_bid,
@@ -556,7 +557,7 @@ fn test_create_and_collect_fully_filled_ask_order() {
     market_manager.create_order(market_id, is_bid, limit, liq_2);
 
     // Swap buy.
-    let (amount_in, amount_out, fees) = market_manager
+    let (amount_in, _amount_out, _fees) = market_manager
         .swap(
             market_id,
             !is_bid,
@@ -608,7 +609,7 @@ fn test_create_and_collect_partially_filled_bid_order() {
     let mut limit = OFFSET - 1000;
     let liquidity_1 = to_e18_u128(500000);
     let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity_1);
-    let quote_amount_exp = 2487525041372515447;
+    let _quote_amount_exp = 2487525041372515447;
     let amount_filled_exp = 1974171375029746558;
     let amount_unfilled_exp = 513353666342768889; // diff of above
     let amount_earned_exp = 2000000000000000000; // includes fees
@@ -617,13 +618,13 @@ fn test_create_and_collect_partially_filled_bid_order() {
     set_contract_address(alice());
     let liquidity_2 = to_e18_u128(1000000);
     let order_id_2 = market_manager.create_order(market_id, is_bid, limit, liquidity_2);
-    let quote_amount_exp_2 = 4975050082745030894;
-    let amount_filled_exp_2 = 3948342750059493116;
+    let _quote_amount_exp_2 = 4975050082745030894;
+    let _amount_filled_exp_2 = 3948342750059493116;
     let amount_unfilled_exp_2 = 1026707332685537778; // diff of above
     let amount_earned_exp_2 = 4000000000000000000; // includes fees
 
     // Swap sell (partially filled against limit orders).
-    let (amount_in, amount_out, fees) = market_manager
+    market_manager
         .swap(
             market_id,
             !is_bid,
@@ -689,7 +690,7 @@ fn test_create_and_collect_partially_filled_ask_order() {
     let mut limit = OFFSET + 1000;
     let liquidity_1 = to_e18_u128(500000);
     let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity_1);
-    let base_amount_exp = 2487512603840589996;
+    let _base_amount_exp = 2487512603840589996;
     let amount_filled_exp = 1974151633552579423;
     let amount_unfilled_exp = 513360970288010573;
     let amount_earned_exp = 2000000000000000000;
@@ -698,13 +699,13 @@ fn test_create_and_collect_partially_filled_ask_order() {
     set_contract_address(alice());
     let liquidity_2 = to_e18_u128(1000000);
     let order_id_2 = market_manager.create_order(market_id, is_bid, limit, liquidity_2);
-    let base_amount_exp_2 = 4975025207681179992;
-    let amount_filled_exp_2 = 3948303267105158847;
+    let _base_amount_exp_2 = 4975025207681179992;
+    let _amount_filled_exp_2 = 3948303267105158847;
     let amount_unfilled_exp_2 = 1026721940576021145;
     let amount_earned_exp_2 = 4000000000000000000;
 
     // Swap buy (partially filled against limit orders).
-    let (amount_in, amount_out, fees) = market_manager
+    market_manager
         .swap(
             market_id,
             !is_bid,
@@ -758,7 +759,7 @@ fn test_create_and_collect_partially_filled_ask_order() {
 #[test]
 #[available_gas(100000000)]
 fn test_partial_fill_within_width_interval_bid() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 10);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 10);
 
     // Create order.
     set_contract_address(alice());
@@ -767,7 +768,7 @@ fn test_partial_fill_within_width_interval_bid() {
 
     // Create small swap so order ends up within interval.
     let amount = 1000000000000000000;
-    let (amount_in, amount_out, fees) = market_manager
+    let (amount_in, amount_out, _fees) = market_manager
         .swap(
             market_id, false, amount, false, Option::None(()), Option::None(()), Option::None(())
         );
@@ -790,18 +791,17 @@ fn test_partial_fill_within_width_interval_bid() {
 #[test]
 #[available_gas(100000000)]
 fn test_partial_fill_within_width_interval_ask() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 10);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 10);
 
     // Create order.
     set_contract_address(alice());
     let order_id = market_manager
         .create_order(market_id, false, 8697280, 1500000000000000000000000);
-    let order = market_manager.order(order_id);
     let (base_bef, quote_bef) = market_manager.amounts_inside_order(order_id, market_id);
 
     // Create small swap so order ends up within interval.
     let amount = 1000000000000000000;
-    let (amount_in, amount_out, fees) = market_manager
+    let (amount_in, amount_out, _fees) = market_manager
         .swap(market_id, true, amount, false, Option::None(()), Option::None(()), Option::None(()));
 
     // Collect order works.
@@ -823,10 +823,6 @@ fn test_partial_fill_within_width_interval_ask() {
 #[available_gas(1000000000)]
 fn test_partially_filled_bid_correctly_unfills() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
-
-    // Snapshot user balance before.
-    let base_balance_before = base_token.balanceOf(bob());
-    let quote_balance_before = quote_token.balanceOf(bob());
 
     // Create limit order.
     set_contract_address(bob());
@@ -853,10 +849,6 @@ fn test_partially_filled_bid_correctly_unfills() {
         .swap(
             market_id, is_bid, to_e18(4), true, Option::None(()), Option::None(()), Option::None(())
         );
-
-    // Snapshot user balance after.
-    let base_balance_after = base_token.balanceOf(bob());
-    let quote_balance_after = quote_token.balanceOf(bob());
 
     // Collect limit order.
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
@@ -890,10 +882,6 @@ fn test_partially_filled_bid_correctly_unfills() {
 fn test_partially_filled_ask_correctly_unfills() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
-    // Snapshot user balance before.
-    let base_balance_before = base_token.balanceOf(bob());
-    let quote_balance_before = quote_token.balanceOf(bob());
-
     // Create first limit order.
     set_contract_address(bob());
     let is_bid = false;
@@ -919,10 +907,6 @@ fn test_partially_filled_ask_correctly_unfills() {
         .swap(
             market_id, is_bid, to_e18(4), true, Option::None(()), Option::None(()), Option::None(())
         );
-
-    // Snapshot user balance after.
-    let quote_balance_after = quote_token.balanceOf(bob());
-    let base_balance_after = base_token.balanceOf(bob());
 
     // Collect limit order.
     let (base_amount, quote_amount) = market_manager.collect_order(market_id, order_id);
@@ -955,7 +939,7 @@ fn test_partially_filled_ask_correctly_unfills() {
 #[test]
 #[available_gas(1000000000)]
 fn test_fill_bid_advances_batch_nonce() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
     // Create first (bid) limit order.
     set_contract_address(bob());
@@ -993,7 +977,7 @@ fn test_fill_bid_advances_batch_nonce() {
 #[test]
 #[available_gas(1000000000)]
 fn test_fill_ask_advances_batch_nonce() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
     // Create first limit order (ask).
     set_contract_address(bob());
@@ -1047,7 +1031,7 @@ fn test_fully_filled_bid_donates_excess_fees() {
     let order = market_manager.order(order_id);
 
     // Swap sell (partial fill).
-    let (amount_in_sell, amount_out_sell, fees_sell) = market_manager
+    let (_amount_in_sell, _amount_out_sell, fees_sell) = market_manager
         .swap(
             market_id,
             !is_bid,
@@ -1060,7 +1044,7 @@ fn test_fully_filled_bid_donates_excess_fees() {
     assert(market_manager.batch(order.batch_id).filled == false, 'Sell not filled');
 
     // Swap buy (fully unfill).
-    let (amount_in_buy, amount_out_buy, fees_buy) = market_manager
+    let (_amount_in_buy, _amount_out_buy, fees_buy) = market_manager
         .swap(
             market_id,
             is_bid,
@@ -1077,8 +1061,7 @@ fn test_fully_filled_bid_donates_excess_fees() {
     );
 
     // Finally, swap sell again to fill fully.
-    let (base_amount, quote_amount) = market_manager.amounts_inside_order(order_id, market_id);
-    let (amount_in_sell_2, amount_out_sell_2, fees_sell_2) = market_manager
+    let (amount_in_sell_2, _amount_out_sell_2, _fees_sell_2) = market_manager
         .swap(
             market_id,
             !is_bid,
@@ -1119,7 +1102,7 @@ fn test_fully_filled_bid_with_intermediate_collection() {
     let mut limit = 7906620 - 10;
     let liquidity = to_e18_u128(1000000);
     let order_id = market_manager.create_order(market_id, is_bid, limit, liquidity);
-    let (base_bef, quote_bef) = market_manager.amounts_inside_order(order_id, market_id);
+    let (_base_bef, quote_bef) = market_manager.amounts_inside_order(order_id, market_id);
 
     // Create limit order 2.
     set_contract_address(bob());
@@ -1127,7 +1110,7 @@ fn test_fully_filled_bid_with_intermediate_collection() {
     let order_id_2 = market_manager.create_order(market_id, is_bid, limit, liquidity);
 
     // Swap sell (partial fill).
-    let (amount_in, amount_out, fees) = market_manager
+    let (amount_in, amount_out, _fees) = market_manager
         .swap(
             market_id,
             !is_bid,
@@ -1152,7 +1135,7 @@ fn test_fully_filled_bid_with_intermediate_collection() {
 
     // Swap sell again to fill fully.
     set_contract_address(alice());
-    let (amount_in_2, amount_out_2, fees_2) = market_manager
+    let (amount_in_2, amount_out_2, _fees_2) = market_manager
         .swap(
             market_id,
             !is_bid,
@@ -1214,12 +1197,8 @@ fn test_limit_orders_misc_actions() {
         .create_order(market_id, false, OFFSET + 1000, liq_ask_bob_1000);
 
     // Snapshot balances.
-    let market_base_start = market_manager.reserves(base_token.contract_address);
-    let market_quote_start = market_manager.reserves(quote_token.contract_address);
     let alice_base_start = base_token.balanceOf(alice());
-    let alice_quote_start = quote_token.balanceOf(alice());
     let bob_base_start = base_token.balanceOf(bob());
-    let bob_quote_start = quote_token.balanceOf(bob());
 
     // Swap 1: Sell to fill both bid orders at -900 and partially fill one at -1000.
     set_contract_address(charlie());
@@ -1384,7 +1363,7 @@ fn test_limit_orders_misc_actions() {
 #[available_gas(100000000)]
 #[should_panic(expected: ('CreateBidDisabled', 'ENTRYPOINT_FAILED',))]
 fn test_create_bid_in_bid_disabled_market() {
-    let (market_manager, base_token, quote_token, market_id) = before_no_orders();
+    let (market_manager, _base_token, _quote_token, market_id) = before_no_orders();
     market_manager.create_order(market_id, true, OFFSET, to_e18_u128(1));
 }
 
@@ -1392,7 +1371,7 @@ fn test_create_bid_in_bid_disabled_market() {
 #[available_gas(100000000)]
 #[should_panic(expected: ('CreateAskDisabled', 'ENTRYPOINT_FAILED',))]
 fn test_create_ask_in_ask_disabled_market() {
-    let (market_manager, base_token, quote_token, market_id) = before_no_orders();
+    let (market_manager, _base_token, _quote_token, market_id) = before_no_orders();
     market_manager.create_order(market_id, false, OFFSET, to_e18_u128(1));
 }
 
@@ -1400,7 +1379,7 @@ fn test_create_ask_in_ask_disabled_market() {
 #[available_gas(100000000)]
 #[should_panic(expected: ('NotLimitOrder', 'ENTRYPOINT_FAILED',))]
 fn test_create_bid_above_curr_limit_reverts() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
     market_manager.create_order(market_id, true, OFFSET + 1, to_e18_u128(1));
 }
 
@@ -1408,7 +1387,7 @@ fn test_create_bid_above_curr_limit_reverts() {
 #[available_gas(100000000)]
 #[should_panic(expected: ('NotLimitOrder', 'ENTRYPOINT_FAILED',))]
 fn test_create_bid_at_curr_limit_reverts() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
     market_manager.create_order(market_id, true, OFFSET, to_e18_u128(1));
 }
 
@@ -1416,7 +1395,7 @@ fn test_create_bid_at_curr_limit_reverts() {
 #[available_gas(100000000)]
 #[should_panic(expected: ('NotLimitOrder', 'ENTRYPOINT_FAILED',))]
 fn test_create_ask_below_curr_limit_reverts() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
     market_manager.create_order(market_id, false, OFFSET - 1, to_e18_u128(1));
 }
 
@@ -1424,7 +1403,7 @@ fn test_create_ask_below_curr_limit_reverts() {
 #[available_gas(100000000)]
 #[should_panic(expected: ('NotLimitOrder', 'ENTRYPOINT_FAILED',))]
 fn test_create_ask_at_curr_limit_reverts() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
     market_manager.create_order(market_id, false, OFFSET, to_e18_u128(1));
 }
 
@@ -1432,7 +1411,7 @@ fn test_create_ask_at_curr_limit_reverts() {
 #[available_gas(100000000)]
 #[should_panic(expected: ('OrderAmtZero', 'ENTRYPOINT_FAILED',))]
 fn test_create_order_zero_liquidity() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
     market_manager.create_order(market_id, true, OFFSET - 10, 0);
 }
 
@@ -1440,7 +1419,7 @@ fn test_create_order_zero_liquidity() {
 #[available_gas(100000000)]
 #[should_panic(expected: ('OrderOwnerOnly', 'ENTRYPOINT_FAILED',))]
 fn test_collect_order_wrong_owner() {
-    let (market_manager, base_token, quote_token, market_id) = before(width: 1);
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
     set_contract_address(alice());
     let order_id = market_manager.create_order(market_id, true, OFFSET - 10, to_e18_u128(1));

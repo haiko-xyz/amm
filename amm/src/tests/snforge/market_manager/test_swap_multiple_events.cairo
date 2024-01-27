@@ -7,7 +7,7 @@ use amm::libraries::constants::OFFSET;
 use amm::libraries::math::{fee_math, price_math, liquidity_math};
 use amm::types::i128::{I128Trait, I128Zeroable};
 use amm::contracts::market_manager::MarketManager;
-use amm::contracts::test::manual_strategy::{
+use amm::contracts::mocks::manual_strategy::{
     ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
 };
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
@@ -45,7 +45,7 @@ fn before() -> (
     let market_manager = deploy_market_manager(class, owner());
 
     // Deploy tokens.
-    let (treasury, eth_params, usdc_params) = default_token_params();
+    let (_treasury, eth_params, usdc_params) = default_token_params();
     let btc_params = token_params(
         'Bitcoin', 'BTC', to_e28(5000000000000000000000000000000000000000000), treasury()
     );
@@ -88,7 +88,7 @@ fn before() -> (
 
 #[test]
 fn test_multi_swap_events() {
-    let (market_manager, eth, usdc, btc, eth_usdc_id, btc_usdc_id) = before();
+    let (market_manager, eth, _usdc, btc, eth_usdc_id, btc_usdc_id) = before();
 
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
 

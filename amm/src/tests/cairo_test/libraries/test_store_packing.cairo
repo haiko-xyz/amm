@@ -2,8 +2,8 @@ use starknet::deploy_syscall;
 use starknet::contract_address::contract_address_const;
 use starknet::testing::set_contract_address;
 
-use amm::tests::common::contracts::store_packing_contract::StorePackingContract;
-use amm::tests::common::contracts::store_packing_contract::{
+use amm::tests::mocks::store_packing_contract::StorePackingContract;
+use amm::tests::mocks::store_packing_contract::{
     IStorePackingContractDispatcher, IStorePackingContractDispatcherTrait,
 };
 use amm::types::core::{

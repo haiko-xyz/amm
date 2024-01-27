@@ -331,11 +331,4 @@ trait IReplicatingStrategy<TContractState> {
     // # Arguments
     // * `market_id` - market id of strategy
     fn unpause(ref self: TContractState, market_id: felt252);
-
-    // Upgrade contract to new version.
-    // Only callable by contract owner.
-    //
-    // # Arguments
-    // * `new_class_hash` - new class hash of upgraded contract
-    fn upgrade(ref self: TContractState, new_class_hash: ClassHash);
 }

@@ -20,7 +20,7 @@ use amm::tests::cairo_test::helpers::loan_receiver::deploy_loan_receiver;
 use amm::tests::common::params::{
     owner, alice, treasury, default_token_params, default_market_params, modify_position_params
 };
-use amm::tests::common::contracts::flash_loan_receiver;
+use amm::tests::mocks::flash_loan_receiver;
 use amm::tests::common::utils::{to_e28, to_e18_u128};
 
 // External imports.
@@ -46,7 +46,7 @@ fn before(
     let market_manager = deploy_market_manager(owner);
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
 
@@ -130,7 +130,7 @@ fn test_flash_loan() {
 #[should_panic(expected: ('LoanInsufficient', 'ENTRYPOINT_FAILED',))]
 #[available_gas(1000000000)]
 fn test_flash_loan_no_liquidity() {
-    let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true, false);
+    let (market_manager, base_token, _quote_token, _market_id, loan_receiver) = before(true, false);
 
     set_contract_address(loan_receiver.contract_address);
     market_manager.flash_loan(base_token.contract_address, 10000000000);
@@ -202,7 +202,7 @@ fn test_flash_loan_stealer() {
 #[should_panic(expected: ('LoanAmtZero', 'ENTRYPOINT_FAILED',))]
 #[available_gas(1000000000)]
 fn test_flash_loan_amount_zero() {
-    let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true, false);
+    let (market_manager, base_token, _quote_token, _market_id, loan_receiver) = before(true, false);
 
     set_contract_address(loan_receiver.contract_address);
     market_manager.flash_loan(base_token.contract_address, 0);
@@ -212,7 +212,7 @@ fn test_flash_loan_amount_zero() {
 #[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
 #[available_gas(1000000000)]
 fn test_set_flash_loan_fee_not_owner() {
-    let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true, false);
+    let (market_manager, base_token, _quote_token, _market_id, loan_receiver) = before(true, false);
 
     set_contract_address(loan_receiver.contract_address);
     market_manager.set_flash_loan_fee_rate(base_token.contract_address, 10);
@@ -222,7 +222,9 @@ fn test_set_flash_loan_fee_not_owner() {
 #[should_panic(expected: ('SameFee', 'ENTRYPOINT_FAILED',))]
 #[available_gas(1000000000)]
 fn test_set_flash_loan_fee_unchanged() {
-    let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true, false);
+    let (market_manager, base_token, _quote_token, _market_id, _loan_receiver) = before(
+        true, false
+    );
 
     set_contract_address(owner());
     let flash_loan_fee_rate = market_manager.flash_loan_fee_rate(base_token.contract_address);

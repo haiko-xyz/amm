@@ -26,7 +26,7 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
     let market_manager = deploy_market_manager(owner());
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
 
@@ -78,7 +78,7 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 #[available_gas(1000000000)]
 fn test_dutch_auction() {
     // Deploy market manager and tokens.
-    let (market_manager, base_token, quote_token, market_id) = before();
+    let (market_manager, _base_token, _quote_token, market_id) = before();
 
     // Auction sell amount.
     let sell_amount = to_e18(10);
@@ -111,7 +111,7 @@ fn test_dutch_auction() {
     market_configs.add_liquidity = config(ConfigOption::Disabled, true);
     market_configs.remove_liquidity = config(ConfigOption::Disabled, false);
     market_manager.set_market_configs(market_id, market_configs);
-    let (amount_in, amount_out, _) = market_manager
+    market_manager
         .swap(
             market_id,
             false,
@@ -142,7 +142,7 @@ fn test_dutch_auction() {
 #[available_gas(1000000000)]
 fn test_dutch_auction_swap_by_bidder() {
     // Deploy market manager and tokens.
-    let (market_manager, base_token, quote_token, market_id) = before();
+    let (market_manager, _base_token, _quote_token, market_id) = before();
 
     set_contract_address(alice());
     market_manager
@@ -156,7 +156,7 @@ fn test_dutch_auction_swap_by_bidder() {
 #[available_gas(1000000000)]
 fn test_dutch_auction_range_position() {
     // Deploy market manager and tokens.
-    let (market_manager, base_token, quote_token, market_id) = before();
+    let (market_manager, _base_token, _quote_token, market_id) = before();
 
     set_contract_address(alice());
     market_manager
@@ -170,7 +170,7 @@ fn test_dutch_auction_range_position() {
 #[available_gas(1000000000)]
 fn test_dutch_auction_bid_order() {
     // Deploy market manager and tokens.
-    let (market_manager, base_token, quote_token, market_id) = before();
+    let (market_manager, _base_token, _quote_token, market_id) = before();
 
     set_contract_address(alice());
     market_manager.create_order(market_id, true, 7906620 + 0, to_e18_u128(10000));
@@ -181,7 +181,7 @@ fn test_dutch_auction_bid_order() {
 #[available_gas(1000000000)]
 fn test_dutch_auction_ask_order() {
     // Deploy market manager and tokens.
-    let (market_manager, base_token, quote_token, market_id) = before();
+    let (market_manager, _base_token, _quote_token, market_id) = before();
 
     set_contract_address(alice());
     market_manager.create_order(market_id, false, 7906620 + 0, to_e18_u128(10000));
@@ -191,7 +191,7 @@ fn test_dutch_auction_ask_order() {
 #[should_panic(expected: ('AddLiqDisabled', 'ENTRYPOINT_FAILED',))]
 #[available_gas(1000000000)]
 fn test_dutch_auction_bid_after_auction_ends() {
-    let (market_manager, base_token, quote_token, market_id) = before();
+    let (market_manager, _base_token, _quote_token, market_id) = before();
 
     set_contract_address(owner());
     let mut market_configs = market_manager.market_configs(market_id);
@@ -210,7 +210,7 @@ fn test_dutch_auction_bid_after_auction_ends() {
 #[should_panic(expected: ('SwapDisabled', 'ENTRYPOINT_FAILED',))]
 #[available_gas(1000000000)]
 fn test_dutch_auction_swap_by_bidder_after_sale_ends() {
-    let (market_manager, base_token, quote_token, market_id) = before();
+    let (market_manager, _base_token, _quote_token, market_id) = before();
 
     set_contract_address(owner());
     let mut market_configs = market_manager.market_configs(market_id);

@@ -33,6 +33,11 @@ mod ReplicatingStrategy {
 
     // External imports.
     use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
+    use openzeppelin::upgrades::UpgradeableComponent;
+
+    component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
+
+    impl UpgradeableInternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
 
     // use snforge_std::PrintTrait;
 
@@ -81,6 +86,8 @@ mod ReplicatingStrategy {
         withdraw_fee_rate: LegacyMap::<felt252, u16>,
         // Indexed by asset
         withdraw_fees: LegacyMap::<ContractAddress, u256>,
+        #[substorage(v0)]
+        upgradeable: UpgradeableComponent::Storage,
     }
 
     ////////////////////////////////
@@ -106,6 +113,8 @@ mod ReplicatingStrategy {
         Pause: Pause,
         Unpause: Unpause,
         Referral: Referral,
+        #[flat]
+        UpgradeableEvent: UpgradeableComponent::Event
     }
 
     #[derive(Drop, starknet::Event)]
@@ -287,7 +296,7 @@ mod ReplicatingStrategy {
         }
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl Strategy of IStrategy<ContractState> {
         // Get market manager contract address.
         fn market_manager(self: @ContractState) -> ContractAddress {
@@ -395,9 +404,6 @@ mod ReplicatingStrategy {
                 return array![state.bid, state.ask].span();
             }
 
-            // Calculate new positions. Fetch strategy params.
-            let params = self.strategy_params.read(market_id);
-
             // Fetch amounts in existing position.
             let contract: felt252 = get_contract_address().into();
             let bid_pos_id = id::position_id(
@@ -475,7 +481,7 @@ mod ReplicatingStrategy {
 
             // Fetch oracle price.
             // If oracle price is invalid, collect positions and pause strategy. Return early.
-            let (price, is_valid) = self.get_oracle_price(market_id);
+            let (_, is_valid) = self.get_oracle_price(market_id);
             if !is_valid {
                 self._collect_and_pause(market_id);
                 return;
@@ -486,7 +492,7 @@ mod ReplicatingStrategy {
         }
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl ReplicatingStrategy of IReplicatingStrategy<ContractState> {
         // Contract owner
         fn owner(self: @ContractState) -> ContractAddress {
@@ -1228,7 +1234,6 @@ mod ReplicatingStrategy {
             self.strategy_state.write(market_id, state);
 
             // Transfer tokens to caller.
-            let contract = get_contract_address();
             if base_withdraw != 0 {
                 let base_token = ERC20ABIDispatcher { contract_address: market_info.base_token };
                 base_token.transfer(caller, base_withdraw);
@@ -1327,8 +1332,6 @@ mod ReplicatingStrategy {
         //    * `allow_deposits` - whether deposits are allowed for depositors other than the strategy owner
         fn set_params(ref self: ContractState, market_id: felt252, params: StrategyParams) {
             self.assert_strategy_owner(market_id);
-            let market_manager = self.market_manager.read();
-            let width = market_manager.width(market_id);
             let old_params = self.strategy_params.read(market_id);
             assert(old_params != params, 'ParamsUnchanged');
             assert(params.range != 0, 'RangeZero');
@@ -1489,16 +1492,11 @@ mod ReplicatingStrategy {
             self.strategy_state.write(market_id, state);
             self.emit(Event::Unpause(Unpause { market_id }));
         }
+    }
 
-        // Upgrade contract to new version.
-        // Only callable by contract owner.
-        //
-        // # Arguments
-        // # `new_class_hash` - new class hash of upgraded contract
-        fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
-            self.assert_owner();
-            replace_class_syscall(new_class_hash);
-        }
+    #[external(v0)]
+    fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+        self.upgradeable._upgrade(new_class_hash);
     }
 
     ////////////////////////////////

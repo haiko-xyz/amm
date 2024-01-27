@@ -28,7 +28,7 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
     let market_manager = deploy_market_manager(owner());
 
     // Deploy tokens.
-    let (treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let base_token = deploy_token(base_token_params);
     let quote_token = deploy_token(quote_token_params);
 
@@ -63,7 +63,7 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 #[test]
 #[available_gas(2000000000)]
 fn test_amounts_inside_order_bid() {
-    let (market_manager, base_token, quote_token, market_id) = before();
+    let (market_manager, _base_token, _quote_token, market_id) = before();
 
     // Create order.
     set_contract_address(alice());
@@ -86,7 +86,7 @@ fn test_amounts_inside_order_bid() {
         Option::None(()),
         Option::None(())
     );
-    let (amount_in, amount_out, fees) = swap(market_manager, params);
+    let (amount_in, amount_out, _fees) = swap(market_manager, params);
 
     // Check amounts inside order. Expect fees earned on partial fill to be paid.
     let (base_amount, quote_amount) = market_manager.amounts_inside_order(order_id, market_id);
@@ -95,7 +95,7 @@ fn test_amounts_inside_order_bid() {
 
     // Fully fill order.
     params.amount = to_e18(1);
-    let (amount_in_2, amount_out_2, fees_2) = swap(market_manager, params);
+    let (amount_in_2, amount_out_2, _fees_2) = swap(market_manager, params);
 
     // Check amounts inside order. Expect fees to be included.
     let (base_amount_2, quote_amount_2) = market_manager.amounts_inside_order(order_id, market_id);
@@ -109,7 +109,7 @@ fn test_amounts_inside_order_bid() {
 #[test]
 #[available_gas(2000000000)]
 fn test_amounts_inside_order_ask() {
-    let (market_manager, base_token, quote_token, market_id) = before();
+    let (market_manager, _base_token, _quote_token, market_id) = before();
 
     // Create order.
     set_contract_address(alice());
@@ -132,7 +132,7 @@ fn test_amounts_inside_order_ask() {
         Option::None(()),
         Option::None(())
     );
-    let (amount_in, amount_out, fees) = swap(market_manager, params);
+    let (amount_in, amount_out, _fees) = swap(market_manager, params);
 
     // Check amounts inside order. Expect fees earned on partial fill to be paid.
     let (base_amount, quote_amount) = market_manager.amounts_inside_order(order_id, market_id);
@@ -141,7 +141,7 @@ fn test_amounts_inside_order_ask() {
 
     // Fully fill order.
     params.amount = to_e18(1);
-    let (amount_in_2, amount_out_2, fees_2) = swap(market_manager, params);
+    let (amount_in_2, amount_out_2, _fees_2) = swap(market_manager, params);
 
     // Check amounts inside order. Expect fees to be included.
     let (base_amount_2, quote_amount_2) = market_manager.amounts_inside_order(order_id, market_id);
@@ -155,7 +155,7 @@ fn test_amounts_inside_order_ask() {
 #[test]
 #[available_gas(2000000000)]
 fn test_amounts_inside_order_empty_position() {
-    let (market_manager, base_token, quote_token, market_id) = before();
+    let (market_manager, _base_token, _quote_token, market_id) = before();
 
     // Create order.
     set_contract_address(alice());
