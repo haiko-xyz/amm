@@ -111,7 +111,7 @@ fn test_depth() {
         (8406625, I128Trait::new(2000, true)),
     ];
 
-    assert_eq!(depth.len(), 7);
+    assert(depth.len() == 7, 'length');
 
     let mut i = 0;
     loop {
@@ -120,15 +120,10 @@ fn test_depth() {
         }
         let data: Depth = *depth.at(i);
         let (exp_limit, exp_liq_delta) = *expected.at(i);
-        assert!(data.limit == exp_limit, "limit case {}: act {}, exp {}", i, data.limit, exp_limit);
-        assert!(
+        assert(data.limit == exp_limit, 'limit case 01' + i.into());
+        assert(
             data.liquidity_delta == exp_liq_delta,
-            "liqD case {}: act {} {}, exp {} {}",
-            i,
-            data.liquidity_delta.val,
-            data.liquidity_delta.sign,
-            exp_liq_delta.val,
-            exp_liq_delta.sign
+            'liqD case 01' + i.into()
         );
         i += 1;
     }

@@ -5,9 +5,9 @@ use integer::BoundedU256;
 use amm::contracts::market_manager::MarketManager::ContractState;
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::contracts::market_manager::MarketManager::{
-    __member_module_limit_tree_l0::InternalContractMemberStateTrait as treeL0InternalState,
-    __member_module_limit_tree_l1::InternalContractMemberStateTrait as treeL1InternalState,
-    __member_module_limit_tree_l2::InternalContractMemberStateTrait as treeL2InternalState,
+    limit_tree_l0::InternalContractMemberStateTrait as treeL0InternalState,
+    limit_tree_l1::InternalContractMemberStateTrait as treeL1InternalState,
+    limit_tree_l2::InternalContractMemberStateTrait as treeL2InternalState,
 };
 use amm::libraries::math::{math, bit_math, price_math};
 use amm::libraries::constants::MAX_LIMIT_SHIFTED;
