@@ -8,6 +8,7 @@ mod MarketManager {
     use cmp::min;
     use dict::Felt252DictTrait;
     use nullable::nullable_from_box;
+    use integer::BoundedU32;
     use starknet::ContractAddress;
     use starknet::contract_address::ContractAddressZeroable;
     use starknet::info::{get_caller_address, get_block_timestamp, get_contract_address};
@@ -24,7 +25,7 @@ mod MarketManager {
     use amm::interfaces::ILoanReceiver::{ILoanReceiverDispatcher, ILoanReceiverDispatcherTrait};
     use amm::types::core::{
         MarketInfo, MarketConfigs, MarketState, OrderBatch, Position, LimitInfo, LimitOrder,
-        ERC721PositionInfo, SwapParams, ConfigOption, Config
+        ERC721PositionInfo, SwapParams, ConfigOption, Config, Depth
     };
     use amm::types::i128::{i128, I128Zeroable, I128Trait};
     use amm::types::i256::{i256, I256Trait};
@@ -586,6 +587,41 @@ mod MarketManager {
             } else {
                 liquidity_math::base_to_liquidity(lower_sqrt_price, upper_sqrt_price, amount, false)
             }
+        }
+
+        // Return pool depth as a list of liquidity deltas for a market.
+        //
+        // # Arguments
+        // * `market_id` - market id
+        //
+        // # Returns
+        // * `depth` - list of price limits and liquidity deltas
+        fn depth(self: @ContractState, market_id: felt252) -> Span<Depth> {
+            // Start search from limit 0. Append it as first limit if it exists.
+            let mut limit: u32 = 0;
+            let mut depth: Array<Depth> = array![];
+
+            let width = self.width(market_id);
+
+            loop {
+                if limit == BoundedU32::max() {
+                    break;
+                }
+
+                let limit_info = self.limit_info.read((market_id, limit));
+                if limit_info.liquidity_delta.val != 0 {
+                    depth.append(Depth { limit, liquidity_delta: limit_info.liquidity_delta });
+                }
+
+                // If we've reached the end of the tree, stop.
+                let next_limit = self.next_limit(market_id, true, width, limit);
+                match next_limit {
+                    Option::Some(nl) => limit = nl,
+                    Option::None => limit = BoundedU32::max(),
+                }
+            };
+
+            depth.span()
         }
 
         // Information corresponding to ERC721 position token.

@@ -3,7 +3,7 @@ use starknet::class_hash::ClassHash;
 
 use amm::types::core::{
     MarketInfo, MarketState, MarketConfigs, OrderBatch, Position, LimitInfo, LimitOrder,
-    ERC721PositionInfo
+    ERC721PositionInfo, Depth
 };
 use amm::types::i128::i128;
 use amm::types::i256::i256;
@@ -146,6 +146,15 @@ trait IMarketManager<TContractState> {
     fn amount_to_liquidity(
         self: @TContractState, market_id: felt252, is_bid: bool, limit: u32, amount: u256,
     ) -> u128;
+
+    // Return pool depth as a list of liquidity deltas for a market.
+    //
+    // # Arguments
+    // * `market_id` - market id
+    //
+    // # Returns
+    // * `depth` - list of price limits and liquidity deltas
+    fn depth(self: @TContractState, market_id: felt252) -> Span<Depth>;
 
     // Returns information about ERC721 position.
     fn ERC721_position_info(self: @TContractState, token_id: felt252) -> ERC721PositionInfo;

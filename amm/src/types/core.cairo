@@ -240,6 +240,16 @@ struct PositionInfo {
     liquidity: u128,
 }
 
+// Depth data.
+//
+// * `limit` - price limit
+// * `liquidity_delta` - liquidity delta at price limit
+#[derive(Copy, Drop, Serde, PartialEq)]
+struct Depth {
+    limit: u32,
+    liquidity_delta: i128,
+}
+
 // Position info returned for ERC721.
 //
 // * `base_token` - base token address

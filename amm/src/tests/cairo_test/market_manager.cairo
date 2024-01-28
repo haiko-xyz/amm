@@ -15,4 +15,6 @@ mod test_ownable;
 mod test_erc721_positions;
 mod test_whitelist;
 mod test_sweep;
+mod test_depth;
+
 mod market_types;
