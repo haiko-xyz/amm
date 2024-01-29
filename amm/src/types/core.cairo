@@ -248,6 +248,7 @@ struct PositionInfo {
 #[derive(Copy, Drop, Serde, PartialEq)]
 struct Depth {
     limit: u32,
+    price: u256,
     liquidity_delta: i128,
 }
 

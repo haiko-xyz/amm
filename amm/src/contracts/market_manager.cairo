@@ -595,7 +595,7 @@ mod MarketManager {
         // * `market_id` - market id
         //
         // # Returns
-        // * `depth` - list of price limits and liquidity deltas
+        // * `depth` - list of limits, prices and liquidity deltas
         fn depth(self: @ContractState, market_id: felt252) -> Span<Depth> {
             // Start search from limit 0. Append it as first limit if it exists.
             let mut limit: u32 = 0;
@@ -609,8 +609,13 @@ mod MarketManager {
                 }
 
                 let limit_info = self.limit_info.read((market_id, limit));
+                let sqrt_price = price_math::limit_to_sqrt_price(limit, width);
+                let price = math::mul_div(sqrt_price, sqrt_price, ONE, false);
                 if limit_info.liquidity_delta.val != 0 {
-                    depth.append(Depth { limit, liquidity_delta: limit_info.liquidity_delta });
+                    depth
+                        .append(
+                            Depth { limit, price, liquidity_delta: limit_info.liquidity_delta }
+                        );
                 }
 
                 // If we've reached the end of the tree, stop.
