@@ -34,6 +34,7 @@ use strategies::tests::replicating::helpers::{
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
+use openzeppelin::upgrades::interface::{IUpgradeableDispatcherTrait, IUpgradeableDispatcher};
 use snforge_std::{
     declare, start_warp, start_prank, stop_prank, CheatTarget, PrintTrait, spy_events, SpyOn,
     EventSpy, EventAssertions, EventFetcher
@@ -3090,6 +3091,16 @@ fn test_unpause() {
                 )
             ]
         );
+}
+
+#[test]
+#[should_panic(expected: ('OnlyOwner',))]
+fn test_upgrade_not_owner() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+
+    start_prank(CheatTarget::One(strategy.contract_address), alice());
+    let dispatcher = IUpgradeableDispatcher { contract_address: market_manager.contract_address };
+    dispatcher.upgrade(ReplicatingStrategy::TEST_CLASS_HASH.try_into().unwrap());
 }
 
 #[test]

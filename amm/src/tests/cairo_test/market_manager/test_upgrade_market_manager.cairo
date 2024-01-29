@@ -13,7 +13,7 @@ use amm::tests::mocks::upgraded_market_manager::{
 };
 use amm::tests::cairo_test::helpers::market_manager::{deploy_market_manager, create_market};
 use amm::tests::cairo_test::helpers::token::deploy_token;
-use amm::tests::common::params::{owner, default_token_params, default_market_params};
+use amm::tests::common::params::{owner, alice, default_token_params, default_market_params};
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
@@ -57,4 +57,17 @@ fn test_upgrade_market_manager() {
         contract_address: market_manager.contract_address
     };
     assert(upgraded_market_manager.owner() == owner(), 'Upgrade: owner');
+}
+
+#[test]
+#[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
+#[available_gas(40000000)]
+fn test_upgrade_market_manager_not_owner() {
+    // Deploy market manager and tokens.
+    let (market_manager, _base_token, _quote_token) = before();
+
+    // Upgrade market manager.
+    set_contract_address(alice());
+    let dispatcher = IUpgradeableDispatcher { contract_address: market_manager.contract_address };
+    dispatcher.upgrade(UpgradedMarketManager::TEST_CLASS_HASH.try_into().unwrap());
 }

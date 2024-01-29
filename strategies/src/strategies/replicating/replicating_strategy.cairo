@@ -1494,8 +1494,14 @@ mod ReplicatingStrategy {
         }
     }
 
+    // Upgrade contract class.
+    // Callable by owner only.
+    //
+    // # Arguments
+    // * `new_class_hash` - new class hash of contract
     #[external(v0)]
     fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+        self.assert_owner();
         self.upgradeable._upgrade(new_class_hash);
     }
 
