@@ -121,10 +121,7 @@ fn test_depth() {
         let data: Depth = *depth.at(i);
         let (exp_limit, exp_liq_delta) = *expected.at(i);
         assert(data.limit == exp_limit, 'limit case 01' + i.into());
-        assert(
-            data.liquidity_delta == exp_liq_delta,
-            'liqD case 01' + i.into()
-        );
+        assert(data.liquidity_delta == exp_liq_delta, 'liqD case 01' + i.into());
         i += 1;
     }
 }

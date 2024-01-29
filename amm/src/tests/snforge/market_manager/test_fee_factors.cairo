@@ -1,4 +1,3 @@
-use core::traits::AddEq;
 // Core lib imports.
 use cmp::{min, max};
 
@@ -6,6 +5,7 @@ use cmp::{min, max};
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
 use amm::libraries::math::fee_math;
 use amm::types::i128::I128Trait;
+use amm::types::i256::{i256, I256Trait};
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::tests::snforge::helpers::{
     market_manager::{deploy_market_manager, create_market, modify_position, swap, swap_multiple},
@@ -41,10 +41,10 @@ struct LimitState {
 #[derive(Drop, Copy)]
 struct PositionState {
     liquidity: u128,
-    base_fee_factor: u256,
-    quote_fee_factor: u256,
-    base_fee_factor_last: u256,
-    quote_fee_factor_last: u256,
+    base_fee_factor: i256,
+    quote_fee_factor: i256,
+    base_fee_factor_last: i256,
+    quote_fee_factor_last: i256,
     lower_limit: LimitState,
     upper_limit: LimitState,
 }
@@ -245,10 +245,15 @@ fn test_fee_factor_invariants(
 
                 // Invariant 3: position fee factor should never exceed global fee factor.
                 assert(
-                    after.base_fee_factor <= market_state_aft.base_fee_factor, 'Invariant 3: base'
+                    after
+                        .base_fee_factor <= I256Trait::new(market_state_aft.base_fee_factor, false),
+                    'Invariant 3: base'
                 );
                 assert(
-                    after.quote_fee_factor <= market_state_aft.quote_fee_factor,
+                    after
+                        .quote_fee_factor <= I256Trait::new(
+                            market_state_aft.quote_fee_factor, false
+                        ),
                     'Invariant 3: quote'
                 );
 
@@ -301,8 +306,14 @@ fn test_fee_factor_invariants(
             assert(after_pos.quote_fee_factor >= before_pos.quote_fee_factor, 'Invariant 2: quote');
 
             // Invariant 3: position fee factor should never exceed global fee factor.
-            assert(after_pos.base_fee_factor <= after_mkt.base_fee_factor, 'Invariant 3: base');
-            assert(after_pos.quote_fee_factor <= after_mkt.quote_fee_factor, 'Invariant 3: quote');
+            assert(
+                after_pos.base_fee_factor <= I256Trait::new(after_mkt.base_fee_factor, false),
+                'Invariant 3: base'
+            );
+            assert(
+                after_pos.quote_fee_factor <= I256Trait::new(after_mkt.quote_fee_factor, false),
+                'Invariant 3: quote'
+            );
 
             // Invariant 5: removing liquidity should always set last fee factor to fee factor.
             assert(

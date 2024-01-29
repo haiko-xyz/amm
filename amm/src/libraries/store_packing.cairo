@@ -5,12 +5,14 @@ use traits::{Into, TryInto};
 use option::OptionTrait;
 
 // Local imports.
+use amm::libraries::constants::MAX_FEE_FACTOR;
 use amm::types::core::{
     MarketInfo, MarketState, MarketConfigs, Config, ConfigOption, ValidLimits, LimitInfo, Position,
     OrderBatch, LimitOrder, PackedMarketInfo, PackedMarketState, PackedLimitInfo, PackedPosition,
     PackedOrderBatch, PackedLimitOrder, PackedMarketConfigs
 };
 use amm::types::i128::I128Trait;
+use amm::types::i256::I256Trait;
 
 ////////////////////////////////
 // CONSTANTS
@@ -41,6 +43,7 @@ const TWO_POW_219: felt252 = 0x8000000000000000000000000000000000000000000000000
 const TWO_POW_220: felt252 = 0x10000000000000000000000000000000000000000000000000000000;
 const TWO_POW_221: felt252 = 0x20000000000000000000000000000000000000000000000000000000;
 const TWO_POW_222: felt252 = 0x40000000000000000000000000000000000000000000000000000000;
+const TWO_POW_251: felt252 = 0x800000000000000000000000000000000000000000000000000000000000000;
 
 const MASK_1: u256 = 0x1;
 const MASK_2: u256 = 0x3;
@@ -48,6 +51,7 @@ const MASK_4: u256 = 0xf;
 const MASK_16: u256 = 0xffff;
 const MASK_32: u256 = 0xffffffff;
 const MASK_128: u256 = 0xffffffffffffffffffffffffffffffff;
+const MASK_251: felt252 = 0x7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
 ////////////////////////////////
 // IMPLS
@@ -251,14 +255,14 @@ impl OrderBatchStorePacking of StorePacking<OrderBatch, PackedOrderBatch> {
 
 impl PositionStorePacking of StorePacking<Position, PackedPosition> {
     fn pack(value: Position) -> PackedPosition {
-        let base_fee_factor_last: felt252 = value
-            .base_fee_factor_last
-            .try_into()
-            .expect('BaseFeeFactorLastOF');
-        let quote_fee_factor_last: felt252 = value
-            .quote_fee_factor_last
-            .try_into()
-            .expect('QuoteFeeFactorLastOF');
+        assert(value.base_fee_factor_last.val <= MAX_FEE_FACTOR, 'BaseFeeFactorLastOF');
+        let mut base_fee_factor_last: u256 = value.base_fee_factor_last.val;
+        base_fee_factor_last += bool_to_u256(value.base_fee_factor_last.sign) * TWO_POW_251.into();
+
+        assert(value.quote_fee_factor_last.val <= MAX_FEE_FACTOR, 'QuoteFeeFactorLastOF');
+        let mut quote_fee_factor_last: u256 = value.quote_fee_factor_last.val;
+        quote_fee_factor_last += bool_to_u256(value.quote_fee_factor_last.sign)
+            * TWO_POW_251.into();
 
         let mut slab0: u256 = value.lower_limit.into();
         slab0 += value.upper_limit.into() * TWO_POW_32.into();
@@ -266,16 +270,22 @@ impl PositionStorePacking of StorePacking<Position, PackedPosition> {
 
         PackedPosition {
             market_id: value.market_id,
-            base_fee_factor_last,
-            quote_fee_factor_last,
+            base_fee_factor_last: base_fee_factor_last.try_into().unwrap(),
+            quote_fee_factor_last: quote_fee_factor_last.try_into().unwrap(),
             slab0: slab0.try_into().unwrap()
         }
     }
 
     fn unpack(value: PackedPosition) -> Position {
         let market_id = value.market_id;
-        let base_fee_factor_last: u256 = value.base_fee_factor_last.into();
-        let quote_fee_factor_last: u256 = value.quote_fee_factor_last.into();
+        let base_fee_factor_val: u256 = value.base_fee_factor_last.into() & MASK_251.into();
+        let base_fee_factor_sign: bool = ((value.base_fee_factor_last.into() / TWO_POW_251.into())
+            & MASK_1) == 1;
+        let quote_fee_factor_val: u256 = value.quote_fee_factor_last.into() & MASK_251.into();
+        let quote_fee_factor_sign: bool = ((value.quote_fee_factor_last.into() / TWO_POW_251.into())
+            & MASK_1) == 1;
+        let base_fee_factor_last = I256Trait::new(base_fee_factor_val, base_fee_factor_sign);
+        let quote_fee_factor_last = I256Trait::new(quote_fee_factor_val, quote_fee_factor_sign);
         let lower_limit: u32 = (value.slab0.into() & MASK_32).try_into().unwrap();
         let upper_limit: u32 = ((value.slab0.into() / TWO_POW_32.into()) & MASK_32)
             .try_into()
