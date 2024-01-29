@@ -487,8 +487,8 @@ fn test_collect_fees() {
     assert(base_amount.val == base_fees_exp, 'Base fees');
     assert(quote_amount.val == quote_fees_exp, 'Quote fees');
     assert(position.liquidity == liquidity.val, 'Liquidity');
-    assert(position.base_fee_factor_last == base_fees_exp, 'Base fee factor');
-    assert(position.quote_fee_factor_last == quote_fees_exp, 'Quote fee factor');
+    assert(position.base_fee_factor_last.val == base_fees_exp, 'Base fee factor');
+    assert(position.quote_fee_factor_last.val == quote_fees_exp, 'Quote fee factor');
 }
 
 #[test]

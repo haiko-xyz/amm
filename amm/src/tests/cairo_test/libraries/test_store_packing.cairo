@@ -11,6 +11,7 @@ use amm::types::core::{
     ValidLimits, ConfigOption
 };
 use amm::types::i128::I128Trait;
+use amm::types::i256::I256Trait;
 
 
 ////////////////////////////////
@@ -178,8 +179,8 @@ fn test_store_packing_position() {
         lower_limit: 7906725,
         upper_limit: 7906825,
         liquidity: 28123192319023231239,
-        quote_fee_factor_last: 31892319283213127389127312831273123123,
-        base_fee_factor_last: 9938560381238123811392129756646474789,
+        quote_fee_factor_last: I256Trait::new(31892319283213127389127312831273123123, false),
+        base_fee_factor_last: I256Trait::new(9938560381238123811392129756646474789, true),
     };
 
     store_packing_contract.set_position(1, position);

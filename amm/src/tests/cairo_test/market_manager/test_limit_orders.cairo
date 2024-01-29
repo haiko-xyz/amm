@@ -120,8 +120,8 @@ fn test_create_bid_order_initialises_order_and_batch() {
     assert(approx_eq(base_amount, base_amount_exp, 10), 'Create bid: base amount');
     assert(approx_eq(quote_amount, quote_amount_exp, 10), 'Create bid: quote amount');
     assert(position.liquidity == liquidity, 'Create bid: position liq');
-    assert(position.base_fee_factor_last == 0, 'Create bid: position qff');
-    assert(position.quote_fee_factor_last == 0, 'Create bid: position bff');
+    assert(position.base_fee_factor_last.val == 0, 'Create bid: position qff');
+    assert(position.quote_fee_factor_last.val == 0, 'Create bid: position bff');
 }
 
 #[test]
@@ -154,8 +154,8 @@ fn test_create_ask_order_initialises_order_and_batch() {
     assert(approx_eq(base_amount, base_amount_exp, 10), 'Create ask: base amount');
     assert(approx_eq(quote_amount, quote_amount_exp, 10), 'Create ask: quote amount');
     assert(position.liquidity == liquidity, 'Create ask: position liq');
-    assert(position.base_fee_factor_last == 0, 'Create order: position qff');
-    assert(position.quote_fee_factor_last == 0, 'Create ask: position bff');
+    assert(position.base_fee_factor_last.val == 0, 'Create order: position qff');
+    assert(position.quote_fee_factor_last.val == 0, 'Create ask: position bff');
 }
 
 #[test]

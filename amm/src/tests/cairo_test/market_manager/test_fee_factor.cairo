@@ -2,16 +2,22 @@
 use starknet::ContractAddress;
 use starknet::contract_address_const;
 use starknet::testing::set_contract_address;
+use integer::BoundedU256;
 use debug::PrintTrait;
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
+use amm::contracts::market_manager::MarketManager::{
+    ContractState as MMContractState,
+    positions::InternalContractMemberStateTrait as PositionsInternalState,
+};
 use amm::libraries::math::{price_math, fee_math};
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT};
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
-use amm::types::core::LimitInfo;
+use amm::types::core::{LimitInfo, Position};
 use amm::types::i128::{i128, I128Trait};
+use amm::types::i256::{i256, I256Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
     deploy_market_manager, create_market, modify_position, swap
 };
@@ -126,6 +132,62 @@ fn test_reinitialise_fee_factor() {
     print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
 }
 
+#[test]
+#[available_gas(1000000000)]
+fn test_negative_position_fee_factor() {
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
+
+    // Create position
+    let lower_limit = OFFSET - 1000;
+    let upper_limit = OFFSET + 1000;
+    let liquidity = I128Trait::new(100000, false);
+    let mut params = modify_position_params(
+        alice(), market_id, lower_limit, upper_limit, liquidity
+    );
+    modify_position(market_manager, params);
+
+    // Swap so fee factors of position are non-zero.
+    let mut swap_params = swap_params(
+        alice(),
+        market_id,
+        false,
+        true,
+        100000,
+        Option::None(()),
+        Option::None(()),
+        Option::None(()),
+    );
+    swap(market_manager, swap_params);
+
+    swap_params.is_buy = true;
+    swap(market_manager, swap_params);
+
+    // Create new position at new position below, with top limit overlapping existing. This should 
+    // result in position fee factor underflow if negative fee factors not correctly handled.
+    params.lower_limit = OFFSET - 2000;
+    params.upper_limit = OFFSET - 1000;
+    modify_position(market_manager, params);
+}
+
+#[test]
+#[available_gas(1000000000)]
+#[should_panic(expected: ('BaseFeeFactorLastOF',))]
+fn test_fee_factor_store_packing_overflow() {
+    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
+
+    // Create position with fee factors > max allowable
+    let position = Position {
+        market_id: 1,
+        lower_limit: 10,
+        upper_limit: 20,
+        liquidity: 10000,
+        base_fee_factor_last: I256Trait::new(BoundedU256::max(), false),
+        quote_fee_factor_last: I256Trait::new(BoundedU256::max(), false),
+    };
+    let mut state: MMContractState = MarketManager::unsafe_new_contract_state();
+    state.positions.write(1, position);
+}
+
 ////////////////////////////////
 // INTERNAL HELPERS
 ////////////////////////////////
@@ -155,9 +217,11 @@ fn print_fee_factors(
 
     let position = market_manager.position(market_id, alice().into(), lower_limit, upper_limit);
     'position base ff last'.print();
-    position.base_fee_factor_last.print();
+    position.base_fee_factor_last.val.print();
+    position.base_fee_factor_last.sign.print();
     'position quote ff last'.print();
-    position.quote_fee_factor_last.print();
+    position.quote_fee_factor_last.val.print();
+    position.quote_fee_factor_last.sign.print();
     let (_, _, pos_base_fee_factor, pos_quote_fee_factor) = fee_math::get_fee_inside(
         position,
         lower_limit_info,
@@ -169,7 +233,9 @@ fn print_fee_factors(
         market_state.quote_fee_factor,
     );
     'position base ff'.print();
-    pos_base_fee_factor.print();
+    pos_base_fee_factor.val.print();
+    pos_base_fee_factor.sign.print();
     'position quote ff'.print();
-    pos_quote_fee_factor.print();
+    pos_quote_fee_factor.val.print();
+    pos_quote_fee_factor.sign.print();
 }

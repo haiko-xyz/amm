@@ -10,6 +10,7 @@ use option::Option;
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_LIMIT_SHIFTED, MAX_WIDTH};
 use amm::types::i128::i128;
+use amm::types::i256::i256;
 
 ////////////////////////////////
 // TYPES
@@ -176,16 +177,16 @@ struct LimitInfo {
 // * `lower_limit` - lower limit of position
 // * `upper_limit` - upper limit of position
 // * `liquidity` - amount of liquidity in position
-// * `base_fee_factor_last` - base fee factor of position at last update (constrained to felt252)
-// * `quote_fee_factor_last` - quote fee factor of position at last update (constrained to felt252)
+// * `base_fee_factor_last` - base fee factor of position at last update
+// * `quote_fee_factor_last` - quote fee factor of position at last update
 #[derive(Copy, Drop, Serde)]
 struct Position {
     market_id: felt252,
     lower_limit: u32,
     upper_limit: u32,
     liquidity: u128,
-    base_fee_factor_last: u256,
-    quote_fee_factor_last: u256,
+    base_fee_factor_last: i256,
+    quote_fee_factor_last: i256,
 }
 
 // Information about batched limit orders within a nonce.
@@ -355,8 +356,8 @@ struct PackedOrderBatch {
 // Packed version of `Position`.
 //
 // * `market_id` - market id
-// * `base_fee_factor_last` - `base_fee_factor_last` (constrained to felt252)
-// * `quote_fee_factor_last` - `quote_fee_factor_last` (constrained to felt252)
+// * `base_fee_factor_last` - `base_fee_factor_last` (constrained to felt252, with sign packed at top bit)
+// * `quote_fee_factor_last` - `quote_fee_factor_last` (constrained to felt252, with sign packed at top bit)
 // * `slab0` - `lower_limit` + `upper_limit` + `liquidity`
 #[derive(starknet::Store)]
 struct PackedPosition {

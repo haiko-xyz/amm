@@ -6,7 +6,7 @@ mod test_fee_factors;
 mod test_swap_events;
 mod test_swap_multiple_events;
 mod benchmark_gas;
-// Note: currently disabled as running with `snforge` causes an unexplained panic
-// mod test_quote_fuzz;
 
+// Note: disabled but saved for future debugging
+// mod test_failing_fee_factor;
 
