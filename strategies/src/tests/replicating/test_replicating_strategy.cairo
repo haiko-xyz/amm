@@ -11,7 +11,7 @@ use amm::interfaces::{
     IMarketManager::{IMarketManager, IMarketManagerDispatcher, IMarketManagerDispatcherTrait},
     IStrategy::{IStrategyDispatcher, IStrategyDispatcherTrait},
 };
-use amm::types::core::{MarketState, SwapParams};
+use amm::types::core::{MarketState, SwapParams, PositionInfo};
 use amm::types::i128::{i128, I128Trait};
 use amm::tests::snforge::helpers::{
     market_manager::{deploy_market_manager, create_market, modify_position, swap},
@@ -300,16 +300,18 @@ fn test_add_market_initialises_state() {
 
     // Check market state correctly updated.
     let state = strategy.strategy_state(market_id);
+    let bid = strategy.bid(market_id);
+    let ask = strategy.ask(market_id);
     assert(state.is_initialised, 'Initialised');
     assert(!state.is_paused, 'Paused');
     assert(state.base_reserves == 0, 'Base reserves');
     assert(state.quote_reserves == 0, 'Quote reserves');
-    assert(state.bid.lower_limit == 0, 'Bid: lower limit');
-    assert(state.bid.upper_limit == 0, 'Bid: upper limit');
-    assert(state.bid.liquidity == 0, 'Bid: liquidity');
-    assert(state.ask.lower_limit == 0, 'Ask: lower limit');
-    assert(state.ask.upper_limit == 0, 'Ask: upper limit');
-    assert(state.ask.liquidity == 0, 'Ask: liquidity');
+    assert(bid.lower_limit == 0, 'Bid: lower limit');
+    assert(bid.upper_limit == 0, 'Bid: upper limit');
+    assert(bid.liquidity == 0, 'Bid: liquidity');
+    assert(ask.lower_limit == 0, 'Ask: lower limit');
+    assert(ask.upper_limit == 0, 'Ask: upper limit');
+    assert(ask.liquidity == 0, 'Ask: liquidity');
 
     // Check owner correctly updated.
     assert(strategy.strategy_owner(market_id) == owner(), 'Owner');
@@ -448,10 +450,10 @@ fn test_deposit_initial_success() {
     assert(
         aft.strategy_state.quote_reserves == bef.strategy_state.quote_reserves, 'Quote reserves'
     );
-    assert(aft.strategy_state.bid.lower_limit == 7906620 + 721930, 'Bid: lower limit');
-    assert(aft.strategy_state.bid.upper_limit == 7906620 + 741930, 'Bid: upper limit');
-    assert(aft.strategy_state.ask.lower_limit == 7906620 + 742050, 'Ask: lower limit');
-    assert(aft.strategy_state.ask.upper_limit == 7906620 + 762050, 'Ask: upper limit');
+    assert(aft.bid.lower_limit == 7906620 + 721930, 'Bid: lower limit');
+    assert(aft.bid.upper_limit == 7906620 + 741930, 'Bid: upper limit');
+    assert(aft.ask.lower_limit == 7906620 + 742050, 'Ask: lower limit');
+    assert(aft.ask.upper_limit == 7906620 + 762050, 'Ask: upper limit');
     assert(approx_eq_pct(shares, shares_exp, 20), 'Shares');
     assert(
         approx_eq_pct(strategy.user_deposits(market_id, owner()), shares_exp, 20), 'User deposits'
@@ -698,19 +700,17 @@ fn test_update_positions_rebalances() {
     let (amount_in, amount_out, fees) = market_manager
         .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
     let state = strategy.strategy_state(market_id);
+    let bid = strategy.bid(market_id);
+    let ask = strategy.ask(market_id);
     let market_state = market_manager.market_state(market_id);
 
     // Run checks.
-    assert(state.bid.lower_limit == 7906620 + 721930, 'Bid: lower limit');
-    assert(state.bid.upper_limit == 7906620 + 741930, 'Bid: upper limit');
-    assert(state.ask.lower_limit == 7906620 + 742720, 'Ask: lower limit');
-    assert(state.ask.upper_limit == 7906620 + 762720, 'Ask: upper limit');
-    assert(
-        approx_eq_pct(state.bid.liquidity.into(), 286266946460287812818573174, 20), 'Bid: liquidity'
-    );
-    assert(
-        approx_eq_pct(state.ask.liquidity.into(), 430847693075374009874980115, 20), 'Ask: liquidity'
-    );
+    assert(bid.lower_limit == 7906620 + 721930, 'Bid: lower limit');
+    assert(bid.upper_limit == 7906620 + 741930, 'Bid: upper limit');
+    assert(ask.lower_limit == 7906620 + 742720, 'Ask: lower limit');
+    assert(ask.upper_limit == 7906620 + 762720, 'Ask: upper limit');
+    assert(approx_eq_pct(bid.liquidity.into(), 286266946460287812818573174, 20), 'Bid: liquidity');
+    assert(approx_eq_pct(ask.liquidity.into(), 430847693075374009874980115, 20), 'Ask: liquidity');
     assert(
         approx_eq(market_state.curr_sqrt_price, 410015410053942901623567337309, 100),
         'Market: curr sqrt price'
@@ -728,12 +728,12 @@ fn test_update_positions_rebalances() {
                     ReplicatingStrategy::Event::UpdatePositions(
                         ReplicatingStrategy::UpdatePositions {
                             market_id,
-                            bid_lower_limit: state.bid.lower_limit,
-                            bid_upper_limit: state.bid.upper_limit,
-                            bid_liquidity: state.bid.liquidity,
-                            ask_lower_limit: state.ask.lower_limit,
-                            ask_upper_limit: state.ask.upper_limit,
-                            ask_liquidity: state.ask.liquidity,
+                            bid_lower_limit: bid.lower_limit,
+                            bid_upper_limit: bid.upper_limit,
+                            bid_liquidity: bid.liquidity,
+                            ask_lower_limit: ask.lower_limit,
+                            ask_upper_limit: ask.upper_limit,
+                            ask_liquidity: ask.liquidity,
                         }
                     )
                 )
@@ -773,18 +773,18 @@ fn test_update_positions_multiple_swaps() {
 
     // Run checks. Expect position not updated as LVR condition not met.
     let state = strategy.strategy_state(market_id);
+    let mut bid = strategy.bid(market_id);
+    let mut ask = strategy.ask(market_id);
     let mut market_state = market_manager.market_state(market_id);
-    assert(state.bid.lower_limit == 7906620 + 721870, 'Bid 1: lower limit');
-    assert(state.bid.upper_limit == 7906620 + 741870, 'Bid 1: upper limit');
-    assert(state.ask.lower_limit == 7906620 + 741940, 'Ask 1: lower limit');
-    assert(state.ask.upper_limit == 7906620 + 761940, 'Ask 1: upper limit');
+    assert(bid.lower_limit == 7906620 + 721870, 'Bid 1: lower limit');
+    assert(bid.upper_limit == 7906620 + 741870, 'Bid 1: upper limit');
+    assert(ask.lower_limit == 7906620 + 741940, 'Ask 1: lower limit');
+    assert(ask.upper_limit == 7906620 + 761940, 'Ask 1: upper limit');
     assert(
-        approx_eq_pct(state.bid.liquidity.into(), 286352838998000392443103695, 20),
-        'Bid 1: liquidity'
+        approx_eq_pct(bid.liquidity.into(), 286352838998000392443103695, 20), 'Bid 1: liquidity'
     );
     assert(
-        approx_eq_pct(state.ask.liquidity.into(), 429170667782432169281955462, 20),
-        'Ask 1: liquidity'
+        approx_eq_pct(ask.liquidity.into(), 429170667782432169281955462, 20), 'Ask 1: liquidity'
     );
     assert(
         approx_eq_pct(market_state.curr_sqrt_price, 408407949181225947147258078960, 20),
@@ -805,17 +805,17 @@ fn test_update_positions_multiple_swaps() {
     // Run checks.
     let state_2 = strategy.strategy_state(market_id);
     market_state = market_manager.market_state(market_id);
-    assert(state_2.bid.lower_limit == 7906620 + 719790, 'Bid 2: lower limit');
-    assert(state_2.bid.upper_limit == 7906620 + 739790, 'Bid 2: upper limit');
-    assert(state_2.ask.lower_limit == 7906620 + 741950, 'Ask 2: lower limit');
-    assert(state_2.ask.upper_limit == 7906620 + 761950, 'Ask 2: upper limit');
+    bid = strategy.bid(market_id);
+    ask = strategy.ask(market_id);
+    assert(bid.lower_limit == 7906620 + 719790, 'Bid 2: lower limit');
+    assert(bid.upper_limit == 7906620 + 739790, 'Bid 2: upper limit');
+    assert(ask.lower_limit == 7906620 + 741950, 'Ask 2: lower limit');
+    assert(ask.upper_limit == 7906620 + 761950, 'Ask 2: upper limit');
     assert(
-        approx_eq_pct(state_2.bid.liquidity.into(), 289346459271936200590250501, 20),
-        'Bid 2: liquidity'
+        approx_eq_pct(bid.liquidity.into(), 289346459271936200590250501, 20), 'Bid 2: liquidity'
     );
     assert(
-        approx_eq_pct(state_2.ask.liquidity.into(), 429192101090792820578334730, 20),
-        'Ask 2: liquidity'
+        approx_eq_pct(ask.liquidity.into(), 429192101090792820578334730, 20), 'Ask 2: liquidity'
     );
     assert(
         approx_eq_pct(market_state.curr_sqrt_price, 404035472140796799075583212090, 20),
@@ -834,12 +834,12 @@ fn test_update_positions_multiple_swaps() {
                     ReplicatingStrategy::Event::UpdatePositions(
                         ReplicatingStrategy::UpdatePositions {
                             market_id,
-                            bid_lower_limit: state_2.bid.lower_limit,
-                            bid_upper_limit: state_2.bid.upper_limit,
-                            bid_liquidity: state_2.bid.liquidity,
-                            ask_lower_limit: state_2.ask.lower_limit,
-                            ask_upper_limit: state_2.ask.upper_limit,
-                            ask_liquidity: state_2.ask.liquidity,
+                            bid_lower_limit: bid.lower_limit,
+                            bid_upper_limit: bid.upper_limit,
+                            bid_liquidity: bid.liquidity,
+                            ask_lower_limit: ask.lower_limit,
+                            ask_upper_limit: ask.upper_limit,
+                            ask_liquidity: ask.liquidity,
                         }
                     )
                 ),
@@ -1140,9 +1140,11 @@ fn test_update_positions_num_sources_too_low() {
 
     // Check strategy paused and positions withdrawn.
     let state = strategy.strategy_state(market_id);
+    let bid = strategy.bid(market_id);
+    let ask = strategy.ask(market_id);
     assert(state.is_paused, 'Paused');
-    assert(state.bid.liquidity == 0, 'Bid liquidity');
-    assert(state.ask.liquidity == 0, 'Ask liquidity');
+    assert(bid.liquidity == 0, 'Bid liquidity');
+    assert(ask.liquidity == 0, 'Ask liquidity');
 
     // Check pause event emitted.
     spy
@@ -1187,9 +1189,11 @@ fn test_update_positions_price_stale() {
 
     // Check strategy paused and positions withdrawn.
     let state = strategy.strategy_state(market_id);
+    let bid = strategy.bid(market_id);
+    let ask = strategy.ask(market_id);
     assert(state.is_paused, 'Paused');
-    assert(state.bid.liquidity == 0, 'Bid liquidity');
-    assert(state.ask.liquidity == 0, 'Ask liquidity');
+    assert(bid.liquidity == 0, 'Bid liquidity');
+    assert(ask.liquidity == 0, 'Ask liquidity');
 
     // Check pause event emitted.
     spy
@@ -1252,14 +1256,8 @@ fn test_deposit_success() {
         + ask_new_shares_exp;
     assert(base_amount == base_exp, 'Base amount');
     assert(quote_amount == quote_exp, 'Quote amount');
-    assert(
-        approx_eq_pct(aft.strategy_state.bid.liquidity.into(), bid_init_shares_exp, 10),
-        'Bid: liquidity'
-    );
-    assert(
-        approx_eq_pct(aft.strategy_state.ask.liquidity.into(), ask_init_shares_exp, 10),
-        'Ask: liquidity'
-    );
+    assert(approx_eq_pct(aft.bid.liquidity.into(), bid_init_shares_exp, 10), 'Bid: liquidity');
+    assert(approx_eq_pct(aft.ask.liquidity.into(), ask_init_shares_exp, 10), 'Ask: liquidity');
     assert(approx_eq_pct(new_shares, bid_new_shares_exp + ask_new_shares_exp, 20), 'Shares');
     assert(
         approx_eq_pct(user_deposits, bid_new_shares_exp + ask_new_shares_exp, 20), 'User deposits'
@@ -1269,8 +1267,8 @@ fn test_deposit_success() {
     assert(aft.lp_quote_bal == bef.lp_quote_bal - quote_exp, 'Alice quote');
     assert(aft.strategy_base_bal == bef.strategy_base_bal + base_exp, 'Strategy base');
     assert(aft.strategy_quote_bal == bef.strategy_quote_bal + quote_exp, 'Strategy quote');
-    assert(bef.strategy_state.bid == aft.strategy_state.bid, 'Bid');
-    assert(bef.strategy_state.ask == aft.strategy_state.ask, 'Ask');
+    assert(bef.bid == aft.bid, 'Bid');
+    assert(bef.ask == aft.ask, 'Ask');
 
     // Check event emitted.
     spy
@@ -1420,14 +1418,16 @@ fn test_deposit_single_sided_bid_liquidity() {
             Option::None(())
         );
     let state = strategy.strategy_state(market_id);
-    assert(state.ask.liquidity == 0, 'Ask: liquidity');
+    let bid = strategy.bid(market_id);
+    let ask = strategy.ask(market_id);
+    assert(ask.liquidity == 0, 'Ask: liquidity');
 
     // Log events.
     let mut spy = spy_events(SpyOn::One(strategy.contract_address));
 
     // Deposit single-sided bid liquidity.
     let position_id = id::position_id(
-        market_id, strategy.contract_address.into(), state.bid.lower_limit, state.bid.upper_limit
+        market_id, strategy.contract_address.into(), bid.lower_limit, bid.upper_limit
     );
     let (_, quote_amount, _, quote_fees) = market_manager.amounts_inside_position(position_id);
     start_prank(CheatTarget::One(strategy.contract_address), alice());
@@ -1507,14 +1507,16 @@ fn test_deposit_single_sided_ask_liquidity() {
             Option::None(())
         );
     let state = strategy.strategy_state(market_id);
-    assert(state.bid.liquidity == 0, 'Bid: liquidity');
+    let bid = strategy.bid(market_id);
+    let ask = strategy.ask(market_id);
+    assert(bid.liquidity == 0, 'Bid: liquidity');
 
     // Log events.
     let mut spy = spy_events(SpyOn::One(strategy.contract_address));
 
     // Deposit single-sided bid liquidity.
     let position_id = id::position_id(
-        market_id, strategy.contract_address.into(), state.ask.lower_limit, state.ask.upper_limit
+        market_id, strategy.contract_address.into(), ask.lower_limit, ask.upper_limit
     );
     let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
         .amounts_inside_position(position_id);
@@ -1815,12 +1817,7 @@ fn test_withdraw_all() {
     assert(approx_eq_pct(aft.strategy_quote_bal, bef.strategy_quote_bal, 20), 'Strategy quote');
     assert(approx_eq(aft.market_base_bal, 0, 10), 'Market base');
     assert(approx_eq(aft.market_quote_bal, 0, 10), 'Market quote');
-    assert(
-        approx_eq(
-            (aft.strategy_state.bid.liquidity + aft.strategy_state.ask.liquidity).into(), 0, 10
-        ),
-        'Liquidity'
-    );
+    assert(approx_eq((aft.bid.liquidity + aft.ask.liquidity).into(), 0, 10), 'Liquidity');
     assert(approx_eq_pct(base_amount, 1005000000000000000000000, 20), 'Base amount');
     assert(approx_eq_pct(quote_amount, 1104211906813762659374706922, 20), 'Quote amount');
     assert(approx_eq(aft.strategy_state.base_reserves, 0, 10), 'Base reserves');
@@ -1923,22 +1920,15 @@ fn test_withdraw_partial() {
         approx_eq(aft.market_quote_bal, bef.market_quote_bal - quote_withdraw, 10), 'Market quote'
     );
     assert(
-        approx_eq_pct(
-            (aft.strategy_state.bid.liquidity + aft.strategy_state.ask.liquidity).into(),
-            shares_req,
-            20
-        ),
-        'Liquidity'
+        approx_eq_pct((aft.bid.liquidity + aft.ask.liquidity).into(), shares_req, 20), 'Liquidity'
     );
     assert(approx_eq_pct(base_amount, 502499999999999999999999, 20), 'Withdraw: base amount');
     assert(approx_eq_pct(quote_amount, 552105953406881329687353461, 20), 'Withdraw: quote amount');
     assert(
-        approx_eq_pct(aft.strategy_state.bid.liquidity.into(), 143133473230143906409286587, 20),
-        'Bid liquidity'
+        approx_eq_pct(aft.bid.liquidity.into(), 143133473230143906409286587, 20), 'Bid liquidity'
     );
     assert(
-        approx_eq_pct(aft.strategy_state.ask.liquidity.into(), 214703387696408714496420725, 20),
-        'Ask liquidity'
+        approx_eq_pct(aft.ask.liquidity.into(), 214703387696408714496420725, 20), 'Ask liquidity'
     );
     assert(
         approx_eq(aft.strategy_state.base_reserves, 7500000000000000000, 10),
@@ -2019,7 +2009,8 @@ fn test_withdraw_single_sided_liquidity() {
             Option::None(())
         );
     let state = strategy.strategy_state(market_id);
-    assert(state.ask.liquidity == 0, 'Ask: liquidity');
+    let ask = strategy.ask(market_id);
+    assert(ask.liquidity == 0, 'Ask: liquidity');
 
     // Snapshot before.
     let bef = _snapshot_state(
@@ -2052,8 +2043,8 @@ fn test_withdraw_single_sided_liquidity() {
     );
     assert(approx_eq(aft.strategy_state.base_reserves, 0, 10), 'Base reserves');
     assert(approx_eq(aft.strategy_state.quote_reserves, 0, 10), 'Quote reserves');
-    assert(approx_eq(aft.strategy_state.bid.liquidity.into(), 0, 10), 'Bid liquidity');
-    assert(approx_eq(aft.strategy_state.ask.liquidity.into(), 0, 10), 'Ask liquidity');
+    assert(approx_eq(aft.bid.liquidity.into(), 0, 10), 'Bid liquidity');
+    assert(approx_eq(aft.ask.liquidity.into(), 0, 10), 'Ask liquidity');
 }
 
 #[test]
@@ -2454,11 +2445,13 @@ fn test_collect_and_pause() {
     strategy.collect_and_pause(market_id);
     let market_state = market_manager.market_state(market_id);
     let state = strategy.strategy_state(market_id);
+    let bid = strategy.bid(market_id);
+    let ask = strategy.ask(market_id);
 
     // Run checks.
     assert(market_state.liquidity == 0, 'Collect pause: mkt liquidity');
-    assert(state.bid.liquidity == 0, 'Collect pause: bid liquidity');
-    assert(state.ask.liquidity == 0, 'Collect pause: ask liquidity');
+    assert(bid.liquidity == 0, 'Collect pause: bid liquidity');
+    assert(ask.liquidity == 0, 'Collect pause: ask liquidity');
     assert(approx_eq(state.base_reserves, initial_base_amount, 10), 'Collect pause: base reserves');
     assert(
         approx_eq(state.quote_reserves, initial_quote_amount, 10), 'Collect pause: quote reserves'
@@ -2704,10 +2697,12 @@ fn test_mismatched_token_decimals() {
 
     // Fetch state.
     let state = strategy.strategy_state(market_id);
-    assert(state.bid.lower_limit == 11387500, 'Bid lower');
-    assert(state.bid.upper_limit == 11407500, 'Bid upper');
-    assert(state.ask.lower_limit == 11411680, 'Ask lower');
-    assert(state.ask.upper_limit == 11431680, 'Ask upper');
+    let bid = strategy.bid(market_id);
+    let ask = strategy.ask(market_id);
+    assert(bid.lower_limit == 11387500, 'Bid lower');
+    assert(bid.upper_limit == 11407500, 'Bid upper');
+    assert(ask.lower_limit == 11411680, 'Ask lower');
+    assert(ask.upper_limit == 11431680, 'Ask upper');
 }
 
 #[test]
@@ -3386,6 +3381,8 @@ struct Snapshot {
     market_quote_res: u256,
     market_state: MarketState,
     strategy_state: StrategyState,
+    bid: PositionInfo,
+    ask: PositionInfo,
 }
 
 fn _snapshot_state(
@@ -3406,6 +3403,8 @@ fn _snapshot_state(
     let market_quote_res = market_manager.reserves(quote_token.contract_address);
     let market_state = market_manager.market_state(market_id);
     let strategy_state = strategy.strategy_state(market_id);
+    let bid = strategy.bid(market_id);
+    let ask = strategy.ask(market_id);
 
     Snapshot {
         lp_base_bal,
@@ -3418,6 +3417,8 @@ fn _snapshot_state(
         market_quote_res,
         market_state,
         strategy_state,
+        bid,
+        ask,
     }
 }
 
