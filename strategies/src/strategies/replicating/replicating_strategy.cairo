@@ -614,8 +614,12 @@ mod ReplicatingStrategy {
             let is_valid = (output.num_sources_aggregated >= oracle_params.min_sources)
                 && (output.last_updated_timestamp + oracle_params.max_age >= now);
 
-            // Calculate and return scaled price.
-            let scaling_factor = math::pow(10, 28 - output.decimals.into());
+            // Calculate and return scaled price. We want to return the price base 1e28,
+            // but we must also scale it by the number of decimals in the oracle price and
+            // the token pair.
+            let market_info = self.market_manager.read().market_info(market_id);
+            let decimals = 28 + market_info.base_decimals - output.decimals.into() - market_info.quote_decimals;
+            let scaling_factor = math::pow(10, decimals);
             (output.price.into() * scaling_factor, is_valid)
         }
 
