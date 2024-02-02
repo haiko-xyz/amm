@@ -591,7 +591,7 @@ mod ReplicatingStrategy {
         // Get price from oracle feed.
         // 
         // # Returns
-        // * `price` - oracle price
+        // * `price` - oracle price, base 1e28
         // * `is_valid` - whether oracle price passes validity checks re number of sources and age
         fn get_oracle_price(self: @ContractState, market_id: felt252) -> (u256, bool) {
             // Get oracle parameters.
@@ -614,8 +614,16 @@ mod ReplicatingStrategy {
             let is_valid = (output.num_sources_aggregated >= oracle_params.min_sources)
                 && (output.last_updated_timestamp + oracle_params.max_age >= now);
 
-            // Calculate and return scaled price.
-            let scaling_factor = math::pow(10, 28 - output.decimals.into());
+            // Calculate and return scaled price. We want to return the price base 1e28,
+            // but we must also scale it by the number of decimals in the oracle price and
+            // the token pair.
+            let market_info = self.market_manager.read().market_info(market_id);
+            let base_token = ERC20ABIDispatcher { contract_address: market_info.base_token };
+            let quote_token = ERC20ABIDispatcher { contract_address: market_info.quote_token };
+            let base_decimals: u256 = base_token.decimals().into();
+            let quote_decimals: u256 = quote_token.decimals().into();
+            let decimals: u256 = 28 + base_decimals - output.decimals.into() - quote_decimals;
+            let scaling_factor = math::pow(10, decimals);
             (output.price.into() * scaling_factor, is_valid)
         }
 

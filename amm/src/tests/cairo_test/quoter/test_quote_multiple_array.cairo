@@ -41,11 +41,11 @@ fn before() -> (
 
     // Deploy tokens.
     let max = BoundedU256::max();
-    let eth_params = token_params('Ethereum', 'ETH', max, treasury());
-    let btc_params = token_params('Bitcoin', 'BTC', max, treasury());
-    let usdc_params = token_params('USDC', 'USDC', max, treasury());
-    let usdt_params = token_params('USDT', 'USDT', max, treasury());
-    let dai_params = token_params('DAI', 'DAI', max, treasury());
+    let eth_params = token_params('Ethereum', 'ETH', 18, max, treasury());
+    let btc_params = token_params('Bitcoin', 'BTC', 18, max, treasury());
+    let usdc_params = token_params('USDC', 'USDC', 18, max, treasury());
+    let usdt_params = token_params('USDT', 'USDT', 18, max, treasury());
+    let dai_params = token_params('DAI', 'DAI', 18, max, treasury());
     let eth = deploy_token(eth_params);
     let btc = deploy_token(btc_params);
     let usdc = deploy_token(usdc_params);

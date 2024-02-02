@@ -14,7 +14,7 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 #[available_gas(40000000)]
 fn test_deploy_token_initialises_immutables() {
     // Deploy token.
-    let params = token_params('USDC', 'USDC', to_e28(1000000000), treasury());
+    let params = token_params('USDC', 'USDC', 18, to_e28(1000000000), treasury());
     let token = deploy_token(params);
 
     // Check immutables.

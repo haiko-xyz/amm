@@ -36,7 +36,7 @@ use strategies::tests::replicating::helpers::{
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 use openzeppelin::upgrades::interface::{IUpgradeableDispatcherTrait, IUpgradeableDispatcher};
 use snforge_std::{
-    declare, start_warp, start_prank, stop_prank, CheatTarget, PrintTrait, spy_events, SpyOn,
+    PrintTrait, declare, start_warp, start_prank, stop_prank, CheatTarget, spy_events, SpyOn,
     EventSpy, EventAssertions, EventFetcher
 };
 
@@ -56,8 +56,8 @@ struct SwapCase {
 // SETUP
 ////////////////////////////////
 
-fn before(
-    initialise_market: bool
+fn _before(
+    initialise_market: bool, base_decimals: u8, quote_decimals: u8, start_limit: u32,
 ) -> (
     IMarketManagerDispatcher,
     ERC20ABIDispatcher,
@@ -74,7 +74,9 @@ fn before(
     let market_manager = deploy_market_manager(manager_class, owner);
 
     // Deploy tokens.
-    let (_treasury, base_token_params, quote_token_params) = default_token_params();
+    let (_treasury, mut base_token_params, mut quote_token_params) = default_token_params();
+    base_token_params.decimals = base_decimals;
+    quote_token_params.decimals = quote_decimals;
     let erc20_class = declare('ERC20');
     let base_token = deploy_token(erc20_class, base_token_params);
     let quote_token = deploy_token(erc20_class, quote_token_params);
@@ -92,7 +94,7 @@ fn before(
     params.width = 10;
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
-    params.start_limit = 7906620 + 741930; // initial limit
+    params.start_limit = start_limit;
     params.strategy = strategy.contract_address;
     let market_id = create_market(market_manager, params);
 
@@ -142,6 +144,32 @@ fn before(
     approve(quote_token, strategy.contract_address, market_manager.contract_address, quote_amount);
 
     (market_manager, base_token, quote_token, market_id, oracle, strategy)
+}
+
+fn before(
+    initialise_market: bool
+) -> (
+    IMarketManagerDispatcher,
+    ERC20ABIDispatcher,
+    ERC20ABIDispatcher,
+    felt252,
+    IMockPragmaOracleDispatcher,
+    IReplicatingStrategyDispatcher,
+) {
+    _before(initialise_market, 8, 18, 7906620 + 741930)
+}
+
+fn before_custom(
+    base_decimals: u8, quote_decimals: u8, start_limit: u32
+) -> (
+    IMarketManagerDispatcher,
+    ERC20ABIDispatcher,
+    ERC20ABIDispatcher,
+    felt252,
+    IMockPragmaOracleDispatcher,
+    IReplicatingStrategyDispatcher,
+) {
+    _before(true, base_decimals, quote_decimals, start_limit)
 }
 
 ////////////////////////////////
@@ -2645,6 +2673,41 @@ fn test_set_strategy_params() {
                 )
             ]
         );
+}
+
+#[test]
+fn test_mismatched_token_decimals() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before_custom(
+        18, 6, 7906620 + 3505050
+    );
+
+    // Check decimals.
+    let base_decimals = base_token.decimals();
+    let quote_decimals = quote_token.decimals();
+    assert(base_decimals == 18, 'Base decimals');
+    assert(quote_decimals == 6, 'Quote decimals');
+
+    // Set price.
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 160000000000, 8, 999, 5);
+
+    // Get oracle price.
+    let (price, _) = strategy.get_oracle_price(market_id);
+    assert(price == 16000000000000000000000000000000000000000000, 'Oracle price');
+
+    // Deposit initial.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let initial_base_amount = 1000000;
+    let initial_quote_amount = 1600000000000000000000;
+    let shares_init = strategy
+        .deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+
+    // Fetch state.
+    let state = strategy.strategy_state(market_id);
+    assert(state.bid.lower_limit == 11387500, 'Bid lower');
+    assert(state.bid.upper_limit == 11407500, 'Bid upper');
+    assert(state.ask.lower_limit == 11411680, 'Ask lower');
+    assert(state.ask.upper_limit == 11431680, 'Ask upper');
 }
 
 #[test]
