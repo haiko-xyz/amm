@@ -22,13 +22,13 @@ mod ReplicatingStrategy {
     use amm::interfaces::IStrategy::IStrategy;
     use amm::types::{i32::I32Trait, i128::{I128Trait, i128}};
     use strategies::strategies::replicating::{
-        spread_math, interface::IReplicatingStrategy,
-        types::{StrategyParams, OracleParams, StrategyState},
+        spread_math, interface::IReplicatingStrategy, types::{StrategyParams, StrategyState},
         pragma::{
             IOracleABIDispatcher, IOracleABIDispatcherTrait, AggregationMode, DataType,
             SimpleDataType, PragmaPricesResponse, ISummaryStatsABIDispatcher,
             ISummaryStatsABIDispatcherTrait
         },
+        store_packing::{StrategyParamsStorePacking, StrategyStateStorePacking}
     };
 
     // External imports.
@@ -73,8 +73,6 @@ mod ReplicatingStrategy {
         // Indexed by market id
         strategy_params: LegacyMap::<felt252, StrategyParams>,
         // Indexed by market id
-        oracle_params: LegacyMap::<felt252, OracleParams>,
-        // Indexed by market id
         strategy_state: LegacyMap::<felt252, StrategyState>,
         // Indexed by user
         whitelist: LegacyMap::<ContractAddress, bool>,
@@ -102,7 +100,6 @@ mod ReplicatingStrategy {
         Withdraw: Withdraw,
         UpdatePositions: UpdatePositions,
         SetStrategyParams: SetStrategyParams,
-        SetOracleParams: SetOracleParams,
         SetWhitelist: SetWhitelist,
         CollectWithdrawFee: CollectWithdrawFee,
         SetWithdrawFee: SetWithdrawFee,
@@ -166,15 +163,7 @@ mod ReplicatingStrategy {
         max_delta: u32,
         allow_deposits: bool,
         use_whitelist: bool,
-    }
-
-    #[derive(Drop, starknet::Event)]
-    struct SetOracleParams {
-        #[key]
-        market_id: felt252,
-        #[key]
         base_currency_id: felt252,
-        #[key]
         quote_currency_id: felt252,
         min_sources: u32,
         max_age: u64,
@@ -518,11 +507,6 @@ mod ReplicatingStrategy {
             self.strategy_params.read(market_id)
         }
 
-        // Oracle parameters for a given market
-        fn oracle_params(self: @ContractState, market_id: felt252) -> OracleParams {
-            self.oracle_params.read(market_id)
-        }
-
         // Strategy state
         fn strategy_state(self: @ContractState, market_id: felt252) -> StrategyState {
             self.strategy_state.read(market_id)
@@ -596,13 +580,13 @@ mod ReplicatingStrategy {
         fn get_oracle_price(self: @ContractState, market_id: felt252) -> (u256, bool) {
             // Get oracle parameters.
             let oracle = self.oracle.read();
-            let oracle_params = self.oracle_params.read(market_id);
+            let params = self.strategy_params.read(market_id);
 
             // Fetch oracle price.
             let output: PragmaPricesResponse = oracle
                 .get_data_with_USD_hop(
-                    oracle_params.base_currency_id,
-                    oracle_params.quote_currency_id,
+                    params.base_currency_id,
+                    params.quote_currency_id,
                     AggregationMode::Median(()),
                     SimpleDataType::SpotEntry(()),
                     Option::None(())
@@ -611,8 +595,8 @@ mod ReplicatingStrategy {
             // Validate number of sources and age of oracle price.
             // If either is invalid, collect positions and pause strategy.
             let now = get_block_timestamp();
-            let is_valid = (output.num_sources_aggregated >= oracle_params.min_sources)
-                && (output.last_updated_timestamp + oracle_params.max_age >= now);
+            let is_valid = (output.num_sources_aggregated >= params.min_sources)
+                && (output.last_updated_timestamp + params.max_age >= now);
 
             // Calculate and return scaled price. We want to return the price base 1e28,
             // but we must also scale it by the number of decimals in the oracle price and
@@ -863,15 +847,17 @@ mod ReplicatingStrategy {
 
             // Set strategy params.
             let strategy_params = StrategyParams {
-                min_spread, range, max_delta, allow_deposits, use_whitelist
+                min_spread,
+                range,
+                max_delta,
+                allow_deposits,
+                use_whitelist,
+                base_currency_id,
+                quote_currency_id,
+                min_sources,
+                max_age
             };
             self.strategy_params.write(market_id, strategy_params);
-
-            // Set oracle params.
-            let oracle_params = OracleParams {
-                base_currency_id, quote_currency_id, min_sources, max_age
-            };
-            self.oracle_params.write(market_id, oracle_params);
 
             // Initialise strategy state.
             let mut state: StrategyState = Default::default();
@@ -883,17 +869,18 @@ mod ReplicatingStrategy {
 
             self
                 .emit(
-                    Event::SetOracleParams(
-                        SetOracleParams {
-                            market_id, base_currency_id, quote_currency_id, min_sources, max_age
-                        }
-                    )
-                );
-            self
-                .emit(
                     Event::SetStrategyParams(
                         SetStrategyParams {
-                            market_id, min_spread, range, max_delta, allow_deposits, use_whitelist
+                            market_id,
+                            min_spread,
+                            range,
+                            max_delta,
+                            allow_deposits,
+                            use_whitelist,
+                            base_currency_id,
+                            quote_currency_id,
+                            min_sources,
+                            max_age
                         }
                     )
                 );
@@ -1338,6 +1325,11 @@ mod ReplicatingStrategy {
         //    * `range` - range parameter (width, in limits, of bid and ask liquidity positions)
         //    * `max_delta` - max inv_delta parameter (additional single-sided spread based on portfolio imbalance)
         //    * `allow_deposits` - whether deposits are allowed for depositors other than the strategy owner
+        //    * `use_whitelist` - whether to use a whitelist for deposits
+        //    * `base_currency_id` - base currency id for oracle
+        //    * `quote_currency_id` - quote currency id for oracle
+        //    * `min_sources` - minimum number of sources required for oracle price (automatically paused if fails)
+        //    * `max_age` - maximum age of oracle price in seconds (automatically paused if fails)
         fn set_params(ref self: ContractState, market_id: felt252, params: StrategyParams) {
             self.assert_strategy_owner(market_id);
             let old_params = self.strategy_params.read(market_id);
@@ -1353,7 +1345,11 @@ mod ReplicatingStrategy {
                             range: params.range,
                             max_delta: params.max_delta,
                             allow_deposits: params.allow_deposits,
-                            use_whitelist: params.use_whitelist
+                            use_whitelist: params.use_whitelist,
+                            base_currency_id: params.base_currency_id,
+                            quote_currency_id: params.quote_currency_id,
+                            min_sources: params.min_sources,
+                            max_age: params.max_age,
                         }
                     )
                 );

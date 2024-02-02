@@ -160,8 +160,9 @@ mod ManualStrategy {
 
         // Get placed positions.
         fn placed_positions(self: @ContractState, market_id: felt252) -> Span<PositionInfo> {
-            let mut positions = array![self.bid.read(), self.ask.read()];
-            positions.span()
+            let bid = self.bid.read();
+            let ask = self.ask.read();
+            array![bid, ask].span()
         }
 
         // Get queued positions.

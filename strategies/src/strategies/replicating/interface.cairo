@@ -4,7 +4,7 @@ use starknet::class_hash::ClassHash;
 
 // Local imports.
 use amm::types::core::{PositionInfo, SwapParams};
-use strategies::strategies::replicating::types::{StrategyParams, OracleParams, StrategyState};
+use strategies::strategies::replicating::types::{StrategyParams, StrategyState};
 
 
 #[starknet::interface]
@@ -29,9 +29,6 @@ trait IReplicatingStrategy<TContractState> {
 
     // Strategy parameters for a given market
     fn strategy_params(self: @TContractState, market_id: felt252) -> StrategyParams;
-
-    // Oracle parameters for a given market
-    fn oracle_params(self: @TContractState, market_id: felt252) -> OracleParams;
 
     // Strategy state
     fn strategy_state(self: @TContractState, market_id: felt252) -> StrategyState;
