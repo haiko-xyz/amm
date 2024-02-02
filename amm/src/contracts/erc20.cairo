@@ -1,14 +1,13 @@
 #[starknet::contract]
 mod ERC20 {
     use openzeppelin::token::erc20::ERC20Component;
+    use openzeppelin::token::erc20::interface::IERC20Metadata;
     use starknet::ContractAddress;
 
     component!(path: ERC20Component, storage: erc20, event: ERC20Event);
 
     #[abi(embed_v0)]
     impl ERC20Impl = ERC20Component::ERC20Impl<ContractState>;
-    #[abi(embed_v0)]
-    impl ERC20MetadataImpl = ERC20Component::ERC20MetadataImpl<ContractState>;
     #[abi(embed_v0)]
     impl ERC20CamelOnlyImpl = ERC20Component::ERC20CamelOnlyImpl<ContractState>;
     impl ERC20InternalImpl = ERC20Component::InternalImpl<ContractState>;
@@ -42,6 +41,21 @@ mod ERC20 {
 
         self.erc20.initializer(name, symbol);
         self.erc20._mint(recipient, initial_supply);
+    }
+
+    #[external(v0)]
+    impl ERC20MetadataImpl of IERC20Metadata<ContractState> {
+        fn name(self: @ContractState) -> felt252 {
+            self.erc20.name()
+        }
+
+        fn symbol(self: @ContractState) -> felt252 {
+            self.erc20.symbol()
+        }
+
+        fn decimals(self: @ContractState) -> u8 {
+            self.decimals.read()
+        }
     }
 
     #[generate_trait]

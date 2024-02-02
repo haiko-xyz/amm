@@ -25,6 +25,7 @@ struct DeployParams {
 struct ERC20ConstructorParams {
     name_: felt252,
     symbol_: felt252,
+    decimals: u8,
     initial_supply: u256,
     recipient: ContractAddress
 }
@@ -121,18 +122,18 @@ fn default_deploy_params() -> DeployParams {
 fn default_token_params() -> (ContractAddress, ERC20ConstructorParams, ERC20ConstructorParams) {
     let treasury = treasury();
     let base_params = token_params(
-        'Ethereum', 'ETH', to_e28(5000000000000000000000000000000000000000000), treasury
+        'Ethereum', 'ETH', 18, to_e28(5000000000000000000000000000000000000000000), treasury
     );
     let quote_params = token_params(
-        'USDC', 'USDC', to_e28(100000000000000000000000000000000000000000000), treasury
+        'USDC', 'USDC', 18, to_e28(100000000000000000000000000000000000000000000), treasury
     );
     (treasury, base_params, quote_params)
 }
 
 fn token_params(
-    name_: felt252, symbol_: felt252, initial_supply: u256, recipient: ContractAddress
+    name_: felt252, symbol_: felt252, decimals: u8, initial_supply: u256, recipient: ContractAddress
 ) -> ERC20ConstructorParams {
-    ERC20ConstructorParams { name_, symbol_, initial_supply, recipient }
+    ERC20ConstructorParams { name_, symbol_, decimals, initial_supply, recipient }
 }
 
 fn default_market_params() -> CreateMarketParams {

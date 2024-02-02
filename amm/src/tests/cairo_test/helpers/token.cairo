@@ -24,6 +24,7 @@ fn deploy_token(params: ERC20ConstructorParams) -> ERC20ABIDispatcher {
     let mut constructor_calldata = ArrayTrait::<felt252>::new();
     params.name_.serialize(ref constructor_calldata);
     params.symbol_.serialize(ref constructor_calldata);
+    params.decimals.serialize(ref constructor_calldata);
     params.initial_supply.serialize(ref constructor_calldata);
     params.recipient.serialize(ref constructor_calldata);
 

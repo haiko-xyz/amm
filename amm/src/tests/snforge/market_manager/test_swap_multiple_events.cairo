@@ -47,7 +47,7 @@ fn before() -> (
     // Deploy tokens.
     let (_treasury, eth_params, usdc_params) = default_token_params();
     let btc_params = token_params(
-        'Bitcoin', 'BTC', to_e28(5000000000000000000000000000000000000000000), treasury()
+        'Bitcoin', 'BTC', 18, to_e28(5000000000000000000000000000000000000000000), treasury()
     );
     let erc20_class = declare_token();
     let eth = deploy_token(erc20_class, eth_params);
