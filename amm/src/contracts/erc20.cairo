@@ -16,7 +16,9 @@ mod ERC20 {
     #[storage]
     struct Storage {
         #[substorage(v0)]
-        erc20: ERC20Component::Storage
+        erc20: ERC20Component::Storage,
+        // The decimals value is stored locally
+        decimals: u8
     }
 
     #[event]
@@ -31,10 +33,21 @@ mod ERC20 {
         ref self: ContractState,
         name: felt252,
         symbol: felt252,
+        decimals: u8,
         initial_supply: u256,
         recipient: ContractAddress
     ) {
+        // Call the internal function that writes decimals to storage
+        self._set_decimals(decimals);
+
         self.erc20.initializer(name, symbol);
         self.erc20._mint(recipient, initial_supply);
+    }
+
+    #[generate_trait]
+    impl InternalImpl of InternalTrait {
+        fn _set_decimals(ref self: ContractState, decimals: u8) {
+            self.decimals.write(decimals);
+        }
     }
 }
