@@ -22,14 +22,13 @@ mod ReplicatingStrategy {
     use amm::interfaces::IStrategy::IStrategy;
     use amm::types::{i32::I32Trait, i128::{I128Trait, i128}};
     use strategies::strategies::replicating::{
-        spread_math, interface::IReplicatingStrategy,
-        types::{StrategyParams, OracleParams, StrategyState},
-        store_packing::{StrategyParamsStorePacking, OracleParamsStorePacking, StrategyStateStorePacking},
+        spread_math, interface::IReplicatingStrategy, types::{StrategyParams, StrategyState},
         pragma::{
             IOracleABIDispatcher, IOracleABIDispatcherTrait, AggregationMode, DataType,
             SimpleDataType, PragmaPricesResponse, ISummaryStatsABIDispatcher,
             ISummaryStatsABIDispatcherTrait
         },
+        store_packing::{StrategyParamsStorePacking, StrategyStateStorePacking}
     };
 
     // External imports.
@@ -74,8 +73,6 @@ mod ReplicatingStrategy {
         // Indexed by market id
         strategy_params: LegacyMap::<felt252, StrategyParams>,
         // Indexed by market id
-        oracle_params: LegacyMap::<felt252, OracleParams>,
-        // Indexed by market id
         strategy_state: LegacyMap::<felt252, StrategyState>,
         // Indexed by user
         whitelist: LegacyMap::<ContractAddress, bool>,
@@ -103,7 +100,6 @@ mod ReplicatingStrategy {
         Withdraw: Withdraw,
         UpdatePositions: UpdatePositions,
         SetStrategyParams: SetStrategyParams,
-        SetOracleParams: SetOracleParams,
         SetWhitelist: SetWhitelist,
         CollectWithdrawFee: CollectWithdrawFee,
         SetWithdrawFee: SetWithdrawFee,
@@ -167,15 +163,7 @@ mod ReplicatingStrategy {
         max_delta: u32,
         allow_deposits: bool,
         use_whitelist: bool,
-    }
-
-    #[derive(Drop, starknet::Event)]
-    struct SetOracleParams {
-        #[key]
-        market_id: felt252,
-        #[key]
         base_currency_id: felt252,
-        #[key]
         quote_currency_id: felt252,
         min_sources: u32,
         max_age: u64,
@@ -324,9 +312,8 @@ mod ReplicatingStrategy {
         // # Returns
         // * `positions` - list of positions
         fn placed_positions(self: @ContractState, market_id: felt252) -> Span<PositionInfo> {
-            let bid = self.bid(market_id);
-            let ask = self.ask(market_id);
-            array![bid, ask].span()
+            let state = self.strategy_state.read(market_id);
+            array![state.bid, state.ask].span()
         }
 
         // Get list of positions queued to be placed by strategy on next `swap` update. If no updates
@@ -383,17 +370,17 @@ mod ReplicatingStrategy {
                     let log2: u256 = price_math::_log2(ONE + fee_rate_scaled);
                     let threshold_limits: u32 = (log2 / LOG2_1_00001).try_into().unwrap();
                     if params.is_buy {
-                        let exec_price = if curr_limit > state.bid_upper {
-                            max(curr_limit, state.ask_lower)
+                        let exec_price = if curr_limit > state.bid.upper_limit {
+                            max(curr_limit, state.ask.lower_limit)
                         } else {
-                            max(curr_limit, state.bid_lower)
+                            max(curr_limit, state.bid.lower_limit)
                         };
                         oracle_limit > exec_price + threshold_limits
                     } else {
-                        let exec_price = if curr_limit < state.ask_lower {
-                            min(curr_limit, state.bid_upper)
+                        let exec_price = if curr_limit < state.ask.lower_limit {
+                            min(curr_limit, state.bid.upper_limit)
                         } else {
-                            min(curr_limit, state.ask_upper)
+                            min(curr_limit, state.ask.upper_limit)
                         };
                         exec_price > oracle_limit + threshold_limits
                     }
@@ -403,13 +390,17 @@ mod ReplicatingStrategy {
 
             // If strategy will not rebalance, return current positions.
             if !rebalance {
-                return self.placed_positions(market_id);
+                return array![state.bid, state.ask].span();
             }
 
             // Fetch amounts in existing position.
             let contract: felt252 = get_contract_address().into();
-            let bid_pos_id = id::position_id(market_id, contract, state.bid_lower, state.bid_upper);
-            let ask_pos_id = id::position_id(market_id, contract, state.ask_lower, state.ask_upper);
+            let bid_pos_id = id::position_id(
+                market_id, contract, state.bid.lower_limit, state.bid.upper_limit
+            );
+            let ask_pos_id = id::position_id(
+                market_id, contract, state.ask.lower_limit, state.ask.upper_limit
+            );
             let (bid_base, bid_quote, bid_base_fees, bid_quote_fees) = market_manager
                 .amounts_inside_position(bid_pos_id);
             let (ask_base, ask_quote, ask_base_fees, ask_quote_fees) = market_manager
@@ -516,11 +507,6 @@ mod ReplicatingStrategy {
             self.strategy_params.read(market_id)
         }
 
-        // Oracle parameters for a given market
-        fn oracle_params(self: @ContractState, market_id: felt252) -> OracleParams {
-            self.oracle_params.read(market_id)
-        }
-
         // Strategy state
         fn strategy_state(self: @ContractState, market_id: felt252) -> StrategyState {
             self.strategy_state.read(market_id)
@@ -543,30 +529,12 @@ mod ReplicatingStrategy {
 
         // Placed bid position for a given market
         fn bid(self: @ContractState, market_id: felt252) -> PositionInfo {
-            let contract = get_contract_address();
-            let state = self.strategy_state.read(market_id);
-            let market_manager = self.market_manager.read();
-            let bid = market_manager
-                .position(market_id, contract.into(), state.bid_lower, state.bid_upper);
-            PositionInfo {
-                lower_limit: state.bid_lower,
-                upper_limit: state.bid_upper,
-                liquidity: bid.liquidity,
-            }
+            self.strategy_state.read(market_id).bid
         }
 
         // Placed ask position for a given market
         fn ask(self: @ContractState, market_id: felt252) -> PositionInfo {
-            let contract = get_contract_address();
-            let state = self.strategy_state.read(market_id);
-            let market_manager = self.market_manager.read();
-            let ask = market_manager
-                .position(market_id, contract.into(), state.ask_lower, state.ask_upper);
-            PositionInfo {
-                lower_limit: state.ask_lower,
-                upper_limit: state.ask_upper,
-                liquidity: ask.liquidity,
-            }
+            self.strategy_state.read(market_id).ask
         }
 
         // Base reserves of strategy
@@ -612,13 +580,13 @@ mod ReplicatingStrategy {
         fn get_oracle_price(self: @ContractState, market_id: felt252) -> (u256, bool) {
             // Get oracle parameters.
             let oracle = self.oracle.read();
-            let oracle_params = self.oracle_params.read(market_id);
+            let params = self.strategy_params.read(market_id);
 
             // Fetch oracle price.
             let output: PragmaPricesResponse = oracle
                 .get_data_with_USD_hop(
-                    oracle_params.base_currency_id,
-                    oracle_params.quote_currency_id,
+                    params.base_currency_id,
+                    params.quote_currency_id,
                     AggregationMode::Median(()),
                     SimpleDataType::SpotEntry(()),
                     Option::None(())
@@ -627,8 +595,8 @@ mod ReplicatingStrategy {
             // Validate number of sources and age of oracle price.
             // If either is invalid, collect positions and pause strategy.
             let now = get_block_timestamp();
-            let is_valid = (output.num_sources_aggregated >= oracle_params.min_sources)
-                && (output.last_updated_timestamp + oracle_params.max_age >= now);
+            let is_valid = (output.num_sources_aggregated >= params.min_sources)
+                && (output.last_updated_timestamp + params.max_age >= now);
 
             // Calculate and return scaled price. We want to return the price base 1e28,
             // but we must also scale it by the number of decimals in the oracle price and
@@ -683,12 +651,14 @@ mod ReplicatingStrategy {
         fn get_balances(self: @ContractState, market_id: felt252) -> (u256, u256) {
             // Fetch strategy state.
             let state = self.strategy_state.read(market_id);
+            let bid = state.bid;
+            let ask = state.ask;
 
             // Fetch position info from market manager.
             let market_manager = self.market_manager.read();
             let contract: felt252 = get_contract_address().into();
-            let bid_pos_id = id::position_id(market_id, contract, state.bid_lower, state.bid_upper);
-            let ask_pos_id = id::position_id(market_id, contract, state.ask_lower, state.ask_upper);
+            let bid_pos_id = id::position_id(market_id, contract, bid.lower_limit, bid.upper_limit);
+            let ask_pos_id = id::position_id(market_id, contract, ask.lower_limit, ask.upper_limit);
 
             // Calculate base and quote amounts inside strategy, either in reserves or in positions.
             let (bid_base, bid_quote, bid_base_fees, bid_quote_fees) = market_manager
@@ -877,15 +847,17 @@ mod ReplicatingStrategy {
 
             // Set strategy params.
             let strategy_params = StrategyParams {
-                min_spread, range, max_delta, allow_deposits, use_whitelist
+                min_spread,
+                range,
+                max_delta,
+                allow_deposits,
+                use_whitelist,
+                base_currency_id,
+                quote_currency_id,
+                min_sources,
+                max_age
             };
             self.strategy_params.write(market_id, strategy_params);
-
-            // Set oracle params.
-            let oracle_params = OracleParams {
-                base_currency_id, quote_currency_id, min_sources, max_age
-            };
-            self.oracle_params.write(market_id, oracle_params);
 
             // Initialise strategy state.
             let mut state: StrategyState = Default::default();
@@ -897,17 +869,18 @@ mod ReplicatingStrategy {
 
             self
                 .emit(
-                    Event::SetOracleParams(
-                        SetOracleParams {
-                            market_id, base_currency_id, quote_currency_id, min_sources, max_age
-                        }
-                    )
-                );
-            self
-                .emit(
                     Event::SetStrategyParams(
                         SetStrategyParams {
-                            market_id, min_spread, range, max_delta, allow_deposits, use_whitelist
+                            market_id,
+                            min_spread,
+                            range,
+                            max_delta,
+                            allow_deposits,
+                            use_whitelist,
+                            base_currency_id,
+                            quote_currency_id,
+                            min_sources,
+                            max_age
                         }
                     )
                 );
@@ -985,7 +958,7 @@ mod ReplicatingStrategy {
             state = self.strategy_state.read(market_id);
 
             // Mint liquidity
-            let shares: u256 = (bid.liquidity + ask.liquidity).into();
+            let shares: u256 = (state.bid.liquidity + state.ask.liquidity).into();
             self.user_deposits.write((market_id, caller), shares);
             self.total_deposits.write(market_id, shares);
 
@@ -1185,28 +1158,28 @@ mod ReplicatingStrategy {
             state.quote_reserves -= quote_withdraw;
 
             // Calculate share of position liquidity to withdraw.
-            let mut bid = self.bid(market_id);
-            let mut ask = self.ask(market_id);
             let bid_liquidity_delta = math::mul_div(
-                bid.liquidity.into(), shares, total_deposits, false
+                state.bid.liquidity.into(), shares, total_deposits, false
             );
             let bid_delta_u128 = bid_liquidity_delta.try_into().expect('BidLiqOF');
+            state.bid.liquidity -= bid_delta_u128;
             let (bid_base_rem, bid_quote_rem, bid_base_fees, bid_quote_fees) = market_manager
                 .modify_position(
                     market_id,
-                    state.bid_lower,
-                    state.bid_upper,
+                    state.bid.lower_limit,
+                    state.bid.upper_limit,
                     I128Trait::new(bid_delta_u128, true)
                 );
             let ask_liquidity_delta = math::mul_div(
-                ask.liquidity.into(), shares, total_deposits, false
+                state.ask.liquidity.into(), shares, total_deposits, false
             );
             let ask_delta_u128 = ask_liquidity_delta.try_into().expect('AskLiqOF');
+            state.ask.liquidity -= ask_delta_u128;
             let (ask_base_rem, ask_quote_rem, ask_base_fees, ask_quote_fees) = market_manager
                 .modify_position(
                     market_id,
-                    state.ask_lower,
-                    state.ask_upper,
+                    state.ask.lower_limit,
+                    state.ask.upper_limit,
                     I128Trait::new(ask_delta_u128, true)
                 );
 
@@ -1352,6 +1325,11 @@ mod ReplicatingStrategy {
         //    * `range` - range parameter (width, in limits, of bid and ask liquidity positions)
         //    * `max_delta` - max inv_delta parameter (additional single-sided spread based on portfolio imbalance)
         //    * `allow_deposits` - whether deposits are allowed for depositors other than the strategy owner
+        //    * `use_whitelist` - whether to use a whitelist for deposits
+        //    * `base_currency_id` - base currency id for oracle
+        //    * `quote_currency_id` - quote currency id for oracle
+        //    * `min_sources` - minimum number of sources required for oracle price (automatically paused if fails)
+        //    * `max_age` - maximum age of oracle price in seconds (automatically paused if fails)
         fn set_params(ref self: ContractState, market_id: felt252, params: StrategyParams) {
             self.assert_strategy_owner(market_id);
             let old_params = self.strategy_params.read(market_id);
@@ -1367,7 +1345,11 @@ mod ReplicatingStrategy {
                             range: params.range,
                             max_delta: params.max_delta,
                             allow_deposits: params.allow_deposits,
-                            use_whitelist: params.use_whitelist
+                            use_whitelist: params.use_whitelist,
+                            base_currency_id: params.base_currency_id,
+                            quote_currency_id: params.quote_currency_id,
+                            min_sources: params.min_sources,
+                            max_age: params.max_age,
                         }
                     )
                 );
@@ -1554,40 +1536,34 @@ mod ReplicatingStrategy {
             let queued_positions = self.queued_positions(market_id, swap_params);
             let next_bid = *queued_positions.at(0);
             let next_ask = *queued_positions.at(1);
-            let mut bid = self.bid(market_id);
-            let mut ask = self.ask(market_id);
-            let update_bid: bool = next_bid != bid;
-            let update_ask: bool = next_ask != ask;
+            let update_bid: bool = next_bid != state.bid;
+            let update_ask: bool = next_ask != state.ask;
 
             // Update positions.
             // If old positions exist at different price ranges, first remove them.
-            if bid.liquidity != 0 && update_bid {
+            if state.bid.liquidity != 0 && update_bid {
                 let (base_amount, quote_amount, _, _) = market_manager
                     .modify_position(
                         market_id,
-                        state.bid_lower,
-                        state.bid_upper,
-                        I128Trait::new(bid.liquidity, true)
+                        state.bid.lower_limit,
+                        state.bid.upper_limit,
+                        I128Trait::new(state.bid.liquidity, true)
                     );
                 state.base_reserves += base_amount.val;
                 state.quote_reserves += quote_amount.val;
-                state.bid_lower = 0;
-                state.bid_upper = 0;
-                bid = Default::default();
+                state.bid.liquidity = Default::default();
             }
-            if ask.liquidity != 0 && update_ask {
+            if state.ask.liquidity != 0 && update_ask {
                 let (base_amount, quote_amount, _, _) = market_manager
                     .modify_position(
                         market_id,
-                        state.ask_lower,
-                        state.ask_upper,
-                        I128Trait::new(ask.liquidity, true)
+                        state.ask.lower_limit,
+                        state.ask.upper_limit,
+                        I128Trait::new(state.ask.liquidity, true)
                     );
                 state.base_reserves += base_amount.val;
                 state.quote_reserves += quote_amount.val;
-                state.ask_lower = 0;
-                state.ask_upper = 0;
-                ask = Default::default();
+                state.ask.liquidity = Default::default();
             }
 
             // Place new positions.
@@ -1600,9 +1576,7 @@ mod ReplicatingStrategy {
                         I128Trait::new(next_bid.liquidity, false)
                     );
                 state.quote_reserves -= quote_amount.val;
-                state.bid_lower = next_bid.lower_limit;
-                state.bid_upper = next_bid.upper_limit;
-                bid = next_bid;
+                state.bid = next_bid;
             };
             if next_ask.liquidity != 0 && update_ask {
                 let (base_amount, _, _, _) = market_manager
@@ -1613,9 +1587,7 @@ mod ReplicatingStrategy {
                         I128Trait::new(next_ask.liquidity, false)
                     );
                 state.base_reserves -= base_amount.val;
-                state.ask_lower = next_ask.lower_limit;
-                state.ask_upper = next_ask.upper_limit;
-                ask = next_ask;
+                state.ask = next_ask;
             }
 
             // Commit state updates
@@ -1628,18 +1600,18 @@ mod ReplicatingStrategy {
                         Event::UpdatePositions(
                             UpdatePositions {
                                 market_id,
-                                bid_lower_limit: bid.lower_limit,
-                                bid_upper_limit: bid.upper_limit,
-                                bid_liquidity: bid.liquidity,
-                                ask_lower_limit: ask.lower_limit,
-                                ask_upper_limit: ask.upper_limit,
-                                ask_liquidity: ask.liquidity,
+                                bid_lower_limit: state.bid.lower_limit,
+                                bid_upper_limit: state.bid.upper_limit,
+                                bid_liquidity: state.bid.liquidity,
+                                ask_lower_limit: state.ask.lower_limit,
+                                ask_upper_limit: state.ask.upper_limit,
+                                ask_liquidity: state.ask.liquidity,
                             }
                         )
                     );
             }
 
-            (bid, ask)
+            (state.bid, state.ask)
         }
 
         // Note: Volatility-based limits are currently disabled as they are not fully supported by the oracle.
@@ -1672,34 +1644,30 @@ mod ReplicatingStrategy {
             assert(!state.is_paused, 'AlreadyPaused');
 
             let market_manager = self.market_manager.read();
-            let bid = self.bid(market_id);
-            let ask = self.ask(market_id);
 
-            if bid.liquidity != 0 {
+            if state.bid.liquidity != 0 {
                 let (bid_base, bid_quote, _, _) = market_manager
                     .modify_position(
                         market_id,
-                        bid.lower_limit,
-                        ask.upper_limit,
-                        I128Trait::new(bid.liquidity, true)
+                        state.bid.lower_limit,
+                        state.bid.upper_limit,
+                        I128Trait::new(state.bid.liquidity, true)
                     );
                 state.base_reserves += bid_base.val;
                 state.quote_reserves += bid_quote.val;
-                state.bid_lower = 0;
-                state.bid_upper = 0;
+                state.bid = Default::default();
             }
-            if ask.liquidity != 0 {
+            if state.ask.liquidity != 0 {
                 let (ask_base, ask_quote, _, _) = market_manager
                     .modify_position(
                         market_id,
-                        ask.lower_limit,
-                        ask.upper_limit,
-                        I128Trait::new(ask.liquidity, true)
+                        state.ask.lower_limit,
+                        state.ask.upper_limit,
+                        I128Trait::new(state.ask.liquidity, true)
                     );
                 state.base_reserves += ask_base.val;
                 state.quote_reserves += ask_quote.val;
-                state.ask_lower = 0;
-                state.ask_upper = 0;
+                state.ask = Default::default();
             }
 
             // Commit state updates

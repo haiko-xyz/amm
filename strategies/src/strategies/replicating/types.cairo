@@ -16,6 +16,10 @@ use amm::types::core::PositionInfo;
 // * `max_delta` - inventory delta, or the max additional single-sided spread applied on an imbalanced portfolio
 // * `allow_deposits` - whether strategy allows deposits
 // * `use_whitelist` - whether whitelisting is enabled
+// * `base_currency_id` - Pragma oracle base currency id
+// * `quote_currency_id` - Pragma oracle quote currency id
+// * `min_sources` - minimum number of oracle data sources aggregated
+// * `max_age` - maximum age of quoted oracle price
 #[derive(Drop, Copy, Serde, PartialEq)]
 struct StrategyParams {
     min_spread: u32,
@@ -23,17 +27,10 @@ struct StrategyParams {
     max_delta: u32,
     allow_deposits: bool,
     use_whitelist: bool,
-}
-
-#[derive(Drop, Copy, Serde)]
-struct OracleParams {
-    // Pragma base currency id
+    // Oracle params
     base_currency_id: felt252,
-    // Pragma quote currency id
     quote_currency_id: felt252,
-    // Minimum number of data sources aggregated
     min_sources: u32,
-    // Maximum age of quoted price
     max_age: u64,
 }
 
@@ -47,14 +44,10 @@ struct StrategyState {
     base_reserves: u256,
     // Quote reserves
     quote_reserves: u256,
-    // Placed bid lower limit, or 0 if none placed
-    bid_lower: u32,
-    // Placed bid upper limit, or 0 if none placed
-    bid_upper: u32,
-    // Placed ask lower limit, or 0 if none placed
-    ask_lower: u32,
-    // Placed ask upper limit, or 0 if none placed
-    ask_upper: u32,
+    // Placed bid, or 0 if none placed
+    bid: PositionInfo,
+    // Placed ask, or 0 if none placed
+    ask: PositionInfo,
 }
 
 // // Number of limits, defined either as:
@@ -76,19 +69,11 @@ struct StrategyState {
 
 // Packed strategy parameters.
 //
-// * `slab0` - `min_spread` + `range` + `max_delta` + `allow_deposits` + `use_whitelist`
-#[derive(starknet::Store)]
-struct PackedStrategyParams {
-    slab0: felt252
-}
-
-// Packed oracle parameters.
-//
 // * `base_currency_id` - base currency id
 // * `quote_currency_id` - quote currency id
-// * `slab0` - `min_sources` + `max_age`
+// * `slab0` - `min_spread` + `range` + `max_delta` + `min_sources` + `max_age` + `allow_deposits` + `use_whitelist`
 #[derive(starknet::Store)]
-struct PackedOracleParams {
+struct PackedStrategyParams {
     base_currency_id: felt252,
     quote_currency_id: felt252,
     slab0: felt252
@@ -98,10 +83,12 @@ struct PackedOracleParams {
 //
 // * `slab0` - base reserves (coerced to felt252)
 // * `slab1` - quote reserves (coerced to felt252)
-// * `slab2` - `bid_lower_limit` + `bid_upper_limit` + `ask_lower_limit` + `ask_upper_limit` + `is_initialised` + `is_paused`
+// * `slab2` - `bid_lower_limit` + `bid_upper_limit` + `bid_liquidity` + `is_initialised` + `is_paused`
+// * `slab3` - `ask_lower_limit` + `ask_upper_limit` + `ask_liquidity`
 #[derive(starknet::Store)]
 struct PackedStrategyState {
     slab0: felt252,
     slab1: felt252,
     slab2: felt252,
+    slab3: felt252
 }

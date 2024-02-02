@@ -290,13 +290,11 @@ fn test_add_market_initialises_state() {
     assert(params.range == 20000, 'Range');
     assert(params.max_delta == 200, 'Delta');
     assert(params.allow_deposits, 'Allow deposits');
-
-    // Check oracle params correctly updated.
-    let oracle_params = strategy.oracle_params(market_id);
-    assert(oracle_params.base_currency_id == 'ETH', 'Base curr id');
-    assert(oracle_params.quote_currency_id == 'USDC', 'Quote curr id');
-    assert(oracle_params.min_sources == 3, 'Min sources');
-    assert(oracle_params.max_age == 600, 'Max age');
+    assert(!params.use_whitelist, 'Use whitelist');
+    assert(params.base_currency_id == 'ETH', 'Base curr id');
+    assert(params.quote_currency_id == 'USDC', 'Quote curr id');
+    assert(params.min_sources == 3, 'Min sources');
+    assert(params.max_age == 600, 'Max age');
 
     // Check market state correctly updated.
     let state = strategy.strategy_state(market_id);
@@ -2510,6 +2508,10 @@ fn test_disable_deposits() {
                             max_delta: params.max_delta,
                             allow_deposits: false,
                             use_whitelist: false,
+                            base_currency_id: params.base_currency_id,
+                            quote_currency_id: params.quote_currency_id,
+                            min_sources: params.min_sources,
+                            max_age: params.max_age,
                         }
                     )
                 )
@@ -2558,6 +2560,10 @@ fn test_reenable_deposits() {
                             max_delta: params.max_delta,
                             allow_deposits: false,
                             use_whitelist: params.use_whitelist,
+                            base_currency_id: params.base_currency_id,
+                            quote_currency_id: params.quote_currency_id,
+                            min_sources: params.min_sources,
+                            max_age: params.max_age,
                         }
                     )
                 ),
@@ -2571,6 +2577,10 @@ fn test_reenable_deposits() {
                             max_delta: params.max_delta,
                             allow_deposits: true,
                             use_whitelist: params.use_whitelist,
+                            base_currency_id: params.base_currency_id,
+                            quote_currency_id: params.quote_currency_id,
+                            min_sources: params.min_sources,
+                            max_age: params.max_age,
                         }
                     )
                 ),
@@ -2635,7 +2645,15 @@ fn test_set_strategy_params() {
     // Update params.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     let params = StrategyParams {
-        min_spread: 0, range: 3000, max_delta: 0, allow_deposits: false, use_whitelist: true,
+        min_spread: 0,
+        range: 3000,
+        max_delta: 0,
+        allow_deposits: false,
+        use_whitelist: true,
+        base_currency_id: 'ETH',
+        quote_currency_id: 'USDC',
+        min_sources: 3,
+        max_age: 600,
     };
     strategy.set_params(market_id, params);
 
@@ -2646,6 +2664,10 @@ fn test_set_strategy_params() {
     assert(params.max_delta == 0, 'Set params: max delta');
     assert(!params.allow_deposits, 'Set params: allow deposits');
     assert(params.use_whitelist, 'Set params: use whitelist');
+    assert(params.base_currency_id == 'ETH', 'Set params: base currency');
+    assert(params.quote_currency_id == 'USDC', 'Set params: quote currency');
+    assert(params.min_sources == 3, 'Set params: min sources');
+    assert(params.max_age == 600, 'Set params: max age');
 
     // Check event emitted.
     spy
@@ -2661,6 +2683,10 @@ fn test_set_strategy_params() {
                             max_delta: 0,
                             allow_deposits: false,
                             use_whitelist: true,
+                            base_currency_id: params.base_currency_id,
+                            quote_currency_id: params.quote_currency_id,
+                            min_sources: params.min_sources,
+                            max_age: params.max_age,
                         }
                     )
                 )
