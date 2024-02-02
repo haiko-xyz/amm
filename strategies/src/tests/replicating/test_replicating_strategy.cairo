@@ -156,7 +156,7 @@ fn before(
     IMockPragmaOracleDispatcher,
     IReplicatingStrategyDispatcher,
 ) {
-    _before(initialise_market, 8, 18, 7906620 + 741930)
+    _before(initialise_market, 18, 18, 7906620 + 741930)
 }
 
 fn before_custom(
