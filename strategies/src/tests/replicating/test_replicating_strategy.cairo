@@ -2697,7 +2697,7 @@ fn test_set_strategy_params() {
 #[test]
 fn test_mismatched_token_decimals() {
     let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before_custom(
-        18, 6, 7906620 + 3505050
+        18, 6, 7906620 - 2025340
     );
 
     // Check decimals.
@@ -2712,7 +2712,7 @@ fn test_mismatched_token_decimals() {
 
     // Get oracle price.
     let (price, _) = strategy.get_oracle_price(market_id);
-    assert(price == 16000000000000000000000000000000000000000000, 'Oracle price');
+    assert(price == 16000000000000000000, 'Oracle price');
 
     // Deposit initial.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -2725,10 +2725,10 @@ fn test_mismatched_token_decimals() {
     let state = strategy.strategy_state(market_id);
     let bid = strategy.bid(market_id);
     let ask = strategy.ask(market_id);
-    assert(bid.lower_limit == 11387500, 'Bid lower');
-    assert(bid.upper_limit == 11407500, 'Bid upper');
-    assert(ask.lower_limit == 11411680, 'Ask lower');
-    assert(ask.upper_limit == 11431680, 'Ask upper');
+    assert(bid.lower_limit == 5861070, 'Bid lower');
+    assert(bid.upper_limit == 5881070, 'Bid upper');
+    assert(ask.lower_limit == 5881310, 'Ask lower');
+    assert(ask.upper_limit == 5901310, 'Ask upper');
 }
 
 #[test]

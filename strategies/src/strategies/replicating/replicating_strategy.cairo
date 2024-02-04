@@ -606,7 +606,7 @@ mod ReplicatingStrategy {
             let quote_token = ERC20ABIDispatcher { contract_address: market_info.quote_token };
             let base_decimals: u256 = base_token.decimals().into();
             let quote_decimals: u256 = quote_token.decimals().into();
-            let decimals: u256 = 28 + base_decimals - output.decimals.into() - quote_decimals;
+            let decimals: u256 = 28 + quote_decimals - output.decimals.into() - base_decimals;
             let scaling_factor = math::pow(10, decimals);
             (output.price.into() * scaling_factor, is_valid)
         }
