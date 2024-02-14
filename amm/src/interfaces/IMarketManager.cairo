@@ -451,6 +451,15 @@ trait IMarketManager<TContractState> {
         ref self: TContractState, receiver: ContractAddress, token: ContractAddress, amount: u256,
     ) -> u256;
 
+    // Nudges the market price to a new value.
+    // Only callable if there is zero active liquidity and new limit is before next initialised limit.
+    // Callable by owner only.
+    //
+    // # Arguments
+    // * `market_id` - market id
+    // * `new_limit` - new limit
+    fn nudge(ref self: TContractState, market_id: felt252, new_limit: u32);
+
     // Request transfer ownership of the contract.
     // Part 1 of 2 step process to transfer ownership.
     //

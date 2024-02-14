@@ -126,6 +126,7 @@ mod MarketManager {
         WhitelistToken: WhitelistToken,
         Donate: Donate,
         Sweep: Sweep,
+        Nudge: Nudge,
         ChangeOwner: ChangeOwner,
         ChangeFlashLoanFee: ChangeFlashLoanFee,
         SetMarketConfigs: SetMarketConfigs,
@@ -283,6 +284,14 @@ mod MarketManager {
         #[key]
         token: ContractAddress,
         amount: u256,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct Nudge {
+        #[key]
+        market_id: felt252,
+        new_limit: u32,
+        new_sqrt_price: u256,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -1673,6 +1682,48 @@ mod MarketManager {
 
             // Return amount collected.
             amount_collected
+        }
+
+        // Nudges the market price to a new value.
+        // Only callable if there is zero active liquidity and new limit is before next initialised limit.
+        // Callable by owner only.
+        //
+        // # Arguments
+        // * `market_id` - market id
+        // * `new_limit` - new limit
+        fn nudge(ref self: ContractState, market_id: felt252, new_limit: u32) {
+            // Validate caller and inputs.
+            self.assert_only_owner();
+            let market_info = self.market_info.read(market_id);
+            let mut market_state = self.market_state.read(market_id);
+            assert(market_info.width != 0, 'MarketNull');
+            assert(market_state.liquidity == 0, 'ActiveLiq');
+            assert(new_limit != market_state.curr_limit, 'SameLimit');
+            assert(new_limit <= price_math::max_limit(market_info.width), 'LimitOF');
+
+            // Check new limit is before next initialised limit.
+            let inc = new_limit > market_state.curr_limit;
+            let next_limit_opt = tree::next_limit(
+                @self, market_id, inc, market_info.width, market_state.curr_limit
+            );
+            if inc {
+                assert(
+                    next_limit_opt.is_none() || new_limit < next_limit_opt.unwrap(), 'LimitInvalid'
+                );
+            } else {
+                assert(
+                    next_limit_opt.is_none() || new_limit > next_limit_opt.unwrap(), 'LimitInvalid'
+                );
+            }
+
+            // Update market state.
+            let sqrt_price = price_math::limit_to_sqrt_price(new_limit, market_info.width);
+            market_state.curr_limit = new_limit;
+            market_state.curr_sqrt_price = sqrt_price;
+            self.market_state.write(market_id, market_state);
+
+            // Emit event.
+            self.emit(Event::Nudge(Nudge { market_id, new_limit, new_sqrt_price: sqrt_price }));
         }
 
         // Request transfer ownership of the contract.
