@@ -328,4 +328,11 @@ trait IReplicatingStrategy<TContractState> {
     // # Arguments
     // * `market_id` - market id of strategy
     fn unpause(ref self: TContractState, market_id: felt252);
+
+    // Trigger update of positions.
+    // Only callable by strategy owner.
+    //
+    // # Arguments
+    // * `market_id` - market id of strategy
+    fn trigger_update_positions(ref self: TContractState, market_id: felt252);
 }

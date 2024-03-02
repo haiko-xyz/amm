@@ -3196,6 +3196,45 @@ fn test_pause_already_unpaused() {
     strategy.unpause(market_id);
 }
 
+#[test]
+fn test_trigger_update_positions() {
+    let (market_manager, base_token, quote_token, market_id, oracle, strategy) = before(true);
+
+    // Set price.
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 166878000000, 8, 999, 5);
+
+    // Deposit initial.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    let initial_base_amount = to_e18(1);
+    let initial_quote_amount = to_e18(2000);
+    strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
+
+    // Update price.
+    start_warp(CheatTarget::One(oracle.contract_address), 1000);
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 180000000000, 8, 999, 5);
+
+    // Get queued position.
+    let swap_params = SwapParams { is_buy: true, exact_input: true, amount: to_e18(1000), };
+    let strategy_alt = IStrategyDispatcher { contract_address: strategy.contract_address };
+    let queued_positions = strategy_alt.queued_positions(market_id, Option::Some(swap_params));
+    let next_bid = *queued_positions.at(0);
+    let next_ask = *queued_positions.at(1);
+
+    // Trigger update positions.
+    start_prank(CheatTarget::One(strategy.contract_address), owner());
+    strategy.trigger_update_positions(market_id);
+
+    // Get placed positions.
+    let placed_positions = strategy_alt.placed_positions(market_id);
+    let bid = *placed_positions.at(0);
+    let ask = *placed_positions.at(1);
+
+    // Run checks.
+    assert(next_bid == bid, 'Queued positions: bid');
+    assert(next_ask == ask, 'Queued positions: ask');
+}
+
 fn swap_test_cases(width: u32) -> Array<SwapCase> {
     let mut cases: Array<SwapCase> = array![
         // Large amounts with no price limit.

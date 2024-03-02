@@ -1496,6 +1496,27 @@ mod ReplicatingStrategy {
             self.strategy_state.write(market_id, state);
             self.emit(Event::Unpause(Unpause { market_id }));
         }
+
+        // Manually trigger contract to update positions.
+        // Only callable by strategy owner.
+        //
+        // # Arguments
+        // * `market_id` - market id of strategy
+        fn trigger_update_positions(ref self: ContractState, market_id: felt252) {
+            // Run checks.
+            self.assert_strategy_owner(market_id);
+            let state = self.strategy_state.read(market_id);            
+            assert(state.is_initialised, 'NotInitialised');
+            assert(!state.is_paused, 'Paused');
+
+            // Fetch oracle price.
+            // If oracle price is invalid, throw error.
+            let (_, is_valid) = self.get_oracle_price(market_id);
+            assert(is_valid, 'InvalidOraclePrice');
+
+            // Update positions.
+            self._update_positions(market_id, Option::None(()));
+        }
     }
 
     // Upgrade contract class.
