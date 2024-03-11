@@ -1551,14 +1551,41 @@ mod ReplicatingStrategy {
             // Fetch market and strategy state.
             let market_manager = self.market_manager.read();
             let mut state = self.strategy_state.read(market_id);
+            let market_state = market_manager.market_state(market_id);
 
             // Fetch new bid and ask positions.
             // If the old positions are the same as the new positions, no updates will be made.
             let queued_positions = self.queued_positions(market_id, swap_params);
             let next_bid = *queued_positions.at(0);
             let next_ask = *queued_positions.at(1);
-            let update_bid: bool = next_bid != state.bid;
-            let update_ask: bool = next_ask != state.ask;
+            // We also skip bid update if:
+            // 1. Market price is outside of our bid position and user is buying
+            // 2. Market price is inside our bid position and user is buying, but the queued bid price is lower than the current bid
+            // Likewise, we skip ask update if:
+            // 1. Market price is outside of our ask position and user is selling
+            // 2. Market price is inside our ask position and user is selling, but the queued ask price is higher than the current ask
+            let skip_update_bid = match swap_params {
+                Option::Some(params) => {
+                    if market_state.curr_limit >= state.bid.upper_limit {
+                        params.is_buy
+                    } else {
+                        params.is_buy && next_bid.upper_limit <= state.bid.upper_limit
+                    }
+                },
+                Option::None(()) => false,
+            };
+            let skip_update_ask = match swap_params {
+                Option::Some(params) => {
+                    if market_state.curr_limit < state.ask.lower_limit {
+                        !params.is_buy
+                    } else {
+                        !params.is_buy && next_ask.lower_limit >= state.ask.lower_limit
+                    }
+                },
+                Option::None(()) => false,
+            };
+            let update_bid: bool = next_bid != state.bid && !skip_update_bid;
+            let update_ask: bool = next_ask != state.ask && !skip_update_ask;
 
             // Update positions.
             // If old positions exist at different price ranges, first remove them.
