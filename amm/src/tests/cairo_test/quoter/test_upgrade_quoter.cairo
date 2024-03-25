@@ -36,7 +36,6 @@ fn before() -> (IMarketManagerDispatcher, IQuoterDispatcher) {
 
 #[test]
 #[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
-#[available_gas(40000000)]
 fn test_upgrade_quoter_not_owner() {
     // Deploy market manager and tokens.
     let (_market_manager, quoter) = before();

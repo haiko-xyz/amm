@@ -73,7 +73,6 @@ fn swap_test_cases() -> Array<SwapCase> {
 ////////////////////////////////
 
 #[test]
-#[available_gas(15000000000)]
 fn test_unsafe_quote() {
     let (market_manager, base_token, quote_token) = before();
 

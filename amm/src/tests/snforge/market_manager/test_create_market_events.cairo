@@ -14,7 +14,7 @@ use amm::tests::common::params::{
 use amm::tests::common::utils::{to_e28, to_e18, encode_sqrt_price};
 
 // External imports.
-use snforge_std::{start_prank, declare, PrintTrait, spy_events, SpyOn, EventSpy, EventAssertions};
+use snforge_std::{start_prank, declare, spy_events, SpyOn, EventSpy, EventAssertions};
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 ////////////////////////////////
@@ -23,7 +23,7 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 
 fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher) {
     // Deploy market manager.
-    let class = declare('MarketManager');
+    let class = declare("MarketManager");
     let market_manager = deploy_market_manager(class, owner());
 
     // Deploy tokens.

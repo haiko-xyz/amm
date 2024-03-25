@@ -80,7 +80,6 @@ fn before(
 ////////////////////////////////
 
 #[test]
-#[available_gas(1000000000)]
 fn test_flash_loan() {
     let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true, false);
 
@@ -128,7 +127,6 @@ fn test_flash_loan() {
 
 #[test]
 #[should_panic(expected: ('LoanInsufficient', 'ENTRYPOINT_FAILED',))]
-#[available_gas(1000000000)]
 fn test_flash_loan_no_liquidity() {
     let (market_manager, base_token, _quote_token, _market_id, loan_receiver) = before(true, false);
 
@@ -138,7 +136,6 @@ fn test_flash_loan_no_liquidity() {
 
 #[test]
 #[should_panic(expected: ('u256_sub Overflow', 'ENTRYPOINT_FAILED', 'ENTRYPOINT_FAILED',))]
-#[available_gas(1000000000)]
 fn test_flash_loan_insufficient_balance() {
     let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(false, false);
 
@@ -175,7 +172,6 @@ fn test_flash_loan_insufficient_balance() {
         'ENTRYPOINT_FAILED'
     )
 )]
-#[available_gas(1000000000)]
 fn test_flash_loan_stealer() {
     let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true, true);
 
@@ -200,7 +196,6 @@ fn test_flash_loan_stealer() {
 
 #[test]
 #[should_panic(expected: ('LoanAmtZero', 'ENTRYPOINT_FAILED',))]
-#[available_gas(1000000000)]
 fn test_flash_loan_amount_zero() {
     let (market_manager, base_token, _quote_token, _market_id, loan_receiver) = before(true, false);
 
@@ -210,7 +205,6 @@ fn test_flash_loan_amount_zero() {
 
 #[test]
 #[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
-#[available_gas(1000000000)]
 fn test_set_flash_loan_fee_not_owner() {
     let (market_manager, base_token, _quote_token, _market_id, loan_receiver) = before(true, false);
 
@@ -220,7 +214,6 @@ fn test_set_flash_loan_fee_not_owner() {
 
 #[test]
 #[should_panic(expected: ('SameFee', 'ENTRYPOINT_FAILED',))]
-#[available_gas(1000000000)]
 fn test_set_flash_loan_fee_unchanged() {
     let (market_manager, base_token, _quote_token, _market_id, _loan_receiver) = before(
         true, false

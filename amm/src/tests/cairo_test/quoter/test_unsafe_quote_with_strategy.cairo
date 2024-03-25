@@ -167,7 +167,6 @@ fn swap_test_cases() -> Array<SwapCase> {
 ////////////////////////////////
 
 #[test]
-#[available_gas(15000000000)]
 fn test_unsafe_quote_with_strategy() {
     let (market_manager, _base_token, _quote_token, market_id, strategy) = before();
 
@@ -219,10 +218,8 @@ fn test_unsafe_quote_with_strategy() {
         } else {
             amount_in
         };
-        'amount'.print();
-        amount.print();
-        'quote'.print();
-        quote.print();
+        println!("Amount: {}", amount);
+        println!("Quote: {}", quote);
 
         // Check that the quote is correct.
         assert(quote == amount, 'Incorrect quote: Case 1' + swap_index.into());

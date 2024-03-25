@@ -37,7 +37,6 @@ fn before() -> IStorePackingContractDispatcher {
 ////////////////////////////////
 
 #[test]
-#[available_gas(100000000)]
 fn test_store_packing_market_info() {
     let store_packing_contract = before();
 
@@ -64,7 +63,6 @@ fn test_store_packing_market_info() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_store_packing_market_state() {
     let store_packing_contract = before();
 
@@ -93,7 +91,6 @@ fn test_store_packing_market_state() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_store_packing_market_configs() {
     let store_packing_contract = before();
 
@@ -120,7 +117,6 @@ fn test_store_packing_market_configs() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_store_packing_limit_info() {
     let store_packing_contract = before();
 
@@ -145,7 +141,6 @@ fn test_store_packing_limit_info() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_store_packing_order_batch() {
     let store_packing_contract = before();
 
@@ -170,7 +165,6 @@ fn test_store_packing_order_batch() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_store_packing_position() {
     let store_packing_contract = before();
 
@@ -201,7 +195,6 @@ fn test_store_packing_position() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_store_packing_limit_order() {
     let store_packing_contract = before();
 

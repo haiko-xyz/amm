@@ -61,7 +61,6 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_amounts_inside_order_bid() {
     let (market_manager, _base_token, _quote_token, market_id) = before();
 
@@ -107,7 +106,6 @@ fn test_amounts_inside_order_bid() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_amounts_inside_order_ask() {
     let (market_manager, _base_token, _quote_token, market_id) = before();
 
@@ -153,7 +151,6 @@ fn test_amounts_inside_order_ask() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_amounts_inside_order_empty_position() {
     let (market_manager, _base_token, _quote_token, market_id) = before();
 

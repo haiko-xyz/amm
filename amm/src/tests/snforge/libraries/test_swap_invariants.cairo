@@ -10,9 +10,6 @@ use amm::libraries::constants::ONE;
 use amm::types::i128::I128Trait;
 use amm::tests::common::utils::approx_eq;
 
-// External imports.
-use snforge_std::PrintTrait;
-
 // Check following invariants:
 // 1. Amount in + fee <= u256 max
 // 2. If exact input, amount out <= amount remaining

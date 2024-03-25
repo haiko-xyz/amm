@@ -64,7 +64,6 @@ fn before() -> (
 ////////////////////////////////
 
 #[test]
-#[available_gas(15000000000)]
 fn test_amounts_inside_position_array() {
     let (market_manager, _base_token, _quote_token, market_id, quoter) = before();
 

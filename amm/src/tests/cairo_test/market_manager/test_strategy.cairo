@@ -92,7 +92,6 @@ fn before() -> (
 ////////////////////////////////
 
 #[test]
-#[available_gas(1000000000)]
 fn test_strategy() {
     let (market_manager, base_token, quote_token, market_id, strategy) = before();
 

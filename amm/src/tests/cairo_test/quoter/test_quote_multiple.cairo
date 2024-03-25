@@ -69,7 +69,6 @@ fn before() -> (
 ////////////////////////////////
 
 #[test]
-#[available_gas(15000000000)]
 fn test_quote_multiple() {
     let (market_manager, eth, btc, usdc, quoter) = before();
 

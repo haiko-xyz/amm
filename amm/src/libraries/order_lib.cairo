@@ -9,13 +9,13 @@ use amm::libraries::math::{math, price_math, fee_math, liquidity_math};
 use amm::libraries::constants::ONE;
 use amm::contracts::market_manager::MarketManager::{ContractState, MarketManagerInternalTrait};
 use amm::contracts::market_manager::MarketManager::{
-    orders::InternalContractMemberStateTrait as OrderStateTrait,
-    limit_info::InternalContractMemberStateTrait as LimitInfoStateTrait,
-    batches::InternalContractMemberStateTrait as BatchStateTrait,
-    positions::InternalContractMemberStateTrait as PositionStateTrait,
-    market_info::InternalContractMemberStateTrait as MarketInfoStateTrait,
-    market_state::InternalContractMemberStateTrait as MarketStateStateTrait,
-    donations::InternalContractMemberStateTrait as DonationStateTrait,
+    ordersContractMemberStateTrait as OrderStateTrait,
+    limit_infoContractMemberStateTrait as LimitInfoStateTrait,
+    batchesContractMemberStateTrait as BatchStateTrait,
+    positionsContractMemberStateTrait as PositionStateTrait,
+    market_infoContractMemberStateTrait as MarketInfoStateTrait,
+    market_stateContractMemberStateTrait as MarketStateStateTrait,
+    donationsContractMemberStateTrait as DonationStateTrait,
 };
 use amm::types::core::{OrderBatch, LimitInfo};
 use amm::types::i128::{i128, I128Trait};

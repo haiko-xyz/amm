@@ -80,7 +80,6 @@ fn before() -> (
 ////////////////////////////////
 
 #[test]
-#[available_gas(15000000000)]
 fn test_swap_multiple() {
     let (market_manager, eth, btc, _usdc, eth_usdc_id, btc_usdc_id) = before();
 
@@ -123,7 +122,6 @@ fn test_swap_multiple() {
 
 #[test]
 #[should_panic(expected: ('RouteMismatch', 'ENTRYPOINT_FAILED',))]
-#[available_gas(15000000000)]
 fn test_swap_multiple_invalid_path() {
     let (market_manager, eth, btc, _usdc, eth_usdc_id, btc_usdc_id) = before();
 

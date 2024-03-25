@@ -13,7 +13,6 @@ use debug::PrintTrait;
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_compute_swap_amounts_buy_exact_input_reaches_price_target() {
     let curr_sqrt_price = encode_sqrt_price(1, 1);
     let target_sqrt_price = encode_sqrt_price(101, 100);
@@ -38,7 +37,6 @@ fn test_compute_swap_amounts_buy_exact_input_reaches_price_target() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_compute_swap_amounts_buy_exact_output_reaches_price_target() {
     let curr_sqrt_price = encode_sqrt_price(1, 1);
     let target_sqrt_price = encode_sqrt_price(101, 100);
@@ -63,7 +61,6 @@ fn test_compute_swap_amounts_buy_exact_output_reaches_price_target() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_compute_swap_amounts_buy_exact_input_filled_max() {
     let curr_sqrt_price = encode_sqrt_price(1, 1);
     let target_sqrt_price = encode_sqrt_price(1000, 100);
@@ -89,7 +86,6 @@ fn test_compute_swap_amounts_buy_exact_input_filled_max() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_compute_swap_amounts_buy_exact_output_filled_max() {
     let curr_sqrt_price = encode_sqrt_price(1, 1);
     let target_sqrt_price = encode_sqrt_price(10000, 100);
@@ -114,7 +110,6 @@ fn test_compute_swap_amounts_buy_exact_output_filled_max() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_compute_swap_amounts_sell_exact_input_reached_price_target() {
     let curr_sqrt_price = 15000000000000000000000000000;
     let target_sqrt_price = to_e28(1);
@@ -132,7 +127,6 @@ fn test_compute_swap_amounts_sell_exact_input_reached_price_target() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_compute_swap_amounts_sell_exact_output_reached_price_target() {
     let curr_sqrt_price = to_e28(12) / 10;
     let target_sqrt_price = to_e28(1);
@@ -150,7 +144,6 @@ fn test_compute_swap_amounts_sell_exact_output_reached_price_target() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_compute_swap_amounts_sell_exact_input_filled_max() {
     let curr_sqrt_price = encode_sqrt_price(1000, 100);
     let target_sqrt_price = encode_sqrt_price(1, 1);
@@ -168,7 +161,6 @@ fn test_compute_swap_amounts_sell_exact_input_filled_max() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_compute_swap_amounts_sell_exact_output_filled_max() {
     let curr_sqrt_price = to_e28(3);
     let target_sqrt_price = to_e28(1);
@@ -186,7 +178,6 @@ fn test_compute_swap_amounts_sell_exact_output_filled_max() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_compute_swap_amounts_buy_exact_output_intermediate_insufficient_liquidity() {
     let curr_sqrt_price = 2560000000000000000000000000000;
     let target_sqrt_price = 2816000000000000000000000000000;
@@ -205,7 +196,6 @@ fn test_compute_swap_amounts_buy_exact_output_intermediate_insufficient_liquidit
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_compute_swap_amounts_sell_exact_output_intermediate_insufficient_liquidity() {
     let curr_sqrt_price = 2560000000000000000000000000000;
     let target_sqrt_price = 2304000000000000000000000000000;
@@ -228,7 +218,6 @@ fn test_compute_swap_amounts_sell_exact_output_intermediate_insufficient_liquidi
 /////////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_next_sqrt_price_in_cases() {
     let one: u128 = 10000000000000000000000000000;
     assert(
@@ -256,21 +245,18 @@ fn test_next_sqrt_price_in_cases() {
 
 #[test]
 #[should_panic(expected: ('PriceZero',))]
-#[available_gas(2000000000)]
 fn test_next_sqrt_price_in_price_0() {
     next_sqrt_price_input(0, 100, 1, true);
 }
 
 #[test]
 #[should_panic(expected: ('LiqZero',))]
-#[available_gas(2000000000)]
 fn test_next_sqrt_price_in_liq_0() {
     next_sqrt_price_input(100, 0, 1, true);
 }
 
 #[test]
 #[should_panic(expected: ('PriceOF',))]
-#[available_gas(2000000000)]
 fn test_next_sqrt_price_in_price_overflow() {
     next_sqrt_price_input(MAX, 1, 1, true);
 }
@@ -280,7 +266,6 @@ fn test_next_sqrt_price_in_price_overflow() {
 /////////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_next_sqrt_price_out_cases() {
     let one: u128 = 10000000000000000000000000000;
     assert(
@@ -301,56 +286,48 @@ fn test_next_sqrt_price_out_cases() {
 
 #[test]
 #[should_panic(expected: ('PriceZero',))]
-#[available_gas(2000000000)]
 fn test_next_sqrt_price_out_price_0() {
     next_sqrt_price_output(0, 100, 1, true);
 }
 
 #[test]
 #[should_panic(expected: ('LiqZero',))]
-#[available_gas(2000000000)]
 fn test_next_sqrt_price_out_liq_0() {
     next_sqrt_price_output(100, 0, 1, true);
 }
 
 #[test]
 #[should_panic(expected: ('PriceOF',))]
-#[available_gas(2000000000)]
 fn test_next_sqrt_price_out_buy_price_overflow() {
     next_sqrt_price_output(ONE, 1, BoundedU256::max(), true);
 }
 
 #[test]
 #[should_panic(expected: ('MulDivOF',))]
-#[available_gas(2000000000)]
 fn test_next_sqrt_price_out_sell_price_overflow() {
     next_sqrt_price_output(ONE, 1, BoundedU256::max(), false);
 }
 
 #[test]
 #[should_panic(expected: ('u256_sub Overflow',))]
-#[available_gas(2000000000)]
 fn test_next_sqrt_price_out_output_eq_quote_reserves() {
     next_sqrt_price_output(256, 1024, 262144, false);
 }
 
 #[test]
 #[should_panic(expected: ('u256_sub Overflow',))]
-#[available_gas(2000000000)]
 fn test_next_sqrt_price_out_output_gt_quote_reserves() {
     next_sqrt_price_output(256, 1024, 262145, false);
 }
 
 #[test]
 #[should_panic(expected: ('u256_sub Overflow',))]
-#[available_gas(2000000000)]
 fn test_next_sqrt_price_out_output_eq_base_reserves() {
     next_sqrt_price_output(256, 1024, 4, false);
 }
 
 #[test]
 #[should_panic(expected: ('u256_sub Overflow',))]
-#[available_gas(2000000000)]
 fn test_next_sqrt_price_out_output_gt_base_reserves() {
     next_sqrt_price_output(256, 1024, 5, false);
 }

@@ -15,7 +15,6 @@ use amm::types::i256::I256Trait;
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_calc_fee() {
     let mut fee = calc_fee(0, 0);
     assert(fee == 0, 'calc_fee(0,0)');
@@ -47,7 +46,6 @@ fn test_calc_fee() {
 
 #[test]
 #[should_panic(expected: ('FeeRateOF',))]
-#[available_gas(2000000000)]
 fn test_calc_fee_overflow() {
     calc_fee(50000, 10001);
 }
@@ -57,7 +55,6 @@ fn test_calc_fee_overflow() {
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_gross_to_net() {
     let mut net = gross_to_net(0, 0);
     assert(net == 0, 'gross_to_net(0,0)');
@@ -92,7 +89,6 @@ fn test_gross_to_net() {
 
 #[test]
 #[should_panic(expected: ('FeeRateOF',))]
-#[available_gas(2000000000)]
 fn test_gross_to_net_overflow() {
     gross_to_net(50000, 10001);
 }
@@ -102,7 +98,6 @@ fn test_gross_to_net_overflow() {
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_net_to_gross() {
     let mut net = net_to_gross(0, 0);
     assert(net == 0, 'net_to_gross(0,0)');
@@ -134,14 +129,12 @@ fn test_net_to_gross() {
 
 #[test]
 #[should_panic(expected: ('FeeRateOF',))]
-#[available_gas(2000000000)]
 fn test_net_to_gross_fee_rate_overflow() {
     net_to_gross(50000, 10001);
 }
 
 #[test]
 #[should_panic(expected: ('MulDivOF',))]
-#[available_gas(2000000000)]
 fn test_net_to_gross_amount_overflow() {
     net_to_gross(BoundedU256::max(), 10);
 }
@@ -151,7 +144,6 @@ fn test_net_to_gross_amount_overflow() {
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_net_to_fee() {
     let mut fee = net_to_fee(0, 0);
     assert(fee == 0, 'net_to_fee(0,0)');
@@ -192,7 +184,6 @@ fn test_net_to_fee() {
 
 #[test]
 #[should_panic(expected: ('FeeRateOF',))]
-#[available_gas(2000000000)]
 fn test_net_to_fee_overflow() {
     net_to_fee(50000, 10001);
 }
@@ -202,7 +193,6 @@ fn test_net_to_fee_overflow() {
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_get_fee_inside_cases() {
     let mut lower_limit_info = empty_limit_info();
     let mut upper_limit_info = empty_limit_info();

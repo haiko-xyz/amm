@@ -220,7 +220,6 @@ fn test_delta_spread() {
 // }
 
 // #[test]
-// #[available_gas(100000000)]
 // #[should_panic(expected: ('DefaultVolZero',))]
 // fn test_unpack_limits_zero_vol() {
 //     let range = Limits::Vol((100, 0, 8000, false));

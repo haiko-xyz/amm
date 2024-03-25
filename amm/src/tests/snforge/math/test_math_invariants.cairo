@@ -3,7 +3,6 @@ use cmp::{min, max};
 use integer::{u256_wide_mul, u512_safe_div_rem_by_u256, u256_try_as_non_zero};
 
 use amm::libraries::math::math::mul_div;
-use snforge_std::PrintTrait;
 
 ////////////////////////////////
 // TESTS

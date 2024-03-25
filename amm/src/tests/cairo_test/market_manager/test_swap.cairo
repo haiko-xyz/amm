@@ -930,7 +930,6 @@ fn swap_test_cases() -> Array<SwapCase> {
 ////////////////////////////////
 
 #[test]
-#[available_gas(15000000000)]
 fn test_swap_cases() {
     // Fetch test cases.
     let market_cases = market_state_test_cases();
@@ -946,7 +945,7 @@ fn test_swap_cases() {
         let market_case: MarketStateCase = *market_cases[index];
         let swap_cases = swap_test_cases();
 
-        _print_index('*** MKT 01', index);
+        println!("*** MARKET: {}", index + 1);
 
         // Iterate through swap test cases.
         let mut swap_index = 0;
@@ -1005,7 +1004,7 @@ fn test_swap_cases() {
                 //     market_manager, market_id, base_token, quote_token
                 // );
                 let start_sqrt_price = market_manager.curr_sqrt_price(market_id);
-                _print_index('*** SWAP 01', swap_index).print();
+                println!("*** SWAP: {}", swap_index + 1);
 
                 let unsafe_quote = market_manager
                     .unsafe_quote(
@@ -1016,7 +1015,11 @@ fn test_swap_cases() {
                 let quoter = deploy_quoter(owner(), market_manager.contract_address);
                 let quote = quoter
                     .quote(market_id, swap_case.is_buy, swap_case.amount, swap_case.exact_input);
-                assert(unsafe_quote == quote, _print_index('quote 01', swap_index));
+                if unsafe_quote != quote {
+                    println!("*** QUOTE MISMATCH: {}", swap_index + 1);
+                    println!("unsafe_quote: {}, quote: {}", unsafe_quote, quote);
+                    panic!();
+                }
 
                 let mut params = swap_params(
                     alice(),
@@ -1036,12 +1039,10 @@ fn test_swap_cases() {
                 let (amount_in, amount_out, fees) = swap(market_manager, params);
 
                 let (amount_in_exp, amount_out_exp, fees_exp) = *market_case.exp.at(swap_index);
-                'amount_in'.print();
-                amount_in.print();
-                'amount_out'.print();
-                amount_out.print();
-                'fees'.print();
-                fees.print();
+
+                println!("Amount In: {}", amount_in);
+                println!("Amount Out: {}", amount_out);
+                println!("Fees: {}", fees);
 
                 // When swapping very small amounts relative to available liquidity, there can
                 // be large percentage differences in swap amounts due to rounding errors in
@@ -1060,42 +1061,42 @@ fn test_swap_cases() {
                 let MAX_DEVIATION = 20;
                 let PRECISION_PLACES = 8;
 
-                assert(
-                    if amount_in == 0 || market_case.liquidity.into() / amount_in >= THRESHOLD {
-                        if !swap_case.exact_input {
-                            amount_in >= amount_in_exp
-                        } else {
-                            approx_eq(amount_in, amount_in_exp, MAX_DEVIATION)
-                        }
+                if !(if amount_in == 0 || market_case.liquidity.into() / amount_in >= THRESHOLD {
+                    if !swap_case.exact_input {
+                        amount_in >= amount_in_exp
                     } else {
-                        approx_eq_pct(amount_in, amount_in_exp, PRECISION_PLACES)
-                    },
-                    _print_index('amount in 01', swap_index)
-                );
-                assert(
-                    if amount_out == 0 || market_case.liquidity.into() / amount_out >= THRESHOLD {
-                        if swap_case.exact_input {
-                            amount_out <= amount_out_exp
-                        } else {
-                            approx_eq(amount_out, amount_out_exp, MAX_DEVIATION)
-                        }
+                        approx_eq(amount_in, amount_in_exp, MAX_DEVIATION)
+                    }
+                } else {
+                    approx_eq_pct(amount_in, amount_in_exp, PRECISION_PLACES)
+                }) {
+                    println!("*** AMOUNT IN MISMATCH ({}): {} (amt), {} (exp)", swap_index + 1, amount_in, amount_in_exp);
+                    panic!();
+                }
+                if !(if amount_out == 0 || market_case.liquidity.into() / amount_out >= THRESHOLD {
+                    if swap_case.exact_input {
+                        amount_out <= amount_out_exp
                     } else {
-                        approx_eq_pct(amount_out, amount_out_exp, PRECISION_PLACES)
-                    },
-                    _print_index('amount out 01', swap_index)
-                );
-                assert(
-                    if amount_in == 0 || market_case.liquidity.into() / amount_in >= THRESHOLD {
-                        if swap_case.exact_input {
-                            approx_eq(fees, fees_exp, MAX_DEVIATION)
-                        } else {
-                            fees >= fees_exp
-                        }
+                        approx_eq(amount_out, amount_out_exp, MAX_DEVIATION)
+                    }
+                } else {
+                    approx_eq_pct(amount_out, amount_out_exp, PRECISION_PLACES)
+                }) {
+                    println!("*** AMOUNT OUT MISMATCH: {}", swap_index + 1);
+                    panic!();
+                }
+                if !(if amount_in == 0 || market_case.liquidity.into() / amount_in >= THRESHOLD {
+                    if swap_case.exact_input {
+                        approx_eq(fees, fees_exp, MAX_DEVIATION)
                     } else {
-                        approx_eq_pct(fees, fees_exp, PRECISION_PLACES)
-                    },
-                    _print_index('fees 01', swap_index)
-                );
+                        fees >= fees_exp
+                    }
+                } else {
+                    approx_eq_pct(fees, fees_exp, PRECISION_PLACES)
+                }) {
+                    println!("*** FEES MISMATCH: {}", swap_index + 1);
+                    panic!();
+                }
                 // // Snapshot state after.
                 // let (
                 //     market_state_after,
@@ -1111,14 +1112,14 @@ fn test_swap_cases() {
 
                 // Check price change is handled correctly.
                 let end_sqrt_price = market_manager.curr_sqrt_price(market_id);
-                assert(
-                    if swap_case.is_buy {
-                        end_sqrt_price >= start_sqrt_price
-                    } else {
-                        end_sqrt_price <= start_sqrt_price
-                    },
-                    _print_index('sqrt price 01', swap_index)
-                );
+                if !(if swap_case.is_buy {
+                    end_sqrt_price >= start_sqrt_price
+                } else {
+                    end_sqrt_price <= start_sqrt_price
+                }) {
+                    println!("*** SQRT PRICE MISMATCH: {}", swap_index + 1);
+                    panic!();
+                }
             }
 
             swap_index += 1;
@@ -1129,7 +1130,6 @@ fn test_swap_cases() {
 }
 
 #[test]
-#[available_gas(15000000000)]
 fn test_swap_threshold_amount_exact_input() {
     let (market_manager, _base_token, _quote_token, market_id) = before_with_market();
 
@@ -1159,7 +1159,6 @@ fn test_swap_threshold_amount_exact_input() {
 
 #[test]
 #[should_panic(expected: ('ThresholdAmount', 996999999950299550, 0, 'ENTRYPOINT_FAILED'))]
-#[available_gas(15000000000)]
 fn test_swap_threshold_amount_exact_input_fails() {
     let (market_manager, _base_token, _quote_token, market_id) = before_with_market();
 
@@ -1188,7 +1187,6 @@ fn test_swap_threshold_amount_exact_input_fails() {
 }
 
 #[test]
-#[available_gas(15000000000)]
 fn test_swap_threshold_amount_exact_output() {
     let (market_manager, _base_token, _quote_token, market_id) = before_with_market();
 
@@ -1218,7 +1216,6 @@ fn test_swap_threshold_amount_exact_output() {
 
 #[test]
 #[should_panic(expected: ('ThresholdAmount', 1003009027131394184, 0, 'ENTRYPOINT_FAILED'))]
-#[available_gas(15000000000)]
 fn test_swap_threshold_amount_exact_output_fails() {
     let (market_manager, _base_token, _quote_token, market_id) = before_with_market();
 
@@ -1244,7 +1241,7 @@ fn test_swap_threshold_amount_exact_output_fails() {
         Option::None(())
     );
     let (amount_in, _, _) = swap(market_manager, params);
-    amount_in.print();
+    println!("Amount In: {}", amount_in);
 }
 
 ////////////////////////////////
@@ -1280,13 +1277,5 @@ fn _contains(span: Span<felt252>, value: felt252) -> bool {
         }
 
         index += 1;
-    }
-}
-
-fn _print_index(label: felt252, index: u32) -> felt252 {
-    if index < 9 {
-        (label + index.into())
-    } else {
-        (label + 255 + (index - 9).into())
     }
 }

@@ -91,7 +91,6 @@ fn before_no_orders() -> (
 ////////////////////////////////
 
 #[test]
-#[available_gas(100000000)]
 fn test_create_bid_order_initialises_order_and_batch() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
@@ -125,7 +124,6 @@ fn test_create_bid_order_initialises_order_and_batch() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_create_ask_order_initialises_order_and_batch() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
@@ -159,7 +157,6 @@ fn test_create_ask_order_initialises_order_and_batch() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_create_multiple_bid_orders() {
     let width = 1;
     let (market_manager, _base_token, _quote_token, market_id) = before(width);
@@ -204,7 +201,6 @@ fn test_create_multiple_bid_orders() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_create_multiple_ask_orders() {
     let width = 1;
     let (market_manager, _base_token, _quote_token, market_id) = before(width);
@@ -248,7 +244,6 @@ fn test_create_multiple_ask_orders() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_swap_fully_fills_bid_limit_orders() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
@@ -322,7 +317,6 @@ fn test_swap_fully_fills_bid_limit_orders() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_swap_fully_fills_ask_limit_orders() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
@@ -394,7 +388,6 @@ fn test_swap_fully_fills_ask_limit_orders() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_create_and_collect_unfilled_bid_order() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
@@ -437,7 +430,6 @@ fn test_create_and_collect_unfilled_bid_order() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_create_and_collect_unfilled_ask_order() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
@@ -473,7 +465,6 @@ fn test_create_and_collect_unfilled_ask_order() {
 }
 
 #[test]
-#[available_gas(150000000)]
 fn test_create_and_collect_fully_filled_bid_order() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
@@ -534,7 +525,6 @@ fn test_create_and_collect_fully_filled_bid_order() {
 }
 
 #[test]
-#[available_gas(150000000)]
 fn test_create_and_collect_fully_filled_ask_order() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
@@ -595,7 +585,6 @@ fn test_create_and_collect_fully_filled_ask_order() {
 }
 
 #[test]
-#[available_gas(150000000)]
 fn test_create_and_collect_partially_filled_bid_order() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
@@ -676,7 +665,6 @@ fn test_create_and_collect_partially_filled_bid_order() {
 }
 
 #[test]
-#[available_gas(150000000)]
 fn test_create_and_collect_partially_filled_ask_order() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
@@ -757,7 +745,6 @@ fn test_create_and_collect_partially_filled_ask_order() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_partial_fill_within_width_interval_bid() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 10);
 
@@ -789,7 +776,6 @@ fn test_partial_fill_within_width_interval_bid() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_partial_fill_within_width_interval_ask() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 10);
 
@@ -820,7 +806,6 @@ fn test_partial_fill_within_width_interval_ask() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_partially_filled_bid_correctly_unfills() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
@@ -878,7 +863,6 @@ fn test_partially_filled_bid_correctly_unfills() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_partially_filled_ask_correctly_unfills() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
@@ -937,7 +921,6 @@ fn test_partially_filled_ask_correctly_unfills() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_fill_bid_advances_batch_nonce() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
@@ -975,7 +958,6 @@ fn test_fill_bid_advances_batch_nonce() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_fill_ask_advances_batch_nonce() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
@@ -1017,7 +999,6 @@ fn test_fill_ask_advances_batch_nonce() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_fully_filled_bid_donates_excess_fees() {
     let width = 10;
     let (market_manager, base_token, quote_token, market_id) = before(width);
@@ -1091,7 +1072,6 @@ fn test_fully_filled_bid_donates_excess_fees() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_fully_filled_bid_with_intermediate_collection() {
     let width = 10;
     let (market_manager, base_token, quote_token, market_id) = before(width);
@@ -1168,7 +1148,6 @@ fn test_fully_filled_bid_with_intermediate_collection() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_limit_orders_misc_actions() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
@@ -1360,7 +1339,6 @@ fn test_limit_orders_misc_actions() {
 ////////////////////////////////
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('CreateBidDisabled', 'ENTRYPOINT_FAILED',))]
 fn test_create_bid_in_bid_disabled_market() {
     let (market_manager, _base_token, _quote_token, market_id) = before_no_orders();
@@ -1368,7 +1346,6 @@ fn test_create_bid_in_bid_disabled_market() {
 }
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('CreateAskDisabled', 'ENTRYPOINT_FAILED',))]
 fn test_create_ask_in_ask_disabled_market() {
     let (market_manager, _base_token, _quote_token, market_id) = before_no_orders();
@@ -1376,7 +1353,6 @@ fn test_create_ask_in_ask_disabled_market() {
 }
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('NotLimitOrder', 'ENTRYPOINT_FAILED',))]
 fn test_create_bid_above_curr_limit_reverts() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
@@ -1384,7 +1360,6 @@ fn test_create_bid_above_curr_limit_reverts() {
 }
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('NotLimitOrder', 'ENTRYPOINT_FAILED',))]
 fn test_create_bid_at_curr_limit_reverts() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
@@ -1392,7 +1367,6 @@ fn test_create_bid_at_curr_limit_reverts() {
 }
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('NotLimitOrder', 'ENTRYPOINT_FAILED',))]
 fn test_create_ask_below_curr_limit_reverts() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
@@ -1400,7 +1374,6 @@ fn test_create_ask_below_curr_limit_reverts() {
 }
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('NotLimitOrder', 'ENTRYPOINT_FAILED',))]
 fn test_create_ask_at_curr_limit_reverts() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
@@ -1408,7 +1381,6 @@ fn test_create_ask_at_curr_limit_reverts() {
 }
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('OrderAmtZero', 'ENTRYPOINT_FAILED',))]
 fn test_create_order_zero_liquidity() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
@@ -1416,7 +1388,6 @@ fn test_create_order_zero_liquidity() {
 }
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('OrderOwnerOnly', 'ENTRYPOINT_FAILED',))]
 fn test_collect_order_wrong_owner() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);

@@ -14,7 +14,6 @@ const ONE: u256 = 10000000000000000000000000000;
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_pow() {
     assert(pow(0, 0) == 1, 'pow(0,0)');
     assert(pow(0, 1) == 0, 'pow(0,1)');
@@ -38,7 +37,6 @@ fn test_pow() {
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_mul_div() {
     assert(mul_div(1, 1, 1, false) == 1, 'mul_div(1,1,1,F)');
     assert(mul_div(1, 1, 1, true) == 1, 'mul_div(1,1,1,T)');
@@ -67,42 +65,36 @@ fn test_mul_div() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('MulDivByZero',))]
 fn test_mul_div_denominator_0() {
     mul_div(1, 1, 0, false);
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('MulDivByZero',))]
 fn test_mul_div_denominator_0_roundup() {
     mul_div(1, 1, 0, true);
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('MulDivOF',))]
 fn test_mul_div_numerator_overflow() {
     mul_div(BoundedU256::max(), BoundedU256::max(), 1, false);
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('MulDivOF',))]
 fn test_mul_div_numerator_overflow_roundup() {
     mul_div(BoundedU256::max(), BoundedU256::max(), 1, true);
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('MulDivOF',))]
 fn test_mul_div_result_overflow_roundup() {
     mul_div(BoundedU256::max() / 2 + 1, 2, 1, true);
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('MulDivOF',))]
 fn test_mul_div_result_overflow_roundup_alt() {
     mul_div(BoundedU256::max(), BoundedU256::max(), BoundedU256::max() - 1, true);

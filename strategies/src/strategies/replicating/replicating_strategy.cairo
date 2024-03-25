@@ -1505,7 +1505,7 @@ mod ReplicatingStrategy {
         fn trigger_update_positions(ref self: ContractState, market_id: felt252) {
             // Run checks.
             self.assert_strategy_owner(market_id);
-            let state = self.strategy_state.read(market_id);            
+            let state = self.strategy_state.read(market_id);
             assert(state.is_initialised, 'NotInitialised');
             assert(!state.is_paused, 'Paused');
 

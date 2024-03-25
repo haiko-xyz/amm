@@ -9,10 +9,10 @@ use starknet::ContractAddress;
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager::{
-    ContractState, market_info::InternalContractMemberStateTrait as MarketsStateTrait,
-    positions::InternalContractMemberStateTrait as PositionsStateTrait,
-    market_state::InternalContractMemberStateTrait as MarketStateTrait,
-    limit_info::InternalContractMemberStateTrait as LimitInfoTrait,
+    ContractState, market_infoContractMemberStateTrait as MarketsStateTrait,
+    positionsContractMemberStateTrait as PositionsStateTrait,
+    market_stateContractMemberStateTrait as MarketStateTrait,
+    limit_infoContractMemberStateTrait as LimitInfoTrait,
 };
 use amm::contracts::market_manager::MarketManager::MarketManagerInternalTrait;
 use amm::libraries::tree;

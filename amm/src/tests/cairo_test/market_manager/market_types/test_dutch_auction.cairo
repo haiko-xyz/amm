@@ -75,7 +75,6 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 // TESTS
 ////////////////////////////////
 #[test]
-#[available_gas(1000000000)]
 fn test_dutch_auction() {
     // Deploy market manager and tokens.
     let (market_manager, _base_token, _quote_token, market_id) = before();
@@ -139,7 +138,6 @@ fn test_dutch_auction() {
 
 #[test]
 #[should_panic(expected: ('SwapDisabled', 'ENTRYPOINT_FAILED',))]
-#[available_gas(1000000000)]
 fn test_dutch_auction_swap_by_bidder() {
     // Deploy market manager and tokens.
     let (market_manager, _base_token, _quote_token, market_id) = before();
@@ -153,7 +151,6 @@ fn test_dutch_auction_swap_by_bidder() {
 
 #[test]
 #[should_panic(expected: ('AddLiqWidthOF', 'ENTRYPOINT_FAILED',))]
-#[available_gas(1000000000)]
 fn test_dutch_auction_range_position() {
     // Deploy market manager and tokens.
     let (market_manager, _base_token, _quote_token, market_id) = before();
@@ -167,7 +164,6 @@ fn test_dutch_auction_range_position() {
 
 #[test]
 #[should_panic(expected: ('CreateBidDisabled', 'ENTRYPOINT_FAILED',))]
-#[available_gas(1000000000)]
 fn test_dutch_auction_bid_order() {
     // Deploy market manager and tokens.
     let (market_manager, _base_token, _quote_token, market_id) = before();
@@ -178,7 +174,6 @@ fn test_dutch_auction_bid_order() {
 
 #[test]
 #[should_panic(expected: ('CreateAskDisabled', 'ENTRYPOINT_FAILED',))]
-#[available_gas(1000000000)]
 fn test_dutch_auction_ask_order() {
     // Deploy market manager and tokens.
     let (market_manager, _base_token, _quote_token, market_id) = before();
@@ -189,7 +184,6 @@ fn test_dutch_auction_ask_order() {
 
 #[test]
 #[should_panic(expected: ('AddLiqDisabled', 'ENTRYPOINT_FAILED',))]
-#[available_gas(1000000000)]
 fn test_dutch_auction_bid_after_auction_ends() {
     let (market_manager, _base_token, _quote_token, market_id) = before();
 
@@ -208,7 +202,6 @@ fn test_dutch_auction_bid_after_auction_ends() {
 
 #[test]
 #[should_panic(expected: ('SwapDisabled', 'ENTRYPOINT_FAILED',))]
-#[available_gas(1000000000)]
 fn test_dutch_auction_swap_by_bidder_after_sale_ends() {
     let (market_manager, _base_token, _quote_token, market_id) = before();
 

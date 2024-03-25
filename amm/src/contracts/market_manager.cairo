@@ -41,9 +41,6 @@ mod MarketManager {
     use openzeppelin::introspection::src5::SRC5Component;
     use openzeppelin::upgrades::UpgradeableComponent;
 
-    // use debug::PrintTrait;
-    // use snforge_std::PrintTrait;
-
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
     component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
@@ -336,7 +333,6 @@ mod MarketManager {
         self.owner.write(owner);
         self.swap_id.write(1);
         self.erc721.initializer(name, symbol);
-
         self
             .emit(
                 Event::ChangeOwner(ChangeOwner { old: ContractAddressZeroable::zero(), new: owner })

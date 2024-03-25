@@ -43,7 +43,7 @@ mod ERC20 {
         self.erc20._mint(recipient, initial_supply);
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl ERC20MetadataImpl of IERC20Metadata<ContractState> {
         fn name(self: @ContractState) -> felt252 {
             self.erc20.name()
@@ -58,6 +58,7 @@ mod ERC20 {
         }
     }
 
+    #[abi(per_item)]
     #[generate_trait]
     impl InternalImpl of InternalTrait {
         fn _set_decimals(ref self: ContractState, decimals: u8) {

@@ -18,7 +18,7 @@ use snforge_std::{declare, ContractClass, ContractClassTrait, start_prank, stop_
 use openzeppelin::token::erc20::interface::{IERC20, ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
 fn declare_token() -> ContractClass {
-    declare('ERC20')
+    declare("ERC20")
 }
 
 fn deploy_token(class: ContractClass, params: ERC20ConstructorParams) -> ERC20ABIDispatcher {

@@ -10,7 +10,7 @@ use amm::contracts::mocks::manual_strategy::{
 use snforge_std::{declare, ContractClassTrait, start_prank, stop_prank, CheatTarget};
 
 fn deploy_strategy(owner: ContractAddress) -> IManualStrategyDispatcher {
-    let contract = declare('ManualStrategy');
+    let contract = declare("ManualStrategy");
     let contract_address = contract.deploy(@array![owner.into()]).unwrap();
     IManualStrategyDispatcher { contract_address }
 }

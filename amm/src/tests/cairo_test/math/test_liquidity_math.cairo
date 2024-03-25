@@ -30,7 +30,6 @@ struct TestCase {
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_add_delta_cases() {
     let mut liquidity = 0;
     let mut delta = I128Trait::new(0, false);
@@ -66,7 +65,6 @@ fn test_add_delta_cases() {
 
 #[test]
 #[should_panic(expected: ('u128_sub Overflow',))]
-#[available_gas(2000000000)]
 fn test_add_delta_underflow() {
     let mut liquidity = 0;
     let delta = I128Trait::new(1, true);
@@ -160,14 +158,12 @@ fn test_cases_set2() -> Span<TestCase> {
 /////////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_liquidity_to_quote_cases_set1() {
     let cases = test_cases_set1();
     test_liquidity_to_quote_cases(cases);
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_liquidity_to_quote_cases_set2() {
     let cases = test_cases_set2();
     test_liquidity_to_quote_cases(cases);
@@ -197,14 +193,12 @@ fn test_liquidity_to_quote_cases(cases: Span<TestCase>) {
 /////////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_liquidity_to_base_cases_set1() {
     let cases = test_cases_set1();
     test_liquidity_to_base_cases(cases);
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_liquidity_to_base_cases_set2() {
     let cases = test_cases_set2();
     test_liquidity_to_base_cases(cases);
@@ -231,7 +225,6 @@ fn test_liquidity_to_base_cases(cases: Span<TestCase>) {
 
 #[test]
 #[should_panic(expected: ('MulDivByZero',))]
-#[available_gas(2000000000)]
 fn test_base_amount_delta_start_price_0() {
     let start = 0;
     let end = encode_sqrt_price(2, 1);
@@ -244,14 +237,12 @@ fn test_base_amount_delta_start_price_0() {
 /////////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_quote_to_liquidity_set1() {
     let cases = test_cases_set1();
     test_quote_to_liquidity_cases(cases);
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_quote_to_liquidity_cases_set2() {
     let cases = test_cases_set2();
     test_quote_to_liquidity_cases(cases);
@@ -281,14 +272,12 @@ fn test_quote_to_liquidity_cases(cases: Span<TestCase>) {
 /////////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_base_to_liquidity_set1() {
     let cases = test_cases_set1();
     test_base_to_liquidity_cases(cases);
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_base_to_liquidity_cases_set2() {
     let cases = test_cases_set2();
     test_base_to_liquidity_cases(cases);
@@ -318,7 +307,6 @@ fn test_base_to_liquidity_cases(cases: Span<TestCase>) {
 /////////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_liquidity_to_amounts() {
     // Case 1: Position range is above curr price.
     let curr_limit = OFFSET + 80000;
@@ -353,7 +341,6 @@ fn test_liquidity_to_amounts() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_max_liquidity_per_limit() {
     assert(max_liquidity_per_limit(1) == 21518811465203357833463505223041, 'max_liq(1)');
 

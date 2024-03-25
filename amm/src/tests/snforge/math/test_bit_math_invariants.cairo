@@ -1,8 +1,6 @@
 use amm::libraries::math::math;
 use amm::libraries::math::bit_math::msb;
 
-use snforge_std::PrintTrait;
-
 // Checks invariants:
 // 1. 2 ** msb(value) <= value
 // 2. msb == 255 || 2 ** (msb(value) + 1) > value

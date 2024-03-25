@@ -63,7 +63,6 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 ////////////////////////////////
 
 #[test]
-#[available_gas(100000000000)]
 fn test_depth() {
     let (market_manager, _base_token, _quote_token, market_id) = before();
 

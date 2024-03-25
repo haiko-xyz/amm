@@ -53,7 +53,6 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 ////////////////////////////////
 
 #[test]
-#[available_gas(40000000)]
 fn test_enable_concentrated() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
@@ -91,7 +90,6 @@ fn test_enable_concentrated() {
 
 #[test]
 #[should_panic(expected: ('OnlyController', 'ENTRYPOINT_FAILED',))]
-#[available_gas(40000000)]
 fn test_enable_concentrated_not_owner() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
@@ -122,7 +120,6 @@ fn test_enable_concentrated_not_owner() {
 
 #[test]
 #[should_panic(expected: ('NoChange', 'ENTRYPOINT_FAILED',))]
-#[available_gas(40000000)]
 fn test_enable_concentrated_already_concentrated() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();

@@ -31,7 +31,6 @@ struct OrderIdInfo {
 
 // Test IDs by changing each parameter and checking id has changed.
 #[test]
-#[available_gas(1000000000)]
 fn test_market_id() {
     // Define base market info.
     let mut market_info = MarketInfo {
@@ -90,7 +89,6 @@ fn test_market_id() {
 
 // Test IDs by changing each parameter and checking id has changed.
 #[test]
-#[available_gas(1000000000)]
 fn test_position_id() {
     // Define base position.
     let mut position = PositionIdInfo {
@@ -138,7 +136,6 @@ fn test_position_id() {
 
 // Test IDs by changing each parameter and checking id has changed.
 #[test]
-#[available_gas(1000000000)]
 fn test_batch_id() {
     // Define base batch.
     let mut batch = BatchIdInfo { market_id: 123, limit: 1000, nonce: 18, };
@@ -166,7 +163,6 @@ fn test_batch_id() {
 
 // Test IDs by changing each parameter and checking id has changed.
 #[test]
-#[available_gas(1000000000)]
 fn test_order_id() {
     // Define base order.
     let mut order = OrderIdInfo { batch_id: 123, owner: contract_address_const::<0x777>(), };
@@ -190,7 +186,6 @@ fn test_order_id() {
 ////////////////////////////////
 
 // #[test]
-// #[available_gas(1000000000)]
 // Used to quickly generate IDs, not for testing.
 fn position_id_generator() {
     let market_id = 0x5027d547580851650aebe16b71643a1885e0b5b7eb7f16cd2439ae2f729a512;
@@ -198,12 +193,11 @@ fn position_id_generator() {
     let lower_limit = 7906625 + 732660;
     let upper_limit = 7906625 + 737660;
     let id = id::position_id(market_id, owner, lower_limit, upper_limit);
-    id.print();
+    println!("Position ID: {}", id);
     assert(true, id);
 }
 
 // #[test]
-// #[available_gas(1000000000)]
 fn market_id_generator() {
     let base_token = contract_address_const::<
         0x041b47f933fcfdb696521b89a704a3662c5aa446ed8a29b352fb6fa9a748a8a3
@@ -226,6 +220,6 @@ fn market_id_generator() {
     };
 
     let id = id::market_id(market_info);
-    id.print();
+    println!("Market ID: {}", id);
     assert(true, id);
 }

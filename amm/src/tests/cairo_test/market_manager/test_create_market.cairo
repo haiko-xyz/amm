@@ -38,7 +38,6 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 ////////////////////////////////
 
 #[test]
-#[available_gas(40000000)]
 fn test_create_market_initialises_immutables() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
@@ -60,7 +59,6 @@ fn test_create_market_initialises_immutables() {
 }
 
 #[test]
-#[available_gas(40000000)]
 fn test_create_market_initialises_state() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
@@ -85,7 +83,6 @@ fn test_create_market_initialises_state() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_create_market_min_start_limit() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
@@ -100,7 +97,6 @@ fn test_create_market_min_start_limit() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_create_market_max_start_limit_less_1_width_1() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
@@ -114,7 +110,6 @@ fn test_create_market_max_start_limit_less_1_width_1() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_create_market_max_start_limit_less_1_width_10() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
@@ -129,7 +124,6 @@ fn test_create_market_max_start_limit_less_1_width_10() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_create_market_max_width() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
@@ -144,7 +138,6 @@ fn test_create_market_max_width() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('MarketExists', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_duplicate_market() {
     // Deploy market manager and tokens.
@@ -161,7 +154,6 @@ fn test_create_market_duplicate_market() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('CONTRACT_NOT_DEPLOYED', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_quote_token_undeployed() {
     // Deploy market manager and tokens.
@@ -175,7 +167,6 @@ fn test_create_market_quote_token_undeployed() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('CONTRACT_NOT_DEPLOYED', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_base_token_undeployed() {
     // Deploy market manager and tokens.
@@ -189,7 +180,6 @@ fn test_create_market_base_token_undeployed() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('StartLimitOF', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_start_limit_overflow() {
     // Deploy market manager and tokens.
@@ -206,7 +196,6 @@ fn test_create_market_start_limit_overflow() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('WidthZero', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_width_zero() {
     // Deploy market manager and tokens.
@@ -222,7 +211,6 @@ fn test_create_market_width_zero() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('WidthOF', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_width_overflow() {
     // Deploy market manager and tokens.
@@ -238,7 +226,6 @@ fn test_create_market_width_overflow() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('FeeRateOF', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_fee_rate_overflow() {
     // Deploy market manager and tokens.

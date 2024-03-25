@@ -14,7 +14,7 @@ use snforge_std::{declare, ContractClassTrait, start_prank, stop_prank};
 
 
 fn deploy_mock_pragma_oracle(owner: ContractAddress,) -> IMockPragmaOracleDispatcher {
-    let contract = declare('MockPragmaOracle');
+    let contract = declare("MockPragmaOracle");
     let contract_address = contract.deploy(@array![]).unwrap();
     IMockPragmaOracleDispatcher { contract_address }
 }
@@ -25,7 +25,7 @@ fn deploy_replicating_strategy(
     oracle: ContractAddress,
     oracle_summary: ContractAddress,
 ) -> IReplicatingStrategyDispatcher {
-    let contract = declare('ReplicatingStrategy');
+    let contract = declare("ReplicatingStrategy");
     let calldata = array![
         owner.into(),
         'Replicating',
