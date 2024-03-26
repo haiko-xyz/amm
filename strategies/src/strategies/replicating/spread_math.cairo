@@ -4,13 +4,12 @@ use cmp::{min, max};
 // Local imports.
 use amm::libraries::math::{price_math, math};
 use amm::libraries::constants::ONE;
+use amm::types::core::SwapParams;
 use amm::types::i32::{i32, I32Trait};
 use amm::types::i256::I256Trait;
 use strategies::strategies::replicating::{
     replicating_strategy::ReplicatingStrategy::ContractState,
 };
-
-// use snforge_std::PrintTrait;
 
 ////////////////////////////////
 // CONSTANTS
@@ -25,23 +24,25 @@ const VOL_DENOMINATOR: u256 = 10000000000;
 ///////////////////////////////
 
 // Calculate bid and ask limits based on the reference price, delta and minimum spread.
+// Does not consider skip conditions.
 //
 // # Arguments
 // `curr_limit` - current market limit
 // `new_limit` - new limit based on reference price
 // `min_spread` - minimum spread
-// `range` - range of positions
 // `inv_delta` - inventory delta
 // `width` - market width
 // 
 // # Returns
-// `bid_lower` - bid lower limit
 // `bid_upper` - bid upper limit
 // `ask_lower` - ask lower limit
-// `ask_upper` - ask upper limit
 fn calc_bid_ask(
-    curr_limit: u32, new_limit: u32, min_spread: u32, range: u32, inv_delta: i32, width: u32,
-) -> (u32, u32, u32, u32) {
+    curr_limit: u32, 
+    new_limit: u32, 
+    min_spread: u32, 
+    inv_delta: i32, 
+    width: u32, 
+) -> (u32, u32) {
     // Calculate optimal bid and ask limits. These are the limits that would be placed 
     // before coercing them to respect market width.
     let bid_spread = min_spread + if inv_delta.sign {
@@ -49,7 +50,7 @@ fn calc_bid_ask(
     } else {
         0
     };
-    let ask_spread = min_spread + width + if inv_delta.sign {
+    let ask_spread = min_spread + if inv_delta.sign {
         0
     } else {
         inv_delta.val
@@ -59,8 +60,10 @@ fn calc_bid_ask(
     } else {
         min(new_limit - bid_spread, curr_limit)
     };
+    // We need to add 1 to ensure ask position is strictly denominated in base asset.
+    let coerced_curr_limit_ask = (curr_limit / width + 1) * width;
     let raw_ask_limit = min(
-        max(new_limit + ask_spread, curr_limit + width), price_math::max_limit(width)
+        max(new_limit + ask_spread, coerced_curr_limit_ask), price_math::max_limit(width)
     );
 
     // At this point, bid and ask limits may not respect market width. Coerce them to do so.
@@ -72,20 +75,7 @@ fn calc_bid_ask(
     };
     let ask_lower = (raw_ask_limit / width + ask_limit_rem) * width;
 
-    // Calculate remaining limits.
-    let bid_lower = if bid_upper < range {
-        0
-    } else {
-        bid_upper - range
-    };
-    let ask_upper = if ask_lower > price_math::max_limit(width) - range {
-        price_math::max_limit(width)
-    } else {
-        ask_lower + range
-    };
-
-    // Return the bid and ask limits.
-    (bid_lower, bid_upper, ask_lower, ask_upper)
+    (bid_upper, ask_lower)
 }
 
 // Calculate the single-sided spread to add to either the bid or ask positions based on delta,

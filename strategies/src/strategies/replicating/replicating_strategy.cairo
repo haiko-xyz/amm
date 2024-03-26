@@ -39,8 +39,6 @@ mod ReplicatingStrategy {
 
     impl UpgradeableInternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
 
-    // use snforge_std::PrintTrait;
-
     ////////////////////////////////
     // STORAGE
     ///////////////////////////////
@@ -346,9 +344,10 @@ mod ReplicatingStrategy {
             }
 
             // Figure out whether strategy will rebalance. If swap params are not provided, assume
-            // rebalancing is performed, as we are placing initial positions.
+            // rebalancing is always performed, as we are placing initial positions.
             let rebalance = match swap_params {
                 Option::Some(params) => {
+                    // Skip Condition 1: LVR
                     // If expected LVR from filling the swap at current price is lower than expected 
                     // fees, then do not update position. We evaluate LVR at the inside quote to 
                     // simplify calculations.
@@ -393,6 +392,16 @@ mod ReplicatingStrategy {
                 return array![state.bid, state.ask].span();
             }
 
+            // Fetch new optimal bid and ask positions.
+            let is_buy = match swap_params {
+                Option::Some(params) => Option::Some(params.is_buy),
+                Option::None(()) => Option::None(()),
+            };
+            let (next_bid_lower, next_bid_upper, next_ask_lower, next_ask_upper) = self
+                .get_bid_ask(market_id, is_buy);
+            let update_bid = next_bid_lower != state.bid.lower_limit || next_bid_upper != state.bid.upper_limit;
+            let update_ask = next_ask_lower != state.ask.lower_limit || next_ask_upper != state.ask.upper_limit;
+
             // Fetch amounts in existing position.
             let contract: felt252 = get_contract_address().into();
             let bid_pos_id = id::position_id(
@@ -406,53 +415,56 @@ mod ReplicatingStrategy {
             let (ask_base, ask_quote, ask_base_fees, ask_quote_fees) = market_manager
                 .amounts_inside_position(ask_pos_id);
 
-            // Fetch new optimal bid and ask positions.
-            let (next_bid_lower, next_bid_upper, next_ask_lower, next_ask_upper) = self
-                .get_bid_ask(market_id);
-
             // Calculate amount of new liquidity to add.
             // Token amounts rounded down as per convention when depositing liquidity.
-            let base_amount = state.base_reserves
-                + bid_base
-                + ask_base
-                + bid_base_fees
-                + ask_base_fees;
-            let base_liquidity = if base_amount == 0 || next_ask_lower == 0 || next_ask_upper == 0 {
-                0
-            } else {
-                liquidity_math::base_to_liquidity(
-                    price_math::limit_to_sqrt_price(next_ask_lower, market_info.width),
-                    price_math::limit_to_sqrt_price(next_ask_upper, market_info.width),
-                    base_amount,
-                    false
-                )
-            };
-            let quote_amount = state.quote_reserves
-                + bid_quote
-                + ask_quote
-                + bid_quote_fees
-                + ask_quote_fees;
-            let quote_liquidity = if quote_amount == 0
-                || next_bid_lower == 0
-                || next_bid_upper == 0 {
-                0
-            } else {
-                liquidity_math::quote_to_liquidity(
-                    price_math::limit_to_sqrt_price(next_bid_lower, market_info.width),
-                    price_math::limit_to_sqrt_price(next_bid_upper, market_info.width),
-                    quote_amount,
-                    false
-                )
-            };
+            let mut bid_liquidity = state.bid.liquidity;
+            let mut ask_liquidity = state.ask.liquidity;
+
+            if update_ask {
+                let base_amount = state.base_reserves
+                    + if update_bid { bid_base + bid_base_fees } else { 0 }
+                    + ask_base 
+                    + ask_base_fees;
+                ask_liquidity = if base_amount == 0 || next_ask_lower == 0 || next_ask_upper == 0 {
+                    0
+                } else {
+                    liquidity_math::base_to_liquidity(
+                        price_math::limit_to_sqrt_price(next_ask_lower, market_info.width),
+                        price_math::limit_to_sqrt_price(next_ask_upper, market_info.width),
+                        base_amount,
+                        false
+                    )
+                };
+            }
+            if update_bid {
+                let quote_amount = state.quote_reserves
+                    + bid_quote 
+                    + bid_quote_fees
+                    + if update_ask { ask_quote + ask_quote_fees } else { 0 };
+                bid_liquidity = if quote_amount == 0
+                    || next_bid_lower == 0
+                    || next_bid_upper == 0 {
+                    0
+                } else {
+                    liquidity_math::quote_to_liquidity(
+                        price_math::limit_to_sqrt_price(next_bid_lower, market_info.width),
+                        price_math::limit_to_sqrt_price(next_bid_upper, market_info.width),
+                        quote_amount,
+                        false
+                    )
+                };
+            }
 
             // Return new positions.
             let next_bid = PositionInfo {
                 lower_limit: next_bid_lower,
                 upper_limit: next_bid_upper,
-                liquidity: quote_liquidity,
+                liquidity: bid_liquidity,
             };
             let next_ask = PositionInfo {
-                lower_limit: next_ask_lower, upper_limit: next_ask_upper, liquidity: base_liquidity,
+                lower_limit: next_ask_lower, 
+                upper_limit: next_ask_upper, 
+                liquidity: ask_liquidity,
             };
             array![next_bid, next_ask].span()
         }
@@ -761,12 +773,17 @@ mod ReplicatingStrategy {
         //   R is the range parameter (controls how volume affects price)
         //   D is the inv_delta parameter (controls how portfolio imbalance affects price)
         //
+        //
+        // # Arguments
+        // * `market_id` - market id
+        // * `is_buy` - (optional) whether user is buying
+        //
         // # Returns
         // * `bid_lower` - new bid lower limit
         // * `bid_upper` - new bid upper limit
         // * `ask_lower` - new ask lower limit
         // * `ask_upper` - new ask upper limit
-        fn get_bid_ask(self: @ContractState, market_id: felt252) -> (u32, u32, u32, u32) {
+        fn get_bid_ask(self: @ContractState, market_id: felt252, is_buy: Option<bool>) -> (u32, u32, u32, u32) {
             // Fetch strategy and market info.
             let params = self.strategy_params.read(market_id);
             let market_manager = self.market_manager.read();
@@ -794,9 +811,74 @@ mod ReplicatingStrategy {
                     spread_math::delta_spread(params.max_delta, base_amount, quote_amount, price)
                 }
             };
-            spread_math::calc_bid_ask(
-                curr_limit, limit, params.min_spread, params.range, inv_delta, width
-            )
+            let (raw_bid_upper, raw_ask_lower) = spread_math::calc_bid_ask(
+                curr_limit, limit, params.min_spread, inv_delta, width
+            );
+
+            // Skip Condition 2: Price Impact
+            // These conditions outline scenarios where we can safely skip position updates without 
+            // adverse price impact (or with improved execution). This allows rebalancing at lower gas cost.
+            // In particular, we can skip the bid update if:
+            // 1. Market price is inside our bid position, user is buying, and the queued bid price is lt the curr market price
+            // 2. Market price is inside our bid position, user is selling, and the queued bid price is gte the curr market price
+            // 3. Market price is outside our bid position and user is buying
+            // We can skip the ask update if:
+            // 1. Market price is outside our ask position and user is selling
+            // 2. Market price is inside our ask position, user is buying, and the queued ask price is lte the curr market price
+            // 3. Market price is inside our ask position, user is selling, and the queued ask price is gt the curr market price
+            let state = self.strategy_state.read(market_id);
+            let skip_update_bid = match is_buy {
+                Option::Some(is_buy) => {
+                    // To perform the comparison, we need to coerce curr limit to respect market width.
+                    let coerced_curr_limit = curr_limit / width * width;
+                    if coerced_curr_limit < state.bid.upper_limit {
+                        (is_buy && raw_bid_upper < coerced_curr_limit) ||
+                        (!is_buy && raw_bid_upper >= coerced_curr_limit)
+                    } else {
+                        is_buy
+                    }
+                },
+                Option::None(()) => false,
+            };
+            let skip_update_ask = match is_buy {
+                Option::Some(is_buy) => {
+                    // To perform the comparison, we need to coerce curr limit to respect market width.
+                    let coerced_curr_limit = curr_limit / width * width + if curr_limit % width == 0 { 0 } else { width };
+                    if coerced_curr_limit <= state.ask.lower_limit {
+                        !is_buy
+                    } else {
+                        (is_buy && raw_ask_lower <= coerced_curr_limit) ||
+                        (!is_buy && raw_ask_lower > coerced_curr_limit)
+                    }
+                },
+                Option::None(()) => false,
+            };
+
+            // Calculate new bid and ask limits, considering skip conditions.
+            let (bid_upper, ask_lower) = if skip_update_bid && skip_update_ask {
+                (state.bid.upper_limit, state.ask.lower_limit)
+            } else if skip_update_bid {
+                (state.bid.upper_limit, max(state.bid.upper_limit, raw_ask_lower))
+            } else if skip_update_ask {
+                (min(state.ask.lower_limit, raw_bid_upper), state.ask.lower_limit)
+            } else {
+                (raw_bid_upper, raw_ask_lower)
+            };
+
+             // Calculate remaining limits.
+            let bid_lower = if bid_upper < params.range {
+                0
+            } else {
+                bid_upper - params.range
+            };
+            let ask_upper = if ask_lower > price_math::max_limit(width) - params.range {
+                price_math::max_limit(width)
+            } else {
+                ask_lower + params.range
+            };
+
+            // Return the bid and ask limits.
+            (bid_lower, bid_upper, ask_lower, ask_upper)
         }
 
         // Initialise strategy for market.
@@ -1048,7 +1130,8 @@ mod ReplicatingStrategy {
             } else {
                 min(quote_amount, math::mul_div(base_amount, quote_balance, base_balance, false))
             };
-            let shares = if base_balance == 0 {
+            // Calculate shares on larger (and non-zero) amount for better precision.
+            let shares = if quote_balance > base_balance {
                 math::mul_div(total_deposits, quote_deposit, quote_balance, false)
             } else {
                 math::mul_div(total_deposits, base_deposit, base_balance, false)
@@ -1551,41 +1634,14 @@ mod ReplicatingStrategy {
             // Fetch market and strategy state.
             let market_manager = self.market_manager.read();
             let mut state = self.strategy_state.read(market_id);
-            let market_state = market_manager.market_state(market_id);
 
             // Fetch new bid and ask positions.
             // If the old positions are the same as the new positions, no updates will be made.
             let queued_positions = self.queued_positions(market_id, swap_params);
             let next_bid = *queued_positions.at(0);
             let next_ask = *queued_positions.at(1);
-            // We also skip bid update if:
-            // 1. Market price is outside of our bid position and user is buying
-            // 2. Market price is inside our bid position and user is buying, but the queued bid price is lower than the current bid
-            // Likewise, we skip ask update if:
-            // 1. Market price is outside of our ask position and user is selling
-            // 2. Market price is inside our ask position and user is selling, but the queued ask price is higher than the current ask
-            let skip_update_bid = match swap_params {
-                Option::Some(params) => {
-                    if market_state.curr_limit >= state.bid.upper_limit {
-                        params.is_buy
-                    } else {
-                        params.is_buy && next_bid.upper_limit <= state.bid.upper_limit
-                    }
-                },
-                Option::None(()) => false,
-            };
-            let skip_update_ask = match swap_params {
-                Option::Some(params) => {
-                    if market_state.curr_limit < state.ask.lower_limit {
-                        !params.is_buy
-                    } else {
-                        !params.is_buy && next_ask.lower_limit >= state.ask.lower_limit
-                    }
-                },
-                Option::None(()) => false,
-            };
-            let update_bid: bool = next_bid != state.bid && !skip_update_bid;
-            let update_ask: bool = next_ask != state.ask && !skip_update_ask;
+            let update_bid: bool = next_bid != state.bid;
+            let update_ask: bool = next_ask != state.ask;
 
             // Update positions.
             // If old positions exist at different price ranges, first remove them.

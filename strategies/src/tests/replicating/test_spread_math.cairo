@@ -14,111 +14,80 @@ fn test_calc_bid_ask() {
     let mut curr_limit = 500;
     let mut new_limit = 500;
     let mut min_spread = 1;
-    let mut range = 50;
     let mut inv_delta = I32Trait::new(0, false);
     let mut width = 1;
-    let (mut bid_lower, mut bid_upper, mut ask_lower, mut ask_upper) = calc_bid_ask(
-        curr_limit, new_limit, min_spread, range, inv_delta, width
+    let (mut bid_upper, mut ask_lower) = calc_bid_ask(
+        curr_limit, new_limit, min_spread, inv_delta, width
     );
-    assert(bid_lower == 449, 'Bid lower 1');
     assert(bid_upper == 499, 'Bid upper 1');
-    assert(ask_lower == 502, 'Ask lower 1');
-    assert(ask_upper == 552, 'Ask upper 1');
+    assert(ask_lower == 501, 'Ask lower 1');
 
     // Bid crosses the spread
     new_limit = 510;
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = calc_bid_ask(
-        curr_limit, new_limit, min_spread, range, inv_delta, width
+    let (bid_upper, ask_lower) = calc_bid_ask(
+        curr_limit, new_limit, min_spread, inv_delta, width
     );
-    assert(bid_lower == 450, 'Bid lower 2');
     assert(bid_upper == 500, 'Bid upper 2');
-    assert(ask_lower == 512, 'Ask lower 2');
-    assert(ask_upper == 562, 'Ask upper 2');
+    assert(ask_lower == 511, 'Ask lower 2');
 
     // Ask crosses the spread
     new_limit = 490;
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = calc_bid_ask(
-        curr_limit, new_limit, min_spread, range, inv_delta, width
+    let (bid_upper, ask_lower) = calc_bid_ask(
+        curr_limit, new_limit, min_spread, inv_delta, width
     );
-    assert(bid_lower == 439, 'Bid lower 3');
     assert(bid_upper == 489, 'Bid upper 3');
     assert(ask_lower == 501, 'Ask lower 3');
-    assert(ask_upper == 551, 'Ask upper 3');
 
     // Zero min spread
     new_limit = 500;
     min_spread = 0;
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = calc_bid_ask(
-        curr_limit, new_limit, min_spread, range, inv_delta, width
+    let (bid_upper, ask_lower) = calc_bid_ask(
+        curr_limit, new_limit, min_spread, inv_delta, width
     );
-    assert(bid_lower == 450, 'Bid lower 4');
     assert(bid_upper == 500, 'Bid upper 4');
     assert(ask_lower == 501, 'Ask lower 4');
-    assert(ask_upper == 551, 'Ask upper 4');
 
     // Bid inventory delta
     inv_delta = I32Trait::new(10, true);
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = calc_bid_ask(
-        curr_limit, new_limit, min_spread, range, inv_delta, width
+    let (bid_upper, ask_lower) = calc_bid_ask(
+        curr_limit, new_limit, min_spread, inv_delta, width
     );
-    assert(bid_lower == 440, 'Bid lower 5');
     assert(bid_upper == 490, 'Bid upper 5');
     assert(ask_lower == 501, 'Ask lower 5');
-    assert(ask_upper == 551, 'Ask upper 5');
 
     // Ask inventory delta
     inv_delta = I32Trait::new(10, false);
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = calc_bid_ask(
-        curr_limit, new_limit, min_spread, range, inv_delta, width
+    let (bid_upper, ask_lower) = calc_bid_ask(
+        curr_limit, new_limit, min_spread, inv_delta, width
     );
-    assert(bid_lower == 450, 'Bid lower 6');
     assert(bid_upper == 500, 'Bid upper 6');
-    assert(ask_lower == 511, 'Ask lower 6');
-    assert(ask_upper == 561, 'Ask upper 6');
-
-    // Different range
-    inv_delta = I32Trait::new(0, true);
-    range = 2;
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = calc_bid_ask(
-        curr_limit, new_limit, min_spread, range, inv_delta, width
-    );
-    assert(bid_lower == 498, 'Bid lower 7');
-    assert(bid_upper == 500, 'Bid upper 7');
-    assert(ask_lower == 501, 'Ask lower 7');
-    assert(ask_upper == 503, 'Ask upper 7');
+    assert(ask_lower == 510, 'Ask lower 6');
 
     // Width 10
+    inv_delta = I32Trait::new(0, false);
     width = 10;
-    range = 100;
-    min_spread = 10;
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = calc_bid_ask(
-        curr_limit, new_limit, min_spread, range, inv_delta, width
+    let (bid_upper, ask_lower) = calc_bid_ask(
+        curr_limit, new_limit, min_spread, inv_delta, width
     );
-    assert(bid_lower == 390, 'Bid lower 8');
-    assert(bid_upper == 490, 'Bid upper 8');
-    assert(ask_lower == 520, 'Ask lower 8');
-    assert(ask_upper == 620, 'Ask upper 8');
+    assert(bid_upper == 500, 'Bid upper 7');
+    assert(ask_lower == 510, 'Ask lower 7');
 
-    // Min spread not multiple of delta
+    // Min spread not multiple of width
     width = 10;
     min_spread = 14;
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = calc_bid_ask(
-        curr_limit, new_limit, min_spread, range, inv_delta, width
+    let (bid_upper, ask_lower) = calc_bid_ask(
+        curr_limit, new_limit, min_spread, inv_delta, width
     );
-    assert(bid_lower == 380, 'Bid lower 9');
-    assert(bid_upper == 480, 'Bid upper 9');
-    assert(ask_lower == 530, 'Ask lower 9');
-    assert(ask_upper == 630, 'Ask upper 9');
+    assert(bid_upper == 480, 'Bid upper 8');
+    assert(ask_lower == 520, 'Ask lower 8');
 
     // Delta not multiple of width
     inv_delta = I32Trait::new(12, true);
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = calc_bid_ask(
-        curr_limit, new_limit, min_spread, range, inv_delta, width
+    let (bid_upper, ask_lower) = calc_bid_ask(
+        curr_limit, new_limit, min_spread, inv_delta, width
     );
-    assert(bid_lower == 370, 'Bid lower 10');
-    assert(bid_upper == 470, 'Bid upper 10');
-    assert(ask_lower == 530, 'Ask lower 10');
-    assert(ask_upper == 630, 'Ask upper 10');
+    assert(bid_upper == 470, 'Bid upper 9');
+    assert(ask_lower == 520, 'Ask lower 9');
 }
 
 #[test]

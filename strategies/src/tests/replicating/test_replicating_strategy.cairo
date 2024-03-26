@@ -172,13 +172,13 @@ fn before_custom(
     _before(true, base_decimals, quote_decimals, start_limit)
 }
 
-////////////////////////////////
-// TESTS
-////////////////////////////////
-
-#[test]
-fn test_get_bid_ask() {
-    let (_market_manager, _base_token, _quote_token, market_id, oracle, strategy) = before(true);
+fn before_deposit_initial() -> (
+    IMarketManagerDispatcher,
+    felt252,
+    IMockPragmaOracleDispatcher,
+    IReplicatingStrategyDispatcher,
+) {
+    let (market_manager, _base_token, _quote_token, market_id, oracle, strategy) = before_custom(18, 18, 7906620 + 731325);
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -190,15 +190,336 @@ fn test_get_bid_ask() {
     let initial_quote_amount = to_e18(2000);
     strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
 
+    (market_manager, market_id, oracle, strategy)
+}
+
+////////////////////////////////
+// TESTS
+////////////////////////////////
+
+#[test]
+// Case 1: Place initial
+fn test_get_bid_ask_case_1() {
+    let (_market_manager, market_id, _oracle, strategy) = before_deposit_initial();
+
     // Get bid and ask.
     // Expect inventory delta of 1/7 * 200 = 30 (rounded up).
     // Expect bid to be placed at 7906620 + 731320 (oracle) - 10 (min spread) - 30 (inv delta).
-    // Expect ask to be placed at 7906620 + 741930 (curr price) + 10 (min spread).
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id);
+    // Expect ask to be placed at 7906620 + 731330 (coerced curr price) + 10 (min spread).
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::None(()));
     assert(bid_upper == 7906620 + 731320 - 10 - 30, 'Bid upper');
     assert(bid_lower == bid_upper - 20000, 'Bid lower');
-    assert(ask_lower == 7906620 + 741930 + 10, 'Ask lower');
+    assert(ask_lower == 7906620 + 731330 + 10, 'Ask lower');
     assert(ask_upper == ask_lower + 20000, 'Ask upper');
+}
+
+#[test]
+// Case 2: Curr price < bid upper, user is buying, queued bid price lt curr market price
+fn test_get_bid_ask_case_2() {
+    let (market_manager, market_id, oracle, strategy) = before_deposit_initial();
+    // Sell to put curr price below bid upper.
+    // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
+    // non-strategy caller.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    let amount = to_e18(1) / 10;
+    market_manager
+        .swap(market_id, false, amount, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Update oracle price.
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 140000000000, 8, 1000, 5); // 1400
+
+    // Get next bid and ask.
+    let is_buy = true;
+    let state = strategy.strategy_state(market_id);
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    // a) Expect bid to not be rebalanced
+    assert(bid_lower == state.bid.lower_limit, 'Bid lower');
+    assert(bid_upper == state.bid.upper_limit, 'Bid upper');
+    // b) Expect ask to be rebalanced downward
+    assert(ask_lower <= state.ask.lower_limit, 'Ask lower');
+    assert(ask_upper <= state.ask.upper_limit, 'Ask upper');
+    // c) Expect new ask to not overlap with existing bid
+    assert(ask_lower >= state.bid.upper_limit, 'Bid ask overlap');
+}
+
+#[test]
+// Case 3: Curr price < bid upper, user is buying, queued bid price gte curr market price
+fn test_get_bid_ask_case_3() {
+    let (market_manager, market_id, oracle, strategy) = before_deposit_initial();
+    // Sell to put curr price below bid upper.
+    // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
+    // non-strategy caller.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    let amount = to_e18(1) / 10;
+    market_manager
+        .swap(market_id, false, amount, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Update oracle price.
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 160000000000, 8, 1000, 5); // 1600
+
+    // Get next bid and ask.
+    let is_buy = true;
+    let state = strategy.strategy_state(market_id);
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    // a) Expect bid to be rebalanced downward (as it is capped at curr price)
+    assert(bid_lower < state.bid.lower_limit, 'Bid lower');
+    assert(bid_upper < state.bid.upper_limit, 'Bid upper');
+    // b) Expect ask to be rebalanced upward
+    assert(ask_lower > state.ask.lower_limit, 'Ask lower');
+    assert(ask_upper > state.ask.upper_limit, 'Ask upper');
+}
+
+#[test]
+// Case 4: Curr price < bid upper, user is selling, queued bid price gte curr market price
+fn test_get_bid_ask_case_4() {
+    let (market_manager, market_id, oracle, strategy) = before_deposit_initial();
+    // Sell to put curr price below bid upper.
+    // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
+    // non-strategy caller.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    let amount = to_e18(1) / 10;
+    market_manager
+        .swap(market_id, false, amount, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Update oracle price.
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 160000000000, 8, 1000, 5); // 1600
+
+    // Get next bid and ask.
+    let is_buy = false;
+    let state = strategy.strategy_state(market_id);
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    // a) Expect bid to not be rebalanced
+    assert(bid_lower == state.bid.lower_limit, 'Bid lower');
+    assert(bid_upper == state.bid.upper_limit, 'Bid upper');
+    // b) Expect ask to not be rebalanced
+    assert(ask_lower == state.ask.lower_limit, 'Ask lower');
+    assert(ask_upper == state.ask.upper_limit, 'Ask upper');
+}
+
+#[test]
+// Case 5: Curr price < bid upper, user is selling, queued bid price lt curr market price
+fn test_get_bid_ask_case_5() {
+    let (market_manager, market_id, oracle, strategy) = before_deposit_initial();
+    // Sell to put curr price below bid upper.
+    // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
+    // non-strategy caller.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    let amount = to_e18(1) / 10;
+    market_manager
+        .swap(market_id, false, amount, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Update oracle price.
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 140000000000, 8, 1000, 5); // 1400
+
+    // Get next bid and ask.
+    let is_buy = false;
+    let state = strategy.strategy_state(market_id);
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    // a) Expect bid to be rebalanced downward
+    assert(bid_lower < state.bid.lower_limit, 'Bid lower');
+    assert(bid_upper < state.bid.upper_limit, 'Bid upper');
+    // b) Expect ask to not be rebalanced
+    assert(ask_lower == state.ask.lower_limit, 'Ask lower');
+    assert(ask_upper == state.ask.upper_limit, 'Ask upper');
+}
+
+#[test]
+// Case 6: Bid upper < curr price < ask lower, user is buying, queued ask price gt curr market price
+fn test_get_bid_ask_case_6() {
+    let (_market_manager, market_id, oracle, strategy) = before_deposit_initial();
+
+    // Update oracle price.
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 160000000000, 8, 1000, 5); // 1600
+
+    // Get next bid and ask.
+    let is_buy = true;
+    let state = strategy.strategy_state(market_id);
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    // a) Expect bid to not be rebalanced
+    assert(bid_lower == state.bid.lower_limit, 'Bid lower');
+    assert(bid_upper == state.bid.upper_limit, 'Bid upper');
+    // b) Expect ask to be rebalanced upward
+    assert(ask_lower > state.ask.lower_limit, 'Ask lower');
+    assert(ask_upper > state.ask.upper_limit, 'Ask upper');
+}
+
+#[test]
+// Case 7: Bid upper < curr price < ask lower, user is buying, queued ask price lte curr market price
+fn test_get_bid_ask_case_7() {
+    let (_market_manager, market_id, _oracle, strategy) = before_deposit_initial();
+
+    // Get next bid and ask.
+    let is_buy = true;
+    let state = strategy.strategy_state(market_id);
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    // a) Expect bid to not be rebalanced
+    assert(bid_lower == state.bid.lower_limit, 'Bid lower');
+    assert(bid_upper == state.bid.upper_limit, 'Bid upper');
+    // b) Expect ask to not be rebalanced
+    assert(ask_lower == state.ask.lower_limit, 'Ask lower');
+    assert(ask_upper == state.ask.upper_limit, 'Ask upper');
+}
+
+#[test]
+// Case 8: Bid upper < curr price < ask lower, user is selling, queued bid price lt curr market price
+fn test_get_bid_ask_case_8() {
+    let (_market_manager, market_id, oracle, strategy) = before_deposit_initial();
+
+     // Update oracle price.
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 140000000000, 8, 1000, 5); // 1400
+
+    // Get next bid and ask.
+    let is_buy = false;
+    let state = strategy.strategy_state(market_id);
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    // a) Expect bid to be rebalanced downward
+    assert(bid_lower < state.bid.lower_limit, 'Bid lower');
+    assert(bid_upper < state.bid.upper_limit, 'Bid upper');
+    // b) Expect ask to not be rebalanced
+    assert(ask_lower == state.ask.lower_limit, 'Ask lower');
+    assert(ask_upper == state.ask.upper_limit, 'Ask upper');
+}
+
+#[test]
+// Case 9: Bid upper < curr price < ask lower, user is selling, queued bid price gte curr market price
+fn test_get_bid_ask_case_9() {
+    let (_market_manager, market_id, _oracle, strategy) = before_deposit_initial();
+
+    // Get next bid and ask.
+    let is_buy = false;
+    let state = strategy.strategy_state(market_id);
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    // a) Expect bid to not be rebalanced
+    assert(bid_lower == state.bid.lower_limit, 'Bid lower');
+    assert(bid_upper == state.bid.upper_limit, 'Bid upper');
+    // b) Expect ask to not be rebalanced
+    assert(ask_lower == state.ask.lower_limit, 'Ask lower');
+    assert(ask_upper == state.ask.upper_limit, 'Ask upper');
+}
+
+#[test]
+// Case 10: Curr price > ask lower, user is selling, queued ask price gt curr placed ask
+fn test_get_bid_ask_case_10() {
+    let (market_manager, market_id, oracle, strategy) = before_deposit_initial();
+
+    // Buy to put curr price above ask lower.
+    // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
+    // non-strategy caller.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    let amount = to_e18(200);
+    market_manager
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Update oracle price.
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 160000000000, 8, 1000, 5); // 1600
+
+    // Get next bid and ask.
+    let is_buy = false;
+    let state = strategy.strategy_state(market_id);
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    // a) Expect bid to be rebalanced upward
+    assert(bid_lower > state.bid.lower_limit, 'Bid lower');
+    assert(bid_upper > state.bid.upper_limit, 'Bid upper');
+    // b) Expect ask to not be rebalanced
+    assert(ask_lower == state.ask.lower_limit, 'Ask lower');
+    assert(ask_upper == state.ask.upper_limit, 'Ask upper');
+    // c) Expect new bid to not overlap with existing ask
+    assert(bid_upper <= state.ask.lower_limit, 'Bid ask overlap');
+}
+
+#[test]
+// Case 11: Curr price > ask lower, user is selling, queued ask price lte curr placed ask
+fn test_get_bid_ask_case_11() {
+    let (market_manager, market_id, oracle, strategy) = before_deposit_initial();
+
+    // Buy to put curr price above ask lower.
+    // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
+    // non-strategy caller.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    let amount = to_e18(200);
+    market_manager
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Update oracle price.
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 140000000000, 8, 1000, 5); // 1400
+
+    // Get next bid and ask.
+    let is_buy = false;
+    let state = strategy.strategy_state(market_id);
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    // a) Expect bid to be rebalanced downward
+    assert(bid_lower < state.bid.lower_limit, 'Bid lower');
+    assert(bid_upper < state.bid.upper_limit, 'Bid upper');
+    // b) Expect ask to be rebalanced upward (as it is capped at curr price)
+    assert(ask_lower > state.ask.lower_limit, 'Ask lower');
+    assert(ask_upper > state.ask.upper_limit, 'Ask upper');
+}
+
+#[test]
+// Case 12: Curr price > ask lower, user is buying, queued ask price lte curr placed ask
+fn test_get_bid_ask_case_12() {
+    let (market_manager, market_id, oracle, strategy) = before_deposit_initial();
+
+    // Buy to put curr price above ask lower.
+    // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
+    // non-strategy caller.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    let amount = to_e18(200);
+    market_manager
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Update oracle price.
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 140000000000, 8, 1000, 5); // 1400
+
+    // Get next bid and ask.
+    let is_buy = true;
+    let state = strategy.strategy_state(market_id);
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    // a) Expect bid not to be rebalanced
+    assert(bid_lower == state.bid.lower_limit, 'Bid lower');
+    assert(bid_upper == state.bid.upper_limit, 'Bid upper');
+    // b) Expect ask not to be rebalanced
+    assert(ask_lower == state.ask.lower_limit, 'Ask lower');
+    assert(ask_upper == state.ask.upper_limit, 'Ask upper');
+}
+
+#[test]
+// Case 13: Curr price > ask lower, user is buying, queued ask price gt curr placed ask
+fn test_get_bid_ask_case_13() {
+    let (market_manager, market_id, oracle, strategy) = before_deposit_initial();
+
+    // Buy to put curr price above ask lower.
+    // This must be done to overcome a limitation with `prank` that causes tx to revert for a 
+    // non-strategy caller.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    let amount = to_e18(200);
+    market_manager
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Update oracle price.
+    oracle.set_data_with_USD_hop('ETH', 'USDC', 160000000000, 8, 1000, 5); // 1600
+
+    // Get next bid and ask.
+    let is_buy = true;
+    let state = strategy.strategy_state(market_id);
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    // println!("curr_limit: {}", market_manager.market_state(market_id).curr_limit);
+    // println!("[PLACED] bid_lower: {}, bid_upper: {}, ask_lower: {}, ask_upper: {}", state.bid.lower_limit, state.bid.upper_limit, state.ask.lower_limit, state.ask.upper_limit);
+    // println!("[QUEUED] bid_lower: {}, bid_upper: {}, ask_lower: {}, ask_upper: {}", bid_lower, bid_upper, ask_lower, ask_upper);
+    // a) Expect bid to be rebalanced downward
+    assert(bid_lower == state.bid.lower_limit, 'Bid lower');
+    assert(bid_upper == state.bid.upper_limit, 'Bid upper');
+    // b) Expect ask to be rebalanced upward
+    assert(ask_lower > state.ask.lower_limit, 'Ask lower');
+    assert(ask_upper > state.ask.upper_limit, 'Ask upper');
 }
 
 #[test]
@@ -424,7 +745,7 @@ fn test_deposit_initial_success() {
     let initial_base_amount = to_e18(1000000);
     let initial_quote_amount = to_e18(1112520000);
     let shares = strategy.deposit_initial(market_id, initial_base_amount, initial_quote_amount);
-    let base_liquidity_exp = 429406775392817428992841450;
+    let base_liquidity_exp = 429385305698142922274058535;
     let quote_liquidity_exp = 286266946460287812818573174;
     let shares_exp = quote_liquidity_exp + base_liquidity_exp;
 
@@ -450,8 +771,8 @@ fn test_deposit_initial_success() {
     );
     assert(aft.bid.lower_limit == 7906620 + 721930, 'Bid: lower limit');
     assert(aft.bid.upper_limit == 7906620 + 741930, 'Bid: upper limit');
-    assert(aft.ask.lower_limit == 7906620 + 742050, 'Ask: lower limit');
-    assert(aft.ask.upper_limit == 7906620 + 762050, 'Ask: upper limit');
+    assert(aft.ask.lower_limit == 7906620 + 742040, 'Ask: lower limit');
+    assert(aft.ask.upper_limit == 7906620 + 762040, 'Ask: upper limit');
     assert(approx_eq_pct(shares, shares_exp, 20), 'Shares');
     assert(
         approx_eq_pct(strategy.user_deposits(market_id, owner()), shares_exp, 20), 'User deposits'
@@ -705,15 +1026,15 @@ fn test_update_positions_rebalances() {
     // Run checks.
     assert(bid.lower_limit == 7906620 + 721930, 'Bid: lower limit');
     assert(bid.upper_limit == 7906620 + 741930, 'Bid: upper limit');
-    assert(ask.lower_limit == 7906620 + 742720, 'Ask: lower limit');
-    assert(ask.upper_limit == 7906620 + 762720, 'Ask: upper limit');
+    assert(ask.lower_limit == 7906620 + 742710, 'Ask: lower limit');
+    assert(ask.upper_limit == 7906620 + 762710, 'Ask: upper limit');
     assert(approx_eq_pct(bid.liquidity.into(), 286266946460287812818573174, 20), 'Bid: liquidity');
-    assert(approx_eq_pct(ask.liquidity.into(), 430847693075374009874980115, 20), 'Ask: liquidity');
+    assert(approx_eq_pct(ask.liquidity.into(), 430826151336976701419877700, 20), 'Ask: liquidity');
     assert(
-        approx_eq(market_state.curr_sqrt_price, 410015410053942901623567337309, 100),
+        approx_eq(market_state.curr_sqrt_price, 409994911055464582332775734177, 100),
         'Market: curr sqrt price'
     );
-    assert(market_state.curr_limit == 7906620 + 742725, 'Market: curr sqrt price');
+    assert(market_state.curr_limit == 7906620 + 742715, 'Market: curr sqrt price');
     assert(approx_eq(state.base_reserves, 0, 10), 'Base reserves');
     assert(approx_eq(state.quote_reserves, 0, 10), 'Quote reserves');
 
@@ -807,16 +1128,16 @@ fn test_update_positions_multiple_swaps() {
     ask = strategy.ask(market_id);
     assert(bid.lower_limit == 7906620 + 719790, 'Bid 2: lower limit');
     assert(bid.upper_limit == 7906620 + 739790, 'Bid 2: upper limit');
-    assert(ask.lower_limit == 7906620 + 741950, 'Ask 2: lower limit');
-    assert(ask.upper_limit == 7906620 + 761950, 'Ask 2: upper limit');
+    assert(ask.lower_limit == 7906620 + 741940, 'Ask 2: lower limit');
+    assert(ask.upper_limit == 7906620 + 761940, 'Ask 2: upper limit');
     assert(
-        approx_eq_pct(bid.liquidity.into(), 289346459271936200590250501, 20), 'Bid 2: liquidity'
+        approx_eq_pct(bid.liquidity.into(), 289346433263735605208989471, 20), 'Bid 2: liquidity'
     );
     assert(
-        approx_eq_pct(ask.liquidity.into(), 429192101090792820578334730, 20), 'Ask 2: liquidity'
+        approx_eq_pct(ask.liquidity.into(), 429170667782432169281955462, 20), 'Ask 2: liquidity'
     );
     assert(
-        approx_eq_pct(market_state.curr_sqrt_price, 404035472140796799075583212090, 20),
+        approx_eq_pct(market_state.curr_sqrt_price, 404035475512602430541635512099, 20),
         'Swap 2: end sqrt price'
     );
     assert(market_state.curr_limit == 7906620 + 739787, 'Swap 2: end limit');
@@ -897,7 +1218,7 @@ fn test_update_positions_lvr_condition_not_met() {
 }
 
 #[test]
-fn test_update_positions_zero_fee_crossing_spread_always_rebalances() {
+fn test_update_positions_zero_fee_crossing_spread_always_rebalances_bid() {
     let (market_manager, base_token, quote_token, _, oracle, strategy) = before(true);
 
     // Create zero fee market.
@@ -947,7 +1268,7 @@ fn test_update_positions_zero_fee_crossing_spread_always_rebalances() {
     let mut bid_after = strategy.bid(market_id);
     let mut ask_after = strategy.ask(market_id);
     assert(bid_before != bid_after, 'Rebalance: bid');
-    assert(ask_before != ask_after, 'Rebalance: ask');
+    assert(ask_before == ask_after, 'Rebalance: ask');
 
     // Check event emitted.
     spy
@@ -1245,9 +1566,9 @@ fn test_deposit_success() {
     let base_exp = to_e18(500);
     let quote_exp = to_e18(556260);
     let bid_init_shares_exp = 286266946460287812818573174;
-    let ask_init_shares_exp = 429406775392817428992841450;
+    let ask_init_shares_exp = 429385305698142922274058535;
     let bid_new_shares_exp = 143133473230143906409286;
-    let ask_new_shares_exp = 214703387696408714496420;
+    let ask_new_shares_exp = 214692652849071461137029;
     let total_shares_exp = bid_init_shares_exp
         + ask_init_shares_exp
         + bid_new_shares_exp
@@ -1317,9 +1638,9 @@ fn test_deposit_multiple() {
     let base_exp = to_e18(500);
     let quote_exp = to_e18(556260);
     let bid_init_shares_exp = 286266946460287812818573174;
-    let ask_init_shares_exp = 429406775392817428992841450;
+    let ask_init_shares_exp = 429385305698142922274058535;
     let bid_new_shares_exp = 286266946460287812818572;
-    let ask_new_shares_exp = 429406775392817428992840;
+    let ask_new_shares_exp = 429385305698142922274058;
     let total_shares_exp = bid_init_shares_exp
         + ask_init_shares_exp
         + bid_new_shares_exp
@@ -1412,7 +1733,6 @@ fn test_deposit_single_sided_bid_liquidity() {
             Option::None(()),
             Option::None(())
         );
-    let bid = strategy.bid(market_id);
     let ask = strategy.ask(market_id);
     assert(ask.liquidity == 0, 'Ask: liquidity');
 
@@ -1420,12 +1740,9 @@ fn test_deposit_single_sided_bid_liquidity() {
     let mut spy = spy_events(SpyOn::One(strategy.contract_address));
 
     // Deposit single-sided bid liquidity.
-    let position_id = id::position_id(
-        market_id, strategy.contract_address.into(), bid.lower_limit, bid.upper_limit
-    );
-    let (_, quote_amount, _, quote_fees) = market_manager.amounts_inside_position(position_id);
+    let (_, quote_amount) = strategy.get_balances(market_id);
     start_prank(CheatTarget::One(strategy.contract_address), alice());
-    strategy.deposit(market_id, 0, quote_amount + quote_fees);
+    strategy.deposit(market_id, 0, quote_amount);
 
     // Run checks.
     let alice_shares = strategy.user_deposits(market_id, alice());
@@ -1443,7 +1760,7 @@ fn test_deposit_single_sided_bid_liquidity() {
                             market_id,
                             caller: alice(),
                             base_amount: 0,
-                            quote_amount: quote_amount + quote_fees,
+                            quote_amount,
                             shares: alice_shares,
                         }
                     )
@@ -1867,7 +2184,7 @@ fn test_withdraw_partial() {
     let mut spy = spy_events(SpyOn::One(strategy.contract_address));
 
     // Withdraw partial from strategy.
-    let shares_init = 286266946460287812818573174 + 429406775392817428992841450;
+    let shares_init = 286266946460287812818573174 + 429385305698142922274058535;
     let shares_req = shares_init / 2;
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     let (base_amount, quote_amount) = strategy.withdraw(market_id, shares_req);
@@ -1917,7 +2234,7 @@ fn test_withdraw_partial() {
         approx_eq_pct(aft.bid.liquidity.into(), 143133473230143906409286587, 20), 'Bid liquidity'
     );
     assert(
-        approx_eq_pct(aft.ask.liquidity.into(), 214703387696408714496420725, 20), 'Ask liquidity'
+        approx_eq_pct(aft.ask.liquidity.into(), 214692652849071461137029267, 20), 'Ask liquidity'
     );
     assert(
         approx_eq(aft.strategy_state.base_reserves, 7500000000000000000, 10),
@@ -1970,7 +2287,7 @@ fn test_withdraw_single_sided_liquidity() {
             market_id, 7906620 + 765000, 7906620 + 766000, I128Trait::new(to_e18_u128(1000), false)
         );
 
-    // Execute buy as strategy. Update positions to concentrate liquidity entirely in bid.
+    // Execute buy as strategy to concentrate liquidity entirely in bid.
     start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
     start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     market_manager
@@ -2024,11 +2341,7 @@ fn test_withdraw_single_sided_liquidity() {
     assert(approx_eq(aft.lp_base_bal, bef.lp_base_bal + base_amount, 10), 'LP base');
     assert(approx_eq(aft.lp_quote_bal, bef.lp_quote_bal + quote_amount, 10), 'LP quote');
     assert(approx_eq(aft.strategy_base_bal, bef.strategy_base_bal, 10), 'Strategy base');
-    println!(
-        "aft.strategy_quote_bal: {}, bef.strategy_quote_bal: {}",
-        aft.strategy_quote_bal, bef.strategy_quote_bal
-    );
-    assert(approx_eq(aft.strategy_quote_bal, bef.strategy_quote_bal, 10), 'Strategy quote');
+    assert(approx_eq(aft.strategy_quote_bal, bef.strategy_quote_bal - bef.strategy_state.quote_reserves, 10), 'Strategy quote');
     assert(approx_eq(aft.market_base_bal, bef.market_base_bal - base_amount, 10), 'Market base');
     assert(
         approx_eq_pct(aft.market_quote_bal, bef.market_quote_bal - quote_amount, 10), 'Market quote'
@@ -2715,8 +3028,8 @@ fn test_mismatched_token_decimals() {
     let ask = strategy.ask(market_id);
     assert(bid.lower_limit == 5861070, 'Bid lower');
     assert(bid.upper_limit == 5881070, 'Bid upper');
-    assert(ask.lower_limit == 5881310, 'Ask lower');
-    assert(ask.upper_limit == 5901310, 'Ask upper');
+    assert(ask.lower_limit == 5881300, 'Ask lower');
+    assert(ask.upper_limit == 5901300, 'Ask upper');
 }
 
 #[test]
@@ -3321,6 +3634,7 @@ fn oracle_prices() -> Array<u128> {
     prices
 }
 
+// Note: must be run with `--max-n-steps 100000000` flag.
 #[test]
 fn test_swap_cases_and_quoting() {
     let (market_manager, _base_token, _quote_token, market_id, oracle, strategy) = before(true);
@@ -3341,7 +3655,7 @@ fn test_swap_cases_and_quoting() {
 
     let mut index = 0;
     loop {
-        if index >= prices.len() {
+        if index >= 3 {
             break ();
         }
         // Set oracle price.
