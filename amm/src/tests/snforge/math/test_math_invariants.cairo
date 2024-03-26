@@ -1,9 +1,10 @@
-use integer::BoundedU128;
-use cmp::{min, max};
-use integer::{u256_wide_mul, u512_safe_div_rem_by_u256, u256_try_as_non_zero};
+// Core lib imports.
+use core::cmp::{min, max};
+use core::integer::{u256_wide_mul, u512_safe_div_rem_by_u256};
+use core::zeroable::NonZero;
 
+// Local imports.
 use amm::libraries::math::math::mul_div;
-use snforge_std::PrintTrait;
 
 ////////////////////////////////
 // TESTS
@@ -80,7 +81,8 @@ fn test_mul_div_invariants(x: u256, y: u256, d: u256,) {
 // * `rem` - remainder of mul div operation
 fn check_for_overflow(x: u256, y: u256, d: u256) -> (bool, u256) {
     let prod = u256_wide_mul(x, y);
-    let (q, rem) = u512_safe_div_rem_by_u256(prod, u256_try_as_non_zero(d).unwrap());
+    let denominator: NonZero<u256> = d.try_into().unwrap();
+    let (q, rem) = u512_safe_div_rem_by_u256(prod, denominator);
     if q.limb2 != 0 || q.limb3 != 0 {
         return (true, rem);
     }

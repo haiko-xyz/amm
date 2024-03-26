@@ -1,5 +1,5 @@
 // Core lib imports.
-use starknet::deploy_syscall;
+use starknet::syscalls::deploy_syscall;
 use starknet::contract_address::contract_address_const;
 use starknet::testing::set_contract_address;
 
@@ -12,8 +12,8 @@ use strategies::strategies::replicating::types::{StrategyParams, StrategyState};
 
 // External imports.
 use snforge_std::{
-    PrintTrait, declare, ContractClass, ContractClassTrait, start_prank, stop_prank, CheatTarget,
-    spy_events, SpyOn, EventSpy, EventAssertions, EventFetcher, start_warp
+    declare, ContractClass, ContractClassTrait, start_prank, stop_prank, CheatTarget, spy_events,
+    SpyOn, EventSpy, EventAssertions, EventFetcher, start_warp
 };
 
 ////////////////////////////////
@@ -22,7 +22,7 @@ use snforge_std::{
 
 fn before() -> IStorePackingContractDispatcher {
     // Deploy store packing contract.
-    let class = declare('StorePackingContract');
+    let class = declare("StorePackingContract");
     let contract_address = class.deploy(@array![]).unwrap();
     IStorePackingContractDispatcher { contract_address }
 }

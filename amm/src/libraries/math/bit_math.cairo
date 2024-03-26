@@ -1,8 +1,3 @@
-// Core lib imports.
-use integer::{U256BitAnd, Felt252IntoU256};
-use traits::{TryInto, DivEq};
-use option::OptionTrait;
-
 // Returns the index of the most significant bit of a u256 in little endian format.
 //
 // # Arguments
@@ -10,7 +5,7 @@ use option::OptionTrait;
 //
 // # Returns
 // * `i` - Index of the most significant bit.
-fn msb(x: u256) -> u8 {
+pub fn msb(x: u256) -> u8 {
     let mut x: u256 = x;
     let mut r: u8 = 0;
 
@@ -56,7 +51,7 @@ fn msb(x: u256) -> u8 {
 //
 // # Returns
 // * `i` - Index of the least significant bit.
-fn lsb(x: u256) -> u8 {
+pub fn lsb(x: u256) -> u8 {
     let mut x = x;
     let mut r: u8 = 255;
 

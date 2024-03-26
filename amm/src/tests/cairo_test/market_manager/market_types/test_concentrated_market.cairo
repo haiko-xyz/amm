@@ -1,7 +1,7 @@
 // Core lib imports.
 use starknet::contract_address_const;
 use starknet::testing::set_contract_address;
-use integer::BoundedU32;
+use core::integer::BoundedInt;
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
@@ -53,7 +53,6 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 ////////////////////////////////
 
 #[test]
-#[available_gas(40000000)]
 fn test_enable_concentrated() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
@@ -68,7 +67,7 @@ fn test_enable_concentrated() {
         OFFSET + MAX_LIMIT,
         OFFSET + MAX_LIMIT,
         1,
-        BoundedU32::max()
+        BoundedInt::max()
     );
     let mut market_configs: MarketConfigs = Default::default();
     market_configs.limits = config(valid_limits, false);
@@ -91,7 +90,6 @@ fn test_enable_concentrated() {
 
 #[test]
 #[should_panic(expected: ('OnlyController', 'ENTRYPOINT_FAILED',))]
-#[available_gas(40000000)]
 fn test_enable_concentrated_not_owner() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
@@ -106,7 +104,7 @@ fn test_enable_concentrated_not_owner() {
         OFFSET + MAX_LIMIT,
         OFFSET + MAX_LIMIT,
         1,
-        BoundedU32::max()
+        BoundedInt::max()
     );
     let mut market_configs: MarketConfigs = Default::default();
     market_configs.limits = config(valid_limits, false);
@@ -122,7 +120,6 @@ fn test_enable_concentrated_not_owner() {
 
 #[test]
 #[should_panic(expected: ('NoChange', 'ENTRYPOINT_FAILED',))]
-#[available_gas(40000000)]
 fn test_enable_concentrated_already_concentrated() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();

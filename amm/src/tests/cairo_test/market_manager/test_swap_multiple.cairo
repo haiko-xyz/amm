@@ -1,7 +1,6 @@
 // Core lib imports.
 use starknet::testing::set_contract_address;
-use integer::BoundedU256;
-use debug::PrintTrait;
+use core::integer::BoundedInt;
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
@@ -39,7 +38,7 @@ fn before() -> (
     let market_manager = deploy_market_manager(owner);
 
     // Deploy tokens.
-    let max = BoundedU256::max();
+    let max = BoundedInt::max();
     let eth_params = token_params('Ethereum', 'ETH', 18, max, treasury());
     let btc_params = token_params('Bitcoin', 'BTC', 18, max, treasury());
     let usdc_params = token_params('USDC', 'USDC', 18, max, treasury());
@@ -80,7 +79,6 @@ fn before() -> (
 ////////////////////////////////
 
 #[test]
-#[available_gas(15000000000)]
 fn test_swap_multiple() {
     let (market_manager, eth, btc, _usdc, eth_usdc_id, btc_usdc_id) = before();
 
@@ -123,7 +121,6 @@ fn test_swap_multiple() {
 
 #[test]
 #[should_panic(expected: ('RouteMismatch', 'ENTRYPOINT_FAILED',))]
-#[available_gas(15000000000)]
 fn test_swap_multiple_invalid_path() {
     let (market_manager, eth, btc, _usdc, eth_usdc_id, btc_usdc_id) = before();
 

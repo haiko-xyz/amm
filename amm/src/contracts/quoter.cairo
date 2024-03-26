@@ -1,5 +1,5 @@
 #[starknet::contract]
-mod Quoter {
+pub mod Quoter {
     ////////////////////////////////
     // IMPORTS
     ////////////////////////////////
@@ -8,8 +8,8 @@ mod Quoter {
     use core::array::ArrayTrait;
     use starknet::syscalls::call_contract_syscall;
     use starknet::ContractAddress;
-    use starknet::info::get_caller_address;
-    use starknet::replace_class_syscall;
+    use starknet::get_caller_address;
+    use starknet::syscalls::replace_class_syscall;
     use starknet::class_hash::ClassHash;
 
     // Local imports.
@@ -21,11 +21,6 @@ mod Quoter {
 
     // Third party imports.
     use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
-    use openzeppelin::upgrades::UpgradeableComponent;
-
-    component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
-
-    impl InternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
 
     ////////////////////////////////
     // STORAGE
@@ -35,8 +30,6 @@ mod Quoter {
     struct Storage {
         owner: ContractAddress,
         market_manager: ContractAddress,
-        #[substorage(v0)]
-        upgradeable: UpgradeableComponent::Storage,
     }
 
     ////////////////////////////////
@@ -46,8 +39,12 @@ mod Quoter {
     #[event]
     #[derive(Drop, starknet::Event)]
     enum Event {
-        #[flat]
-        UpgradeableEvent: UpgradeableComponent::Event
+        Upgraded: Upgraded,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct Upgraded {
+        class_hash: ClassHash
     }
 
     ////////////////////////////////
@@ -405,16 +402,16 @@ mod Quoter {
             self.assert_only_owner();
             self.market_manager.write(market_manager);
         }
-    }
 
-    // Upgrade contract class.
-    // Callable by owner only.
-    //
-    // # Arguments
-    // * `new_class_hash` - new class hash of contract
-    #[external(v0)]
-    fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
-        self.assert_only_owner();
-        self.upgradeable._upgrade(new_class_hash);
+        // Upgrade contract class.
+        // Callable by owner only.
+        //
+        // # Arguments
+        // * `new_class_hash` - new class hash of contract
+        fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+            self.assert_only_owner();
+            replace_class_syscall(new_class_hash).unwrap();
+            self.emit(Event::Upgraded(Upgraded { class_hash: new_class_hash }));
+        }
     }
 }

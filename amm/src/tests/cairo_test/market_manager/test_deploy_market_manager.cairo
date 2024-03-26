@@ -10,7 +10,6 @@ use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDi
 ////////////////////////////////
 
 #[test]
-#[available_gas(40000000)]
 fn test_deploy_market_manager_initialises_owner() {
     // Get default owner.
     let owner = owner();

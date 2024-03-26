@@ -1,6 +1,3 @@
-// Core lib imports.
-use debug::PrintTrait;
-
 // Local imports.
 use amm::types::i128::I128Trait;
 use amm::libraries::constants::{OFFSET};
@@ -58,7 +55,6 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_amounts_inside_position() {
     let (market_manager, _base_token, _quote_token, market_id) = before();
 

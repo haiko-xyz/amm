@@ -1,43 +1,20 @@
-use traits::{Into, TryInto, Rem};
-use integer::{U128Mul, U128Div, U128Rem, u128_try_from_felt252, u128_overflowing_sub};
-use option::OptionTrait;
-use result::ResultTrait;
-use hash::LegacyHash;
-
 ////////////////////////////////
 // TYPES
 ////////////////////////////////
 
 #[derive(Copy, Drop, Serde, storage_access::StorageAccess)]
-struct i128 {
-    val: u128,
-    sign: bool
+pub struct i128 {
+    pub val: u128,
+    pub sign: bool
 }
 
 ////////////////////////////////
 // METHODS
 ////////////////////////////////
 
-trait I128Trait {
+pub trait I128Trait {
     fn new(val: u128, sign: bool) -> i128;
     fn one() -> i128;
-}
-
-impl I128Zeroable of Zeroable<i128> {
-    #[inline(always)]
-    fn zero() -> i128 {
-        I128Trait::new(0_u128, false)
-    }
-
-    #[inline(always)]
-    fn is_zero(self: i128) -> bool {
-        self.val == 0_u128
-    }
-
-    #[inline(always)]
-    fn is_non_zero(self: i128) -> bool {
-        self.val != 0_u128
-    }
 }
 
 impl I128Impl of I128Trait {
@@ -162,7 +139,7 @@ impl I128Mul of Mul<i128> {
     #[inline(always)]
     fn mul(lhs: i128, rhs: i128) -> i128 {
         let res_sign: bool = lhs.sign ^ rhs.sign;
-        let mag: u128 = U128Mul::mul(lhs.val, rhs.val);
+        let mag: u128 = lhs.val * rhs.val;
         I128Trait::new(mag, res_sign)
     }
 }
@@ -171,7 +148,7 @@ impl I128Div of Div<i128> {
     #[inline(always)]
     fn div(lhs: i128, rhs: i128) -> i128 {
         let res_sign = lhs.sign ^ rhs.sign;
-        let mag: u128 = U128Div::div(lhs.val, rhs.val);
+        let mag: u128 = lhs.val / rhs.val;
         I128Trait::new(mag, res_sign)
     }
 }
@@ -180,7 +157,7 @@ impl I128Rem of Rem<i128> {
     #[inline(always)]
     fn rem(lhs: i128, rhs: i128) -> i128 {
         let res_sign = lhs.sign;
-        let mag: u128 = U128Rem::rem(lhs.val, rhs.val);
+        let mag: u128 = lhs.val % rhs.val;
         I128Trait::new(mag, res_sign)
     }
 }

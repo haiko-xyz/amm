@@ -17,7 +17,6 @@ use amm::tests::common::params::{owner, alice, default_token_params, default_mar
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
-use openzeppelin::upgrades::interface::{IUpgradeableDispatcherTrait, IUpgradeableDispatcher};
 
 ////////////////////////////////
 // SETUP
@@ -42,15 +41,13 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 ////////////////////////////////
 
 #[test]
-#[available_gas(40000000)]
 fn test_upgrade_market_manager() {
     // Deploy market manager and tokens.
     let (market_manager, _base_token, _quote_token) = before();
 
     // Upgrade market manager.
     set_contract_address(owner());
-    let dispatcher = IUpgradeableDispatcher { contract_address: market_manager.contract_address };
-    dispatcher.upgrade(UpgradedMarketManager::TEST_CLASS_HASH.try_into().unwrap());
+    market_manager.upgrade(UpgradedMarketManager::TEST_CLASS_HASH.try_into().unwrap());
 
     // Calling owner returns existing owner.
     let upgraded_market_manager = IUpgradedMarketManagerDispatcher {
@@ -61,13 +58,11 @@ fn test_upgrade_market_manager() {
 
 #[test]
 #[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
-#[available_gas(40000000)]
 fn test_upgrade_market_manager_not_owner() {
     // Deploy market manager and tokens.
     let (market_manager, _base_token, _quote_token) = before();
 
     // Upgrade market manager.
     set_contract_address(alice());
-    let dispatcher = IUpgradeableDispatcher { contract_address: market_manager.contract_address };
-    dispatcher.upgrade(UpgradedMarketManager::TEST_CLASS_HASH.try_into().unwrap());
+    market_manager.upgrade(UpgradedMarketManager::TEST_CLASS_HASH.try_into().unwrap());
 }

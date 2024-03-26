@@ -41,7 +41,6 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 ////////////////////////////////
 
 #[test]
-#[available_gas(40000000)]
 fn test_create_market_whitelisted_works() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
@@ -54,7 +53,6 @@ fn test_create_market_whitelisted_works() {
 }
 
 #[test]
-#[available_gas(40000000)]
 fn test_create_market_whitelisted_tokens_work() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
@@ -72,7 +70,6 @@ fn test_create_market_whitelisted_tokens_work() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('NotWhitelisted', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_not_whitelisted() {
     // Deploy market manager and tokens.
@@ -95,7 +92,6 @@ fn test_create_market_not_whitelisted() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('NotWhitelisted', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_whitelisted_pair_with_strategy() {
     // Deploy market manager and tokens.
@@ -115,7 +111,6 @@ fn test_create_market_whitelisted_pair_with_strategy() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('NotWhitelisted', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_whitelisted_pair_with_fee_controller() {
     // Deploy market manager and tokens.
@@ -135,7 +130,6 @@ fn test_create_market_whitelisted_pair_with_fee_controller() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('NotWhitelisted', 'ENTRYPOINT_FAILED',))]
 fn test_create_market_whitelisted_pair_with_controller() {
     // Deploy market manager and tokens.
@@ -155,7 +149,6 @@ fn test_create_market_whitelisted_pair_with_controller() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
 fn test_whitelist_market_not_owner() {
     // Deploy market manager and tokens.
@@ -166,7 +159,6 @@ fn test_whitelist_market_not_owner() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('AlreadyWhitelisted', 'ENTRYPOINT_FAILED',))]
 fn test_whitelist_market_twice() {
     // Deploy market manager and tokens.

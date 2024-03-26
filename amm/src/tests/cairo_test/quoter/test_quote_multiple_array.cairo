@@ -1,6 +1,6 @@
 // Core lib imports.
 use starknet::testing::set_contract_address;
-use integer::BoundedU256;
+use core::integer::BoundedInt;
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
@@ -40,7 +40,7 @@ fn before() -> (
     let market_manager = deploy_market_manager(owner);
 
     // Deploy tokens.
-    let max = BoundedU256::max();
+    let max: u256 = BoundedInt::max();
     let eth_params = token_params('Ethereum', 'ETH', 18, max, treasury());
     let btc_params = token_params('Bitcoin', 'BTC', 18, max, treasury());
     let usdc_params = token_params('USDC', 'USDC', 18, max, treasury());
@@ -75,7 +75,6 @@ fn before() -> (
 ////////////////////////////////
 
 #[test]
-#[available_gas(15000000000)]
 fn test_quote_multiple_array() {
     let (market_manager, eth, btc, usdc, usdt, dai, quoter) = before();
 

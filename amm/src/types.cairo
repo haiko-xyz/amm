@@ -1,4 +1,4 @@
-mod core;
-mod i32;
-mod i128;
-mod i256;
+pub mod core;
+pub mod i32;
+pub mod i128;
+pub mod i256;

@@ -1,9 +1,7 @@
 // Core lib imports.
 use starknet::ContractAddress;
-use starknet::contract_address::ContractAddressZeroable;
-use starknet::contract_address_const;
+use starknet::contract_address::contract_address_const;
 use starknet::testing::set_contract_address;
-use debug::PrintTrait;
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
@@ -68,7 +66,6 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 ////////////////////////////////
 
 #[test]
-#[available_gas(100000000)]
 fn test_mint_position() {
     let (market_manager, base_token, quote_token, market_id) = before();
 
@@ -104,7 +101,6 @@ fn test_mint_position() {
 
 #[test]
 #[should_panic(expected: ('NotOwnerOrNull', 'ENTRYPOINT_FAILED',))]
-#[available_gas(100000000)]
 fn test_mint_empty_position() {
     let (market_manager, _base_token, _quote_token, market_id) = before();
 
@@ -117,7 +113,6 @@ fn test_mint_empty_position() {
 
 #[test]
 #[should_panic(expected: ('NotOwnerOrNull', 'ENTRYPOINT_FAILED',))]
-#[available_gas(100000000)]
 fn test_mint_position_not_owner() {
     let (market_manager, _base_token, _quote_token, market_id) = before();
 
@@ -140,7 +135,6 @@ fn test_mint_position_not_owner() {
 ////////////////////////////////
 
 #[test]
-#[available_gas(100000000)]
 fn test_burn_position() {
     let (market_manager, _base_token, _quote_token, market_id) = before();
 
@@ -178,7 +172,6 @@ fn test_burn_position() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_burn_position_allowed_by_approved() {
     let (market_manager, _base_token, _quote_token, market_id) = before();
 
@@ -214,7 +207,6 @@ fn test_burn_position_allowed_by_approved() {
 
 #[test]
 #[should_panic(expected: ('NotApprovedOrOwner', 'ENTRYPOINT_FAILED',))]
-#[available_gas(100000000)]
 fn test_burn_position_not_owner() {
     let (market_manager, _base_token, _quote_token, market_id) = before();
 
@@ -243,7 +235,6 @@ fn test_burn_position_not_owner() {
 
 #[test]
 #[should_panic(expected: ('NotCleared', 'ENTRYPOINT_FAILED',))]
-#[available_gas(100000000)]
 fn test_burn_position_not_cleared() {
     let (market_manager, _base_token, _quote_token, market_id) = before();
 
@@ -266,7 +257,6 @@ fn test_burn_position_not_cleared() {
 
 #[test]
 #[should_panic(expected: ('ERC721: invalid token ID', 'ENTRYPOINT_FAILED',))]
-#[available_gas(100000000)]
 fn test_burn_position_nonexistent_token() {
     let (market_manager, _base_token, _quote_token, _market_id) = before();
 

@@ -1,7 +1,6 @@
 // Core lib imports.
-use cmp::{min, max};
+use core::cmp::{min, max};
 use starknet::testing::set_contract_address;
-use debug::PrintTrait;
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MIN_LIMIT, MAX_LIMIT};
@@ -172,7 +171,6 @@ fn swap_test_cases() -> Array<SwapCase> {
 ////////////////////////////////
 
 #[test]
-#[available_gas(15000000000)]
 fn test_quote_with_strategy() {
     let (market_manager, _base_token, _quote_token, market_id, quoter, strategy) = before();
 

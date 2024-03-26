@@ -1,10 +1,5 @@
 // Core lib imports.
-use core::serde::Serde;
-use core::traits::Into;
 use core::result::ResultTrait;
-use array::ArrayTrait;
-use option::OptionTrait;
-use traits::TryInto;
 use starknet::ContractAddress;
 use starknet::testing::{set_caller_address, set_contract_address, set_block_timestamp};
 
@@ -23,7 +18,7 @@ use amm::tests::common::params::{
 use snforge_std::{declare, ContractClass, ContractClassTrait, start_prank, stop_prank, CheatTarget};
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
-fn deploy_market_manager(
+pub fn deploy_market_manager(
     class: ContractClass, owner: ContractAddress,
 ) -> IMarketManagerDispatcher {
     let contract_address = class
@@ -32,7 +27,9 @@ fn deploy_market_manager(
     IMarketManagerDispatcher { contract_address }
 }
 
-fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketParams) -> felt252 {
+pub fn create_market(
+    market_manager: IMarketManagerDispatcher, params: CreateMarketParams
+) -> felt252 {
     start_prank(CheatTarget::One(market_manager.contract_address), params.owner);
     let market_id = id::market_id(
         MarketInfo {
@@ -65,7 +62,7 @@ fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketP
     market_id
 }
 
-fn modify_position(
+pub fn modify_position(
     market_manager: IMarketManagerDispatcher, params: ModifyPositionParams,
 ) -> (i256, i256, u256, u256) {
     start_prank(CheatTarget::One(market_manager.contract_address), params.owner);
@@ -78,7 +75,7 @@ fn modify_position(
     (base_amount, quote_amount, base_fees, quote_fees)
 }
 
-fn swap(market_manager: IMarketManagerDispatcher, params: SwapParams) -> (u256, u256, u256) {
+pub fn swap(market_manager: IMarketManagerDispatcher, params: SwapParams) -> (u256, u256, u256) {
     start_prank(CheatTarget::One(market_manager.contract_address), params.owner);
     let (amount_in, amount_out, fees) = market_manager
         .swap(
@@ -94,7 +91,7 @@ fn swap(market_manager: IMarketManagerDispatcher, params: SwapParams) -> (u256, 
     (amount_in, amount_out, fees)
 }
 
-fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleParams) -> u256 {
+pub fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleParams) -> u256 {
     start_prank(CheatTarget::One(market_manager.contract_address), params.owner);
     let amount_out = market_manager
         .swap_multiple(

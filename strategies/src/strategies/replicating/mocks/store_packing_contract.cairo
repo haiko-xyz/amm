@@ -1,7 +1,7 @@
 use strategies::strategies::replicating::types::{StrategyParams, StrategyState};
 
 #[starknet::interface]
-trait IStorePackingContract<TContractState> {
+pub trait IStorePackingContract<TContractState> {
     fn get_strategy_params(self: @TContractState, market_id: felt252) -> StrategyParams;
     fn get_strategy_state(self: @TContractState, market_id: felt252) -> StrategyState;
 
@@ -14,7 +14,7 @@ trait IStorePackingContract<TContractState> {
 }
 
 #[starknet::contract]
-mod StorePackingContract {
+pub mod StorePackingContract {
     use strategies::strategies::replicating::types::{StrategyParams, StrategyState};
     use strategies::strategies::replicating::store_packing::{
         StrategyParamsStorePacking, StrategyStateStorePacking,

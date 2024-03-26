@@ -1,5 +1,5 @@
 // Core lib imports.
-use integer::{BoundedU256, u256_wide_mul, u512};
+use core::integer::{BoundedInt, u256_wide_mul, u512};
 
 // Local imports.
 use amm::libraries::constants::{MIN_SQRT_PRICE, MAX_SQRT_PRICE};
@@ -9,9 +9,6 @@ use amm::libraries::swap_lib::{compute_swap_amounts, next_sqrt_price_input, next
 use amm::libraries::constants::ONE;
 use amm::types::i128::I128Trait;
 use amm::tests::common::utils::approx_eq;
-
-// External imports.
-use snforge_std::PrintTrait;
 
 // Check following invariants:
 // 1. Amount in + fee <= u256 max
@@ -53,7 +50,7 @@ fn test_compute_swap_amounts_invariants(
     );
 
     // Invariant 1
-    assert(amount_in + fees <= BoundedU256::max(), 'Invariant 1');
+    assert(amount_in + fees <= BoundedInt::max(), 'Invariant 1');
 
     // Invariant 2
     if exact_input {

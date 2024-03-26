@@ -4,7 +4,7 @@ use starknet::ContractAddress;
 use starknet::class_hash::ClassHash;
 
 #[starknet::interface]
-trait IFaucet<TContractState> {
+pub trait IFaucet<TContractState> {
     fn token(self: @TContractState, slot: u32) -> ContractAddress;
     fn length(self: @TContractState) -> u32;
     fn amount(self: @TContractState, token: ContractAddress) -> u256;
@@ -17,15 +17,15 @@ trait IFaucet<TContractState> {
     fn withdraw(ref self: TContractState, token: ContractAddress, amount: u256);
     fn set_amount(ref self: TContractState, token: ContractAddress, amount: u256);
     fn set_owner(ref self: TContractState, owner: ContractAddress);
+    fn upgrade(ref self: TContractState, new_class_hash: ClassHash);
 }
 
 #[starknet::contract]
-mod Faucet {
+pub mod Faucet {
     // Core lib imports.
     use starknet::ContractAddress;
-    use starknet::info::get_caller_address;
-    use starknet::info::get_contract_address;
-    use starknet::replace_class_syscall;
+    use starknet::{get_caller_address, get_contract_address};
+    use starknet::syscalls::replace_class_syscall;
     use starknet::class_hash::ClassHash;
 
     // Local imports.
@@ -33,11 +33,6 @@ mod Faucet {
 
     // External imports.
     use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
-    use openzeppelin::upgrades::UpgradeableComponent;
-
-    component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
-
-    impl InternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
 
     #[storage]
     struct Storage {
@@ -48,8 +43,6 @@ mod Faucet {
         amounts: LegacyMap::<ContractAddress, u256>,
         claimed: LegacyMap::<ContractAddress, bool>,
         owner: ContractAddress,
-        #[substorage(v0)]
-        upgradeable: UpgradeableComponent::Storage,
     }
 
     #[event]
@@ -61,8 +54,7 @@ mod Faucet {
         SetClaimed: SetClaimed,
         Withdraw: Withdraw,
         SetToken: SetToken,
-        #[flat]
-        UpgradeableEvent: UpgradeableComponent::Event
+        Upgraded: Upgraded,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -99,6 +91,11 @@ mod Faucet {
         amount: u256,
     }
 
+    #[derive(Drop, starknet::Event)]
+    struct Upgraded {
+        class_hash: ClassHash,
+    }
+
     #[constructor]
     fn constructor(ref self: ContractState, owner: ContractAddress) {
         self.owner.write(owner);
@@ -129,20 +126,20 @@ mod Faucet {
         }
 
         fn set_token(ref self: ContractState, slot: u32, token: ContractAddress) {
-            assert(self.owner.read() == get_caller_address(), 'NOT_OWNER');
+            assert(self.owner.read() == get_caller_address(), 'OnlyOwner');
             self.tokens.write(slot, token);
             self.emit(Event::SetToken(SetToken { slot, token }));
         }
 
         fn set_length(ref self: ContractState, length: u32) {
-            assert(self.owner.read() == get_caller_address(), 'NOT_OWNER');
+            assert(self.owner.read() == get_caller_address(), 'OnlyOwner');
             self.length.write(length);
         }
 
         fn claim(ref self: ContractState,) {
             let caller = get_caller_address();
             let claimed = self.claimed.read(caller);
-            assert(!claimed, 'CLAIMED');
+            assert(!claimed, 'Claimed');
 
             let mut index = 0;
             let length = self.length.read();
@@ -154,7 +151,7 @@ mod Faucet {
                 let token = self.tokens.read(index);
                 let amount = self.amounts.read(token);
                 let token_contract = ERC20ABIDispatcher { contract_address: token };
-                assert(token_contract.balanceOf(contract) >= amount, 'INSUFF_BALANCE');
+                assert(token_contract.balanceOf(contract) >= amount, 'InsuffBalance');
                 token_contract.transfer(caller, amount);
                 index += 1;
             };
@@ -166,41 +163,35 @@ mod Faucet {
 
         // Can be used to reset claim status of a user.
         fn set_claimed(ref self: ContractState, user: ContractAddress, claimed: bool) {
-            assert(self.owner.read() == get_caller_address(), 'NOT_OWNER');
+            assert(self.owner.read() == get_caller_address(), 'OnlyOwner');
             self.claimed.write(user, claimed);
             self.emit(Event::SetClaimed(SetClaimed { user, claimed }));
         }
 
         fn set_amount(ref self: ContractState, token: ContractAddress, amount: u256) {
-            assert(self.owner.read() == get_caller_address(), 'NOT_OWNER');
+            assert(self.owner.read() == get_caller_address(), 'OnlyOwner');
             self.amounts.write(token, amount);
             self.emit(Event::SetAmount(SetAmount { token, amount }));
         }
 
         fn withdraw(ref self: ContractState, token: ContractAddress, amount: u256) {
             let owner = self.owner.read();
-            assert(owner == get_caller_address(), 'NOT_OWNER');
+            assert(owner == get_caller_address(), 'OnlyOwner');
             let token_contract = ERC20ABIDispatcher { contract_address: token };
             token_contract.transfer(owner, amount);
             self.emit(Event::Withdraw(Withdraw { token, amount }));
         }
 
         fn set_owner(ref self: ContractState, owner: ContractAddress) {
-            assert(self.owner.read() == get_caller_address(), 'NOT_OWNER');
+            assert(self.owner.read() == get_caller_address(), 'OnlyOwner');
             self.owner.write(owner);
             self.emit(Event::ChangeOwner(ChangeOwner { owner }))
         }
-    }
 
-    // Upgrade contract class.
-    // Callable by owner only.
-    //
-    // # Arguments
-    // * `new_class_hash` - new class hash of contract
-    #[external(v0)]
-    fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
-        let caller = get_caller_address();
-        assert(self.owner.read() == caller, 'OnlyOwner');
-        self.upgradeable._upgrade(new_class_hash);
+        fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+            assert(self.owner.read() == get_caller_address(), 'OnlyOwner');
+            replace_class_syscall(new_class_hash).unwrap();
+            self.emit(Event::Upgraded(Upgraded { class_hash: new_class_hash }));
+        }
     }
 }

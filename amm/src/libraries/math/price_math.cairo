@@ -1,13 +1,10 @@
 // Core lib imports.
-use traits::{Into, TryInto};
-use option::OptionTrait;
-use integer::U32IntoFelt252;
-use integer::BoundedU256;
+use core::integer::BoundedInt;
 
 // Local imports.
 use amm::libraries::math::math;
 use amm::libraries::math::bit_math;
-use amm::types::i32::{i32, I32Trait, I32Zeroable};
+use amm::types::i32::{i32, I32Trait};
 use amm::types::i128::{i128, I128Trait};
 use amm::libraries::constants::{
     ONE, ONE_SQUARED, HALF, MAX_LIMIT, MIN_LIMIT, OFFSET, MAX_LIMIT_SHIFTED, Q128, MIN_SQRT_PRICE,
@@ -26,7 +23,7 @@ use amm::libraries::constants::{
 //
 // # Returns
 // * `shifted_limit` - shifted limit
-fn shift_limit(limit: i32, width: u32) -> u32 {
+pub fn shift_limit(limit: i32, width: u32) -> u32 {
     assert(limit >= I32Trait::new(MIN_LIMIT, true), 'ShiftLimitUnderflow');
     assert(limit <= I32Trait::new(MAX_LIMIT, false), 'ShiftLimitOF');
     let shifted: i32 = limit + I32Trait::new(offset(width), false);
@@ -41,7 +38,7 @@ fn shift_limit(limit: i32, width: u32) -> u32 {
 //
 // # Returns
 // * `unshifted_limit` - unshifted limit
-fn unshift_limit(limit: u32, width: u32) -> i32 {
+pub fn unshift_limit(limit: u32, width: u32) -> i32 {
     let unshifted: i32 = I32Trait::new(limit, false) - I32Trait::new(offset(width), false);
     assert(unshifted.val <= MAX_LIMIT / width * width, 'UnshiftLimitOF');
     unshifted
@@ -54,7 +51,7 @@ fn unshift_limit(limit: u32, width: u32) -> i32 {
 //
 // # Returns
 // * `offset` - offset to shift limit by
-fn offset(width: u32) -> u32 {
+pub fn offset(width: u32) -> u32 {
     OFFSET / width * width
 }
 
@@ -66,7 +63,7 @@ fn offset(width: u32) -> u32 {
 //
 // # Returns
 // * `max_limit` - offset to shift limit by
-fn max_limit(width: u32) -> u32 {
+pub fn max_limit(width: u32) -> u32 {
     offset(width) + MAX_LIMIT / width * width
 }
 
@@ -79,7 +76,7 @@ fn max_limit(width: u32) -> u32 {
 //
 // # Returns
 // * `sqrt_price` - sqrt price encoded as UD47x28
-fn limit_to_sqrt_price(limit: u32, width: u32) -> u256 {
+pub fn limit_to_sqrt_price(limit: u32, width: u32) -> u256 {
     // Check limit ID is in range
     assert(width <= MAX_WIDTH, 'WidthOF');
     assert(limit <= max_limit(width), 'LimitOF');
@@ -101,7 +98,7 @@ fn limit_to_sqrt_price(limit: u32, width: u32) -> u256 {
 //
 // # Returns
 // * `limit` - shifted limit
-fn sqrt_price_to_limit(sqrt_price: u256, width: u32) -> u32 {
+pub fn sqrt_price_to_limit(sqrt_price: u256, width: u32) -> u32 {
     assert(sqrt_price >= MIN_SQRT_PRICE && sqrt_price <= MAX_SQRT_PRICE, 'SqrtPriceOF');
 
     // Handle special case
@@ -142,7 +139,7 @@ fn sqrt_price_to_limit(sqrt_price: u256, width: u32) -> u32 {
 //
 // # Returns
 // * `limit` - shifted limit
-fn price_to_limit(price: u256, width: u32, round_up: bool) -> u32 {
+pub fn price_to_limit(price: u256, width: u32, round_up: bool) -> u32 {
     let sign: bool = price < ONE;
     let rebased = if sign {
         ONE_SQUARED / price
@@ -172,7 +169,7 @@ fn price_to_limit(price: u256, width: u32, round_up: bool) -> u32 {
 ////////////////////////////////
 
 // Helper function to calculate the binary logarithm.
-fn _log2(x: u256) -> u256 {
+pub fn _log2(x: u256) -> u256 {
     // Calculate the integer part of the logarithm.
     let n: u256 = bit_math::msb(x / ONE).into();
 
@@ -194,7 +191,7 @@ fn _log2(x: u256) -> u256 {
 }
 
 // Helper function to recursively calculate the logarithm.
-fn _log2_helper(y: u256, result_uint: u256, delta: u256,) -> u256 {
+pub fn _log2_helper(y: u256, result_uint: u256, delta: u256,) -> u256 {
     if delta <= 0 {
         result_uint
     } else {
@@ -215,7 +212,7 @@ fn _log2_helper(y: u256, result_uint: u256, delta: u256,) -> u256 {
 //
 // # Returns
 // * `result` - Result of exponentiation
-fn _exp1_00001(x: i32) -> u256 {
+pub fn _exp1_00001(x: i32) -> u256 {
     let mut result: u256 = if x.val & 0x1 != 0 {
         0xffffac1d5317ab9e72ee0f7589b88f87
     } else {
@@ -297,7 +294,7 @@ fn _exp1_00001(x: i32) -> u256 {
 
     // Take reciprocal if exponent is negative
     if !x.sign && x.val != 0 {
-        result = BoundedU256::max() / result;
+        result = BoundedInt::max() / result;
     }
 
     // Convert to UD47x28

@@ -1,8 +1,5 @@
 // Core lib imports.
-use starknet::StorePacking;
-use integer::{u128_safe_divmod, u128_as_non_zero};
-use traits::{Into, TryInto};
-use option::OptionTrait;
+use starknet::storage_access::StorePacking;
 
 // Local imports.
 use amm::libraries::constants::MAX_FEE_FACTOR;
@@ -57,7 +54,7 @@ const MASK_251: felt252 = 0x7fffffffffffffffffffffffffffffffffffffffffffffffffff
 // IMPLS
 ////////////////////////////////
 
-impl MarketInfoStorePacking of StorePacking<MarketInfo, PackedMarketInfo> {
+pub(crate) impl MarketInfoStorePacking of StorePacking<MarketInfo, PackedMarketInfo> {
     fn pack(value: MarketInfo) -> PackedMarketInfo {
         let slab0 = value.width.into() + value.swap_fee_rate.into() * TWO_POW_32;
 
@@ -88,7 +85,7 @@ impl MarketInfoStorePacking of StorePacking<MarketInfo, PackedMarketInfo> {
     }
 }
 
-impl MarketStateStorePacking of StorePacking<MarketState, PackedMarketState> {
+pub(crate) impl MarketStateStorePacking of StorePacking<MarketState, PackedMarketState> {
     fn pack(value: MarketState) -> PackedMarketState {
         let curr_sqrt_price: felt252 = value.curr_sqrt_price.try_into().expect('CurrSqrtPriceOF');
         let base_fee_factor: felt252 = value.base_fee_factor.try_into().expect('BaseFeeFactorOF');
@@ -122,7 +119,7 @@ impl MarketStateStorePacking of StorePacking<MarketState, PackedMarketState> {
     }
 }
 
-impl MarketConfigsStorePacking of StorePacking<MarketConfigs, PackedMarketConfigs> {
+pub(crate) impl MarketConfigsStorePacking of StorePacking<MarketConfigs, PackedMarketConfigs> {
     fn pack(value: MarketConfigs) -> PackedMarketConfigs {
         let mut slab: u256 = value.limits.value.min_lower.into();
         slab += value.limits.value.max_lower.into() * TWO_POW_32.into();
@@ -184,7 +181,7 @@ impl MarketConfigsStorePacking of StorePacking<MarketConfigs, PackedMarketConfig
     }
 }
 
-impl LimitInfoStorePacking of StorePacking<LimitInfo, PackedLimitInfo> {
+pub(crate) impl LimitInfoStorePacking of StorePacking<LimitInfo, PackedLimitInfo> {
     fn pack(value: LimitInfo) -> PackedLimitInfo {
         let base_fee_factor: felt252 = value.base_fee_factor.try_into().unwrap();
         let quote_fee_factor: felt252 = value.quote_fee_factor.try_into().unwrap();
@@ -222,7 +219,7 @@ impl LimitInfoStorePacking of StorePacking<LimitInfo, PackedLimitInfo> {
     }
 }
 
-impl OrderBatchStorePacking of StorePacking<OrderBatch, PackedOrderBatch> {
+pub(crate) impl OrderBatchStorePacking of StorePacking<OrderBatch, PackedOrderBatch> {
     fn pack(value: OrderBatch) -> PackedOrderBatch {
         let mut slab0: u256 = value.base_amount.into();
         slab0 += (value.quote_amount.into() % TWO_POW_124.into()) * TWO_POW_128.into();
@@ -253,7 +250,7 @@ impl OrderBatchStorePacking of StorePacking<OrderBatch, PackedOrderBatch> {
     }
 }
 
-impl PositionStorePacking of StorePacking<Position, PackedPosition> {
+pub(crate) impl PositionStorePacking of StorePacking<Position, PackedPosition> {
     fn pack(value: Position) -> PackedPosition {
         assert(value.base_fee_factor_last.val <= MAX_FEE_FACTOR, 'BaseFeeFactorLastOF');
         let mut base_fee_factor_last: u256 = value.base_fee_factor_last.val;
@@ -305,7 +302,7 @@ impl PositionStorePacking of StorePacking<Position, PackedPosition> {
     }
 }
 
-impl LimitOrderStorePacking of StorePacking<LimitOrder, PackedLimitOrder> {
+pub(crate) impl LimitOrderStorePacking of StorePacking<LimitOrder, PackedLimitOrder> {
     fn pack(value: LimitOrder) -> PackedLimitOrder {
         PackedLimitOrder { batch_id: value.batch_id, liquidity: value.liquidity.into(), }
     }

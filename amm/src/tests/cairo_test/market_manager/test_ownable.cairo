@@ -21,7 +21,6 @@ fn _before() -> IMarketManagerDispatcher {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_transfer_and_accept_owner() {
     let market_manager = _before();
     let transfer_owner_params = default_transfer_owner_params();
@@ -33,7 +32,6 @@ fn test_transfer_and_accept_owner() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_transfer_then_update_owner_before_accepting() {
     let market_manager = _before();
     let mut transfer_owner_params = default_transfer_owner_params();
@@ -60,7 +58,6 @@ fn test_transfer_then_update_owner_before_accepting() {
 ////////////////////////////////
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
 fn test_transfer_owner_not_owner() {
     let market_manager = _before();
@@ -71,7 +68,6 @@ fn test_transfer_owner_not_owner() {
 }
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('OnlyNewOwner', 'ENTRYPOINT_FAILED',))]
 fn test_accept_owner_not_transferred() {
     let market_manager = _before();

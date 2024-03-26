@@ -8,7 +8,7 @@ use strategies::strategies::replicating::types::{StrategyParams, StrategyState};
 
 
 #[starknet::interface]
-trait IReplicatingStrategy<TContractState> {
+pub trait IReplicatingStrategy<TContractState> {
     // Contract owner
     fn owner(self: @TContractState) -> ContractAddress;
 
@@ -117,12 +117,18 @@ trait IReplicatingStrategy<TContractState> {
     //   R is the range parameter (controls how volume affects price)
     //   D is the inv_delta parameter (controls how portfolio imbalance affects price)
     //
+    // # Arguments
+    // * `market_id` - market id
+    // * `swap_params` - swap parameters
+    //
     // # Returns
     // * `bid_lower` - new bid lower limit
     // * `bid_upper` - new bid upper limit
     // * `ask_lower` - new ask lower limit
     // * `ask_upper` - new ask upper limit
-    fn get_bid_ask(self: @TContractState, market_id: felt252) -> (u32, u32, u32, u32);
+    fn get_bid_ask(
+        self: @TContractState, market_id: felt252, is_buy: Option<bool>
+    ) -> (u32, u32, u32, u32);
 
     // Initialise strategy for market.
     // At the moment, only callable by contract owner to prevent unwanted claiming of strategies. 
@@ -335,4 +341,11 @@ trait IReplicatingStrategy<TContractState> {
     // # Arguments
     // * `market_id` - market id of strategy
     fn trigger_update_positions(ref self: TContractState, market_id: felt252);
+
+    // Upgrade contract class.
+    // Callable by owner only.
+    //
+    // # Arguments
+    // * `new_class_hash` - new class hash of contract
+    fn upgrade(ref self: TContractState, new_class_hash: ClassHash);
 }

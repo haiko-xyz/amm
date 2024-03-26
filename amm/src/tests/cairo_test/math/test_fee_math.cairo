@@ -1,5 +1,5 @@
 // Core lib imports.
-use integer::BoundedU256;
+use core::integer::BoundedInt;
 
 // Local imports.
 use amm::libraries::math::fee_math::{
@@ -7,7 +7,7 @@ use amm::libraries::math::fee_math::{
 };
 use amm::tests::common::utils::approx_eq;
 use amm::types::core::{LimitInfo, Position};
-use amm::types::i128::I128Zeroable;
+use amm::types::i128::I128Trait;
 use amm::types::i256::I256Trait;
 
 ////////////////////////////////
@@ -15,7 +15,6 @@ use amm::types::i256::I256Trait;
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_calc_fee() {
     let mut fee = calc_fee(0, 0);
     assert(fee == 0, 'calc_fee(0,0)');
@@ -35,19 +34,18 @@ fn test_calc_fee() {
     fee = calc_fee(100000, 100);
     assert(fee == 1000, 'calc_fee(10000,100)');
 
-    fee = calc_fee(BoundedU256::max(), 3333);
+    fee = calc_fee(BoundedInt::max(), 3333);
     assert(
         fee == 38593503342797487934676209303395679687494885889057999994351212749837446108991,
         'calc_fee(MAX,3333)'
     );
 
-    fee = calc_fee(BoundedU256::max(), 10000);
-    assert(fee == BoundedU256::max(), 'calc_fee(MAX,10000)');
+    fee = calc_fee(BoundedInt::max(), 10000);
+    assert(fee == BoundedInt::max(), 'calc_fee(MAX,10000)');
 }
 
 #[test]
 #[should_panic(expected: ('FeeRateOF',))]
-#[available_gas(2000000000)]
 fn test_calc_fee_overflow() {
     calc_fee(50000, 10001);
 }
@@ -57,7 +55,6 @@ fn test_calc_fee_overflow() {
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_gross_to_net() {
     let mut net = gross_to_net(0, 0);
     assert(net == 0, 'gross_to_net(0,0)');
@@ -78,7 +75,7 @@ fn test_gross_to_net() {
     assert(net == 99000, 'gross_to_net(10000,100)');
 
     // Allow max deviation of 1
-    net = gross_to_net(BoundedU256::max(), 3333);
+    net = gross_to_net(BoundedInt::max(), 3333);
     assert(
         approx_eq(
             net, 77198585894518707488894775705292228165775098776582564045106371258075683530945, 1
@@ -86,13 +83,12 @@ fn test_gross_to_net() {
         'gross_to_net(MAX,3333)'
     );
 
-    net = gross_to_net(BoundedU256::max(), 10000);
+    net = gross_to_net(BoundedInt::max(), 10000);
     assert(net == 0, 'gross_to_net(MAX,10000)');
 }
 
 #[test]
 #[should_panic(expected: ('FeeRateOF',))]
-#[available_gas(2000000000)]
 fn test_gross_to_net_overflow() {
     gross_to_net(50000, 10001);
 }
@@ -102,7 +98,6 @@ fn test_gross_to_net_overflow() {
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_net_to_gross() {
     let mut net = net_to_gross(0, 0);
     assert(net == 0, 'net_to_gross(0,0)');
@@ -126,24 +121,22 @@ fn test_net_to_gross() {
         net_to_gross(
             104212880313584575881213886507819117067942986199076507635511825607121816675942, 1000
         );
-    assert(net == BoundedU256::max(), 'net_to_gross(MAX*0.9,1000)');
+    assert(net == BoundedInt::max(), 'net_to_gross(MAX*0.9,1000)');
 
-    net = net_to_gross(BoundedU256::max(), 0);
-    assert(net == BoundedU256::max(), 'net_to_gross(MAX,0)');
+    net = net_to_gross(BoundedInt::max(), 0);
+    assert(net == BoundedInt::max(), 'net_to_gross(MAX,0)');
 }
 
 #[test]
 #[should_panic(expected: ('FeeRateOF',))]
-#[available_gas(2000000000)]
 fn test_net_to_gross_fee_rate_overflow() {
     net_to_gross(50000, 10001);
 }
 
 #[test]
 #[should_panic(expected: ('MulDivOF',))]
-#[available_gas(2000000000)]
 fn test_net_to_gross_amount_overflow() {
-    net_to_gross(BoundedU256::max(), 10);
+    net_to_gross(BoundedInt::max(), 10);
 }
 
 ////////////////////////////////
@@ -151,7 +144,6 @@ fn test_net_to_gross_amount_overflow() {
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_net_to_fee() {
     let mut fee = net_to_fee(0, 0);
     assert(fee == 0, 'net_to_fee(0,0)');
@@ -192,7 +184,6 @@ fn test_net_to_fee() {
 
 #[test]
 #[should_panic(expected: ('FeeRateOF',))]
-#[available_gas(2000000000)]
 fn test_net_to_fee_overflow() {
     net_to_fee(50000, 10001);
 }
@@ -202,7 +193,6 @@ fn test_net_to_fee_overflow() {
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_get_fee_inside_cases() {
     let mut lower_limit_info = empty_limit_info();
     let mut upper_limit_info = empty_limit_info();
@@ -259,7 +249,7 @@ fn test_get_fee_inside_cases() {
 fn empty_limit_info() -> LimitInfo {
     LimitInfo {
         liquidity: 0,
-        liquidity_delta: I128Zeroable::zero(),
+        liquidity_delta: I128Trait::new(0, false),
         quote_fee_factor: 0,
         base_fee_factor: 0,
         nonce: 0,

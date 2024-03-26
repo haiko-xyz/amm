@@ -74,7 +74,6 @@ fn before(
 ////////////////////////////////
 
 #[test]
-#[available_gas(15000000000)]
 fn test_fee_controller() {
     let fee_rate = 30;
     let (market_manager, _base_token, _quote_token, market_id, _fee_controller) = before(fee_rate);
@@ -105,7 +104,6 @@ fn test_fee_controller() {
 
 #[test]
 #[should_panic(expected: ('FeeRateOF', 'ENTRYPOINT_FAILED',))]
-#[available_gas(15000000000)]
 fn test_fee_controller_fee_rate_overflow() {
     let fee_rate = 10001;
     let (market_manager, _base_token, _quote_token, market_id, _fee_controller) = before(fee_rate);

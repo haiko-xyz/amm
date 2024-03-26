@@ -1,9 +1,5 @@
 // Core lib imports.
-use core::result::ResultTrait;
-use traits::TryInto;
-use option::OptionTrait;
-use array::ArrayTrait;
-use starknet::deploy_syscall;
+use starknet::syscalls::deploy_syscall;
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT};
@@ -76,7 +72,6 @@ fn setup_test_cases(tree_contract: ITestTreeContractDispatcher, market_id: felt2
 ////////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_get_and_flip_bit() {
     let (_market_manager, _base_token, _quote_token, market_id, tree_contract) = before();
 
@@ -112,7 +107,6 @@ fn test_get_and_flip_bit() {
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_next_limit_buy_cases_width_1() {
     let (_market_manager, _base_token, _quote_token, market_id, tree_contract) = before();
 
@@ -146,7 +140,6 @@ fn test_next_limit_buy_cases_width_1() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 fn test_next_limit_sell_cases_width_1() {
     let (_market_manager, _base_token, _quote_token, market_id, tree_contract) = before();
 
@@ -174,7 +167,6 @@ fn test_next_limit_sell_cases_width_1() {
 ////////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_get_segment_and_position_cases() {
     let (mut segment, mut position) = _get_segment_and_position(OFFSET - MIN_LIMIT);
     assert(segment == 0 && position == 0, 'seg_pos(MIN)');
@@ -202,7 +194,6 @@ fn test_get_segment_and_position_cases() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('SegPosLimitOF',))]
 fn test_get_segment_and_position_overflow() {
     _get_segment_and_position(OFFSET + MAX_LIMIT + 1);

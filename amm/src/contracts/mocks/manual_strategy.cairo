@@ -7,7 +7,7 @@ use amm::types::core::PositionInfo;
 ////////////////////////////////
 
 #[starknet::interface]
-trait IManualStrategy<TContractState> {
+pub trait IManualStrategy<TContractState> {
     fn queued_bid(self: @TContractState) -> PositionRange;
     fn queued_ask(self: @TContractState) -> PositionRange;
     fn base_reserves(self: @TContractState) -> u256;
@@ -38,7 +38,7 @@ trait IManualStrategy<TContractState> {
 ////////////////////////////////
 
 #[derive(Drop, Copy, Serde, starknet::Store)]
-struct PositionRange {
+pub struct PositionRange {
     lower_limit: u32,
     upper_limit: u32,
 }
@@ -49,17 +49,14 @@ struct PositionRange {
 
 // Test strategy where positions are set manually.
 #[starknet::contract]
-mod ManualStrategy {
+pub mod ManualStrategy {
     // Core lib imports.
-    use array::SpanTrait;
-    use zeroable::Zeroable;
-    use integer::BoundedU256;
-    use cmp::{min, max};
+    use core::integer::BoundedInt;
+    use core::cmp::{min, max};
     use starknet::ContractAddress;
-    use starknet::contract_address::ContractAddressZeroable;
-    use starknet::info::{get_caller_address, get_contract_address, get_block_number};
+    use starknet::{get_caller_address, get_contract_address, get_block_number};
     use starknet::class_hash::ClassHash;
-    use starknet::replace_class_syscall;
+    use starknet::syscalls::replace_class_syscall;
 
     // Local imports.
     use super::{IManualStrategy, PositionRange};
@@ -130,14 +127,14 @@ mod ManualStrategy {
     ////////////////////////////////
 
     #[generate_trait]
-    impl ModifierImpl of ModifierTrait {
+    pub impl ModifierImpl of ModifierTrait {
         fn assert_only_owner(self: @ContractState) {
             assert(self.owner.read() == get_caller_address(), 'OnlyOwner');
         }
     }
 
     #[abi(embed_v0)]
-    impl Strategy of IStrategy<ContractState> {
+    pub impl Strategy of IStrategy<ContractState> {
         // Get market manager contract address
         fn market_manager(self: @ContractState) -> ContractAddress {
             self.market_manager.read().contract_address
@@ -352,11 +349,11 @@ mod ManualStrategy {
             let quote_token = ERC20ABIDispatcher { contract_address: market_info.quote_token };
             if base_amount != 0 {
                 base_token.transferFrom(caller, contract, base_amount);
-                base_token.approve(market_manager.contract_address, BoundedU256::max());
+                base_token.approve(market_manager.contract_address, BoundedInt::max());
             }
             if quote_amount != 0 {
                 quote_token.transferFrom(caller, contract, quote_amount);
-                quote_token.approve(market_manager.contract_address, BoundedU256::max());
+                quote_token.approve(market_manager.contract_address, BoundedInt::max());
             }
 
             // Update reserves.

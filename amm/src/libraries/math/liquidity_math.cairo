@@ -1,22 +1,21 @@
 // Core lib imports.
-use traits::TryInto;
-use option::OptionTrait;
-use integer::BoundedU128;
-use integer::{u256_wide_mul, u512_safe_div_rem_by_u256, u256_try_as_non_zero};
+use core::integer::BoundedInt;
+use core::integer::{u256_wide_mul, u512_safe_div_rem_by_u256};
+use core::zeroable::NonZero;
 
 // Local imports.
 use amm::libraries::math::{math, fee_math, price_math};
 use amm::libraries::constants::{ONE, MAX_NUM_LIMITS};
 use amm::types::core::{MarketState, LimitInfo};
 use amm::types::i128::{i128, I128Trait};
-use amm::types::i256::{i256, I256Zeroable};
+use amm::types::i256::{i256, I256Trait};
 
 // Add signed i128 delta to unsigned u128 amount.
 //
 // # Arguments
 // * `amount` - starting amount.
 // * `liquidity_delta` - Liquidity delta to apply
-fn add_delta(ref amount: u128, delta: i128) {
+pub fn add_delta(ref amount: u128, delta: i128) {
     if delta.sign {
         amount -= delta.val;
     } else {
@@ -29,7 +28,7 @@ fn add_delta(ref amount: u128, delta: i128) {
 // # Arguments
 // * `amount` - starting amount.
 // * `liquidity_delta` - Liquidity delta to apply
-fn add_delta_u256(ref amount: u256, delta: i256) {
+pub fn add_delta_u256(ref amount: u256, delta: i256) {
     if delta.sign {
         amount -= delta.val.into();
     } else {
@@ -47,7 +46,7 @@ fn add_delta_u256(ref amount: u256, delta: i256) {
 // 
 // # Returns
 // * `quote_amount` - amount of quote tokens transferred out (-ve) or in (+ve) from / to pool
-fn liquidity_to_quote(
+pub fn liquidity_to_quote(
     lower_sqrt_price: u256, upper_sqrt_price: u256, liquidity_delta: i128, round_up: bool,
 ) -> i256 {
     let val = math::mul_div(
@@ -66,7 +65,7 @@ fn liquidity_to_quote(
 //
 // # Returns
 // * `base_amount` - amount of base tokens transferred out (-ve) or in (+ve) from / to pool
-fn liquidity_to_base(
+pub fn liquidity_to_base(
     lower_sqrt_price: u256, upper_sqrt_price: u256, liquidity_delta: i128, round_up: bool,
 ) -> i256 {
     // Handle edge case to avoid dividing by zero.
@@ -89,9 +88,10 @@ fn liquidity_to_base(
     } // Case 2: used for smaller sqrt prices 
     else {
         let product = u256_wide_mul(lower_sqrt_price, upper_sqrt_price);
-        let (q, r) = u512_safe_div_rem_by_u256(
-            product, u256_try_as_non_zero(upper_sqrt_price - lower_sqrt_price).unwrap()
-        );
+        let sqrt_price_delta: NonZero<u256> = (upper_sqrt_price - lower_sqrt_price)
+            .try_into()
+            .unwrap();
+        let (q, r) = u512_safe_div_rem_by_u256(product, sqrt_price_delta);
         let q_u256 = u256 { low: q.limb0, high: q.limb1 };
         let denominator = q_u256 + if r != 0 && !round_up {
             1
@@ -114,7 +114,7 @@ fn liquidity_to_base(
 // 
 // # Returns
 // * `liquidity` - liquidity equivalent
-fn quote_to_liquidity(
+pub fn quote_to_liquidity(
     lower_sqrt_price: u256, upper_sqrt_price: u256, quote_amount: u256, round_up: bool
 ) -> u128 {
     let liquidity = math::mul_div(quote_amount, ONE, upper_sqrt_price - lower_sqrt_price, round_up);
@@ -131,7 +131,7 @@ fn quote_to_liquidity(
 // 
 // # Returns
 // * `liquidity_delta` - liquidity delta
-fn base_to_liquidity(
+pub fn base_to_liquidity(
     lower_sqrt_price: u256, upper_sqrt_price: u256, base_amount: u256, round_up: bool
 ) -> u128 {
     // Handle edge case to avoid division by 0.
@@ -159,7 +159,7 @@ fn base_to_liquidity(
 // # Returns
 // * `base_amount` - amount of base tokens transferred out (-ve) or in (+ve)
 // * `quote_amount` - amount of quote tokens transferred out (-ve) or in (+ve)
-fn liquidity_to_amounts(
+pub fn liquidity_to_amounts(
     liquidity_delta: i128, curr_sqrt_price: u256, lower_sqrt_price: u256, upper_sqrt_price: u256,
 ) -> (i256, i256) {
     // Note we round down amounts for liquidity removals, and round up for liquidity additions
@@ -170,7 +170,7 @@ fn liquidity_to_amounts(
         let quote_amount = liquidity_to_quote(
             lower_sqrt_price, upper_sqrt_price, liquidity_delta, !liquidity_delta.sign,
         );
-        (I256Zeroable::zero(), quote_amount)
+        (I256Trait::new(0, false), quote_amount)
     } // Case 2: price range contains current price
     else if lower_sqrt_price <= curr_sqrt_price {
         let base_amount = liquidity_to_base(
@@ -185,7 +185,7 @@ fn liquidity_to_amounts(
         let base_amount = liquidity_to_base(
             lower_sqrt_price, upper_sqrt_price, liquidity_delta, !liquidity_delta.sign
         );
-        (base_amount, I256Zeroable::zero())
+        (base_amount, I256Trait::new(0, false))
     }
 }
 
@@ -194,11 +194,11 @@ fn liquidity_to_amounts(
 //
 // # Arguments
 // * `market_id` - market id
-fn max_liquidity_per_limit(width: u32) -> u128 {
+pub fn max_liquidity_per_limit(width: u32) -> u128 {
     let intervals = MAX_NUM_LIMITS / width + if MAX_NUM_LIMITS % width != 0 {
         1
     } else {
         0
     };
-    BoundedU128::max() / intervals.into()
+    BoundedInt::max() / intervals.into()
 }

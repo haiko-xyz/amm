@@ -2,7 +2,6 @@
 use starknet::ContractAddress;
 use starknet::contract_address_const;
 use starknet::testing::set_contract_address;
-use debug::PrintTrait;
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
@@ -114,7 +113,6 @@ fn before_linear() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDis
 ////////////////////////////////
 
 #[test]
-#[available_gas(1000000000)]
 fn test_modify_position_above_curr_price_cases() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
@@ -254,7 +252,6 @@ fn test_modify_position_above_curr_price_cases() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_modify_position_wraps_curr_price_cases() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
@@ -324,7 +321,6 @@ fn test_modify_position_wraps_curr_price_cases() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_modify_position_below_curr_price_cases() {
     let (market_manager, base_token, quote_token, market_id) = before(width: 1);
 
@@ -438,7 +434,6 @@ fn test_modify_position_below_curr_price_cases() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_collect_fees() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
@@ -492,7 +487,6 @@ fn test_collect_fees() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_collect_fees_multiple_lps() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
@@ -546,7 +540,6 @@ fn test_collect_fees_multiple_lps() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_collect_fees_intermediate_withdrawal() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
@@ -614,7 +607,6 @@ fn test_collect_fees_intermediate_withdrawal() {
 }
 
 #[test]
-#[available_gas(100000000)]
 fn test_modify_position_clears_single_limit_if_other_active() {
     let width = 1;
     let (market_manager, _base_token, _quote_token, market_id) = before(width);
@@ -657,7 +649,6 @@ fn test_modify_position_clears_single_limit_if_other_active() {
 ////////////////////////////////
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('LimitsUnordered', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_limits_unordered() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
@@ -671,7 +662,6 @@ fn test_modify_position_limits_unordered() {
 }
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('NotMultipleOfWidth', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_lower_limit_not_multiple_of_width() {
     let width = 25;
@@ -686,7 +676,6 @@ fn test_modify_position_lower_limit_not_multiple_of_width() {
 }
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('NotMultipleOfWidth', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_upper_limit_not_multiple_of_width() {
     let width = 25;
@@ -701,7 +690,6 @@ fn test_modify_position_upper_limit_not_multiple_of_width() {
 }
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('UpperLimitOF', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_upper_limit_overflow() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
@@ -715,7 +703,6 @@ fn test_modify_position_upper_limit_overflow() {
 }
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('LimitLiqOF', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_liq_at_limit_overflow_width_1() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
@@ -729,7 +716,6 @@ fn test_modify_position_liq_at_limit_overflow_width_1() {
 }
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('LimitLiqOF', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_liq_at_limit_overflow_width_25() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 25);
@@ -743,7 +729,6 @@ fn test_modify_position_liq_at_limit_overflow_width_25() {
 }
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('UpdateLimitLiq', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_remove_more_than_position() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 25);
@@ -764,7 +749,6 @@ fn test_modify_position_remove_more_than_position() {
 }
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('AddLiqDisabled', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_in_positions_disabled_market() {
     let (market_manager, _base_token, _quote_token, market_id) = before_no_positions();
@@ -778,7 +762,6 @@ fn test_modify_position_in_positions_disabled_market() {
 }
 
 #[test]
-#[available_gas(100000000)]
 #[should_panic(expected: ('LimitsOutOfRange', 'ENTRYPOINT_FAILED',))]
 fn test_modify_position_concentrated_in_linear_market() {
     let (market_manager, _base_token, _quote_token, market_id) = before_linear();

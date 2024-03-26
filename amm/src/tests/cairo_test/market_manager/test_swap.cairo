@@ -1,9 +1,6 @@
 // Core lib imports.
-use array::SpanTrait;
 use starknet::ContractAddress;
-use cmp::{min, max};
-use debug::PrintTrait;
-use integer::BoundedU256;
+use core::cmp::{min, max};
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
@@ -15,7 +12,7 @@ use amm::interfaces::IQuoter::{IQuoterDispatcher, IQuoterDispatcherTrait};
 use amm::types::core::MarketState;
 use amm::types::i128::{i128, I128Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
-    deploy_market_manager, create_market, modify_position, swap
+    deploy_market_manager, deploy_market_manager_with_salt, create_market, modify_position, swap
 };
 use amm::tests::cairo_test::helpers::token::{deploy_token, fund, approve};
 use amm::tests::cairo_test::helpers::quoter::deploy_quoter;
@@ -34,9 +31,9 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 // TYPES
 ////////////////////////////////
 
-#[derive(Drop, Copy)]
+#[derive(Drop, Clone)]
 struct MarketStateCase {
-    description: felt252,
+    description: ByteArray,
     width: u32,
     swap_fee_rate: u16,
     start_limit: u32,
@@ -104,14 +101,29 @@ fn before_with_market() -> (
     (market_manager, base_token, quote_token, market_id)
 }
 
-fn market_state_test_cases() -> Array<MarketStateCase> {
+fn deploy_tokens() -> (ERC20ABIDispatcher, ERC20ABIDispatcher) {
+    // Deploy tokens.
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
+    let base_token = deploy_token(base_token_params);
+    let quote_token = deploy_token(quote_token_params);
+
+    // Fund LP with initial token balances and approve market manager as spender.
+    let initial_base_amount = to_e28(5000000000000000000000000000000000000000000);
+    let initial_quote_amount = to_e28(100000000000000000000000000000000000000000000);
+    fund(base_token, alice(), initial_base_amount);
+    fund(quote_token, alice(), initial_quote_amount);
+
+    (base_token, quote_token)
+}
+
+fn market_state_test_cases_set1() -> Array<MarketStateCase> {
     let mut markets = ArrayTrait::<MarketStateCase>::new();
 
     //  0.05% swap fee, 1 width, 1:1 price, 2e28 liquidity over entire range
     markets
         .append(
             MarketStateCase {
-                description: '1) .05% 1 1:1 2e28(max range)',
+                description: "1) .05% 1 1:1 2e28(max range)",
                 width: 1,
                 swap_fee_rate: 5,
                 start_limit: OFFSET + 0,
@@ -159,7 +171,7 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '2) .25% 10 1:1 2e28(max range)',
+                description: "2) .25% 10 1:1 2e28(max range)",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) + 0,
@@ -207,7 +219,7 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '3) 1% 100 1:1 2e28(max range)',
+                description: "3) 1% 100 1:1 2e28(max range)",
                 width: 100,
                 swap_fee_rate: 100,
                 start_limit: price_math::offset(100) + 0,
@@ -255,7 +267,7 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '4) .25% 10 10:1 2e28(max range)',
+                description: "4) .25% 10 10:1 2e28(max range)",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) + 230260,
@@ -303,7 +315,7 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '5) .25% 10 1:10 2e28(max range)',
+                description: "5) .25% 10 1:10 2e28(max range)",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 230260,
@@ -343,11 +355,17 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
             }
         );
 
+    markets
+}
+
+fn market_state_test_cases_set2() -> Array<MarketStateCase> {
+    let mut markets = ArrayTrait::<MarketStateCase>::new();
+
     // 0.25% swap fee, 10 width, 1:1 price, 4e28 liquidity around (excluding) curr price
     markets
         .append(
             MarketStateCase {
-                description: '6) .25% 10 1:1 4e28 curr P',
+                description: "6) .25% 10 1:1 4e28 curr P",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 0,
@@ -400,7 +418,7 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '7) .25% 10 1:1 6e28 (curr P)',
+                description: "7) .25% 10 1:1 6e28 (curr P)",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 0,
@@ -458,7 +476,7 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '8) .05% 1 1:1 2e28 (stable)',
+                description: "8) .05% 1 1:1 2e28 (stable)",
                 width: 1,
                 swap_fee_rate: 5,
                 start_limit: price_math::offset(1) - 0,
@@ -506,7 +524,7 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '9) .25% 10 1:1 2e28 (quote liq)',
+                description: "9) .25% 10 1:1 2e28 (quote liq)",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 0,
@@ -550,7 +568,7 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '10) .25% 10 1:1 2e28 (base liq)',
+                description: "10) .25% 10 1:1 2e28 (base liq)",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 0,
@@ -590,11 +608,17 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
             }
         );
 
+    markets
+}
+
+fn market_state_test_cases_set3() -> Array<MarketStateCase> {
+    let mut markets = ArrayTrait::<MarketStateCase>::new();
+
     // 0.25% swap fee, 10 width, near max price, 2e28 liquidity over entire range
     markets
         .append(
             MarketStateCase {
-                description: '11) .25% 10 2e28 (near max P)',
+                description: "11) .25% 10 2e28 (near max P)",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) + 7906500,
@@ -656,7 +680,7 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '12) .25% 10 2e28 (near min P)',
+                description: "12) .25% 10 2e28 (near min P)",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 7906500,
@@ -718,7 +742,7 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '13) .25% 10 1:1 max full',
+                description: "13) .25% 10 1:1 max full",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 0,
@@ -929,11 +953,18 @@ fn swap_test_cases() -> Array<SwapCase> {
 // TESTS
 ////////////////////////////////
 
-#[test]
-#[available_gas(15000000000)]
-fn test_swap_cases() {
+fn _test_swap_cases(set: u32) {
+    // Deploy tokens.
+    let (base_token, quote_token) = deploy_tokens();
+
     // Fetch test cases.
-    let market_cases = market_state_test_cases();
+    let market_cases = if set == 1 {
+        market_state_test_cases_set1()
+    } else if set == 2 {
+        market_state_test_cases_set2()
+    } else {
+        market_state_test_cases_set3()
+    };
 
     // Iterate through pool test cases.
     let mut index = 0;
@@ -943,10 +974,10 @@ fn test_swap_cases() {
         }
 
         // Fetch test cases.
-        let market_case: MarketStateCase = *market_cases[index];
+        let market_case: MarketStateCase = market_cases[index].clone();
         let swap_cases = swap_test_cases();
 
-        _print_index('*** MKT 01', index);
+        println!("*** MARKET: {}", (set - 1) * 5 + index + 1);
 
         // Iterate through swap test cases.
         let mut swap_index = 0;
@@ -959,7 +990,15 @@ fn test_swap_cases() {
             let swap_case: SwapCase = *swap_cases[swap_index];
 
             if !_contains(market_case.skip_cases, swap_index.into() + 1) {
-                let (market_manager, base_token, quote_token) = before();
+                // Deploy market manager with salt and approve token spend.
+                let salt: u32 = index * 1000 + swap_index;
+                let market_manager = deploy_market_manager_with_salt(owner(), salt.into());
+                let initial_base_amount = to_e28(5000000000000000000000000000000000000000000);
+                let initial_quote_amount = to_e28(100000000000000000000000000000000000000000000);
+                approve(base_token, alice(), market_manager.contract_address, initial_base_amount);
+                approve(
+                    quote_token, alice(), market_manager.contract_address, initial_quote_amount
+                );
 
                 // Create the market.
                 let mut params = default_market_params();
@@ -969,7 +1008,7 @@ fn test_swap_cases() {
                 params.width = market_case.width;
                 params.swap_fee_rate = market_case.swap_fee_rate;
 
-                market_case.description.print();
+                println!("{}", market_case.description);
                 let market_id = create_market(market_manager, params);
 
                 // Mint positions.
@@ -1005,7 +1044,7 @@ fn test_swap_cases() {
                 //     market_manager, market_id, base_token, quote_token
                 // );
                 let start_sqrt_price = market_manager.curr_sqrt_price(market_id);
-                _print_index('*** SWAP 01', swap_index).print();
+                println!("*** SWAP: {}", swap_index + 1);
 
                 let unsafe_quote = market_manager
                     .unsafe_quote(
@@ -1016,7 +1055,11 @@ fn test_swap_cases() {
                 let quoter = deploy_quoter(owner(), market_manager.contract_address);
                 let quote = quoter
                     .quote(market_id, swap_case.is_buy, swap_case.amount, swap_case.exact_input);
-                assert(unsafe_quote == quote, _print_index('quote 01', swap_index));
+                if unsafe_quote != quote {
+                    println!("*** QUOTE MISMATCH: {}", swap_index + 1);
+                    println!("unsafe_quote: {}, quote: {}", unsafe_quote, quote);
+                    panic!();
+                }
 
                 let mut params = swap_params(
                     alice(),
@@ -1036,12 +1079,10 @@ fn test_swap_cases() {
                 let (amount_in, amount_out, fees) = swap(market_manager, params);
 
                 let (amount_in_exp, amount_out_exp, fees_exp) = *market_case.exp.at(swap_index);
-                'amount_in'.print();
-                amount_in.print();
-                'amount_out'.print();
-                amount_out.print();
-                'fees'.print();
-                fees.print();
+
+                println!("Amount In: {}", amount_in);
+                println!("Amount Out: {}", amount_out);
+                println!("Fees: {}", fees);
 
                 // When swapping very small amounts relative to available liquidity, there can
                 // be large percentage differences in swap amounts due to rounding errors in
@@ -1060,42 +1101,48 @@ fn test_swap_cases() {
                 let MAX_DEVIATION = 20;
                 let PRECISION_PLACES = 8;
 
-                assert(
-                    if amount_in == 0 || market_case.liquidity.into() / amount_in >= THRESHOLD {
-                        if !swap_case.exact_input {
-                            amount_in >= amount_in_exp
-                        } else {
-                            approx_eq(amount_in, amount_in_exp, MAX_DEVIATION)
-                        }
+                println!("amount_in: {}, amount_in_exp: {}", amount_in, amount_in_exp);
+                if !(if amount_in == 0 || market_case.liquidity.into() / amount_in >= THRESHOLD {
+                    if !swap_case.exact_input {
+                        amount_in >= amount_in_exp
                     } else {
-                        approx_eq_pct(amount_in, amount_in_exp, PRECISION_PLACES)
-                    },
-                    _print_index('amount in 01', swap_index)
-                );
-                assert(
-                    if amount_out == 0 || market_case.liquidity.into() / amount_out >= THRESHOLD {
-                        if swap_case.exact_input {
-                            amount_out <= amount_out_exp
-                        } else {
-                            approx_eq(amount_out, amount_out_exp, MAX_DEVIATION)
-                        }
+                        approx_eq(amount_in, amount_in_exp, MAX_DEVIATION)
+                    }
+                } else {
+                    approx_eq_pct(amount_in, amount_in_exp, PRECISION_PLACES)
+                }) {
+                    println!(
+                        "*** AMOUNT IN MISMATCH ({}): {} (amt), {} (exp)",
+                        swap_index + 1,
+                        amount_in,
+                        amount_in_exp
+                    );
+                    panic!();
+                }
+                if !(if amount_out == 0 || market_case.liquidity.into() / amount_out >= THRESHOLD {
+                    if swap_case.exact_input {
+                        amount_out <= amount_out_exp
                     } else {
-                        approx_eq_pct(amount_out, amount_out_exp, PRECISION_PLACES)
-                    },
-                    _print_index('amount out 01', swap_index)
-                );
-                assert(
-                    if amount_in == 0 || market_case.liquidity.into() / amount_in >= THRESHOLD {
-                        if swap_case.exact_input {
-                            approx_eq(fees, fees_exp, MAX_DEVIATION)
-                        } else {
-                            fees >= fees_exp
-                        }
+                        approx_eq(amount_out, amount_out_exp, MAX_DEVIATION)
+                    }
+                } else {
+                    approx_eq_pct(amount_out, amount_out_exp, PRECISION_PLACES)
+                }) {
+                    println!("*** AMOUNT OUT MISMATCH: {}", swap_index + 1);
+                    panic!();
+                }
+                if !(if amount_in == 0 || market_case.liquidity.into() / amount_in >= THRESHOLD {
+                    if swap_case.exact_input {
+                        approx_eq(fees, fees_exp, MAX_DEVIATION)
                     } else {
-                        approx_eq_pct(fees, fees_exp, PRECISION_PLACES)
-                    },
-                    _print_index('fees 01', swap_index)
-                );
+                        fees >= fees_exp
+                    }
+                } else {
+                    approx_eq_pct(fees, fees_exp, PRECISION_PLACES)
+                }) {
+                    println!("*** FEES MISMATCH: {}", swap_index + 1);
+                    panic!();
+                }
                 // // Snapshot state after.
                 // let (
                 //     market_state_after,
@@ -1111,14 +1158,14 @@ fn test_swap_cases() {
 
                 // Check price change is handled correctly.
                 let end_sqrt_price = market_manager.curr_sqrt_price(market_id);
-                assert(
-                    if swap_case.is_buy {
-                        end_sqrt_price >= start_sqrt_price
-                    } else {
-                        end_sqrt_price <= start_sqrt_price
-                    },
-                    _print_index('sqrt price 01', swap_index)
-                );
+                if !(if swap_case.is_buy {
+                    end_sqrt_price >= start_sqrt_price
+                } else {
+                    end_sqrt_price <= start_sqrt_price
+                }) {
+                    println!("*** SQRT PRICE MISMATCH: {}", swap_index + 1);
+                    panic!();
+                }
             }
 
             swap_index += 1;
@@ -1129,7 +1176,22 @@ fn test_swap_cases() {
 }
 
 #[test]
-#[available_gas(15000000000)]
+fn test_swap_cases_set1() {
+    _test_swap_cases(1);
+}
+
+#[test]
+fn test_swap_cases_set2() {
+    _test_swap_cases(2);
+}
+
+#[test]
+fn test_swap_cases_set3() {
+    _test_swap_cases(3);
+}
+
+
+#[test]
 fn test_swap_threshold_amount_exact_input() {
     let (market_manager, _base_token, _quote_token, market_id) = before_with_market();
 
@@ -1159,7 +1221,6 @@ fn test_swap_threshold_amount_exact_input() {
 
 #[test]
 #[should_panic(expected: ('ThresholdAmount', 996999999950299550, 0, 'ENTRYPOINT_FAILED'))]
-#[available_gas(15000000000)]
 fn test_swap_threshold_amount_exact_input_fails() {
     let (market_manager, _base_token, _quote_token, market_id) = before_with_market();
 
@@ -1188,7 +1249,6 @@ fn test_swap_threshold_amount_exact_input_fails() {
 }
 
 #[test]
-#[available_gas(15000000000)]
 fn test_swap_threshold_amount_exact_output() {
     let (market_manager, _base_token, _quote_token, market_id) = before_with_market();
 
@@ -1218,7 +1278,6 @@ fn test_swap_threshold_amount_exact_output() {
 
 #[test]
 #[should_panic(expected: ('ThresholdAmount', 1003009027131394184, 0, 'ENTRYPOINT_FAILED'))]
-#[available_gas(15000000000)]
 fn test_swap_threshold_amount_exact_output_fails() {
     let (market_manager, _base_token, _quote_token, market_id) = before_with_market();
 
@@ -1244,7 +1303,7 @@ fn test_swap_threshold_amount_exact_output_fails() {
         Option::None(())
     );
     let (amount_in, _, _) = swap(market_manager, params);
-    amount_in.print();
+    println!("Amount In: {}", amount_in);
 }
 
 ////////////////////////////////
@@ -1280,13 +1339,5 @@ fn _contains(span: Span<felt252>, value: felt252) -> bool {
         }
 
         index += 1;
-    }
-}
-
-fn _print_index(label: felt252, index: u32) -> felt252 {
-    if index < 9 {
-        (label + index.into())
-    } else {
-        (label + 255 + (index - 9).into())
     }
 }

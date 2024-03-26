@@ -1,6 +1,5 @@
 // Core lib imports.
 use starknet::testing::set_contract_address;
-use debug::PrintTrait;
 
 // Local imports.
 use amm::contracts::quoter::Quoter;
@@ -13,9 +12,6 @@ use amm::tests::cairo_test::helpers::market_manager::{
 use amm::tests::cairo_test::helpers::quoter::deploy_quoter;
 use amm::tests::common::params::{owner, alice, default_token_params, default_market_params};
 use amm::tests::common::utils::{to_e18, to_e18_u128, to_e28, encode_sqrt_price};
-
-// External imports.
-use openzeppelin::upgrades::interface::{IUpgradeableDispatcherTrait, IUpgradeableDispatcher};
 
 ////////////////////////////////
 // SETUP
@@ -36,13 +32,11 @@ fn before() -> (IMarketManagerDispatcher, IQuoterDispatcher) {
 
 #[test]
 #[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
-#[available_gas(40000000)]
 fn test_upgrade_quoter_not_owner() {
     // Deploy market manager and tokens.
     let (_market_manager, quoter) = before();
 
     // Upgrade market manager.
     set_contract_address(alice());
-    let dispatcher = IUpgradeableDispatcher { contract_address: quoter.contract_address };
-    dispatcher.upgrade(Quoter::TEST_CLASS_HASH.try_into().unwrap());
+    quoter.upgrade(Quoter::TEST_CLASS_HASH.try_into().unwrap());
 }

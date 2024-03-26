@@ -2,7 +2,6 @@ use amm::libraries::constants::{MAX_LIMIT, MAX_SQRT_PRICE, MIN_SQRT_PRICE};
 use amm::libraries::math::price_math::{
     shift_limit, unshift_limit, limit_to_sqrt_price, sqrt_price_to_limit, max_limit
 };
-use snforge_std::PrintTrait;
 
 ////////////////////////////////
 // TESTS

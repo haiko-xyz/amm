@@ -3,7 +3,7 @@ use amm::types::core::{
 };
 
 #[starknet::interface]
-trait IStorePackingContract<TContractState> {
+pub trait IStorePackingContract<TContractState> {
     fn get_market_info(self: @TContractState, market_id: felt252) -> MarketInfo;
     fn get_market_state(self: @TContractState, market_id: felt252) -> MarketState;
     fn get_market_configs(self: @TContractState, market_id: felt252) -> MarketConfigs;
@@ -24,7 +24,7 @@ trait IStorePackingContract<TContractState> {
 }
 
 #[starknet::contract]
-mod StorePackingContract {
+pub mod StorePackingContract {
     use amm::types::core::{
         MarketInfo, MarketState, LimitInfo, OrderBatch, Position, LimitOrder, MarketConfigs
     };

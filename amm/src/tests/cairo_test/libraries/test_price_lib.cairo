@@ -8,7 +8,6 @@ use amm::libraries::constants::{
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_check_limits_cases() {
     check_limits(0, 1, 1, Default::default(), false);
     check_limits(1, 2, 1, Default::default(), false);
@@ -18,21 +17,18 @@ fn test_check_limits_cases() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('LimitsUnordered',))]
 fn test_check_limits_limits_equal() {
     check_limits(1, 1, 1, Default::default(), false);
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('LimitsUnordered',))]
 fn test_check_limits_wrong_order() {
     check_limits(2, 1, 1, Default::default(), false);
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('LimitsOutOfRange',))]
 fn test_check_limits_upper_limit_overflow() {
     check_limits(1, OFFSET + MAX_LIMIT + 1, 1, Default::default(), false);
@@ -43,7 +39,6 @@ fn test_check_limits_upper_limit_overflow() {
 ////////////////////////////////
 
 #[test]
-#[available_gas(2000000000)]
 fn test_check_threshold_cases() {
     check_threshold(170000000000, 160000000000, true);
     check_threshold(MIN_SQRT_PRICE + 1, MIN_SQRT_PRICE, true);
@@ -55,42 +50,36 @@ fn test_check_threshold_cases() {
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('ThresholdInvalid',))]
 fn test_check_threshold_current_exceeds_bid() {
     check_threshold(1200000000, 1600000000, true);
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('ThresholdInvalid',))]
 fn test_check_threshold_current_equals_bid() {
     check_threshold(1600000000, 1600000000, true);
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('ThresholdInvalid',))]
 fn test_check_threshold_ask_equals_current() {
     check_threshold(1600000000, 1600000000, false);
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('ThresholdInvalid',))]
 fn test_check_threshold_ask_exceeds_current() {
     check_threshold(2000000000, 1600000000, false);
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('ThresholdInvalid',))]
 fn test_check_threshold_bid_overflow() {
     check_threshold(MAX_SQRT_PRICE + 1, 1600000000, true);
 }
 
 #[test]
-#[available_gas(2000000000)]
 #[should_panic(expected: ('ThresholdInvalid',))]
 fn test_check_threshold_ask_underflow() {
     check_threshold(MIN_SQRT_PRICE - 1, 1600000000, false);

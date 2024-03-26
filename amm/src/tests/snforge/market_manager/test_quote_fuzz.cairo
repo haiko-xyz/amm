@@ -46,7 +46,7 @@ fn before() -> (
     IManualStrategyDispatcher
 ) {
     // Deploy market manager.
-    let class = declare('MarketManager');
+    let class = declare("MarketManager");
     let market_manager = deploy_market_manager(class, owner());
 
     // Deploy tokens.

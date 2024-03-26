@@ -2,7 +2,6 @@ use starknet::ContractAddress;
 use starknet::contract_address_const;
 use starknet::syscalls::call_contract_syscall;
 use starknet::info::get_block_timestamp;
-use integer::BoundedU32;
 
 use amm::libraries::id;
 use amm::types::i128::I128Trait;
@@ -32,23 +31,6 @@ fn test_failing_fee_factor() {
     let queued_bid = *queued_positions.at(0);
     let queued_ask = *queued_positions.at(1);
 
-    'Placed bid'.print();
-    placed_bid.lower_limit.print();
-    placed_bid.upper_limit.print();
-    placed_bid.liquidity.print();
-    'Placed ask'.print();
-    placed_ask.lower_limit.print();
-    placed_ask.upper_limit.print();
-    placed_ask.liquidity.print();
-    'Queued bid'.print();
-    queued_bid.lower_limit.print();
-    queued_bid.upper_limit.print();
-    queued_bid.liquidity.print();
-    'Queued ask'.print();
-    queued_ask.lower_limit.print();
-    queued_ask.upper_limit.print();
-    queued_ask.liquidity.print();
-
     let placed_bid_pos_id = id::position_id(
         market_id, strategy_addr.into(), placed_bid.lower_limit, placed_bid.upper_limit
     );
@@ -66,36 +48,12 @@ fn test_failing_fee_factor() {
         market_id, strategy_addr.into(), queued_ask.lower_limit, queued_ask.upper_limit
     );
     let queued_ask_amts = market_manager.amounts_inside_position(queued_ask_pos_id);
-    'q bid amts and fees'.print();
-    base_amt.print();
-    quote_amt.print();
-    base_fees.print();
-    quote_fees.print();
 
     let lower_limit_info = market_manager.limit_info(market_id, queued_bid.lower_limit);
     let upper_limit_info = market_manager.limit_info(market_id, queued_bid.upper_limit);
     let market_state = market_manager.market_state(market_id);
 
-    'curr limit'.print();
-    market_state.curr_limit.print();
-    'lower limit'.print();
-    queued_bid.lower_limit.print();
-    'upper limit'.print();
-    queued_bid.upper_limit.print();
-
-    'lower limit liquidity'.print();
-    lower_limit_info.liquidity.print();
-    'upper limit liquidity'.print();
-    upper_limit_info.liquidity.print();
-    'lower limit quote fee factor'.print();
-    lower_limit_info.quote_fee_factor.print();
-    'upper limit quote fee factor'.print();
-    upper_limit_info.quote_fee_factor.print();
-    'market state quote fee factor'.print();
-    market_state.quote_fee_factor.print();
-
     start_prank(CheatTarget::One(market_manager_addr), strategy_addr);
-    'Removing placed bid'.print();
     market_manager
         .modify_position(
             market_id,
@@ -103,7 +61,6 @@ fn test_failing_fee_factor() {
             placed_bid.upper_limit,
             I128Trait::new(placed_bid.liquidity, true)
         );
-    'Removing placed ask'.print();
     market_manager
         .modify_position(
             market_id,
@@ -111,7 +68,6 @@ fn test_failing_fee_factor() {
             placed_ask.upper_limit,
             I128Trait::new(placed_ask.liquidity, true)
         );
-    'Adding queued bid'.print();
     market_manager
         .modify_position(
             market_id,
@@ -119,7 +75,6 @@ fn test_failing_fee_factor() {
             queued_bid.upper_limit,
             I128Trait::new(queued_bid.liquidity, false)
         );
-    'Adding queued ask'.print();
     market_manager
         .modify_position(
             market_id,

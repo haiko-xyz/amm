@@ -1,13 +1,10 @@
-// Core lib imports.
-use integer::BoundedU256;
-
 // Local imports.
 use amm::contracts::market_manager::MarketManager::ContractState;
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::contracts::market_manager::MarketManager::{
-    limit_tree_l0::InternalContractMemberStateTrait as treeL0InternalState,
-    limit_tree_l1::InternalContractMemberStateTrait as treeL1InternalState,
-    limit_tree_l2::InternalContractMemberStateTrait as treeL2InternalState,
+    limit_tree_l0ContractMemberStateTrait as treeL0InternalState,
+    limit_tree_l1ContractMemberStateTrait as treeL1InternalState,
+    limit_tree_l2ContractMemberStateTrait as treeL2InternalState,
 };
 use amm::libraries::math::{math, bit_math, price_math};
 use amm::libraries::constants::MAX_LIMIT_SHIFTED;
@@ -25,7 +22,7 @@ use amm::libraries::constants::MAX_LIMIT_SHIFTED;
 //
 // # Returns
 // * `initialised` - Whether the limit price is initialised.
-fn get(self: @ContractState, market_id: felt252, width: u32, limit: u32) -> bool {
+pub fn get(self: @ContractState, market_id: felt252, width: u32, limit: u32) -> bool {
     // Compress limit by width.
     let scaled_limit = limit / width;
 
@@ -41,7 +38,7 @@ fn get(self: @ContractState, market_id: felt252, width: u32, limit: u32) -> bool
 // * `market_id` - market id
 // * `width` - width of the market
 // * `limit` - limit to insert
-fn flip(ref self: ContractState, market_id: felt252, width: u32, limit: u32) {
+pub fn flip(ref self: ContractState, market_id: felt252, width: u32, limit: u32) {
     // Compress limit by width.
     let scaled_limit = limit / width;
 
@@ -89,7 +86,7 @@ fn flip(ref self: ContractState, market_id: felt252, width: u32, limit: u32) {
 //
 // # Returns
 // * `next_limit` - Next limit greater than current limit if buying, or less than if selling, or none
-fn next_limit(
+pub fn next_limit(
     self: @ContractState, market_id: felt252, is_buy: bool, width: u32, start_limit: u32
 ) -> Option<u32> {
     // Compress limit by width.
@@ -184,7 +181,7 @@ fn next_limit(
 // # Returns
 // * `segment` - segment of the limit
 // * `position` - position of the limit within the segment
-fn _get_segment_and_position(limit: u32) -> (u32, u8) {
+pub(crate) fn _get_segment_and_position(limit: u32) -> (u32, u8) {
     assert(limit <= MAX_LIMIT_SHIFTED, 'SegPosLimitOF');
     let segment: u32 = limit / 251;
     let position: u8 = (limit % 251).try_into().unwrap();

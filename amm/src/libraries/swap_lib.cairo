@@ -1,7 +1,6 @@
 // Core lib imports.
-use cmp::{min, max};
-use integer::u512;
-use integer::u256_wide_mul;
+use core::cmp::{min, max};
+use core::integer::{u512, u256_wide_mul};
 
 // Local imports.
 use amm::libraries::tree;
@@ -11,16 +10,13 @@ use amm::libraries::constants::{ONE, MAX_SQRT_PRICE};
 use amm::contracts::market_manager::MarketManager::ContractState;
 use amm::interfaces::IMarketManager::IMarketManager;
 use amm::contracts::market_manager::MarketManager::{
-    limit_info::InternalContractMemberStateTrait as LimitInfoStateTrait,
-    batches::InternalContractMemberStateTrait as BatchStateTrait,
-    positions::InternalContractMemberStateTrait as PositionStateTrait,
+    limit_infoContractMemberStateTrait as LimitInfoStateTrait,
+    batchesContractMemberStateTrait as BatchStateTrait,
+    positionsContractMemberStateTrait as PositionStateTrait,
 };
 use amm::contracts::market_manager::MarketManager::MarketManagerInternalTrait;
 use amm::types::core::MarketState;
 use amm::types::i128::I128Trait;
-
-// use debug::PrintTrait;
-// use snforge_std::PrintTrait;
 
 // Iteratively execute swap up to next initialised limit price.
 //
@@ -36,7 +32,7 @@ use amm::types::i128::I128Trait;
 // * `width` - limit width
 // * `is_buy` - whether swap is a buy or sell
 // * `exact_input` - whether swap amount is exact input or output
-fn swap_iter(
+pub fn swap_iter(
     ref self: ContractState,
     market_id: felt252,
     ref market_state: MarketState,
@@ -221,7 +217,7 @@ fn swap_iter(
 // * `amount_out` - amount of tokens swapped out
 // * `fees` - amount of fees paid
 // * `next_sqrt_price` - next sqrt price
-fn compute_swap_amounts(
+pub fn compute_swap_amounts(
     curr_sqrt_price: u256,
     target_sqrt_price: u256,
     liquidity: u128,
@@ -327,7 +323,7 @@ fn compute_swap_amounts(
 //
 // # Returns
 // * `next_sqrt_price` - next sqrt price
-fn next_sqrt_price_input(
+pub fn next_sqrt_price_input(
     curr_sqrt_price: u256, liquidity: u128, amount_in: u256, is_buy: bool,
 ) -> u256 {
     // Input validation.
@@ -376,7 +372,7 @@ fn next_sqrt_price_input(
 //
 // # Returns
 // * `next_sqrt_price` - next sqrt price
-fn next_sqrt_price_output(
+pub fn next_sqrt_price_output(
     curr_sqrt_price: u256, liquidity: u128, amount_out: u256, is_buy: bool,
 ) -> u256 {
     // Input validation.

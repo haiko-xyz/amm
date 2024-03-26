@@ -1,8 +1,7 @@
 // Core lib imports.
 use starknet::ContractAddress;
-use starknet::contract_address_const;
+use starknet::contract_address::contract_address_const;
 use starknet::testing::set_contract_address;
-use debug::PrintTrait;
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
@@ -21,6 +20,9 @@ use amm::tests::common::params::{
     owner, alice, treasury, default_token_params, default_market_params, modify_position_params
 };
 use amm::tests::mocks::flash_loan_receiver;
+use amm::tests::mocks::flash_loan_stealer::{
+    IFlashLoanStealerDispatcher, IFlashLoanStealerDispatcherTrait
+};
 use amm::tests::common::utils::{to_e28, to_e18_u128};
 
 // External imports.
@@ -80,7 +82,6 @@ fn before(
 ////////////////////////////////
 
 #[test]
-#[available_gas(1000000000)]
 fn test_flash_loan() {
     let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true, false);
 
@@ -128,7 +129,6 @@ fn test_flash_loan() {
 
 #[test]
 #[should_panic(expected: ('LoanInsufficient', 'ENTRYPOINT_FAILED',))]
-#[available_gas(1000000000)]
 fn test_flash_loan_no_liquidity() {
     let (market_manager, base_token, _quote_token, _market_id, loan_receiver) = before(true, false);
 
@@ -138,7 +138,6 @@ fn test_flash_loan_no_liquidity() {
 
 #[test]
 #[should_panic(expected: ('u256_sub Overflow', 'ENTRYPOINT_FAILED', 'ENTRYPOINT_FAILED',))]
-#[available_gas(1000000000)]
 fn test_flash_loan_insufficient_balance() {
     let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(false, false);
 
@@ -175,7 +174,6 @@ fn test_flash_loan_insufficient_balance() {
         'ENTRYPOINT_FAILED'
     )
 )]
-#[available_gas(1000000000)]
 fn test_flash_loan_stealer() {
     let (market_manager, base_token, quote_token, market_id, loan_receiver) = before(true, true);
 
@@ -192,6 +190,10 @@ fn test_flash_loan_stealer() {
     market_manager.set_flash_loan_fee_rate(base_token.contract_address, 10);
     market_manager.set_flash_loan_fee_rate(quote_token.contract_address, 25);
 
+    // Set market id in loan receiver.
+    IFlashLoanStealerDispatcher { contract_address: loan_receiver.contract_address }
+        .set_market_id(market_id);
+
     // Flash loan and try to deposit the amount as liquidity.
     set_contract_address(loan_receiver.contract_address);
     market_manager.flash_loan(base_token.contract_address, 10000000000);
@@ -200,7 +202,6 @@ fn test_flash_loan_stealer() {
 
 #[test]
 #[should_panic(expected: ('LoanAmtZero', 'ENTRYPOINT_FAILED',))]
-#[available_gas(1000000000)]
 fn test_flash_loan_amount_zero() {
     let (market_manager, base_token, _quote_token, _market_id, loan_receiver) = before(true, false);
 
@@ -210,7 +211,6 @@ fn test_flash_loan_amount_zero() {
 
 #[test]
 #[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
-#[available_gas(1000000000)]
 fn test_set_flash_loan_fee_not_owner() {
     let (market_manager, base_token, _quote_token, _market_id, loan_receiver) = before(true, false);
 
@@ -220,7 +220,6 @@ fn test_set_flash_loan_fee_not_owner() {
 
 #[test]
 #[should_panic(expected: ('SameFee', 'ENTRYPOINT_FAILED',))]
-#[available_gas(1000000000)]
 fn test_set_flash_loan_fee_unchanged() {
     let (market_manager, base_token, _quote_token, _market_id, _loan_receiver) = before(
         true, false

@@ -1,7 +1,5 @@
 // Core lib imports.
-use cmp::min;
-use traits::Into;
-use option::OptionTrait;
+use core::cmp::min;
 
 // Local imports.
 use amm::types::core::ValidLimits;
@@ -16,7 +14,7 @@ use amm::libraries::constants::{MAX_SQRT_PRICE, MIN_SQRT_PRICE};
 // * `width` - market width
 // * `valid_limits` - valid limits struct
 // * `is_remove` - whether liquidity is being removed
-fn check_limits(
+pub fn check_limits(
     lower_limit: u32, upper_limit: u32, width: u32, valid_limits: ValidLimits, is_remove: bool
 ) {
     let max_limit = price_math::max_limit(width);
@@ -48,7 +46,7 @@ fn check_limits(
 // * `threshold_sqrt_price` - threshold sqrt price
 // * `curr_sqrt_price` - current sqrt price
 // * `is_buy` - whether the price threshold is a buy or sell price
-fn check_threshold(threshold_sqrt_price: u256, curr_sqrt_price: u256, is_buy: bool) {
+pub fn check_threshold(threshold_sqrt_price: u256, curr_sqrt_price: u256, is_buy: bool) {
     assert(
         if is_buy {
             threshold_sqrt_price > curr_sqrt_price && threshold_sqrt_price <= MAX_SQRT_PRICE

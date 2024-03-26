@@ -1,15 +1,12 @@
 // Core lib imports.
 use starknet::ContractAddress;
 use starknet::contract_address_const;
-use starknet::testing::set_contract_address;
-use integer::BoundedU256;
-use debug::PrintTrait;
+use core::integer::BoundedInt;
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
 use amm::contracts::market_manager::MarketManager::{
-    ContractState as MMContractState,
-    positions::InternalContractMemberStateTrait as PositionsInternalState,
+    ContractState as MMContractState, positionsContractMemberStateTrait as PositionsInternalState,
 };
 use amm::libraries::math::{price_math, fee_math};
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT};
@@ -73,7 +70,6 @@ fn before(
 ////////////////////////////////
 
 #[test]
-#[available_gas(1000000000)]
 fn test_reinitialise_fee_factor() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
@@ -117,23 +113,22 @@ fn test_reinitialise_fee_factor() {
             Option::None(()),
         );
     swap(market_manager, swap_params);
-    print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
+    // print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
 
     // Remove position.
     liquidity = I128Trait::new(liq_abs, true);
     params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
-    print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
+    // print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
 
     // Adding liquidity to same limits should re-initialise fee factors.
     liquidity = I128Trait::new(liq_abs, false);
     params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
-    print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
+// print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
 }
 
 #[test]
-#[available_gas(1000000000)]
 fn test_negative_position_fee_factor() {
     let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
 
@@ -170,10 +165,9 @@ fn test_negative_position_fee_factor() {
 }
 
 #[test]
-#[available_gas(1000000000)]
 #[should_panic(expected: ('BaseFeeFactorLastOF',))]
 fn test_fee_factor_store_packing_overflow() {
-    let (market_manager, _base_token, _quote_token, market_id) = before(width: 1);
+    before(width: 1);
 
     // Create position with fee factors > max allowable
     let position = Position {
@@ -181,8 +175,8 @@ fn test_fee_factor_store_packing_overflow() {
         lower_limit: 10,
         upper_limit: 20,
         liquidity: 10000,
-        base_fee_factor_last: I256Trait::new(BoundedU256::max(), false),
-        quote_fee_factor_last: I256Trait::new(BoundedU256::max(), false),
+        base_fee_factor_last: I256Trait::new(BoundedInt::max(), false),
+        quote_fee_factor_last: I256Trait::new(BoundedInt::max(), false),
     };
     let mut state: MMContractState = MarketManager::unsafe_new_contract_state();
     state.positions.write(1, position);
@@ -199,29 +193,27 @@ fn print_fee_factors(
     upper_limit: u32,
 ) {
     let market_state = market_manager.market_state(market_id);
-    'global base ff'.print();
-    market_state.base_fee_factor.print();
-    'global quote ff'.print();
-    market_state.quote_fee_factor.print();
+    println!("Global base fee factor: {}", market_state.base_fee_factor);
+    println!("Global quote fee factor: {}", market_state.quote_fee_factor);
 
     let lower_limit_info = market_manager.limit_info(market_id, lower_limit);
     let upper_limit_info = market_manager.limit_info(market_id, upper_limit);
-    'lower base ff'.print();
-    lower_limit_info.base_fee_factor.print();
-    'lower quote ff'.print();
-    lower_limit_info.quote_fee_factor.print();
-    'upper base ff'.print();
-    upper_limit_info.base_fee_factor.print();
-    'upper quote ff'.print();
-    upper_limit_info.quote_fee_factor.print();
+    println!("Lower limit base fee factor: {}", lower_limit_info.base_fee_factor);
+    println!("Lower limit quote fee factor: {}", lower_limit_info.quote_fee_factor);
+    println!("Upper limit base fee factor: {}", upper_limit_info.base_fee_factor);
+    println!("Upper limit quote fee factor: {}", upper_limit_info.quote_fee_factor);
 
     let position = market_manager.position(market_id, alice().into(), lower_limit, upper_limit);
-    'position base ff last'.print();
-    position.base_fee_factor_last.val.print();
-    position.base_fee_factor_last.sign.print();
-    'position quote ff last'.print();
-    position.quote_fee_factor_last.val.print();
-    position.quote_fee_factor_last.sign.print();
+    println!(
+        "Position base fee factor: {} (sign: {})",
+        position.base_fee_factor_last.val,
+        position.base_fee_factor_last.sign
+    );
+    println!(
+        "Position quote fee factor: {} (sign: {})",
+        position.quote_fee_factor_last.val,
+        position.quote_fee_factor_last.sign
+    );
     let (_, _, pos_base_fee_factor, pos_quote_fee_factor) = fee_math::get_fee_inside(
         position,
         lower_limit_info,
@@ -232,10 +224,12 @@ fn print_fee_factors(
         market_state.base_fee_factor,
         market_state.quote_fee_factor,
     );
-    'position base ff'.print();
-    pos_base_fee_factor.val.print();
-    pos_base_fee_factor.sign.print();
-    'position quote ff'.print();
-    pos_quote_fee_factor.val.print();
-    pos_quote_fee_factor.sign.print();
+    println!(
+        "Position base fee factor: {} (sign: {})", pos_base_fee_factor.val, pos_base_fee_factor.sign
+    );
+    println!(
+        "Position quote fee factor: {} (sign: {})",
+        pos_quote_fee_factor.val,
+        pos_quote_fee_factor.sign
+    );
 }

@@ -1,1 +1,1 @@
-mod test_swap_invariants;
+pub mod test_swap_invariants;

@@ -1,13 +1,13 @@
 // Core lib imports.
 use starknet::ContractAddress;
-use starknet::deploy_syscall;
+use starknet::syscalls::deploy_syscall;
 
 // Local imports.
 use amm::contracts::mocks::manual_strategy::{
     ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
 };
 
-fn deploy_manual_strategy(owner: ContractAddress) -> IManualStrategyDispatcher {
+pub fn deploy_manual_strategy(owner: ContractAddress) -> IManualStrategyDispatcher {
     let mut constructor_calldata = ArrayTrait::<felt252>::new();
     owner.serialize(ref constructor_calldata);
     let (strategy_addr, _) = deploy_syscall(

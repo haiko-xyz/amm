@@ -1,24 +1,24 @@
 #[starknet::contract]
-mod MarketManager {
+pub mod MarketManager {
     ////////////////////////////////
     // IMPORTS
     ////////////////////////////////
 
     // Core lib imports.
-    use cmp::min;
-    use dict::Felt252DictTrait;
-    use nullable::nullable_from_box;
-    use integer::BoundedU32;
+    use core::cmp::min;
+    use core::dict::Felt252DictTrait;
+    use core::nullable::{Nullable, NullableTrait};
+    use core::integer::BoundedInt;
     use starknet::ContractAddress;
-    use starknet::contract_address::ContractAddressZeroable;
-    use starknet::info::{get_caller_address, get_block_timestamp, get_contract_address};
-    use starknet::replace_class_syscall;
+    use starknet::contract_address::contract_address_const;
+    use starknet::{get_caller_address, get_block_timestamp, get_contract_address};
+    use starknet::syscalls::replace_class_syscall;
     use starknet::class_hash::ClassHash;
 
     // Local imports.
     use amm::libraries::{tree, id, price_lib, liquidity_lib, swap_lib, order_lib, quote_lib};
     use amm::libraries::math::{math, price_math, fee_math, liquidity_math};
-    use amm::libraries::constants::{ONE, MAX_WIDTH, MAX_LIMIT_SHIFTED};
+    use amm::libraries::constants::{ONE, MAX_WIDTH, MAX_LIMIT_SHIFTED, MAX_FEE_RATE};
     use amm::interfaces::IMarketManager::IMarketManager;
     use amm::interfaces::IStrategy::{IStrategyDispatcher, IStrategyDispatcherTrait};
     use amm::interfaces::IFeeController::{IFeeControllerDispatcher, IFeeControllerDispatcherTrait};
@@ -27,7 +27,7 @@ mod MarketManager {
         MarketInfo, MarketConfigs, MarketState, OrderBatch, Position, LimitInfo, LimitOrder,
         ERC721PositionInfo, SwapParams, ConfigOption, Config, Depth
     };
-    use amm::types::i128::{i128, I128Zeroable, I128Trait};
+    use amm::types::i128::{i128, I128Trait};
     use amm::types::i256::{i256, I256Trait};
     use amm::libraries::store_packing::{
         MarketInfoStorePacking, MarketStateStorePacking, MarketConfigsStorePacking,
@@ -39,28 +39,22 @@ mod MarketManager {
     use openzeppelin::token::erc721::erc721::ERC721Component;
     use openzeppelin::token::erc721::interface::{IERC721Dispatcher, IERC721DispatcherTrait};
     use openzeppelin::introspection::src5::SRC5Component;
-    use openzeppelin::upgrades::UpgradeableComponent;
-
-    // use debug::PrintTrait;
-    // use snforge_std::PrintTrait;
 
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
-    component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
 
     #[abi(embed_v0)]
-    impl ERC721Impl = ERC721Component::ERC721Impl<ContractState>;
+    pub impl ERC721Impl = ERC721Component::ERC721Impl<ContractState>;
     #[abi(embed_v0)]
-    impl ERC721MetadataImpl = ERC721Component::ERC721MetadataImpl<ContractState>;
+    pub impl ERC721MetadataImpl =
+        ERC721Component::ERC721MetadataImpl<ContractState>;
     #[abi(embed_v0)]
-    impl ERC721CamelOnlyImpl = ERC721Component::ERC721CamelOnlyImpl<ContractState>;
+    pub impl ERC721CamelOnlyImpl =
+        ERC721Component::ERC721CamelOnlyImpl<ContractState>;
 
-    impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
+    pub impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
     #[abi(embed_v0)]
-    impl SRC5Impl = SRC5Component::SRC5Impl<ContractState>;
-
-    impl InternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
-
+    pub impl SRC5Impl = SRC5Component::SRC5Impl<ContractState>;
 
     ////////////////////////////////
     // STORAGE
@@ -104,8 +98,6 @@ mod MarketManager {
         erc721: ERC721Component::Storage,
         #[substorage(v0)]
         src5: SRC5Component::Storage,
-        #[substorage(v0)]
-        upgradeable: UpgradeableComponent::Storage,
     }
 
     ////////////////////////////////
@@ -114,7 +106,7 @@ mod MarketManager {
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {
+    pub(crate) enum Event {
         CreateMarket: CreateMarket,
         ModifyPosition: ModifyPosition,
         CreateOrder: CreateOrder,
@@ -130,199 +122,204 @@ mod MarketManager {
         ChangeFlashLoanFee: ChangeFlashLoanFee,
         SetMarketConfigs: SetMarketConfigs,
         Referral: Referral,
+        Upgraded: Upgraded,
         #[flat]
         ERC721Event: ERC721Component::Event,
         #[flat]
         SRC5Event: SRC5Component::Event,
-        #[flat]
-        UpgradeableEvent: UpgradeableComponent::Event
     }
 
     #[derive(Drop, starknet::Event)]
-    struct CreateMarket {
+    pub(crate) struct CreateMarket {
         #[key]
-        market_id: felt252,
+        pub market_id: felt252,
         #[key]
-        base_token: ContractAddress,
+        pub base_token: ContractAddress,
         #[key]
-        quote_token: ContractAddress,
+        pub quote_token: ContractAddress,
         #[key]
-        width: u32,
+        pub width: u32,
         #[key]
-        strategy: ContractAddress,
+        pub strategy: ContractAddress,
         #[key]
-        swap_fee_rate: u16,
+        pub swap_fee_rate: u16,
         #[key]
-        fee_controller: ContractAddress,
+        pub fee_controller: ContractAddress,
         #[key]
-        controller: ContractAddress,
-        start_limit: u32,
-        start_sqrt_price: u256,
+        pub controller: ContractAddress,
+        pub start_limit: u32,
+        pub start_sqrt_price: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct ModifyPosition {
+    pub(crate) struct ModifyPosition {
         #[key]
-        caller: ContractAddress,
+        pub caller: ContractAddress,
         #[key]
-        market_id: felt252,
+        pub market_id: felt252,
         #[key]
-        lower_limit: u32,
+        pub lower_limit: u32,
         #[key]
-        upper_limit: u32,
+        pub upper_limit: u32,
         #[key]
-        is_limit_order: bool,
-        liquidity_delta: i128,
-        base_amount: i256,
-        quote_amount: i256,
-        base_fees: u256,
-        quote_fees: u256,
+        pub is_limit_order: bool,
+        pub liquidity_delta: i128,
+        pub base_amount: i256,
+        pub quote_amount: i256,
+        pub base_fees: u256,
+        pub quote_fees: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct CreateOrder {
+    pub(crate) struct CreateOrder {
         #[key]
-        caller: ContractAddress,
+        pub caller: ContractAddress,
         #[key]
-        market_id: felt252,
+        pub market_id: felt252,
         #[key]
-        order_id: felt252,
+        pub order_id: felt252,
         #[key]
-        limit: u32, // start limit
+        pub limit: u32, // start limit
         #[key]
-        batch_id: felt252,
+        pub batch_id: felt252,
         #[key]
-        is_bid: bool,
-        amount: u256,
+        pub is_bid: bool,
+        pub amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct CollectOrder {
+    pub(crate) struct CollectOrder {
         #[key]
-        caller: ContractAddress,
+        pub caller: ContractAddress,
         #[key]
-        market_id: felt252,
+        pub market_id: felt252,
         #[key]
-        order_id: felt252,
+        pub order_id: felt252,
         #[key]
-        limit: u32,
+        pub limit: u32,
         #[key]
-        batch_id: felt252,
+        pub batch_id: felt252,
         #[key]
-        is_bid: bool,
-        base_amount: u256,
-        quote_amount: u256,
+        pub is_bid: bool,
+        pub base_amount: u256,
+        pub quote_amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct MultiSwap {
+    pub(crate) struct MultiSwap {
         #[key]
-        caller: ContractAddress,
+        pub caller: ContractAddress,
         #[key]
-        swap_id: u128,
+        pub swap_id: u128,
         #[key]
-        in_token: ContractAddress,
+        pub in_token: ContractAddress,
         #[key]
-        out_token: ContractAddress,
-        amount_in: u256,
-        amount_out: u256,
+        pub out_token: ContractAddress,
+        pub amount_in: u256,
+        pub amount_out: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Swap {
+    pub(crate) struct Swap {
         #[key]
-        caller: ContractAddress,
+        pub caller: ContractAddress,
         #[key]
-        market_id: felt252,
+        pub market_id: felt252,
         #[key]
-        is_buy: bool,
+        pub is_buy: bool,
         #[key]
-        exact_input: bool,
+        pub exact_input: bool,
         #[key]
-        swap_id: u128,
-        amount_in: u256,
-        amount_out: u256,
-        fees: u256,
-        end_limit: u32, // final limit reached after swap
-        end_sqrt_price: u256, // final sqrt price reached after swap
-        market_liquidity: u128, // global liquidity after swap
+        pub swap_id: u128,
+        pub amount_in: u256,
+        pub amount_out: u256,
+        pub fees: u256,
+        pub end_limit: u32, // final limit reached after swap
+        pub end_sqrt_price: u256, // final sqrt price reached after swap
+        pub market_liquidity: u128, // global liquidity after swap
     }
 
     #[derive(Drop, starknet::Event)]
-    struct FlashLoan {
+    pub(crate) struct FlashLoan {
         #[key]
-        borrower: ContractAddress,
+        pub borrower: ContractAddress,
         #[key]
-        token: ContractAddress,
-        amount: u256,
+        pub token: ContractAddress,
+        pub amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Whitelist {
+    pub(crate) struct Whitelist {
         #[key]
-        market_id: felt252
+        pub market_id: felt252
     }
 
     #[derive(Drop, starknet::Event)]
-    struct WhitelistToken {
+    pub(crate) struct WhitelistToken {
         #[key]
-        token: ContractAddress
+        pub token: ContractAddress
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Donate {
+    pub(crate) struct Donate {
         #[key]
-        token: ContractAddress,
-        amount: u256,
+        pub token: ContractAddress,
+        pub amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Sweep {
+    pub(crate) struct Sweep {
         #[key]
-        receiver: ContractAddress,
+        pub receiver: ContractAddress,
         #[key]
-        token: ContractAddress,
-        amount: u256,
+        pub token: ContractAddress,
+        pub amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct ChangeOwner {
+    pub(crate) struct ChangeOwner {
         #[key]
-        old: ContractAddress,
+        pub old: ContractAddress,
         #[key]
-        new: ContractAddress
+        pub new: ContractAddress
     }
 
     #[derive(Drop, starknet::Event)]
-    struct ChangeFlashLoanFee {
+    pub(crate) struct ChangeFlashLoanFee {
         #[key]
-        token: ContractAddress,
-        fee: u16,
+        pub token: ContractAddress,
+        pub fee: u16,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Referral {
+    pub(crate) struct Referral {
         #[key]
-        caller: ContractAddress,
-        referrer: ContractAddress,
+        pub caller: ContractAddress,
+        pub referrer: ContractAddress,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct SetMarketConfigs {
+    pub(crate) struct SetMarketConfigs {
         #[key]
-        market_id: felt252,
-        min_lower: u32,
-        max_lower: u32,
-        min_upper: u32,
-        max_upper: u32,
-        min_width: u32,
-        max_width: u32,
-        add_liquidity: ConfigOption,
-        remove_liquidity: ConfigOption,
-        create_bid: ConfigOption,
-        create_ask: ConfigOption,
-        collect_order: ConfigOption,
-        swap: ConfigOption,
+        pub market_id: felt252,
+        pub min_lower: u32,
+        pub max_lower: u32,
+        pub min_upper: u32,
+        pub max_upper: u32,
+        pub min_width: u32,
+        pub max_width: u32,
+        pub add_liquidity: ConfigOption,
+        pub remove_liquidity: ConfigOption,
+        pub create_bid: ConfigOption,
+        pub create_ask: ConfigOption,
+        pub collect_order: ConfigOption,
+        pub swap: ConfigOption,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    pub(crate) struct Upgraded {
+        #[key]
+        pub class_hash: ClassHash,
     }
 
     ////////////////////////////////
@@ -336,10 +333,9 @@ mod MarketManager {
         self.owner.write(owner);
         self.swap_id.write(1);
         self.erc721.initializer(name, symbol);
-
         self
             .emit(
-                Event::ChangeOwner(ChangeOwner { old: ContractAddressZeroable::zero(), new: owner })
+                Event::ChangeOwner(ChangeOwner { old: contract_address_const::<0x0>(), new: owner })
             );
     }
 
@@ -410,7 +406,7 @@ mod MarketManager {
 
         fn swap_fee_rate(self: @ContractState, market_id: felt252) -> u16 {
             let fee_controller = self.market_info.read(market_id).fee_controller;
-            if fee_controller.is_zero() {
+            if fee_controller == contract_address_const::<0x0>() {
                 self.market_info.read(market_id).swap_fee_rate
             } else {
                 IFeeControllerDispatcher { contract_address: fee_controller }.swap_fee_rate()
@@ -604,7 +600,7 @@ mod MarketManager {
             let width = self.width(market_id);
 
             loop {
-                if limit == BoundedU32::max() {
+                if limit == BoundedInt::max() {
                     break;
                 }
 
@@ -622,7 +618,7 @@ mod MarketManager {
                 let next_limit = self.next_limit(market_id, true, width, limit);
                 match next_limit {
                     Option::Some(nl) => limit = nl,
-                    Option::None => limit = BoundedU32::max(),
+                    Option::None => limit = BoundedInt::max(),
                 }
             };
 
@@ -702,10 +698,14 @@ mod MarketManager {
             configs: Option<MarketConfigs>,
         ) -> felt252 {
             // Validate inputs.
-            assert(base_token.is_non_zero() && quote_token.is_non_zero(), 'TokensNull');
+            assert(
+                base_token != contract_address_const::<0x0>()
+                    && quote_token != contract_address_const::<0x0>(),
+                'TokensNull'
+            );
             assert(width != 0, 'WidthZero');
             assert(width <= MAX_WIDTH, 'WidthOF');
-            assert(swap_fee_rate <= fee_math::MAX_FEE_RATE, 'FeeRateOF');
+            assert(swap_fee_rate <= MAX_FEE_RATE, 'FeeRateOF');
             assert(start_limit < MAX_LIMIT_SHIFTED, 'StartLimitOF');
 
             // Check tokens exist.
@@ -720,7 +720,7 @@ mod MarketManager {
             };
             let market_id = id::market_id(new_market_info);
             let market_info = self.market_info.read(market_id);
-            assert(market_info.base_token.is_zero(), 'MarketExists');
+            assert(market_info.base_token == contract_address_const::<0x0>(), 'MarketExists');
 
             // Check market is whitelisted. A market can be explicitly whitelisted via the market id.
             // Alternatively, if both base and quote tokens are whitelisted, any market for the pair
@@ -730,9 +730,9 @@ mod MarketManager {
                 assert(
                     self.whitelisted_tokens.read(base_token)
                         && self.whitelisted_tokens.read(quote_token)
-                        && strategy.is_zero()
-                        && fee_controller.is_zero()
-                        && controller.is_zero(),
+                        && strategy == contract_address_const::<0x0>()
+                        && fee_controller == contract_address_const::<0x0>()
+                        && controller == contract_address_const::<0x0>(),
                     'NotWhitelisted'
                 )
             }
@@ -742,7 +742,7 @@ mod MarketManager {
             // Initialise market settings.
             if configs.is_some() {
                 let configs_uw = configs.unwrap();
-                assert(controller.is_non_zero(), 'NoController');
+                assert(controller != contract_address_const::<0x0>(), 'NoController');
                 self.market_configs.write(market_id, configs_uw);
             }
 
@@ -821,7 +821,7 @@ mod MarketManager {
         ) -> (i256, i256, u256, u256) {
             // Run checks.
             let market_info = self.market_info.read(market_id);
-            if market_info.controller.is_non_zero() {
+            if market_info.controller != contract_address_const::<0x0>() {
                 let market_configs = self.market_configs.read(market_id);
                 let (config, err_msg) = if liquidity_delta.sign {
                     (market_configs.remove_liquidity.value, 'RemLiqDisabled')
@@ -870,7 +870,7 @@ mod MarketManager {
             referrer: ContractAddress,
         ) -> (i256, i256, u256, u256) {
             // Check referrer is non-null.
-            assert(referrer.is_non_zero(), 'ReferrerZero');
+            assert(referrer != contract_address_const::<0x0>(), 'ReferrerZero');
 
             // Emit referrer event. 
             let caller = get_caller_address();
@@ -906,7 +906,7 @@ mod MarketManager {
 
             // Run checks.
             assert(market_info.width != 0, 'MarketNull');
-            if market_info.controller.is_non_zero() {
+            if market_info.controller != contract_address_const::<0x0>() {
                 let market_configs = self.market_configs.read(market_id);
                 let (config, err_msg) = if is_bid {
                     (market_configs.create_bid.value, 'CreateBidDisabled')
@@ -1007,7 +1007,7 @@ mod MarketManager {
             let mut order = self.orders.read(order_id);
 
             // Run checks.
-            if market_info.controller.is_non_zero() {
+            if market_info.controller != contract_address_const::<0x0>() {
                 let market_configs = self.market_configs.read(market_id);
                 self
                     .enforce_status(
@@ -1062,7 +1062,7 @@ mod MarketManager {
 
             // Amount so far excludes due swap fees. Add swap fees on filled portion of order.
             // Fees are forfeited if market uses a variable fee controller.
-            if market_info.fee_controller.is_zero() {
+            if market_info.fee_controller == contract_address_const::<0x0>() {
                 if batch.is_bid {
                     base_amount = fee_math::net_to_gross(base_amount, market_info.swap_fee_rate);
                 } else {
@@ -1336,7 +1336,7 @@ mod MarketManager {
             let mut market_state = self.market_state.read(market_id);
 
             // Run checks.
-            if market_info.controller.is_non_zero() {
+            if market_info.controller != contract_address_const::<0x0>() {
                 let market_configs = self.market_configs.read(market_id);
                 self.enforce_status(market_configs.swap.value, @market_info, 'SwapDisabled');
             }
@@ -1350,7 +1350,7 @@ mod MarketManager {
             // limits from the positions, which we use to augment liquidity when traversing limits. 
             let mut queued_deltas: Felt252Dict<Nullable<i128>> = Default::default();
             let mut target_limits = ArrayTrait::<u32>::new();
-            if market_info.strategy.is_non_zero() && !ignore_strategy {
+            if market_info.strategy != contract_address_const::<0x0>() && !ignore_strategy {
                 let strategy = IStrategyDispatcher { contract_address: market_info.strategy };
                 let placed_positions = strategy.placed_positions(market_id);
                 let swap_params = SwapParams { is_buy, amount, exact_input };
@@ -1387,12 +1387,12 @@ mod MarketManager {
 
             // Get swap fee. 
             // This is either a fixed swap fee or a variable one set by the external fee controller.
-            let fee_rate = if market_info.fee_controller.is_zero() {
+            let fee_rate = if market_info.fee_controller == contract_address_const::<0x0>() {
                 market_info.swap_fee_rate
             } else {
                 let rate = IFeeControllerDispatcher { contract_address: market_info.fee_controller }
                     .swap_fee_rate();
-                assert(rate <= fee_math::MAX_FEE_RATE, 'FeeRateOF');
+                assert(rate <= MAX_FEE_RATE, 'FeeRateOF');
                 rate
             };
 
@@ -1642,8 +1642,8 @@ mod MarketManager {
         ) -> u256 {
             // Validate caller and inputs.
             self.assert_only_owner();
-            assert(receiver.is_non_zero(), 'ReceiverNull');
-            assert(token.is_non_zero(), 'MarketNull');
+            assert(receiver != contract_address_const::<0x0>(), 'ReceiverNull');
+            assert(token != contract_address_const::<0x0>(), 'MarketNull');
             assert(amount != 0, 'AmountZero');
 
             // Initialise variables.
@@ -1694,7 +1694,7 @@ mod MarketManager {
             assert(get_caller_address() == queued_owner, 'OnlyNewOwner');
             let old_owner = self.owner.read();
             self.owner.write(queued_owner);
-            self.queued_owner.write(ContractAddressZeroable::zero());
+            self.queued_owner.write(contract_address_const::<0x0>());
             self.emit(Event::ChangeOwner(ChangeOwner { old: old_owner, new: queued_owner }));
         }
 
@@ -1706,7 +1706,7 @@ mod MarketManager {
         // * `fee` - flash loan fee denominated in bps
         fn set_flash_loan_fee_rate(ref self: ContractState, token: ContractAddress, fee: u16,) {
             self.assert_only_owner();
-            assert(fee <= fee_math::MAX_FEE_RATE, 'FeeOF');
+            assert(fee <= MAX_FEE_RATE, 'FeeOF');
             let old_fee = self.flash_loan_fee_rate.read(token);
             assert(old_fee != fee, 'SameFee');
             self.flash_loan_fee_rate.write(token, fee);
@@ -1727,7 +1727,7 @@ mod MarketManager {
             let configs = self.market_configs.read(market_id);
 
             // Check inputs.
-            if market_info.controller.is_non_zero() {
+            if market_info.controller != contract_address_const::<0x0>() {
                 assert(get_caller_address() == market_info.controller, 'OnlyController');
             } else {
                 assert(false, 'MarketUnowned');
@@ -1771,21 +1771,22 @@ mod MarketManager {
                     )
                 );
         }
+
+        // Upgrade contract class.
+        // Callable by owner only.
+        //
+        // # Arguments
+        // * `new_class_hash` - new class hash of contract
+        fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+            self.assert_only_owner();
+            replace_class_syscall(new_class_hash).unwrap();
+            self.emit(Event::Upgraded(Upgraded { class_hash: new_class_hash }));
+        }
     }
 
-    // Upgrade contract class.
-    // Callable by owner only.
-    //
-    // # Arguments
-    // * `new_class_hash` - new class hash of contract
-    #[external(v0)]
-    fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
-        self.assert_only_owner();
-        self.upgradeable._upgrade(new_class_hash);
-    }
-
+    #[abi(per_item)]
     #[generate_trait]
-    impl MarketManagerInternalImpl of MarketManagerInternalTrait {
+    pub(crate) impl MarketManagerInternalImpl of MarketManagerInternalTrait {
         // Internal function to modify liquidity from a position.
         // Called by `modify_position`, `create_order`, `collect_order` and `fill_limits`.
         //
@@ -1950,7 +1951,7 @@ mod MarketManager {
             let mut market_state = self.market_state.read(market_id);
 
             // Run checks.
-            if market_info.controller.is_non_zero() {
+            if market_info.controller != contract_address_const::<0x0>() {
                 let market_configs = self.market_configs.read(market_id);
                 self.enforce_status(market_configs.swap.value, @market_info, 'SwapDisabled');
             }
@@ -1968,19 +1969,19 @@ mod MarketManager {
             // Execute strategy if it exists.
             // Strategy positions are updated before the swap occurs.
             let caller = get_caller_address();
-            if market_info.strategy.is_non_zero() {
+            if market_info.strategy != contract_address_const::<0x0>() {
                 IStrategyDispatcher { contract_address: market_info.strategy }
                     .update_positions(market_id, SwapParams { is_buy, amount, exact_input });
             }
 
             // Get swap fee. 
             // This is either a fixed swap fee or a variable one set by the external fee controller.
-            let fee_rate = if market_info.fee_controller.is_zero() {
+            let fee_rate = if market_info.fee_controller == contract_address_const::<0x0>() {
                 market_info.swap_fee_rate
             } else {
                 let rate = IFeeControllerDispatcher { contract_address: market_info.fee_controller }
                     .swap_fee_rate();
-                assert(rate <= fee_math::MAX_FEE_RATE, 'FeeRateOF');
+                assert(rate <= MAX_FEE_RATE, 'FeeRateOF');
                 rate
             };
 

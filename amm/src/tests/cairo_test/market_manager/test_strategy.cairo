@@ -1,7 +1,6 @@
 // Core lib imports.
 use starknet::testing::set_contract_address;
-use starknet::deploy_syscall;
-use debug::PrintTrait;
+use starknet::syscalls::deploy_syscall;
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
@@ -92,7 +91,6 @@ fn before() -> (
 ////////////////////////////////
 
 #[test]
-#[available_gas(1000000000)]
 fn test_strategy() {
     let (market_manager, base_token, quote_token, market_id, strategy) = before();
 

@@ -43,7 +43,6 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 ////////////////////////////////
 
 #[test]
-#[available_gas(40000000)]
 fn test_sweep() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, _quote_token) = before();
@@ -69,7 +68,6 @@ fn test_sweep() {
 
 #[test]
 #[should_panic(expected: ('OnlyOwner', 'ENTRYPOINT_FAILED',))]
-#[available_gas(40000000)]
 fn test_sweep_not_owner() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, _quote_token) = before();

@@ -1,11 +1,5 @@
 // Core lib imports.
-use core::serde::Serde;
-use core::traits::Into;
-use core::result::ResultTrait;
-use array::ArrayTrait;
-use option::OptionTrait;
-use traits::TryInto;
-use starknet::deploy_syscall;
+use starknet::syscalls::deploy_syscall;
 use starknet::ContractAddress;
 use starknet::testing::{set_caller_address, set_contract_address, set_block_timestamp};
 
@@ -24,7 +18,7 @@ use amm::tests::common::params::{
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
-fn deploy_market_manager(owner: ContractAddress,) -> IMarketManagerDispatcher {
+pub fn deploy_market_manager(owner: ContractAddress,) -> IMarketManagerDispatcher {
     let mut constructor_calldata = ArrayTrait::<felt252>::new();
     owner.serialize(ref constructor_calldata);
     'Haiko Liquidity Positions'.serialize(ref constructor_calldata);
@@ -38,7 +32,25 @@ fn deploy_market_manager(owner: ContractAddress,) -> IMarketManagerDispatcher {
     IMarketManagerDispatcher { contract_address: deployed_address }
 }
 
-fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketParams) -> felt252 {
+pub fn deploy_market_manager_with_salt(
+    owner: ContractAddress, salt: felt252
+) -> IMarketManagerDispatcher {
+    let mut constructor_calldata = ArrayTrait::<felt252>::new();
+    owner.serialize(ref constructor_calldata);
+    'Haiko Liquidity Positions'.serialize(ref constructor_calldata);
+    'HAIKO-LP'.serialize(ref constructor_calldata);
+
+    let (deployed_address, _) = deploy_syscall(
+        MarketManager::TEST_CLASS_HASH.try_into().unwrap(), salt, constructor_calldata.span(), false
+    )
+        .unwrap();
+
+    IMarketManagerDispatcher { contract_address: deployed_address }
+}
+
+pub fn create_market(
+    market_manager: IMarketManagerDispatcher, params: CreateMarketParams
+) -> felt252 {
     set_contract_address(params.owner);
     let market_id = id::market_id(
         MarketInfo {
@@ -53,12 +65,12 @@ fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketP
     );
     let whitelisted = market_manager.is_market_whitelisted(market_id);
     if !whitelisted {
-        market_manager.whitelist_markets(array![market_id]);
+        market_manager.whitelist_markets(array![market_id])
     }
     create_market_without_whitelisting(market_manager, params)
 }
 
-fn create_market_without_whitelisting(
+pub fn create_market_without_whitelisting(
     market_manager: IMarketManagerDispatcher, params: CreateMarketParams
 ) -> felt252 {
     set_contract_address(params.owner);
@@ -76,7 +88,7 @@ fn create_market_without_whitelisting(
         )
 }
 
-fn modify_position(
+pub fn modify_position(
     market_manager: IMarketManagerDispatcher, params: ModifyPositionParams,
 ) -> (i256, i256, u256, u256) {
     set_contract_address(params.owner);
@@ -86,7 +98,7 @@ fn modify_position(
         )
 }
 
-fn swap(market_manager: IMarketManagerDispatcher, params: SwapParams) -> (u256, u256, u256) {
+pub fn swap(market_manager: IMarketManagerDispatcher, params: SwapParams) -> (u256, u256, u256) {
     set_contract_address(params.owner);
     market_manager
         .swap(
@@ -100,7 +112,7 @@ fn swap(market_manager: IMarketManagerDispatcher, params: SwapParams) -> (u256, 
         )
 }
 
-fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleParams) -> u256 {
+pub fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleParams) -> u256 {
     set_contract_address(params.owner);
     market_manager
         .swap_multiple(
@@ -113,12 +125,12 @@ fn swap_multiple(market_manager: IMarketManagerDispatcher, params: SwapMultipleP
         )
 }
 
-fn transfer_owner(market_manager: IMarketManagerDispatcher, params: TransferOwnerParams) -> () {
+pub fn transfer_owner(market_manager: IMarketManagerDispatcher, params: TransferOwnerParams) -> () {
     set_contract_address(params.owner);
     market_manager.transfer_owner(params.new_owner);
 }
 
-fn accept_owner(market_manager: IMarketManagerDispatcher, new_owner: ContractAddress) -> () {
+pub fn accept_owner(market_manager: IMarketManagerDispatcher, new_owner: ContractAddress) -> () {
     set_contract_address(new_owner);
     market_manager.accept_owner();
 }

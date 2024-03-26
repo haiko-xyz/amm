@@ -4,23 +4,32 @@
 // was able to withdraw the borrowed funds without returning them. This is no longer possible as 
 // `flash_loan` now uses an explicit `transferFrom` operation to retrieve borrowed funds + fees.
 
-#[starknet::contract]
-mod FlashLoanStealer {
-    use core::option::OptionTrait;
-    use starknet::ContractAddress;
-    use debug::PrintTrait;
+#[starknet::interface]
+pub trait IFlashLoanStealer<TContractState> {
+    // Set the market id for the default market created in `test_flash_loan.cairo`
+    fn set_market_id(ref self: TContractState, market_id: felt252);
+}
 
+#[starknet::contract]
+pub mod FlashLoanStealer {
+    // Core lib imports.
+    use starknet::ContractAddress;
+
+    // Local imports.
+    use super::IFlashLoanStealer;
     use amm::interfaces::ILoanReceiver::ILoanReceiver;
     use amm::libraries::constants::OFFSET;
     use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
     use amm::types::i128::{i128, I128Trait};
     use amm::tests::common::utils::{to_e28, to_e18_u128};
 
+    // Third party imports.
     use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
     #[storage]
     struct Storage {
         market_manager: ContractAddress,
+        market_id: felt252,
     }
 
     #[constructor]
@@ -45,7 +54,7 @@ mod FlashLoanStealer {
             let market_manager = IMarketManagerDispatcher { contract_address: market_manager_addr };
 
             // Market id corresponding to the default market created in `test_flash_loan.cairo`
-            let market_id = 0x664b60562e495970a41b217b924e6bb5b14bf5746bb7b21f933c33b1433a2b0;
+            let market_id = self.market_id.read();
 
             // Compute liquidity amount by converting to token amount.
             // Place at 1 limit above current so we need to deposit only base token.
@@ -59,6 +68,14 @@ mod FlashLoanStealer {
             // Approve market manager to transfer back borrowed funds plus fees
             let token_dispatcher = ERC20ABIDispatcher { contract_address: token };
             token_dispatcher.approve(market_manager_addr, amount + fee);
+        }
+    }
+
+    #[abi(embed_v0)]
+    impl FlashLoanStealer of IFlashLoanStealer<ContractState> {
+        // Set the market id for the default market created in `test_flash_loan.cairo`
+        fn set_market_id(ref self: ContractState, market_id: felt252) {
+            self.market_id.write(market_id);
         }
     }
 }

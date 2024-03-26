@@ -1,16 +1,14 @@
 #[starknet::contract]
-mod ReplicatingStrategy {
+pub mod ReplicatingStrategy {
     // Core lib imports.
     use core::traits::TryInto;
-    use integer::BoundedU256;
-    use cmp::{min, max};
+    use core::integer::BoundedInt;
+    use core::cmp::{min, max};
     use starknet::ContractAddress;
-    use starknet::contract_address::ContractAddressZeroable;
-    use starknet::info::{
-        get_caller_address, get_contract_address, get_block_number, get_block_timestamp
-    };
+    use starknet::contract_address::contract_address_const;
+    use starknet::{get_caller_address, get_contract_address, get_block_number, get_block_timestamp};
     use starknet::class_hash::ClassHash;
-    use starknet::replace_class_syscall;
+    use starknet::syscalls::replace_class_syscall;
 
     // Local imports.
     use amm::types::core::{MarketState, SwapParams, PositionInfo};
@@ -33,13 +31,6 @@ mod ReplicatingStrategy {
 
     // External imports.
     use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
-    use openzeppelin::upgrades::UpgradeableComponent;
-
-    component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
-
-    impl UpgradeableInternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
-
-    // use snforge_std::PrintTrait;
 
     ////////////////////////////////
     // STORAGE
@@ -84,8 +75,6 @@ mod ReplicatingStrategy {
         withdraw_fee_rate: LegacyMap::<felt252, u16>,
         // Indexed by asset
         withdraw_fees: LegacyMap::<ContractAddress, u256>,
-        #[substorage(v0)]
-        upgradeable: UpgradeableComponent::Storage,
     }
 
     ////////////////////////////////
@@ -94,7 +83,7 @@ mod ReplicatingStrategy {
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {
+    pub(crate) enum Event {
         AddMarket: AddMarket,
         Deposit: Deposit,
         Withdraw: Withdraw,
@@ -110,134 +99,138 @@ mod ReplicatingStrategy {
         Pause: Pause,
         Unpause: Unpause,
         Referral: Referral,
-        #[flat]
-        UpgradeableEvent: UpgradeableComponent::Event
+        Upgraded: Upgraded,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct AddMarket {
+    pub(crate) struct AddMarket {
         #[key]
-        market_id: felt252
+        pub market_id: felt252
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Deposit {
+    pub(crate) struct Deposit {
         #[key]
-        caller: ContractAddress,
+        pub caller: ContractAddress,
         #[key]
-        market_id: felt252,
-        base_amount: u256,
-        quote_amount: u256,
-        shares: u256,
+        pub market_id: felt252,
+        pub base_amount: u256,
+        pub quote_amount: u256,
+        pub shares: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Withdraw {
+    pub(crate) struct Withdraw {
         #[key]
-        caller: ContractAddress,
+        pub caller: ContractAddress,
         #[key]
-        market_id: felt252,
-        base_amount: u256,
-        quote_amount: u256,
-        shares: u256,
+        pub market_id: felt252,
+        pub base_amount: u256,
+        pub quote_amount: u256,
+        pub shares: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct UpdatePositions {
+    pub(crate) struct UpdatePositions {
         #[key]
-        market_id: felt252,
-        bid_lower_limit: u32,
-        bid_upper_limit: u32,
-        bid_liquidity: u128,
-        ask_lower_limit: u32,
-        ask_upper_limit: u32,
-        ask_liquidity: u128,
+        pub market_id: felt252,
+        pub bid_lower_limit: u32,
+        pub bid_upper_limit: u32,
+        pub bid_liquidity: u128,
+        pub ask_lower_limit: u32,
+        pub ask_upper_limit: u32,
+        pub ask_liquidity: u128,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct SetStrategyParams {
+    pub(crate) struct SetStrategyParams {
         #[key]
-        market_id: felt252,
-        min_spread: u32,
-        range: u32,
-        max_delta: u32,
-        allow_deposits: bool,
-        use_whitelist: bool,
-        base_currency_id: felt252,
-        quote_currency_id: felt252,
-        min_sources: u32,
-        max_age: u64,
+        pub market_id: felt252,
+        pub min_spread: u32,
+        pub range: u32,
+        pub max_delta: u32,
+        pub allow_deposits: bool,
+        pub use_whitelist: bool,
+        pub base_currency_id: felt252,
+        pub quote_currency_id: felt252,
+        pub min_sources: u32,
+        pub max_age: u64,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct SetWhitelist {
+    pub(crate) struct SetWhitelist {
         #[key]
-        user: ContractAddress,
-        enable: bool,
+        pub user: ContractAddress,
+        pub enable: bool,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct SetWithdrawFee {
+    pub(crate) struct SetWithdrawFee {
         #[key]
-        market_id: felt252,
-        fee_rate: u16,
+        pub market_id: felt252,
+        pub fee_rate: u16,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct WithdrawFeeEarned {
+    pub(crate) struct WithdrawFeeEarned {
         #[key]
-        market_id: felt252,
+        pub market_id: felt252,
         #[key]
-        token: ContractAddress,
-        amount: u256,
+        pub token: ContractAddress,
+        pub amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct CollectWithdrawFee {
+    pub(crate) struct CollectWithdrawFee {
         #[key]
-        receiver: ContractAddress,
+        pub receiver: ContractAddress,
         #[key]
-        token: ContractAddress,
-        amount: u256,
+        pub token: ContractAddress,
+        pub amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct ChangeOracle {
-        oracle: ContractAddress,
-        oracle_summary: ContractAddress
+    pub(crate) struct ChangeOracle {
+        pub oracle: ContractAddress,
+        pub oracle_summary: ContractAddress
     }
 
     #[derive(Drop, starknet::Event)]
-    struct ChangeOwner {
-        old: ContractAddress,
-        new: ContractAddress
+    pub(crate) struct ChangeOwner {
+        pub old: ContractAddress,
+        pub new: ContractAddress
     }
 
     #[derive(Drop, starknet::Event)]
-    struct ChangeStrategyOwner {
+    pub(crate) struct ChangeStrategyOwner {
         #[key]
-        market_id: felt252,
-        old: ContractAddress,
-        new: ContractAddress
+        pub market_id: felt252,
+        pub old: ContractAddress,
+        pub new: ContractAddress
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Pause {
+    pub(crate) struct Pause {
         #[key]
-        market_id: felt252,
+        pub market_id: felt252,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Unpause {
+    pub(crate) struct Unpause {
         #[key]
-        market_id: felt252,
+        pub market_id: felt252,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Referral {
+    pub(crate) struct Referral {
         #[key]
-        caller: ContractAddress,
-        referrer: ContractAddress,
+        pub caller: ContractAddress,
+        pub referrer: ContractAddress,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    pub(crate) struct Upgraded {
+        pub class_hash: ClassHash,
     }
 
     ////////////////////////////////
@@ -346,9 +339,10 @@ mod ReplicatingStrategy {
             }
 
             // Figure out whether strategy will rebalance. If swap params are not provided, assume
-            // rebalancing is performed, as we are placing initial positions.
+            // rebalancing is always performed, as we are placing initial positions.
             let rebalance = match swap_params {
                 Option::Some(params) => {
+                    // Skip Condition 1: LVR
                     // If expected LVR from filling the swap at current price is lower than expected 
                     // fees, then do not update position. We evaluate LVR at the inside quote to 
                     // simplify calculations.
@@ -393,6 +387,18 @@ mod ReplicatingStrategy {
                 return array![state.bid, state.ask].span();
             }
 
+            // Fetch new optimal bid and ask positions.
+            let is_buy = match swap_params {
+                Option::Some(params) => Option::Some(params.is_buy),
+                Option::None(()) => Option::None(()),
+            };
+            let (next_bid_lower, next_bid_upper, next_ask_lower, next_ask_upper) = self
+                .get_bid_ask(market_id, is_buy);
+            let update_bid = next_bid_lower != state.bid.lower_limit
+                || next_bid_upper != state.bid.upper_limit;
+            let update_ask = next_ask_lower != state.ask.lower_limit
+                || next_ask_upper != state.ask.upper_limit;
+
             // Fetch amounts in existing position.
             let contract: felt252 = get_contract_address().into();
             let bid_pos_id = id::position_id(
@@ -406,53 +412,60 @@ mod ReplicatingStrategy {
             let (ask_base, ask_quote, ask_base_fees, ask_quote_fees) = market_manager
                 .amounts_inside_position(ask_pos_id);
 
-            // Fetch new optimal bid and ask positions.
-            let (next_bid_lower, next_bid_upper, next_ask_lower, next_ask_upper) = self
-                .get_bid_ask(market_id);
-
             // Calculate amount of new liquidity to add.
             // Token amounts rounded down as per convention when depositing liquidity.
-            let base_amount = state.base_reserves
-                + bid_base
-                + ask_base
-                + bid_base_fees
-                + ask_base_fees;
-            let base_liquidity = if base_amount == 0 || next_ask_lower == 0 || next_ask_upper == 0 {
-                0
-            } else {
-                liquidity_math::base_to_liquidity(
-                    price_math::limit_to_sqrt_price(next_ask_lower, market_info.width),
-                    price_math::limit_to_sqrt_price(next_ask_upper, market_info.width),
-                    base_amount,
-                    false
-                )
-            };
-            let quote_amount = state.quote_reserves
-                + bid_quote
-                + ask_quote
-                + bid_quote_fees
-                + ask_quote_fees;
-            let quote_liquidity = if quote_amount == 0
-                || next_bid_lower == 0
-                || next_bid_upper == 0 {
-                0
-            } else {
-                liquidity_math::quote_to_liquidity(
-                    price_math::limit_to_sqrt_price(next_bid_lower, market_info.width),
-                    price_math::limit_to_sqrt_price(next_bid_upper, market_info.width),
-                    quote_amount,
-                    false
-                )
-            };
+            let mut bid_liquidity = state.bid.liquidity;
+            let mut ask_liquidity = state.ask.liquidity;
+
+            if update_ask {
+                let base_amount = state.base_reserves
+                    + if update_bid {
+                        bid_base + bid_base_fees
+                    } else {
+                        0
+                    }
+                    + ask_base
+                    + ask_base_fees;
+                ask_liquidity =
+                    if base_amount == 0 || next_ask_lower == 0 || next_ask_upper == 0 {
+                        0
+                    } else {
+                        liquidity_math::base_to_liquidity(
+                            price_math::limit_to_sqrt_price(next_ask_lower, market_info.width),
+                            price_math::limit_to_sqrt_price(next_ask_upper, market_info.width),
+                            base_amount,
+                            false
+                        )
+                    };
+            }
+            if update_bid {
+                let quote_amount = state.quote_reserves
+                    + bid_quote
+                    + bid_quote_fees
+                    + if update_ask {
+                        ask_quote + ask_quote_fees
+                    } else {
+                        0
+                    };
+                bid_liquidity =
+                    if quote_amount == 0 || next_bid_lower == 0 || next_bid_upper == 0 {
+                        0
+                    } else {
+                        liquidity_math::quote_to_liquidity(
+                            price_math::limit_to_sqrt_price(next_bid_lower, market_info.width),
+                            price_math::limit_to_sqrt_price(next_bid_upper, market_info.width),
+                            quote_amount,
+                            false
+                        )
+                    };
+            }
 
             // Return new positions.
             let next_bid = PositionInfo {
-                lower_limit: next_bid_lower,
-                upper_limit: next_bid_upper,
-                liquidity: quote_liquidity,
+                lower_limit: next_bid_lower, upper_limit: next_bid_upper, liquidity: bid_liquidity,
             };
             let next_ask = PositionInfo {
-                lower_limit: next_ask_lower, upper_limit: next_ask_upper, liquidity: base_liquidity,
+                lower_limit: next_ask_lower, upper_limit: next_ask_upper, liquidity: ask_liquidity,
             };
             array![next_bid, next_ask].span()
         }
@@ -761,12 +774,19 @@ mod ReplicatingStrategy {
         //   R is the range parameter (controls how volume affects price)
         //   D is the inv_delta parameter (controls how portfolio imbalance affects price)
         //
+        //
+        // # Arguments
+        // * `market_id` - market id
+        // * `is_buy` - (optional) whether user is buying
+        //
         // # Returns
         // * `bid_lower` - new bid lower limit
         // * `bid_upper` - new bid upper limit
         // * `ask_lower` - new ask lower limit
         // * `ask_upper` - new ask upper limit
-        fn get_bid_ask(self: @ContractState, market_id: felt252) -> (u32, u32, u32, u32) {
+        fn get_bid_ask(
+            self: @ContractState, market_id: felt252, is_buy: Option<bool>
+        ) -> (u32, u32, u32, u32) {
             // Fetch strategy and market info.
             let params = self.strategy_params.read(market_id);
             let market_manager = self.market_manager.read();
@@ -794,9 +814,97 @@ mod ReplicatingStrategy {
                     spread_math::delta_spread(params.max_delta, base_amount, quote_amount, price)
                 }
             };
-            spread_math::calc_bid_ask(
-                curr_limit, limit, params.min_spread, params.range, inv_delta, width
-            )
+            let (raw_bid_upper, raw_ask_lower) = spread_math::calc_bid_ask(
+                curr_limit, limit, params.min_spread, inv_delta, width
+            );
+
+            // Skip Condition 2: Price Impact
+            // In certain scenarios, we can safely skip one or both of bid or ask position updates
+            // without causing adverse price impact. This allows rebalancing at lower gas cost.
+            //
+            // We can skip the bid update if ANY of the following conditions are met:
+            // 1. Curr market price is inside our bid position, user is buying, and the queued bid price 
+            //    is less than the curr market price.
+            // 2. Curr market price is inside our bid position, user is selling, and the queued bid price 
+            //    is greater than the curr market price.
+            // 3. Curr market price is outside our bid position, and user is buying.
+            //
+            // Similarly, we can skip the ask update if ANY of the following conditions are met:
+            // 1. Curr market price is inside our ask position, user is selling, and the queued ask price 
+            //    is gt the curr market price.
+            // 2. Curr market price is inside our ask position, user is buying, and the queued ask price 
+            //    is less than or equal to the curr market price.
+            // 3. Curr market price is outside our ask position, and user is selling.
+            //
+            // Reasoning for above skip conditions:
+            // 1. Rebalancing here is suboptimal as it removes liquidity over a price range at which the
+            //    user is willing to buy from / sell to us at above / below the oracle price.
+            // 2. Rebalancing here is unnecessary as the new position will be capped by curr price, 
+            //    resulting in the same liquidity outcome for users.
+            // 3. Rebalancing here is unnecessary as our position will not be used to fill the incoming
+            //    order even if rebalanced.
+            let state = self.strategy_state.read(market_id);
+            let skip_update_bid = match is_buy {
+                Option::Some(is_buy) => {
+                    // To perform the comparison, we need to coerce curr limit to respect market width.
+                    let coerced_curr_limit = curr_limit / width * width;
+                    if coerced_curr_limit < state.bid.upper_limit {
+                        (is_buy && raw_bid_upper < coerced_curr_limit)
+                            || (!is_buy && raw_bid_upper >= coerced_curr_limit)
+                    } else {
+                        is_buy
+                    }
+                },
+                Option::None(()) => false,
+            };
+            let skip_update_ask = match is_buy {
+                Option::Some(is_buy) => {
+                    // To perform the comparison, we need to coerce curr limit to respect market width.
+                    let coerced_curr_limit = curr_limit / width * width
+                        + if curr_limit % width == 0 {
+                            0
+                        } else {
+                            width
+                        };
+                    if coerced_curr_limit <= state.ask.lower_limit {
+                        !is_buy
+                    } else {
+                        (is_buy && raw_ask_lower <= coerced_curr_limit)
+                            || (!is_buy && raw_ask_lower > coerced_curr_limit)
+                    }
+                },
+                Option::None(()) => false,
+            };
+
+            // Calculate new bid and ask limits.
+            let (bid_upper, ask_lower) = if skip_update_bid && skip_update_ask {
+                (state.bid.upper_limit, state.ask.lower_limit)
+            } else if skip_update_bid {
+                // If we are skipping the bid update, we need to ensure that the ask update is
+                // still valid, i.e. not lower than bid upper limit.
+                (state.bid.upper_limit, max(state.bid.upper_limit, raw_ask_lower))
+            } else if skip_update_ask {
+                // If we are skipping the ask update, we need to ensure that the bid update is
+                // still valid, i.e. not higher than ask lower limit.
+                (min(state.ask.lower_limit, raw_bid_upper), state.ask.lower_limit)
+            } else {
+                (raw_bid_upper, raw_ask_lower)
+            };
+
+            // Calculate remaining limits (bid lower and ask upper).
+            let bid_lower = if bid_upper < params.range {
+                0
+            } else {
+                bid_upper - params.range
+            };
+            let ask_upper = if ask_lower > price_math::max_limit(width) - params.range {
+                price_math::max_limit(width)
+            } else {
+                ask_lower + params.range
+            };
+
+            // Return the bid and ask limits.
+            (bid_lower, bid_upper, ask_lower, ask_upper)
         }
 
         // Initialise strategy for market.
@@ -888,7 +996,7 @@ mod ReplicatingStrategy {
                 .emit(
                     Event::ChangeStrategyOwner(
                         ChangeStrategyOwner {
-                            market_id, old: ContractAddressZeroable::zero(), new: owner,
+                            market_id, old: contract_address_const::<0x0>(), new: owner,
                         }
                     )
                 );
@@ -944,8 +1052,8 @@ mod ReplicatingStrategy {
             self.strategy_state.write(market_id, state);
 
             // Approve max spend by market manager. Place initial positions.
-            base_token.approve(market_manager.contract_address, BoundedU256::max());
-            quote_token.approve(market_manager.contract_address, BoundedU256::max());
+            base_token.approve(market_manager.contract_address, BoundedInt::max());
+            quote_token.approve(market_manager.contract_address, BoundedInt::max());
             let (bid, ask) = self._update_positions(market_id, Option::None(()));
 
             // Check that both positions are placed. If neither position is placed, for example if the
@@ -989,7 +1097,7 @@ mod ReplicatingStrategy {
             referrer: ContractAddress
         ) -> u256 {
             // Check referrer is non-null.
-            assert(referrer.is_non_zero(), 'ReferrerZero');
+            assert(referrer != contract_address_const::<0x0>(), 'ReferrerZero');
 
             // Emit referrer event. 
             let caller = get_caller_address();
@@ -1048,7 +1156,8 @@ mod ReplicatingStrategy {
             } else {
                 min(quote_amount, math::mul_div(base_amount, quote_balance, base_balance, false))
             };
-            let shares = if base_balance == 0 {
+            // Calculate shares on larger (and non-zero) amount for better precision.
+            let shares = if quote_balance > base_balance {
                 math::mul_div(total_deposits, quote_deposit, quote_balance, false)
             } else {
                 math::mul_div(total_deposits, base_deposit, base_balance, false)
@@ -1114,7 +1223,7 @@ mod ReplicatingStrategy {
             referrer: ContractAddress
         ) -> (u256, u256, u256) {
             // Check referrer is non-null.
-            assert(referrer.is_non_zero(), 'ReferrerZero');
+            assert(referrer != contract_address_const::<0x0>(), 'ReferrerZero');
 
             // Emit referrer event. 
             let caller = get_caller_address();
@@ -1365,7 +1474,7 @@ mod ReplicatingStrategy {
             self.assert_owner();
             let old_fee_rate = self.withdraw_fee_rate.read(market_id);
             assert(old_fee_rate != fee_rate, 'FeeUnchanged');
-            assert(fee_rate <= fee_math::MAX_FEE_RATE, 'FeeOF');
+            assert(fee_rate <= MAX_FEE_RATE, 'FeeOF');
             self.withdraw_fee_rate.write(market_id, fee_rate);
             self.emit(Event::SetWithdrawFee(SetWithdrawFee { market_id, fee_rate }));
         }
@@ -1431,7 +1540,7 @@ mod ReplicatingStrategy {
             assert(get_caller_address() == queued_owner, 'OnlyNewOwner');
             let old_owner = self.owner.read();
             self.owner.write(queued_owner);
-            self.queued_owner.write(ContractAddressZeroable::zero());
+            self.queued_owner.write(contract_address_const::<0x0>());
             self.emit(Event::ChangeOwner(ChangeOwner { old: old_owner, new: queued_owner }));
         }
 
@@ -1460,7 +1569,7 @@ mod ReplicatingStrategy {
             assert(get_caller_address() == queued_owner, 'OnlyNewOwner');
             let old_owner = self.strategy_owner.read(market_id);
             self.strategy_owner.write(market_id, queued_owner);
-            self.queued_strategy_owner.write(market_id, ContractAddressZeroable::zero());
+            self.queued_strategy_owner.write(market_id, contract_address_const::<0x0>());
             self
                 .emit(
                     Event::ChangeStrategyOwner(
@@ -1505,7 +1614,7 @@ mod ReplicatingStrategy {
         fn trigger_update_positions(ref self: ContractState, market_id: felt252) {
             // Run checks.
             self.assert_strategy_owner(market_id);
-            let state = self.strategy_state.read(market_id);            
+            let state = self.strategy_state.read(market_id);
             assert(state.is_initialised, 'NotInitialised');
             assert(!state.is_paused, 'Paused');
 
@@ -1517,17 +1626,17 @@ mod ReplicatingStrategy {
             // Update positions.
             self._update_positions(market_id, Option::None(()));
         }
-    }
 
-    // Upgrade contract class.
-    // Callable by owner only.
-    //
-    // # Arguments
-    // * `new_class_hash` - new class hash of contract
-    #[external(v0)]
-    fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
-        self.assert_owner();
-        self.upgradeable._upgrade(new_class_hash);
+        // Upgrade contract class.
+        // Callable by owner only.
+        //
+        // # Arguments
+        // * `new_class_hash` - new class hash of contract
+        fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+            self.assert_owner();
+            replace_class_syscall(new_class_hash).unwrap();
+            self.emit(Event::Upgraded(Upgraded { class_hash: new_class_hash }));
+        }
     }
 
     ////////////////////////////////

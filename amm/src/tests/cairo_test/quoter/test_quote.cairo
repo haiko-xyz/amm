@@ -1,6 +1,5 @@
 // Core lib imports.
 use starknet::testing::set_contract_address;
-use debug::PrintTrait;
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
@@ -79,7 +78,6 @@ fn swap_test_cases() -> Array<SwapCase> {
 ////////////////////////////////
 
 #[test]
-#[available_gas(15000000000)]
 fn test_quote_cases() {
     let (market_manager, base_token, quote_token, quoter) = before();
 
