@@ -6,9 +6,7 @@ pub mod ReplicatingStrategy {
     use core::cmp::{min, max};
     use starknet::ContractAddress;
     use starknet::contract_address::contract_address_const;
-    use starknet::{
-        get_caller_address, get_contract_address, get_block_number, get_block_timestamp
-    };
+    use starknet::{get_caller_address, get_contract_address, get_block_number, get_block_timestamp};
     use starknet::class_hash::ClassHash;
     use starknet::syscalls::replace_class_syscall;
 
@@ -821,16 +819,30 @@ pub mod ReplicatingStrategy {
             );
 
             // Skip Condition 2: Price Impact
-            // These conditions outline scenarios where we can safely skip position updates without 
-            // adverse price impact (or with improved execution). This allows rebalancing at lower gas cost.
-            // In particular, we can skip the bid update if:
-            // 1. Market price is inside our bid position, user is buying, and the queued bid price is lt the curr market price
-            // 2. Market price is inside our bid position, user is selling, and the queued bid price is gte the curr market price
-            // 3. Market price is outside our bid position and user is buying
-            // We can skip the ask update if:
-            // 1. Market price is outside our ask position and user is selling
-            // 2. Market price is inside our ask position, user is buying, and the queued ask price is lte the curr market price
-            // 3. Market price is inside our ask position, user is selling, and the queued ask price is gt the curr market price
+            // In certain scenarios, we can safely skip one or both of bid or ask position updates
+            // without causing adverse price impact. This allows rebalancing at lower gas cost.
+            //
+            // We can skip the bid update if ANY of the following conditions are met:
+            // 1. Curr market price is inside our bid position, user is buying, and the queued bid price 
+            //    is less than the curr market price.
+            // 2. Curr market price is inside our bid position, user is selling, and the queued bid price 
+            //    is greater than the curr market price.
+            // 3. Curr market price is outside our bid position, and user is buying.
+            //
+            // Similarly, we can skip the ask update if ANY of the following conditions are met:
+            // 1. Curr market price is inside our ask position, user is selling, and the queued ask price 
+            //    is gt the curr market price.
+            // 2. Curr market price is inside our ask position, user is buying, and the queued ask price 
+            //    is less than or equal to the curr market price.
+            // 3. Curr market price is outside our ask position, and user is selling.
+            //
+            // Reasoning for above skip conditions:
+            // 1. Rebalancing here is suboptimal as it removes liquidity over a price range at which the
+            //    user is willing to buy from / sell to us at above / below the oracle price.
+            // 2. Rebalancing here is unnecessary as the new position will be capped by curr price, 
+            //    resulting in the same liquidity outcome for users.
+            // 3. Rebalancing here is unnecessary as our position will not be used to fill the incoming
+            //    order even if rebalanced.
             let state = self.strategy_state.read(market_id);
             let skip_update_bid = match is_buy {
                 Option::Some(is_buy) => {
@@ -864,18 +876,22 @@ pub mod ReplicatingStrategy {
                 Option::None(()) => false,
             };
 
-            // Calculate new bid and ask limits, considering skip conditions.
+            // Calculate new bid and ask limits.
             let (bid_upper, ask_lower) = if skip_update_bid && skip_update_ask {
                 (state.bid.upper_limit, state.ask.lower_limit)
             } else if skip_update_bid {
+                // If we are skipping the bid update, we need to ensure that the ask update is
+                // still valid, i.e. not lower than bid upper limit.
                 (state.bid.upper_limit, max(state.bid.upper_limit, raw_ask_lower))
             } else if skip_update_ask {
+                // If we are skipping the ask update, we need to ensure that the bid update is
+                // still valid, i.e. not higher than ask lower limit.
                 (min(state.ask.lower_limit, raw_bid_upper), state.ask.lower_limit)
             } else {
                 (raw_bid_upper, raw_ask_lower)
             };
 
-            // Calculate remaining limits.
+            // Calculate remaining limits (bid lower and ask upper).
             let bid_lower = if bid_upper < params.range {
                 0
             } else {
