@@ -1,7 +1,6 @@
 // Core lib imports.
 use starknet::ContractAddress;
 use starknet::contract_address_const;
-use starknet::class_hash::ClassHash;
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_SCALED};

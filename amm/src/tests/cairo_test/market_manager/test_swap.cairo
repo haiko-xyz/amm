@@ -1008,9 +1008,7 @@ fn _test_swap_cases(set: u32) {
                 params.width = market_case.width;
                 params.swap_fee_rate = market_case.swap_fee_rate;
 
-                let description: ByteArray = format!("{}", market_case.description);
-                println!("{}", description);
-                
+                println!("{}", market_case.description);
                 let market_id = create_market(market_manager, params);
 
                 // Mint positions.
