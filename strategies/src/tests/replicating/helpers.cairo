@@ -1,5 +1,5 @@
 // Core lib imports.
-use starknet::deploy_syscall;
+use starknet::syscalls::deploy_syscall;
 use starknet::ContractAddress;
 use starknet::testing::set_contract_address;
 
@@ -13,13 +13,13 @@ use strategies::strategies::replicating::{
 use snforge_std::{declare, ContractClassTrait, start_prank, stop_prank};
 
 
-fn deploy_mock_pragma_oracle(owner: ContractAddress,) -> IMockPragmaOracleDispatcher {
+pub fn deploy_mock_pragma_oracle(owner: ContractAddress,) -> IMockPragmaOracleDispatcher {
     let contract = declare("MockPragmaOracle");
     let contract_address = contract.deploy(@array![]).unwrap();
     IMockPragmaOracleDispatcher { contract_address }
 }
 
-fn deploy_replicating_strategy(
+pub fn deploy_replicating_strategy(
     owner: ContractAddress,
     market_manager: ContractAddress,
     oracle: ContractAddress,

@@ -1,7 +1,3 @@
-use traits::Into;
-use integer::BoundedU256;
-use debug::PrintTrait;
-
 use amm::libraries::math::price_math::{
     shift_limit, unshift_limit, limit_to_sqrt_price, sqrt_price_to_limit, price_to_limit, max_limit,
     offset

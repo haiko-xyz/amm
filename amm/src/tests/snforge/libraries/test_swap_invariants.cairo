@@ -1,5 +1,5 @@
 // Core lib imports.
-use integer::{BoundedU256, u256_wide_mul, u512};
+use core::integer::{BoundedInt, u256_wide_mul, u512};
 
 // Local imports.
 use amm::libraries::constants::{MIN_SQRT_PRICE, MAX_SQRT_PRICE};
@@ -50,7 +50,7 @@ fn test_compute_swap_amounts_invariants(
     );
 
     // Invariant 1
-    assert(amount_in + fees <= BoundedU256::max(), 'Invariant 1');
+    assert(amount_in + fees <= BoundedInt::max(), 'Invariant 1');
 
     // Invariant 2
     if exact_input {

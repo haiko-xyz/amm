@@ -1,6 +1,5 @@
 use starknet::ContractAddress;
 use starknet::class_hash::ClassHash;
-use array::ArrayTrait;
 
 const MEDIAN: felt252 = 'MEDIAN'; // str_to_felt("MEDIAN")
 const SPOT: felt252 = 'SPOT';
@@ -12,73 +11,73 @@ const USD_CURRENCY_ID: felt252 = 'USD';
 
 
 #[derive(Copy, Drop, Serde, starknet::Store)]
-struct BaseEntry {
-    timestamp: u64,
-    source: felt252,
-    publisher: felt252,
+pub struct BaseEntry {
+    pub timestamp: u64,
+    pub source: felt252,
+    pub publisher: felt252,
 }
 
 #[derive(Serde, Drop, Copy)]
-struct GenericEntryStorage {
-    timestamp__value: u256,
+pub struct GenericEntryStorage {
+    pub timestamp__value: u256,
 }
 
 #[derive(Copy, Drop, Serde)]
-struct SpotEntry {
-    base: BaseEntry,
-    price: u128,
-    pair_id: felt252,
-    volume: u128,
+pub struct SpotEntry {
+    pub base: BaseEntry,
+    pub price: u128,
+    pub pair_id: felt252,
+    pub volume: u128,
 }
 #[derive(Copy, Drop, Serde)]
-struct GenericEntry {
-    base: BaseEntry,
-    key: felt252,
-    value: u128,
+pub struct GenericEntry {
+    pub base: BaseEntry,
+    pub key: felt252,
+    pub value: u128,
 }
 
 #[derive(Copy, Drop, PartialOrd, Serde)]
-struct FutureEntry {
-    base: BaseEntry,
-    price: u128,
-    pair_id: felt252,
-    volume: u128,
-    expiration_timestamp: u64,
+pub struct FutureEntry {
+    pub base: BaseEntry,
+    pub price: u128,
+    pub pair_id: felt252,
+    pub volume: u128,
+    pub expiration_timestamp: u64,
 }
 
 #[derive(Serde, Drop, Copy)]
-struct OptionEntry {
-    base: BaseEntry,
-    rawParameters: rawSVI,
-    essviParameters: eSSVI,
-    forwardPrice: u256,
-    strikePrice: u256,
-    expirationTimestamp: u64,
+pub struct OptionEntry {
+    pub base: BaseEntry,
+    pub rawParameters: rawSVI,
+    pub essviParameters: eSSVI,
+    pub forwardPrice: u256,
+    pub strikePrice: u256,
+    pub expirationTimestamp: u64,
 }
 
 #[derive(Serde, Drop, Copy)]
-struct rawSVI {
-    a: u256,
-    b: u256,
-    rho: u256,
-    m: u256,
-    sigma: u256,
-    decimals: u32
+pub struct rawSVI {
+    pub a: u256,
+    pub b: u256,
+    pub rho: u256,
+    pub m: u256,
+    pub sigma: u256,
+    pub decimals: u32
 }
 
 #[derive(Serde, Drop, Copy)]
-struct eSSVI {
-    theta: u256,
-    rho: u256,
-    phi: u256
+pub struct eSSVI {
+    pub theta: u256,
+    pub rho: u256,
+    pub phi: u256
 }
 
 
 #[derive(Serde, Drop, Copy)]
-struct EntryStorage {
-    timestamp: u64,
-    volume: u128,
-    price: u128,
+pub struct EntryStorage {
+    pub timestamp: u64,
+    pub volume: u128,
+    pub price: u128,
 }
 
 
@@ -90,7 +89,7 @@ struct EntryStorage {
 /// * `Future` - Future price
 /// * `Option` - Option price
 #[derive(Drop, Copy, Serde)]
-enum DataType {
+pub enum DataType {
     SpotEntry: felt252,
     FutureEntry: (felt252, u64),
     GenericEntry: felt252,
@@ -98,21 +97,21 @@ enum DataType {
 }
 
 #[derive(Drop, Copy)]
-enum PossibleEntryStorage {
-    Spot: u256, //structure SpotEntryStorage
-    Future: u256, //structure FutureEntryStorage
-//  Option: OptionEntryStorage, //structure OptionEntryStorage
+pub enum PossibleEntryStorage {
+    Spot: u256, //pub structure SpotEntryStorage
+    Future: u256, //pub structure FutureEntryStorage
+//  Option: OptionEntryStorage, //pub structure OptionEntryStorage
 }
 
 #[derive(Drop, Copy, Serde)]
-enum SimpleDataType {
+pub enum SimpleDataType {
     SpotEntry: (),
     FutureEntry: (),
 //  OptionEntry: (),
 }
 
 #[derive(Drop, Copy, Serde)]
-enum PossibleEntries {
+pub enum PossibleEntries {
     Spot: SpotEntry,
     Future: FutureEntry,
     Generic: GenericEntry,
@@ -129,56 +128,56 @@ enum ArrayEntry {
 
 
 #[derive(Serde, Drop, Copy, starknet::Store)]
-struct Pair {
-    id: felt252, // same as key currently (e.g. str_to_felt("ETH/USD") - force uppercase)
-    quote_currency_id: felt252, // currency id - str_to_felt encode the ticker
-    base_currency_id: felt252, // currency id - str_to_felt encode the ticker
+pub struct Pair {
+    pub id: felt252, // same as key currently (e.g. str_to_felt("ETH/USD") - force uppercase)
+    pub quote_currency_id: felt252, // currency id - str_to_felt encode the ticker
+    pub base_currency_id: felt252, // currency id - str_to_felt encode the ticker
 }
 
 #[derive(Serde, Drop, Copy, starknet::Store)]
-struct Currency {
-    id: felt252,
-    decimals: u32,
-    is_abstract_currency: bool, // True (1) if not a specific token but abstract, e.g. USD or ETH as a whole
-    starknet_address: ContractAddress, // optional, e.g. can have synthetics for non-bridged assets
-    ethereum_address: ContractAddress, // optional
+pub struct Currency {
+    pub id: felt252,
+    pub decimals: u32,
+    pub is_abstract_currency: bool, // True (1) if not a specific token but abstract, e.g. USD or ETH as a whole
+    pub starknet_address: ContractAddress, // optional, e.g. can have synthetics for non-bridged assets
+    pub ethereum_address: ContractAddress, // optional
 }
 
 #[derive(Serde, Drop)]
-struct Checkpoint {
-    timestamp: u64,
-    value: u128,
-    aggregation_mode: AggregationMode,
-    num_sources_aggregated: u32,
+pub struct Checkpoint {
+    pub timestamp: u64,
+    pub value: u128,
+    pub aggregation_mode: AggregationMode,
+    pub num_sources_aggregated: u32,
 }
 
 #[derive(Serde, Drop, Copy, starknet::Store)]
-struct FetchCheckpoint {
-    pair_id: felt252,
-    type_of: felt252,
-    index: u64,
-    expiration_timestamp: u64,
-    aggregation_mode: u8,
+pub struct FetchCheckpoint {
+    pub pair_id: felt252,
+    pub type_of: felt252,
+    pub index: u64,
+    pub expiration_timestamp: u64,
+    pub aggregation_mode: u8,
 }
 
 #[derive(Serde, Drop, Copy)]
-struct PragmaPricesResponse {
-    price: u128,
-    decimals: u32,
-    last_updated_timestamp: u64,
-    num_sources_aggregated: u32,
-    expiration_timestamp: Option<u64>,
+pub struct PragmaPricesResponse {
+    pub price: u128,
+    pub decimals: u32,
+    pub last_updated_timestamp: u64,
+    pub num_sources_aggregated: u32,
+    pub expiration_timestamp: Option<u64>,
 }
 
 #[derive(Serde, Drop, Copy)]
-enum AggregationMode {
+pub enum AggregationMode {
     Median: (),
     Mean: (),
     Error: (),
 }
 
 #[starknet::interface]
-trait IOracleABI<TContractState> {
+pub trait IOracleABI<TContractState> {
     fn get_decimals(self: @TContractState, data_type: DataType) -> u32;
     fn get_data_median(self: @TContractState, data_type: DataType) -> PragmaPricesResponse;
     fn get_data_median_for_sources(
@@ -253,7 +252,7 @@ trait IOracleABI<TContractState> {
 }
 
 #[starknet::interface]
-trait ISummaryStatsABI<TContractState> {
+pub trait ISummaryStatsABI<TContractState> {
     fn calculate_mean(
         self: @TContractState,
         data_type: DataType,

@@ -1,8 +1,8 @@
 // Core lib imports.
-use cmp::{min, max};
-use integer::BoundedU32;
-use dict::Felt252DictTrait;
-use nullable::{match_nullable, FromNullableResult};
+use core::cmp::{min, max};
+use core::integer::BoundedInt;
+use core::dict::Felt252DictTrait;
+use core::nullable::{match_nullable, FromNullableResult, NullableTrait};
 
 // Local imports.
 use amm::libraries::tree;
@@ -37,7 +37,7 @@ use amm::types::i128::{i128, I128Trait};
 // * `width` - limit width
 // * `is_buy` - whether swap is a buy or sell
 // * `exact_input` - whether swap amount is exact input or output
-fn quote_iter(
+pub fn quote_iter(
     self: @ContractState,
     market_id: felt252,
     ref market_state: MarketState,
@@ -182,9 +182,9 @@ fn quote_iter(
 //
 // # Returns
 // * `next_limit` - next limit (or None if no next limit)
-fn next_limit(target_limits: Span<u32>, is_buy: bool, curr_limit: u32,) -> Option<u32> {
+pub fn next_limit(target_limits: Span<u32>, is_buy: bool, curr_limit: u32,) -> Option<u32> {
     let mut next_limit = if is_buy {
-        BoundedU32::max()
+        BoundedInt::max()
     } else {
         0
     };
@@ -228,7 +228,7 @@ fn next_limit(target_limits: Span<u32>, is_buy: bool, curr_limit: u32,) -> Optio
 // * `market_state` - ref to market state
 // * `positions` - list of queued positions to update
 // * `is_placed` - whether positions are placed or queued
-fn populate_limit(
+pub fn populate_limit(
     ref queued_deltas: Felt252Dict<Nullable<i128>>,
     ref target_limits: Array<u32>,
     ref market_state: MarketState,
@@ -248,8 +248,8 @@ fn populate_limit(
     lower_liq_delta += I128Trait::new(position.liquidity, is_placed);
     upper_liq_delta += I128Trait::new(position.liquidity, !is_placed);
 
-    let lower_liq = nullable_from_box(BoxTrait::new(lower_liq_delta));
-    let upper_liq = nullable_from_box(BoxTrait::new(upper_liq_delta));
+    let lower_liq = NullableTrait::new(lower_liq_delta);
+    let upper_liq = NullableTrait::new(upper_liq_delta);
     queued_deltas.insert(position.lower_limit.into(), lower_liq);
     queued_deltas.insert(position.upper_limit.into(), upper_liq);
     target_limits.append(position.lower_limit);
@@ -261,7 +261,7 @@ fn populate_limit(
 // # Arguments
 // * `queued_deltas` - ref to mapping of limit to liquidity deltas
 // * `target_limit` - target limit to unbox
-fn unbox_delta(ref queued_deltas: Felt252Dict<Nullable<i128>>, target_limit: u32) -> i128 {
+pub fn unbox_delta(ref queued_deltas: Felt252Dict<Nullable<i128>>, target_limit: u32) -> i128 {
     let queued_delta = queued_deltas.get(target_limit.into());
     match match_nullable(queued_delta) {
         FromNullableResult::Null => I128Trait::new(0, false),

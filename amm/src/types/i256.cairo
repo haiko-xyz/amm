@@ -1,43 +1,20 @@
-use traits::{Into, TryInto, Rem};
-use integer::{U256Mul, U256Div, U256Rem, Felt252IntoU256};
-use option::OptionTrait;
-use result::ResultTrait;
-use hash::LegacyHash;
-
 ////////////////////////////////
 // TYPES
 ////////////////////////////////
 
 #[derive(Copy, Drop, Serde, storage_access::StorageAccess)]
-struct i256 {
-    val: u256,
-    sign: bool
+pub struct i256 {
+    pub val: u256,
+    pub sign: bool
 }
 
 ////////////////////////////////
 // METHODS
 ////////////////////////////////
 
-trait I256Trait {
+pub trait I256Trait {
     fn new(val: u256, sign: bool) -> i256;
     fn one() -> i256;
-}
-
-impl I256Zeroable of Zeroable<i256> {
-    #[inline(always)]
-    fn zero() -> i256 {
-        I256Trait::new(0_u256, false)
-    }
-
-    #[inline(always)]
-    fn is_zero(self: i256) -> bool {
-        self.val == 0_u256
-    }
-
-    #[inline(always)]
-    fn is_non_zero(self: i256) -> bool {
-        self.val != 0_u256
-    }
 }
 
 impl I256Impl of I256Trait {
@@ -169,7 +146,7 @@ impl I256Mul of Mul<i256> {
     #[inline(always)]
     fn mul(lhs: i256, rhs: i256) -> i256 {
         let res_sign: bool = lhs.sign ^ rhs.sign;
-        let mag: u256 = U256Mul::mul(lhs.val, rhs.val);
+        let mag: u256 = lhs.val * rhs.val;
         I256Trait::new(mag, res_sign)
     }
 }
@@ -178,7 +155,7 @@ impl I256Div of Div<i256> {
     #[inline(always)]
     fn div(lhs: i256, rhs: i256) -> i256 {
         let res_sign = lhs.sign ^ rhs.sign;
-        let mag: u256 = U256Div::div(lhs.val, rhs.val);
+        let mag: u256 = lhs.val / rhs.val;
         I256Trait::new(mag, res_sign)
     }
 }
@@ -187,7 +164,7 @@ impl I256Rem of Rem<i256> {
     #[inline(always)]
     fn rem(lhs: i256, rhs: i256) -> i256 {
         let res_sign = lhs.sign;
-        let mag: u256 = U256Rem::rem(lhs.val, rhs.val);
+        let mag: u256 = lhs.val % rhs.val;
         I256Trait::new(mag, res_sign)
     }
 }

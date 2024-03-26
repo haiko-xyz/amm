@@ -1,4 +1,4 @@
-mod strategies;
+pub mod strategies;
 
 #[cfg(test)]
-mod tests;
+pub mod tests;

@@ -3,7 +3,7 @@ use strategies::strategies::replicating::pragma::{
 };
 
 #[starknet::interface]
-trait IMockPragmaOracle<TContractState> {
+pub trait IMockPragmaOracle<TContractState> {
     fn get_data_with_USD_hop(
         self: @TContractState,
         base_currency_id: felt252,
@@ -42,7 +42,7 @@ trait IMockPragmaOracle<TContractState> {
 }
 
 #[starknet::contract]
-mod MockPragmaOracle {
+pub mod MockPragmaOracle {
     use super::IMockPragmaOracle;
 
     use strategies::strategies::replicating::pragma::{

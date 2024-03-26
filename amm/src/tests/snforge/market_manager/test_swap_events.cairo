@@ -5,8 +5,8 @@ use starknet::contract_address_const;
 // Local imports.
 use amm::libraries::constants::OFFSET;
 use amm::libraries::math::{fee_math, price_math, liquidity_math};
-use amm::types::i128::{I128Trait, I128Zeroable};
-use amm::types::i256::{I256Trait, I256Zeroable};
+use amm::types::i128::{I128Trait};
+use amm::types::i256::{I256Trait};
 use amm::contracts::market_manager::MarketManager;
 use amm::contracts::mocks::manual_strategy::{
     ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait
@@ -213,7 +213,7 @@ fn test_swap_events_no_strategy_limit_orders_fully_filled() {
                             lower_limit: limit,
                             upper_limit: limit + width,
                             liquidity_delta: I128Trait::new(liquidity, true),
-                            base_amount: I256Zeroable::zero(),
+                            base_amount: I256Trait::new(0, false),
                             quote_amount: I256Trait::new(50175407285947951, true),
                             base_fees: 0,
                             quote_fees: 150526221857843,

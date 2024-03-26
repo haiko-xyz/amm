@@ -1,6 +1,5 @@
 // Core lib imports.
 use starknet::ContractAddress;
-use starknet::contract_address::ContractAddressZeroable;
 
 // Local imports.
 use amm::types::core::PositionInfo;
@@ -21,33 +20,33 @@ use amm::types::core::PositionInfo;
 // * `min_sources` - minimum number of oracle data sources aggregated
 // * `max_age` - maximum age of quoted oracle price
 #[derive(Drop, Copy, Serde, PartialEq)]
-struct StrategyParams {
-    min_spread: u32,
-    range: u32,
-    max_delta: u32,
-    allow_deposits: bool,
-    use_whitelist: bool,
+pub struct StrategyParams {
+    pub min_spread: u32,
+    pub range: u32,
+    pub max_delta: u32,
+    pub allow_deposits: bool,
+    pub use_whitelist: bool,
     // Oracle params
-    base_currency_id: felt252,
-    quote_currency_id: felt252,
-    min_sources: u32,
-    max_age: u64,
+    pub base_currency_id: felt252,
+    pub quote_currency_id: felt252,
+    pub min_sources: u32,
+    pub max_age: u64,
 }
 
 #[derive(Drop, Copy, Serde, Default)]
-struct StrategyState {
+pub struct StrategyState {
     // Whether strategy is initialised
-    is_initialised: bool,
+    pub is_initialised: bool,
     // Whether strategy is paused
-    is_paused: bool,
+    pub is_paused: bool,
     // Base reserves
-    base_reserves: u256,
+    pub base_reserves: u256,
     // Quote reserves
-    quote_reserves: u256,
+    pub quote_reserves: u256,
     // Placed bid, or 0 if none placed
-    bid: PositionInfo,
+    pub bid: PositionInfo,
     // Placed ask, or 0 if none placed
-    ask: PositionInfo,
+    pub ask: PositionInfo,
 }
 
 // // Number of limits, defined either as:
@@ -73,10 +72,10 @@ struct StrategyState {
 // * `quote_currency_id` - quote currency id
 // * `slab0` - `min_spread` + `range` + `max_delta` + `min_sources` + `max_age` + `allow_deposits` + `use_whitelist`
 #[derive(starknet::Store)]
-struct PackedStrategyParams {
-    base_currency_id: felt252,
-    quote_currency_id: felt252,
-    slab0: felt252
+pub struct PackedStrategyParams {
+    pub base_currency_id: felt252,
+    pub quote_currency_id: felt252,
+    pub slab0: felt252
 }
 
 // Packed strategy state.
@@ -86,9 +85,9 @@ struct PackedStrategyParams {
 // * `slab2` - `bid_lower_limit` + `bid_upper_limit` + `bid_liquidity` + `is_initialised` + `is_paused`
 // * `slab3` - `ask_lower_limit` + `ask_upper_limit` + `ask_liquidity`
 #[derive(starknet::Store)]
-struct PackedStrategyState {
-    slab0: felt252,
-    slab1: felt252,
-    slab2: felt252,
-    slab3: felt252
+pub struct PackedStrategyState {
+    pub slab0: felt252,
+    pub slab1: felt252,
+    pub slab2: felt252,
+    pub slab3: felt252
 }

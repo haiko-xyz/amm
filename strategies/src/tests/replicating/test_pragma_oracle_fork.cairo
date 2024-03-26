@@ -2,7 +2,6 @@ use starknet::ContractAddress;
 use starknet::contract_address_const;
 use starknet::syscalls::call_contract_syscall;
 use starknet::info::get_block_timestamp;
-use integer::BoundedU32;
 
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::interfaces::IQuoter::{IQuoterDispatcher, IQuoterDispatcherTrait};

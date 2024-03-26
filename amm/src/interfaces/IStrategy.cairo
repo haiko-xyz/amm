@@ -5,7 +5,7 @@ use starknet::ContractAddress;
 use amm::types::core::{SwapParams, PositionInfo};
 
 #[starknet::interface]
-trait IStrategy<TContractState> {
+pub trait IStrategy<TContractState> {
     ////////////////////////////////
     // VIEW
     ////////////////////////////////

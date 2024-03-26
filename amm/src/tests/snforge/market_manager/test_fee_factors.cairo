@@ -1,5 +1,5 @@
 // Core lib imports.
-use cmp::{min, max};
+use core::cmp::{min, max};
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
@@ -124,26 +124,26 @@ fn test_fee_factor_invariants(
     let (market_manager, market_id, _base_token, _quote_token) = before();
 
     // Initialise position params.
-    let pos1_lower_limit = OFFSET - 32768 + min(pos1_limit1, pos1_limit2).into();
-    let pos1_upper_limit = OFFSET - 32768 + max(pos1_limit1, pos1_limit2).into();
+    let pos1_lower_limit: u32 = OFFSET - 32768 + min(pos1_limit1, pos1_limit2).into();
+    let pos1_upper_limit: u32 = OFFSET - 32768 + max(pos1_limit1, pos1_limit2).into();
     let pos1_liquidity: u128 = pos1_liquidity.into() * 1000000;
     let pos1_rem_liq = pos1_liquidity * pos1_rem_pct.into() / 256;
-    let pos2_lower_limit = OFFSET - 32768 + min(pos2_limit1, pos2_limit2).into();
-    let pos2_upper_limit = OFFSET - 32768 + max(pos2_limit1, pos2_limit2).into();
+    let pos2_lower_limit: u32 = OFFSET - 32768 + min(pos2_limit1, pos2_limit2).into();
+    let pos2_upper_limit: u32 = OFFSET - 32768 + max(pos2_limit1, pos2_limit2).into();
     let pos2_liquidity: u128 = pos2_liquidity.into() * 1000000;
-    let pos2_rem_liq = pos2_liquidity * pos2_rem_pct.into() / 256;
-    let pos3_lower_limit = OFFSET - 32768 + min(pos3_limit1, pos3_limit2).into();
-    let pos3_upper_limit = OFFSET - 32768 + max(pos3_limit1, pos3_limit2).into();
+    let pos2_rem_liq: u128 = pos2_liquidity * pos2_rem_pct.into() / 256;
+    let pos3_lower_limit: u32 = OFFSET - 32768 + min(pos3_limit1, pos3_limit2).into();
+    let pos3_upper_limit: u32 = OFFSET - 32768 + max(pos3_limit1, pos3_limit2).into();
     let pos3_liquidity: u128 = pos3_liquidity.into() * 1000000;
-    let pos3_rem_liq = pos3_liquidity * pos3_rem_pct.into() / 256;
-    let pos4_lower_limit = OFFSET - 32768 + min(pos4_limit1, pos4_limit2).into();
-    let pos4_upper_limit = OFFSET - 32768 + max(pos4_limit1, pos4_limit2).into();
+    let pos3_rem_liq: u128 = pos3_liquidity * pos3_rem_pct.into() / 256;
+    let pos4_lower_limit: u32 = OFFSET - 32768 + min(pos4_limit1, pos4_limit2).into();
+    let pos4_upper_limit: u32 = OFFSET - 32768 + max(pos4_limit1, pos4_limit2).into();
     let pos4_liquidity: u128 = pos4_liquidity.into() * 1000000;
     let pos4_rem_liq = pos4_liquidity * pos4_rem_pct.into() / 256;
-    let pos5_lower_limit = OFFSET - 32768 + min(pos5_limit1, pos5_limit2).into();
-    let pos5_upper_limit = OFFSET - 32768 + max(pos5_limit1, pos5_limit2).into();
+    let pos5_lower_limit: u32 = OFFSET - 32768 + min(pos5_limit1, pos5_limit2).into();
+    let pos5_upper_limit: u32 = OFFSET - 32768 + max(pos5_limit1, pos5_limit2).into();
     let pos5_liquidity: u128 = pos5_liquidity.into() * 1000000;
-    let pos5_rem_liq = pos5_liquidity * pos5_rem_pct.into() / 256;
+    let pos5_rem_liq: u128 = pos5_liquidity * pos5_rem_pct.into() / 256;
 
     let mut position_params = array![
         (pos1_lower_limit, pos1_upper_limit, pos1_liquidity, pos1_rem_liq),

@@ -1,7 +1,6 @@
 // Core lib imports.
-use cmp::{min, max};
+use core::cmp::{min, max};
 use starknet::testing::set_contract_address;
-use debug::PrintTrait;
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MIN_LIMIT, MAX_LIMIT};

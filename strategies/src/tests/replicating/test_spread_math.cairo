@@ -2,8 +2,6 @@ use amm::types::i32::I32Trait;
 use amm::tests::common::utils::{to_e28, to_e18};
 use strategies::strategies::replicating::spread_math::{calc_bid_ask, delta_spread};
 
-use debug::PrintTrait;
-
 ////////////////////////////////
 // TESTS
 ////////////////////////////////

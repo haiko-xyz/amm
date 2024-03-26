@@ -1,5 +1,5 @@
 // Core lib imports.
-use cmp::{min, max};
+use core::cmp::{min, max};
 
 // Local imports.
 use amm::libraries::math::{price_math, math};
@@ -15,9 +15,9 @@ use strategies::strategies::replicating::{
 // CONSTANTS
 ///////////////////////////////
 
-const DENOMINATOR: u256 = 10000;
+pub const DENOMINATOR: u256 = 10000;
 
-const VOL_DENOMINATOR: u256 = 10000000000;
+pub const VOL_DENOMINATOR: u256 = 10000000000;
 
 ////////////////////////////////
 // FUNCTIONS
@@ -36,7 +36,7 @@ const VOL_DENOMINATOR: u256 = 10000000000;
 // # Returns
 // `bid_upper` - bid upper limit
 // `ask_lower` - ask lower limit
-fn calc_bid_ask(
+pub fn calc_bid_ask(
     curr_limit: u32, new_limit: u32, min_spread: u32, inv_delta: i32, width: u32,
 ) -> (u32, u32) {
     // Calculate optimal bid and ask limits. These are the limits that would be placed 
@@ -85,7 +85,7 @@ fn calc_bid_ask(
 //
 // # Returns
 // `inv_delta` - inventory delta (+ve if ask spread, -ve if bid spread)
-fn delta_spread(max_delta: u32, base_amount: u256, quote_amount: u256, price: u256) -> i32 {
+pub fn delta_spread(max_delta: u32, base_amount: u256, quote_amount: u256, price: u256) -> i32 {
     let base_in_quote = math::mul_div(base_amount, price, ONE, false);
     let is_bid_delta = base_in_quote < quote_amount;
 

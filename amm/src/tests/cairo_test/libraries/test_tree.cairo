@@ -1,9 +1,5 @@
 // Core lib imports.
-use core::result::ResultTrait;
-use traits::TryInto;
-use option::OptionTrait;
-use array::ArrayTrait;
-use starknet::deploy_syscall;
+use starknet::syscalls::deploy_syscall;
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MIN_LIMIT};

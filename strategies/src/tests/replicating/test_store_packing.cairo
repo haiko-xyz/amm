@@ -1,5 +1,5 @@
 // Core lib imports.
-use starknet::deploy_syscall;
+use starknet::syscalls::deploy_syscall;
 use starknet::contract_address::contract_address_const;
 use starknet::testing::set_contract_address;
 

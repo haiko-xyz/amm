@@ -1,7 +1,6 @@
 // Core lib imports.
 use starknet::testing::set_contract_address;
-use integer::BoundedU256;
-use debug::PrintTrait;
+use core::integer::BoundedInt;
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT};
@@ -39,7 +38,7 @@ fn before() -> (
     let market_manager = deploy_market_manager(owner);
 
     // Deploy tokens.
-    let max = BoundedU256::max();
+    let max = BoundedInt::max();
     let eth_params = token_params('Ethereum', 'ETH', 18, max, treasury());
     let btc_params = token_params('Bitcoin', 'BTC', 18, max, treasury());
     let usdc_params = token_params('USDC', 'USDC', 18, max, treasury());

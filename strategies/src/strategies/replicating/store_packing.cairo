@@ -1,8 +1,5 @@
 // Core lib imports.
-use starknet::StorePacking;
-use integer::{u128_safe_divmod, u128_as_non_zero};
-use traits::{Into, TryInto};
-use option::OptionTrait;
+use starknet::storage_access::StorePacking;
 
 // Local imports.
 use amm::libraries::constants::MAX_FEE_FACTOR;
@@ -31,7 +28,7 @@ const MASK_128: u256 = 0xffffffffffffffffffffffffffffffff;
 // IMPLS
 ////////////////////////////////
 
-impl StrategyParamsStorePacking of StorePacking<StrategyParams, PackedStrategyParams> {
+pub(crate) impl StrategyParamsStorePacking of StorePacking<StrategyParams, PackedStrategyParams> {
     fn pack(value: StrategyParams) -> PackedStrategyParams {
         let mut slab0: u256 = value.min_spread.into();
         slab0 += value.range.into() * TWO_POW_32.into();
@@ -74,7 +71,7 @@ impl StrategyParamsStorePacking of StorePacking<StrategyParams, PackedStrategyPa
     }
 }
 
-impl StrategyStateStorePacking of StorePacking<StrategyState, PackedStrategyState> {
+pub(crate) impl StrategyStateStorePacking of StorePacking<StrategyState, PackedStrategyState> {
     fn pack(value: StrategyState) -> PackedStrategyState {
         let slab0: felt252 = value.base_reserves.try_into().unwrap();
         let slab1: felt252 = value.quote_reserves.try_into().unwrap();

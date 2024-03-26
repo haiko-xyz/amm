@@ -1,5 +1,5 @@
 #[starknet::contract]
-mod FeeController {
+pub mod FeeController {
     use starknet::ContractAddress;
     use amm::interfaces::IFeeController::IFeeController;
 

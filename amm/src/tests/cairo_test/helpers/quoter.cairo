@@ -1,14 +1,14 @@
+// Core lib imports.
 use starknet::ContractAddress;
-use starknet::deploy_syscall;
+use starknet::syscalls::deploy_syscall;
 use starknet::testing::{set_caller_address, set_contract_address, set_block_timestamp};
 use core::starknet::SyscallResultTrait;
-use core::result::ResultTrait;
-use array::ArrayTrait;
 
+// Local imports.
 use amm::contracts::quoter::Quoter;
 use amm::interfaces::IQuoter::{IQuoter, IQuoterDispatcher, IQuoterDispatcherTrait};
 
-fn deploy_quoter(owner: ContractAddress, market_manager: ContractAddress) -> IQuoterDispatcher {
+pub fn deploy_quoter(owner: ContractAddress, market_manager: ContractAddress) -> IQuoterDispatcher {
     let mut constructor_calldata = ArrayTrait::<felt252>::new();
     owner.serialize(ref constructor_calldata);
     market_manager.serialize(ref constructor_calldata);

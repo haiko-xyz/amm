@@ -1,16 +1,16 @@
 #[starknet::contract]
-mod ReplicatingStrategy {
+pub mod ReplicatingStrategy {
     // Core lib imports.
     use core::traits::TryInto;
-    use integer::BoundedU256;
-    use cmp::{min, max};
+    use core::integer::BoundedInt;
+    use core::cmp::{min, max};
     use starknet::ContractAddress;
-    use starknet::contract_address::ContractAddressZeroable;
-    use starknet::info::{
+    use starknet::contract_address::contract_address_const;
+    use starknet::{
         get_caller_address, get_contract_address, get_block_number, get_block_timestamp
     };
     use starknet::class_hash::ClassHash;
-    use starknet::replace_class_syscall;
+    use starknet::syscalls::replace_class_syscall;
 
     // Local imports.
     use amm::types::core::{MarketState, SwapParams, PositionInfo};
@@ -92,7 +92,7 @@ mod ReplicatingStrategy {
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {
+    pub(crate) enum Event {
         AddMarket: AddMarket,
         Deposit: Deposit,
         Withdraw: Withdraw,
@@ -113,129 +113,129 @@ mod ReplicatingStrategy {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct AddMarket {
+    pub(crate) struct AddMarket {
         #[key]
-        market_id: felt252
+        pub market_id: felt252
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Deposit {
+    pub(crate) struct Deposit {
         #[key]
-        caller: ContractAddress,
+        pub caller: ContractAddress,
         #[key]
-        market_id: felt252,
-        base_amount: u256,
-        quote_amount: u256,
-        shares: u256,
+        pub market_id: felt252,
+        pub base_amount: u256,
+        pub quote_amount: u256,
+        pub shares: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Withdraw {
+    pub(crate) struct Withdraw {
         #[key]
-        caller: ContractAddress,
+        pub caller: ContractAddress,
         #[key]
-        market_id: felt252,
-        base_amount: u256,
-        quote_amount: u256,
-        shares: u256,
+        pub market_id: felt252,
+        pub base_amount: u256,
+        pub quote_amount: u256,
+        pub shares: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct UpdatePositions {
+    pub(crate) struct UpdatePositions {
         #[key]
-        market_id: felt252,
-        bid_lower_limit: u32,
-        bid_upper_limit: u32,
-        bid_liquidity: u128,
-        ask_lower_limit: u32,
-        ask_upper_limit: u32,
-        ask_liquidity: u128,
+        pub market_id: felt252,
+        pub bid_lower_limit: u32,
+        pub bid_upper_limit: u32,
+        pub bid_liquidity: u128,
+        pub ask_lower_limit: u32,
+        pub ask_upper_limit: u32,
+        pub ask_liquidity: u128,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct SetStrategyParams {
+    pub(crate) struct SetStrategyParams {
         #[key]
-        market_id: felt252,
-        min_spread: u32,
-        range: u32,
-        max_delta: u32,
-        allow_deposits: bool,
-        use_whitelist: bool,
-        base_currency_id: felt252,
-        quote_currency_id: felt252,
-        min_sources: u32,
-        max_age: u64,
+        pub market_id: felt252,
+        pub min_spread: u32,
+        pub range: u32,
+        pub max_delta: u32,
+        pub allow_deposits: bool,
+        pub use_whitelist: bool,
+        pub base_currency_id: felt252,
+        pub quote_currency_id: felt252,
+        pub min_sources: u32,
+        pub max_age: u64,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct SetWhitelist {
+    pub(crate) struct SetWhitelist {
         #[key]
-        user: ContractAddress,
-        enable: bool,
+        pub user: ContractAddress,
+        pub enable: bool,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct SetWithdrawFee {
+    pub(crate) struct SetWithdrawFee {
         #[key]
-        market_id: felt252,
-        fee_rate: u16,
+        pub market_id: felt252,
+        pub fee_rate: u16,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct WithdrawFeeEarned {
+    pub(crate) struct WithdrawFeeEarned {
         #[key]
-        market_id: felt252,
+        pub market_id: felt252,
         #[key]
-        token: ContractAddress,
-        amount: u256,
+        pub token: ContractAddress,
+        pub amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct CollectWithdrawFee {
+    pub(crate) struct CollectWithdrawFee {
         #[key]
-        receiver: ContractAddress,
+        pub receiver: ContractAddress,
         #[key]
-        token: ContractAddress,
-        amount: u256,
+        pub token: ContractAddress,
+        pub amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct ChangeOracle {
-        oracle: ContractAddress,
-        oracle_summary: ContractAddress
+    pub(crate) struct ChangeOracle {
+        pub oracle: ContractAddress,
+        pub oracle_summary: ContractAddress
     }
 
     #[derive(Drop, starknet::Event)]
-    struct ChangeOwner {
-        old: ContractAddress,
-        new: ContractAddress
+    pub(crate) struct ChangeOwner {
+        pub old: ContractAddress,
+        pub new: ContractAddress
     }
 
     #[derive(Drop, starknet::Event)]
-    struct ChangeStrategyOwner {
+    pub(crate) struct ChangeStrategyOwner {
         #[key]
-        market_id: felt252,
-        old: ContractAddress,
-        new: ContractAddress
+        pub market_id: felt252,
+        pub old: ContractAddress,
+        pub new: ContractAddress
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Pause {
+    pub(crate) struct Pause {
         #[key]
-        market_id: felt252,
+        pub market_id: felt252,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Unpause {
+    pub(crate) struct Unpause {
         #[key]
-        market_id: felt252,
+        pub market_id: felt252,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Referral {
+    pub(crate) struct Referral {
         #[key]
-        caller: ContractAddress,
-        referrer: ContractAddress,
+        pub caller: ContractAddress,
+        pub referrer: ContractAddress,
     }
 
     ////////////////////////////////
@@ -983,7 +983,7 @@ mod ReplicatingStrategy {
                 .emit(
                     Event::ChangeStrategyOwner(
                         ChangeStrategyOwner {
-                            market_id, old: ContractAddressZeroable::zero(), new: owner,
+                            market_id, old: contract_address_const::<0x0>(), new: owner,
                         }
                     )
                 );
@@ -1039,8 +1039,8 @@ mod ReplicatingStrategy {
             self.strategy_state.write(market_id, state);
 
             // Approve max spend by market manager. Place initial positions.
-            base_token.approve(market_manager.contract_address, BoundedU256::max());
-            quote_token.approve(market_manager.contract_address, BoundedU256::max());
+            base_token.approve(market_manager.contract_address, BoundedInt::max());
+            quote_token.approve(market_manager.contract_address, BoundedInt::max());
             let (bid, ask) = self._update_positions(market_id, Option::None(()));
 
             // Check that both positions are placed. If neither position is placed, for example if the
@@ -1084,7 +1084,7 @@ mod ReplicatingStrategy {
             referrer: ContractAddress
         ) -> u256 {
             // Check referrer is non-null.
-            assert(referrer.is_non_zero(), 'ReferrerZero');
+            assert(referrer != contract_address_const::<0x0>(), 'ReferrerZero');
 
             // Emit referrer event. 
             let caller = get_caller_address();
@@ -1210,7 +1210,7 @@ mod ReplicatingStrategy {
             referrer: ContractAddress
         ) -> (u256, u256, u256) {
             // Check referrer is non-null.
-            assert(referrer.is_non_zero(), 'ReferrerZero');
+            assert(referrer != contract_address_const::<0x0>(), 'ReferrerZero');
 
             // Emit referrer event. 
             let caller = get_caller_address();
@@ -1461,7 +1461,7 @@ mod ReplicatingStrategy {
             self.assert_owner();
             let old_fee_rate = self.withdraw_fee_rate.read(market_id);
             assert(old_fee_rate != fee_rate, 'FeeUnchanged');
-            assert(fee_rate <= fee_math::MAX_FEE_RATE, 'FeeOF');
+            assert(fee_rate <= MAX_FEE_RATE, 'FeeOF');
             self.withdraw_fee_rate.write(market_id, fee_rate);
             self.emit(Event::SetWithdrawFee(SetWithdrawFee { market_id, fee_rate }));
         }
@@ -1527,7 +1527,7 @@ mod ReplicatingStrategy {
             assert(get_caller_address() == queued_owner, 'OnlyNewOwner');
             let old_owner = self.owner.read();
             self.owner.write(queued_owner);
-            self.queued_owner.write(ContractAddressZeroable::zero());
+            self.queued_owner.write(contract_address_const::<0x0>());
             self.emit(Event::ChangeOwner(ChangeOwner { old: old_owner, new: queued_owner }));
         }
 
@@ -1556,7 +1556,7 @@ mod ReplicatingStrategy {
             assert(get_caller_address() == queued_owner, 'OnlyNewOwner');
             let old_owner = self.strategy_owner.read(market_id);
             self.strategy_owner.write(market_id, queued_owner);
-            self.queued_strategy_owner.write(market_id, ContractAddressZeroable::zero());
+            self.queued_strategy_owner.write(market_id, contract_address_const::<0x0>());
             self
                 .emit(
                     Event::ChangeStrategyOwner(

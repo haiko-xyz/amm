@@ -8,7 +8,7 @@ use strategies::strategies::replicating::types::{StrategyParams, StrategyState};
 
 
 #[starknet::interface]
-trait IReplicatingStrategy<TContractState> {
+pub trait IReplicatingStrategy<TContractState> {
     // Contract owner
     fn owner(self: @TContractState) -> ContractAddress;
 

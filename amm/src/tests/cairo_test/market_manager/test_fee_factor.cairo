@@ -1,8 +1,7 @@
 // Core lib imports.
 use starknet::ContractAddress;
 use starknet::contract_address_const;
-use integer::BoundedU256;
-use debug::PrintTrait;
+use core::integer::BoundedInt;
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
@@ -176,8 +175,8 @@ fn test_fee_factor_store_packing_overflow() {
         lower_limit: 10,
         upper_limit: 20,
         liquidity: 10000,
-        base_fee_factor_last: I256Trait::new(BoundedU256::max(), false),
-        quote_fee_factor_last: I256Trait::new(BoundedU256::max(), false),
+        base_fee_factor_last: I256Trait::new(BoundedInt::max(), false),
+        quote_fee_factor_last: I256Trait::new(BoundedInt::max(), false),
     };
     let mut state: MMContractState = MarketManager::unsafe_new_contract_state();
     state.positions.write(1, position);

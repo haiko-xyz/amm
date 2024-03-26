@@ -5,17 +5,17 @@
 // `flash_loan` now uses an explicit `transferFrom` operation to retrieve borrowed funds + fees.
 
 #[starknet::interface]
-trait IFlashLoanStealer<TContractState> {
+pub trait IFlashLoanStealer<TContractState> {
     // Set the market id for the default market created in `test_flash_loan.cairo`
     fn set_market_id(ref self: TContractState, market_id: felt252);
 }
 
 #[starknet::contract]
-mod FlashLoanStealer {
-    use core::option::OptionTrait;
+pub mod FlashLoanStealer {
+    // Core lib imports.
     use starknet::ContractAddress;
-    use debug::PrintTrait;
 
+    // Local imports.
     use super::IFlashLoanStealer;
     use amm::interfaces::ILoanReceiver::ILoanReceiver;
     use amm::libraries::constants::OFFSET;
@@ -23,6 +23,7 @@ mod FlashLoanStealer {
     use amm::types::i128::{i128, I128Trait};
     use amm::tests::common::utils::{to_e28, to_e18_u128};
 
+    // Third party imports.
     use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
 
     #[storage]

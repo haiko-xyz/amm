@@ -9,7 +9,7 @@ use amm::types::i128::i128;
 use amm::types::i256::i256;
 
 #[starknet::interface]
-trait IMarketManager<TContractState> {
+pub trait IMarketManager<TContractState> {
     ////////////////////////////////
     // VIEW
     ////////////////////////////////

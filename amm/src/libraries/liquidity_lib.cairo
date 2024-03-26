@@ -1,11 +1,6 @@
 // Core lib imports.
-use cmp::{min, max};
-use core::traits::TryInto;
-use integer::BoundedU256;
-use traits::Into;
-use option::OptionTrait;
-use starknet::info::get_caller_address;
-use starknet::ContractAddress;
+use core::cmp::{min, max};
+use starknet::{ContractAddress, get_caller_address};
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager::{
@@ -20,7 +15,7 @@ use amm::libraries::id;
 use amm::types::core::{LimitInfo, MarketState, MarketInfo, Position};
 use amm::libraries::math::{liquidity_math, price_math, fee_math, math};
 use amm::types::i128::{I128Trait, i128};
-use amm::types::i256::{i256, I256Trait, I256Zeroable};
+use amm::types::i256::{i256, I256Trait};
 use amm::interfaces::IMarketManager::IMarketManager;
 
 ////////////////////////////////
@@ -42,7 +37,7 @@ use amm::interfaces::IMarketManager::IMarketManager;
 // * `quote_amount` - quote tokens to transfer in (+ve) or out (-ve), including fees
 // * `base_fees` - base tokens collected in fees
 // * `quote_fees` - quote tokens collected in fees
-fn update_liquidity(
+pub fn update_liquidity(
     ref self: ContractState,
     owner: felt252,
     market_info: @MarketInfo,
@@ -100,7 +95,7 @@ fn update_liquidity(
 
     // Calculate base and quote amounts to transfer.
     let (base_amount, quote_amount) = if liquidity_delta.val == 0 {
-        (I256Zeroable::zero(), I256Zeroable::zero())
+        (I256Trait::new(0, false), I256Trait::new(0, false))
     } else {
         // Update global liquidity if range is active
         if lower_limit <= market_state.curr_limit && upper_limit > market_state.curr_limit {
@@ -135,7 +130,7 @@ fn update_liquidity(
 // * `curr_limit` - current limit of market
 // * `liquidity_delta` - amount of liquidity to add or remove from position
 // * `is_start` - whether limit is the start or end price of liquidity position
-fn update_limit(
+pub fn update_limit(
     ref self: ContractState,
     limit: u32,
     market_state: @MarketState,
@@ -194,7 +189,7 @@ fn update_limit(
 // * `quote_amount` - amount of quote tokens inside position, exclusive of fees
 // * `base_fees` - base fees accumulated inside position
 // * `quote_fees` - quote fees accumulated inside position
-fn amounts_inside_position(
+pub fn amounts_inside_position(
     self: @ContractState, position_id: felt252,
 ) -> (u256, u256, u256, u256) {
     // Fetch position.

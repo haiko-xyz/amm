@@ -1,5 +1,5 @@
 #[starknet::interface]
-trait ITestTreeContract<TContractState> {
+pub trait ITestTreeContract<TContractState> {
     fn get(self: @TContractState, market_id: felt252, width: u32, limit: u32) -> bool;
 
     fn flip(ref self: TContractState, market_id: felt252, width: u32, limit: u32);
@@ -12,7 +12,7 @@ trait ITestTreeContract<TContractState> {
 }
 
 #[starknet::contract]
-mod TestTreeContract {
+pub mod TestTreeContract {
     use amm::libraries::tree;
     use amm::contracts::market_manager::MarketManager;
     use amm::contracts::market_manager::MarketManager::{
