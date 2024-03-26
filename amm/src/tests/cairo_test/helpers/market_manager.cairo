@@ -38,7 +38,9 @@ fn deploy_market_manager(owner: ContractAddress,) -> IMarketManagerDispatcher {
     IMarketManagerDispatcher { contract_address: deployed_address }
 }
 
-fn deploy_market_manager_with_salt(owner: ContractAddress, salt: felt252) -> IMarketManagerDispatcher {
+fn deploy_market_manager_with_salt(
+    owner: ContractAddress, salt: felt252
+) -> IMarketManagerDispatcher {
     let mut constructor_calldata = ArrayTrait::<felt252>::new();
     owner.serialize(ref constructor_calldata);
     'Haiko Liquidity Positions'.serialize(ref constructor_calldata);
@@ -68,7 +70,7 @@ fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketP
     let whitelisted = market_manager.is_market_whitelisted(market_id);
     if !whitelisted {
         market_manager.whitelist_markets(array![market_id])
-    } 
+    }
     create_market_without_whitelisting(market_manager, params)
 }
 

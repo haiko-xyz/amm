@@ -617,7 +617,6 @@ fn market_state_test_cases_set2() -> Array<MarketStateCase> {
 fn market_state_test_cases_set3() -> Array<MarketStateCase> {
     let mut markets = ArrayTrait::<MarketStateCase>::new();
 
-    
     // 0.25% swap fee, 10 width, near max price, 2e28 liquidity over entire range
     markets
         .append(
@@ -1000,7 +999,9 @@ fn _test_swap_cases(set: u32) {
                 let initial_base_amount = to_e28(5000000000000000000000000000000000000000000);
                 let initial_quote_amount = to_e28(100000000000000000000000000000000000000000000);
                 approve(base_token, alice(), market_manager.contract_address, initial_base_amount);
-                approve(quote_token, alice(), market_manager.contract_address, initial_quote_amount);
+                approve(
+                    quote_token, alice(), market_manager.contract_address, initial_quote_amount
+                );
 
                 // Create the market.
                 let mut params = default_market_params();
@@ -1113,7 +1114,12 @@ fn _test_swap_cases(set: u32) {
                 } else {
                     approx_eq_pct(amount_in, amount_in_exp, PRECISION_PLACES)
                 }) {
-                    println!("*** AMOUNT IN MISMATCH ({}): {} (amt), {} (exp)", swap_index + 1, amount_in, amount_in_exp);
+                    println!(
+                        "*** AMOUNT IN MISMATCH ({}): {} (amt), {} (exp)",
+                        swap_index + 1,
+                        amount_in,
+                        amount_in_exp
+                    );
                     panic!();
                 }
                 if !(if amount_out == 0 || market_case.liquidity.into() / amount_out >= THRESHOLD {

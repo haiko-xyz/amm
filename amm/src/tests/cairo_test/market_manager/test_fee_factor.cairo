@@ -126,7 +126,7 @@ fn test_reinitialise_fee_factor() {
     liquidity = I128Trait::new(liq_abs, false);
     params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
     modify_position(market_manager, params);
-    // print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
+// print_fee_factors(market_manager, market_id, lower_limit, upper_limit);
 }
 
 #[test]

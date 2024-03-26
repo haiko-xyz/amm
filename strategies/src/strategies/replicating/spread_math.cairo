@@ -37,11 +37,7 @@ const VOL_DENOMINATOR: u256 = 10000000000;
 // `bid_upper` - bid upper limit
 // `ask_lower` - ask lower limit
 fn calc_bid_ask(
-    curr_limit: u32, 
-    new_limit: u32, 
-    min_spread: u32, 
-    inv_delta: i32, 
-    width: u32, 
+    curr_limit: u32, new_limit: u32, min_spread: u32, inv_delta: i32, width: u32,
 ) -> (u32, u32) {
     // Calculate optimal bid and ask limits. These are the limits that would be placed 
     // before coercing them to respect market width.

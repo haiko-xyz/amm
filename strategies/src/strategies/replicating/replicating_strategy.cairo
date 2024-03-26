@@ -399,8 +399,10 @@ mod ReplicatingStrategy {
             };
             let (next_bid_lower, next_bid_upper, next_ask_lower, next_ask_upper) = self
                 .get_bid_ask(market_id, is_buy);
-            let update_bid = next_bid_lower != state.bid.lower_limit || next_bid_upper != state.bid.upper_limit;
-            let update_ask = next_ask_lower != state.ask.lower_limit || next_ask_upper != state.ask.upper_limit;
+            let update_bid = next_bid_lower != state.bid.lower_limit
+                || next_bid_upper != state.bid.upper_limit;
+            let update_ask = next_ask_lower != state.ask.lower_limit
+                || next_ask_upper != state.ask.upper_limit;
 
             // Fetch amounts in existing position.
             let contract: felt252 = get_contract_address().into();
@@ -422,49 +424,53 @@ mod ReplicatingStrategy {
 
             if update_ask {
                 let base_amount = state.base_reserves
-                    + if update_bid { bid_base + bid_base_fees } else { 0 }
-                    + ask_base 
+                    + if update_bid {
+                        bid_base + bid_base_fees
+                    } else {
+                        0
+                    }
+                    + ask_base
                     + ask_base_fees;
-                ask_liquidity = if base_amount == 0 || next_ask_lower == 0 || next_ask_upper == 0 {
-                    0
-                } else {
-                    liquidity_math::base_to_liquidity(
-                        price_math::limit_to_sqrt_price(next_ask_lower, market_info.width),
-                        price_math::limit_to_sqrt_price(next_ask_upper, market_info.width),
-                        base_amount,
-                        false
-                    )
-                };
+                ask_liquidity =
+                    if base_amount == 0 || next_ask_lower == 0 || next_ask_upper == 0 {
+                        0
+                    } else {
+                        liquidity_math::base_to_liquidity(
+                            price_math::limit_to_sqrt_price(next_ask_lower, market_info.width),
+                            price_math::limit_to_sqrt_price(next_ask_upper, market_info.width),
+                            base_amount,
+                            false
+                        )
+                    };
             }
             if update_bid {
                 let quote_amount = state.quote_reserves
-                    + bid_quote 
+                    + bid_quote
                     + bid_quote_fees
-                    + if update_ask { ask_quote + ask_quote_fees } else { 0 };
-                bid_liquidity = if quote_amount == 0
-                    || next_bid_lower == 0
-                    || next_bid_upper == 0 {
-                    0
-                } else {
-                    liquidity_math::quote_to_liquidity(
-                        price_math::limit_to_sqrt_price(next_bid_lower, market_info.width),
-                        price_math::limit_to_sqrt_price(next_bid_upper, market_info.width),
-                        quote_amount,
-                        false
-                    )
-                };
+                    + if update_ask {
+                        ask_quote + ask_quote_fees
+                    } else {
+                        0
+                    };
+                bid_liquidity =
+                    if quote_amount == 0 || next_bid_lower == 0 || next_bid_upper == 0 {
+                        0
+                    } else {
+                        liquidity_math::quote_to_liquidity(
+                            price_math::limit_to_sqrt_price(next_bid_lower, market_info.width),
+                            price_math::limit_to_sqrt_price(next_bid_upper, market_info.width),
+                            quote_amount,
+                            false
+                        )
+                    };
             }
 
             // Return new positions.
             let next_bid = PositionInfo {
-                lower_limit: next_bid_lower,
-                upper_limit: next_bid_upper,
-                liquidity: bid_liquidity,
+                lower_limit: next_bid_lower, upper_limit: next_bid_upper, liquidity: bid_liquidity,
             };
             let next_ask = PositionInfo {
-                lower_limit: next_ask_lower, 
-                upper_limit: next_ask_upper, 
-                liquidity: ask_liquidity,
+                lower_limit: next_ask_lower, upper_limit: next_ask_upper, liquidity: ask_liquidity,
             };
             array![next_bid, next_ask].span()
         }
@@ -783,7 +789,9 @@ mod ReplicatingStrategy {
         // * `bid_upper` - new bid upper limit
         // * `ask_lower` - new ask lower limit
         // * `ask_upper` - new ask upper limit
-        fn get_bid_ask(self: @ContractState, market_id: felt252, is_buy: Option<bool>) -> (u32, u32, u32, u32) {
+        fn get_bid_ask(
+            self: @ContractState, market_id: felt252, is_buy: Option<bool>
+        ) -> (u32, u32, u32, u32) {
             // Fetch strategy and market info.
             let params = self.strategy_params.read(market_id);
             let market_manager = self.market_manager.read();
@@ -832,8 +840,8 @@ mod ReplicatingStrategy {
                     // To perform the comparison, we need to coerce curr limit to respect market width.
                     let coerced_curr_limit = curr_limit / width * width;
                     if coerced_curr_limit < state.bid.upper_limit {
-                        (is_buy && raw_bid_upper < coerced_curr_limit) ||
-                        (!is_buy && raw_bid_upper >= coerced_curr_limit)
+                        (is_buy && raw_bid_upper < coerced_curr_limit)
+                            || (!is_buy && raw_bid_upper >= coerced_curr_limit)
                     } else {
                         is_buy
                     }
@@ -843,12 +851,17 @@ mod ReplicatingStrategy {
             let skip_update_ask = match is_buy {
                 Option::Some(is_buy) => {
                     // To perform the comparison, we need to coerce curr limit to respect market width.
-                    let coerced_curr_limit = curr_limit / width * width + if curr_limit % width == 0 { 0 } else { width };
+                    let coerced_curr_limit = curr_limit / width * width
+                        + if curr_limit % width == 0 {
+                            0
+                        } else {
+                            width
+                        };
                     if coerced_curr_limit <= state.ask.lower_limit {
                         !is_buy
                     } else {
-                        (is_buy && raw_ask_lower <= coerced_curr_limit) ||
-                        (!is_buy && raw_ask_lower > coerced_curr_limit)
+                        (is_buy && raw_ask_lower <= coerced_curr_limit)
+                            || (!is_buy && raw_ask_lower > coerced_curr_limit)
                     }
                 },
                 Option::None(()) => false,
@@ -865,7 +878,7 @@ mod ReplicatingStrategy {
                 (raw_bid_upper, raw_ask_lower)
             };
 
-             // Calculate remaining limits.
+            // Calculate remaining limits.
             let bid_lower = if bid_upper < params.range {
                 0
             } else {

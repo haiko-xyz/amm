@@ -205,7 +205,7 @@ fn test_modify_position_and_swap_invariants(
 
     let (manager, token) = test_invariants_set1(position_params, limits_span, swap_amounts);
     test_invariants_set2(manager, token, position_params);
-    // test_invariants_set3(manager, token, position_params, swap_amounts);
+// test_invariants_set3(manager, token, position_params, swap_amounts);
 }
 
 // Tests for invariants 1-14.

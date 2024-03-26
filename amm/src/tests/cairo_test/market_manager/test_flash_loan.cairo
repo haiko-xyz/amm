@@ -21,7 +21,9 @@ use amm::tests::common::params::{
     owner, alice, treasury, default_token_params, default_market_params, modify_position_params
 };
 use amm::tests::mocks::flash_loan_receiver;
-use amm::tests::mocks::flash_loan_stealer::{IFlashLoanStealerDispatcher, IFlashLoanStealerDispatcherTrait};
+use amm::tests::mocks::flash_loan_stealer::{
+    IFlashLoanStealerDispatcher, IFlashLoanStealerDispatcherTrait
+};
 use amm::tests::common::utils::{to_e28, to_e18_u128};
 
 // External imports.
@@ -188,9 +190,10 @@ fn test_flash_loan_stealer() {
     set_contract_address(owner());
     market_manager.set_flash_loan_fee_rate(base_token.contract_address, 10);
     market_manager.set_flash_loan_fee_rate(quote_token.contract_address, 25);
-    
+
     // Set market id in loan receiver.
-    IFlashLoanStealerDispatcher { contract_address: loan_receiver.contract_address }.set_market_id(market_id);
+    IFlashLoanStealerDispatcher { contract_address: loan_receiver.contract_address }
+        .set_market_id(market_id);
 
     // Flash loan and try to deposit the amount as liquidity.
     set_contract_address(loan_receiver.contract_address);

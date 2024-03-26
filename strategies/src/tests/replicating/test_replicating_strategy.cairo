@@ -173,12 +173,11 @@ fn before_custom(
 }
 
 fn before_deposit_initial() -> (
-    IMarketManagerDispatcher,
-    felt252,
-    IMockPragmaOracleDispatcher,
-    IReplicatingStrategyDispatcher,
+    IMarketManagerDispatcher, felt252, IMockPragmaOracleDispatcher, IReplicatingStrategyDispatcher,
 ) {
-    let (market_manager, _base_token, _quote_token, market_id, oracle, strategy) = before_custom(18, 18, 7906620 + 731325);
+    let (market_manager, _base_token, _quote_token, market_id, oracle, strategy) = before_custom(
+        18, 18, 7906620 + 731325
+    );
 
     // Set price.
     start_warp(CheatTarget::One(oracle.contract_address), 1000);
@@ -206,7 +205,8 @@ fn test_get_bid_ask_case_1() {
     // Expect inventory delta of 1/7 * 200 = 30 (rounded up).
     // Expect bid to be placed at 7906620 + 731320 (oracle) - 10 (min spread) - 30 (inv delta).
     // Expect ask to be placed at 7906620 + 731330 (coerced curr price) + 10 (min spread).
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::None(()));
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy
+        .get_bid_ask(market_id, Option::None(()));
     assert(bid_upper == 7906620 + 731320 - 10 - 30, 'Bid upper');
     assert(bid_lower == bid_upper - 20000, 'Bid lower');
     assert(ask_lower == 7906620 + 731330 + 10, 'Ask lower');
@@ -232,7 +232,8 @@ fn test_get_bid_ask_case_2() {
     // Get next bid and ask.
     let is_buy = true;
     let state = strategy.strategy_state(market_id);
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy
+        .get_bid_ask(market_id, Option::Some(is_buy));
     // a) Expect bid to not be rebalanced
     assert(bid_lower == state.bid.lower_limit, 'Bid lower');
     assert(bid_upper == state.bid.upper_limit, 'Bid upper');
@@ -262,7 +263,8 @@ fn test_get_bid_ask_case_3() {
     // Get next bid and ask.
     let is_buy = true;
     let state = strategy.strategy_state(market_id);
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy
+        .get_bid_ask(market_id, Option::Some(is_buy));
     // a) Expect bid to be rebalanced downward (as it is capped at curr price)
     assert(bid_lower < state.bid.lower_limit, 'Bid lower');
     assert(bid_upper < state.bid.upper_limit, 'Bid upper');
@@ -290,7 +292,8 @@ fn test_get_bid_ask_case_4() {
     // Get next bid and ask.
     let is_buy = false;
     let state = strategy.strategy_state(market_id);
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy
+        .get_bid_ask(market_id, Option::Some(is_buy));
     // a) Expect bid to not be rebalanced
     assert(bid_lower == state.bid.lower_limit, 'Bid lower');
     assert(bid_upper == state.bid.upper_limit, 'Bid upper');
@@ -318,7 +321,8 @@ fn test_get_bid_ask_case_5() {
     // Get next bid and ask.
     let is_buy = false;
     let state = strategy.strategy_state(market_id);
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy
+        .get_bid_ask(market_id, Option::Some(is_buy));
     // a) Expect bid to be rebalanced downward
     assert(bid_lower < state.bid.lower_limit, 'Bid lower');
     assert(bid_upper < state.bid.upper_limit, 'Bid upper');
@@ -338,7 +342,8 @@ fn test_get_bid_ask_case_6() {
     // Get next bid and ask.
     let is_buy = true;
     let state = strategy.strategy_state(market_id);
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy
+        .get_bid_ask(market_id, Option::Some(is_buy));
     // a) Expect bid to not be rebalanced
     assert(bid_lower == state.bid.lower_limit, 'Bid lower');
     assert(bid_upper == state.bid.upper_limit, 'Bid upper');
@@ -355,7 +360,8 @@ fn test_get_bid_ask_case_7() {
     // Get next bid and ask.
     let is_buy = true;
     let state = strategy.strategy_state(market_id);
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy
+        .get_bid_ask(market_id, Option::Some(is_buy));
     // a) Expect bid to not be rebalanced
     assert(bid_lower == state.bid.lower_limit, 'Bid lower');
     assert(bid_upper == state.bid.upper_limit, 'Bid upper');
@@ -369,13 +375,14 @@ fn test_get_bid_ask_case_7() {
 fn test_get_bid_ask_case_8() {
     let (_market_manager, market_id, oracle, strategy) = before_deposit_initial();
 
-     // Update oracle price.
+    // Update oracle price.
     oracle.set_data_with_USD_hop('ETH', 'USDC', 140000000000, 8, 1000, 5); // 1400
 
     // Get next bid and ask.
     let is_buy = false;
     let state = strategy.strategy_state(market_id);
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy
+        .get_bid_ask(market_id, Option::Some(is_buy));
     // a) Expect bid to be rebalanced downward
     assert(bid_lower < state.bid.lower_limit, 'Bid lower');
     assert(bid_upper < state.bid.upper_limit, 'Bid upper');
@@ -392,7 +399,8 @@ fn test_get_bid_ask_case_9() {
     // Get next bid and ask.
     let is_buy = false;
     let state = strategy.strategy_state(market_id);
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy
+        .get_bid_ask(market_id, Option::Some(is_buy));
     // a) Expect bid to not be rebalanced
     assert(bid_lower == state.bid.lower_limit, 'Bid lower');
     assert(bid_upper == state.bid.upper_limit, 'Bid upper');
@@ -421,7 +429,8 @@ fn test_get_bid_ask_case_10() {
     // Get next bid and ask.
     let is_buy = false;
     let state = strategy.strategy_state(market_id);
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy
+        .get_bid_ask(market_id, Option::Some(is_buy));
     // a) Expect bid to be rebalanced upward
     assert(bid_lower > state.bid.lower_limit, 'Bid lower');
     assert(bid_upper > state.bid.upper_limit, 'Bid upper');
@@ -452,7 +461,8 @@ fn test_get_bid_ask_case_11() {
     // Get next bid and ask.
     let is_buy = false;
     let state = strategy.strategy_state(market_id);
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy
+        .get_bid_ask(market_id, Option::Some(is_buy));
     // a) Expect bid to be rebalanced downward
     assert(bid_lower < state.bid.lower_limit, 'Bid lower');
     assert(bid_upper < state.bid.upper_limit, 'Bid upper');
@@ -481,7 +491,8 @@ fn test_get_bid_ask_case_12() {
     // Get next bid and ask.
     let is_buy = true;
     let state = strategy.strategy_state(market_id);
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy
+        .get_bid_ask(market_id, Option::Some(is_buy));
     // a) Expect bid not to be rebalanced
     assert(bid_lower == state.bid.lower_limit, 'Bid lower');
     assert(bid_upper == state.bid.upper_limit, 'Bid upper');
@@ -510,7 +521,8 @@ fn test_get_bid_ask_case_13() {
     // Get next bid and ask.
     let is_buy = true;
     let state = strategy.strategy_state(market_id);
-    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy.get_bid_ask(market_id, Option::Some(is_buy));
+    let (bid_lower, bid_upper, ask_lower, ask_upper) = strategy
+        .get_bid_ask(market_id, Option::Some(is_buy));
     // println!("curr_limit: {}", market_manager.market_state(market_id).curr_limit);
     // println!("[PLACED] bid_lower: {}, bid_upper: {}, ask_lower: {}, ask_upper: {}", state.bid.lower_limit, state.bid.upper_limit, state.ask.lower_limit, state.ask.upper_limit);
     // println!("[QUEUED] bid_lower: {}, bid_upper: {}, ask_lower: {}, ask_upper: {}", bid_lower, bid_upper, ask_lower, ask_upper);
@@ -2341,7 +2353,12 @@ fn test_withdraw_single_sided_liquidity() {
     assert(approx_eq(aft.lp_base_bal, bef.lp_base_bal + base_amount, 10), 'LP base');
     assert(approx_eq(aft.lp_quote_bal, bef.lp_quote_bal + quote_amount, 10), 'LP quote');
     assert(approx_eq(aft.strategy_base_bal, bef.strategy_base_bal, 10), 'Strategy base');
-    assert(approx_eq(aft.strategy_quote_bal, bef.strategy_quote_bal - bef.strategy_state.quote_reserves, 10), 'Strategy quote');
+    assert(
+        approx_eq(
+            aft.strategy_quote_bal, bef.strategy_quote_bal - bef.strategy_state.quote_reserves, 10
+        ),
+        'Strategy quote'
+    );
     assert(approx_eq(aft.market_base_bal, bef.market_base_bal - base_amount, 10), 'Market base');
     assert(
         approx_eq_pct(aft.market_quote_bal, bef.market_quote_bal - quote_amount, 10), 'Market quote'
