@@ -1,6 +1,7 @@
 // Core lib imports.
 use starknet::ContractAddress;
 use starknet::contract_address_const;
+use starknet::class_hash::ClassHash;
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_SCALED};
@@ -25,7 +26,12 @@ use strategies::strategies::replicating::{
     replicating_strategy::ReplicatingStrategy,
     interface::{IReplicatingStrategyDispatcher, IReplicatingStrategyDispatcherTrait},
     pragma::{DataType, PragmaPricesResponse}, types::{StrategyParams, StrategyState},
-    mocks::mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
+    mocks::{
+        upgraded_replicating_strategy::{
+            UpgradedReplicatingStrategy, IUpgradedReplicatingStrategyDispatcher, IUpgradedReplicatingStrategyDispatcherTrait
+        },
+        mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
+    },
 };
 use strategies::tests::replicating::helpers::{
     deploy_replicating_strategy, deploy_mock_pragma_oracle
@@ -33,7 +39,6 @@ use strategies::tests::replicating::helpers::{
 
 // External imports.
 use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
-use openzeppelin::upgrades::interface::{IUpgradeableDispatcherTrait, IUpgradeableDispatcher};
 use snforge_std::{
     declare, start_warp, start_prank, stop_prank, CheatTarget, spy_events, SpyOn, EventSpy,
     EventAssertions, EventFetcher
@@ -3499,8 +3504,7 @@ fn test_upgrade_not_owner() {
     let (market_manager, _base_token, _quote_token, _market_id, _oracle, strategy) = before(true);
 
     start_prank(CheatTarget::One(strategy.contract_address), alice());
-    let dispatcher = IUpgradeableDispatcher { contract_address: market_manager.contract_address };
-    dispatcher.upgrade(ReplicatingStrategy::TEST_CLASS_HASH.try_into().unwrap());
+    market_manager.upgrade(ReplicatingStrategy::TEST_CLASS_HASH.try_into().unwrap());
 }
 
 #[test]
@@ -3733,6 +3737,31 @@ fn test_swap_cases_and_quoting() {
 
         index += 1;
     };
+}
+
+#[test]
+fn test_upgrade_replicating_strategy() {
+    let (_market_manager, _base_token, _quote_token, _market_id, _oracle, strategy) = before(true);
+
+    // Log events.
+    let mut spy = spy_events(SpyOn::One(strategy.contract_address));
+
+    // Upgrade strategy.
+    let class_hash = declare("UpgradedReplicatingStrategy").class_hash;
+    strategy.upgrade(class_hash);
+    // Should be able to call new entrypoint
+    IUpgradedReplicatingStrategyDispatcher{ contract_address: strategy.contract_address }.foo();
+
+    // Check event emitted.
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    strategy.contract_address,
+                    ReplicatingStrategy::Event::Upgraded(ReplicatingStrategy::Upgraded { class_hash })
+                )
+            ]
+        );
 }
 
 ////////////////////////////////

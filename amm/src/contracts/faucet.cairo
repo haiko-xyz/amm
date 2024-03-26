@@ -4,7 +4,7 @@ use starknet::ContractAddress;
 use starknet::class_hash::ClassHash;
 
 #[starknet::interface]
-trait IFaucet<TContractState> {
+pub trait IFaucet<TContractState> {
     fn token(self: @TContractState, slot: u32) -> ContractAddress;
     fn length(self: @TContractState) -> u32;
     fn amount(self: @TContractState, token: ContractAddress) -> u256;
@@ -20,7 +20,7 @@ trait IFaucet<TContractState> {
 }
 
 #[starknet::contract]
-mod Faucet {
+pub mod Faucet {
     // Core lib imports.
     use starknet::ContractAddress;
     use starknet::{get_caller_address, get_contract_address};
@@ -36,7 +36,7 @@ mod Faucet {
 
     component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
 
-    impl InternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
+    pub impl InternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
 
     #[storage]
     struct Storage {

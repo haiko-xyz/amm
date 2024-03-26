@@ -341,4 +341,11 @@ pub trait IReplicatingStrategy<TContractState> {
     // # Arguments
     // * `market_id` - market id of strategy
     fn trigger_update_positions(ref self: TContractState, market_id: felt252);
+
+    // Upgrade contract class.
+    // Callable by owner only.
+    //
+    // # Arguments
+    // * `new_class_hash` - new class hash of contract
+    fn upgrade(ref self: TContractState, new_class_hash: ClassHash);
 }

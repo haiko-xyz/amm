@@ -39,25 +39,20 @@ pub mod MarketManager {
     use openzeppelin::token::erc721::erc721::ERC721Component;
     use openzeppelin::token::erc721::interface::{IERC721Dispatcher, IERC721DispatcherTrait};
     use openzeppelin::introspection::src5::SRC5Component;
-    use openzeppelin::upgrades::UpgradeableComponent;
 
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
-    component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
 
     #[abi(embed_v0)]
-    impl ERC721Impl = ERC721Component::ERC721Impl<ContractState>;
+    pub impl ERC721Impl = ERC721Component::ERC721Impl<ContractState>;
     #[abi(embed_v0)]
-    impl ERC721MetadataImpl = ERC721Component::ERC721MetadataImpl<ContractState>;
+    pub impl ERC721MetadataImpl = ERC721Component::ERC721MetadataImpl<ContractState>;
     #[abi(embed_v0)]
-    impl ERC721CamelOnlyImpl = ERC721Component::ERC721CamelOnlyImpl<ContractState>;
+    pub impl ERC721CamelOnlyImpl = ERC721Component::ERC721CamelOnlyImpl<ContractState>;
 
-    impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
+    pub impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
     #[abi(embed_v0)]
-    impl SRC5Impl = SRC5Component::SRC5Impl<ContractState>;
-
-    impl InternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
-
+    pub impl SRC5Impl = SRC5Component::SRC5Impl<ContractState>;
 
     ////////////////////////////////
     // STORAGE
@@ -101,8 +96,6 @@ pub mod MarketManager {
         erc721: ERC721Component::Storage,
         #[substorage(v0)]
         src5: SRC5Component::Storage,
-        #[substorage(v0)]
-        upgradeable: UpgradeableComponent::Storage,
     }
 
     ////////////////////////////////
@@ -127,12 +120,11 @@ pub mod MarketManager {
         ChangeFlashLoanFee: ChangeFlashLoanFee,
         SetMarketConfigs: SetMarketConfigs,
         Referral: Referral,
+        Upgraded: Upgraded,
         #[flat]
         ERC721Event: ERC721Component::Event,
         #[flat]
         SRC5Event: SRC5Component::Event,
-        #[flat]
-        UpgradeableEvent: UpgradeableComponent::Event
     }
 
     #[derive(Drop, starknet::Event)]
@@ -320,6 +312,12 @@ pub mod MarketManager {
         pub create_ask: ConfigOption,
         pub collect_order: ConfigOption,
         pub swap: ConfigOption,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    pub(crate) struct Upgraded {
+        #[key]
+        pub class_hash: ClassHash,
     }
 
     ////////////////////////////////
@@ -1767,17 +1765,17 @@ pub mod MarketManager {
                     )
                 );
         }
-    }
 
-    // Upgrade contract class.
-    // Callable by owner only.
-    //
-    // # Arguments
-    // * `new_class_hash` - new class hash of contract
-    #[abi(embed_v0)]
-    fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
-        self.assert_only_owner();
-        self.upgradeable._upgrade(new_class_hash);
+        // Upgrade contract class.
+        // Callable by owner only.
+        //
+        // # Arguments
+        // * `new_class_hash` - new class hash of contract
+        fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+            self.assert_only_owner();
+            replace_class_syscall(new_class_hash).unwrap();
+            self.emit(Event::Upgraded(Upgraded { class_hash: new_class_hash }));
+        }
     }
 
     #[abi(per_item)]

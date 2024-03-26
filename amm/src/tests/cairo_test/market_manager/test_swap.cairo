@@ -31,9 +31,9 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 // TYPES
 ////////////////////////////////
 
-#[derive(Drop, Copy)]
+#[derive(Drop, Clone)]
 struct MarketStateCase {
-    description: felt252,
+    description: ByteArray,
     width: u32,
     swap_fee_rate: u16,
     start_limit: u32,
@@ -123,7 +123,7 @@ fn market_state_test_cases_set1() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '1) .05% 1 1:1 2e28(max range)',
+                description: "1) .05% 1 1:1 2e28(max range)",
                 width: 1,
                 swap_fee_rate: 5,
                 start_limit: OFFSET + 0,
@@ -171,7 +171,7 @@ fn market_state_test_cases_set1() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '2) .25% 10 1:1 2e28(max range)',
+                description: "2) .25% 10 1:1 2e28(max range)",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) + 0,
@@ -219,7 +219,7 @@ fn market_state_test_cases_set1() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '3) 1% 100 1:1 2e28(max range)',
+                description: "3) 1% 100 1:1 2e28(max range)",
                 width: 100,
                 swap_fee_rate: 100,
                 start_limit: price_math::offset(100) + 0,
@@ -267,7 +267,7 @@ fn market_state_test_cases_set1() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '4) .25% 10 10:1 2e28(max range)',
+                description: "4) .25% 10 10:1 2e28(max range)",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) + 230260,
@@ -315,7 +315,7 @@ fn market_state_test_cases_set1() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '5) .25% 10 1:10 2e28(max range)',
+                description: "5) .25% 10 1:10 2e28(max range)",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 230260,
@@ -365,7 +365,7 @@ fn market_state_test_cases_set2() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '6) .25% 10 1:1 4e28 curr P',
+                description: "6) .25% 10 1:1 4e28 curr P",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 0,
@@ -418,7 +418,7 @@ fn market_state_test_cases_set2() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '7) .25% 10 1:1 6e28 (curr P)',
+                description: "7) .25% 10 1:1 6e28 (curr P)",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 0,
@@ -476,7 +476,7 @@ fn market_state_test_cases_set2() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '8) .05% 1 1:1 2e28 (stable)',
+                description: "8) .05% 1 1:1 2e28 (stable)",
                 width: 1,
                 swap_fee_rate: 5,
                 start_limit: price_math::offset(1) - 0,
@@ -524,7 +524,7 @@ fn market_state_test_cases_set2() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '9) .25% 10 1:1 2e28 (quote liq)',
+                description: "9) .25% 10 1:1 2e28 (quote liq)",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 0,
@@ -568,7 +568,7 @@ fn market_state_test_cases_set2() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '10) .25% 10 1:1 2e28 (base liq)',
+                description: "10) .25% 10 1:1 2e28 (base liq)",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 0,
@@ -618,7 +618,7 @@ fn market_state_test_cases_set3() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '11) .25% 10 2e28 (near max P)',
+                description: "11) .25% 10 2e28 (near max P)",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) + 7906500,
@@ -680,7 +680,7 @@ fn market_state_test_cases_set3() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '12) .25% 10 2e28 (near min P)',
+                description: "12) .25% 10 2e28 (near min P)",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 7906500,
@@ -742,7 +742,7 @@ fn market_state_test_cases_set3() -> Array<MarketStateCase> {
     markets
         .append(
             MarketStateCase {
-                description: '13) .25% 10 1:1 max full',
+                description: "13) .25% 10 1:1 max full",
                 width: 10,
                 swap_fee_rate: 25,
                 start_limit: price_math::offset(10) - 0,
@@ -974,7 +974,7 @@ fn _test_swap_cases(set: u32) {
         }
 
         // Fetch test cases.
-        let market_case: MarketStateCase = *market_cases[index];
+        let market_case: MarketStateCase = market_cases[index].clone();
         let swap_cases = swap_test_cases();
 
         println!("*** MARKET: {}", (set - 1) * 5 + index + 1);
@@ -1008,7 +1008,9 @@ fn _test_swap_cases(set: u32) {
                 params.width = market_case.width;
                 params.swap_fee_rate = market_case.swap_fee_rate;
 
-                println!("{}", market_case.description);
+                let description: ByteArray = format!("{}", market_case.description);
+                println!("{}", description);
+                
                 let market_id = create_market(market_manager, params);
 
                 // Mint positions.

@@ -33,11 +33,6 @@ pub mod ReplicatingStrategy {
 
     // External imports.
     use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
-    use openzeppelin::upgrades::UpgradeableComponent;
-
-    component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
-
-    impl UpgradeableInternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
 
     ////////////////////////////////
     // STORAGE
@@ -82,8 +77,6 @@ pub mod ReplicatingStrategy {
         withdraw_fee_rate: LegacyMap::<felt252, u16>,
         // Indexed by asset
         withdraw_fees: LegacyMap::<ContractAddress, u256>,
-        #[substorage(v0)]
-        upgradeable: UpgradeableComponent::Storage,
     }
 
     ////////////////////////////////
@@ -108,8 +101,7 @@ pub mod ReplicatingStrategy {
         Pause: Pause,
         Unpause: Unpause,
         Referral: Referral,
-        #[flat]
-        UpgradeableEvent: UpgradeableComponent::Event
+        Upgraded: Upgraded,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -236,6 +228,11 @@ pub mod ReplicatingStrategy {
         #[key]
         pub caller: ContractAddress,
         pub referrer: ContractAddress,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    pub(crate) struct Upgraded {
+        pub class_hash: ClassHash,
     }
 
     ////////////////////////////////
@@ -1613,17 +1610,17 @@ pub mod ReplicatingStrategy {
             // Update positions.
             self._update_positions(market_id, Option::None(()));
         }
-    }
 
-    // Upgrade contract class.
-    // Callable by owner only.
-    //
-    // # Arguments
-    // * `new_class_hash` - new class hash of contract
-    #[external(v0)]
-    fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
-        self.assert_owner();
-        self.upgradeable._upgrade(new_class_hash);
+        // Upgrade contract class.
+        // Callable by owner only.
+        //
+        // # Arguments
+        // * `new_class_hash` - new class hash of contract
+        fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+            self.assert_owner();
+            replace_class_syscall(new_class_hash).unwrap();
+            self.emit(Event::Upgraded(Upgraded { class_hash: new_class_hash }));
+        }
     }
 
     ////////////////////////////////
