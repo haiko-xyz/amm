@@ -27,7 +27,9 @@ pub fn deploy_market_manager(
     IMarketManagerDispatcher { contract_address }
 }
 
-pub fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketParams) -> felt252 {
+pub fn create_market(
+    market_manager: IMarketManagerDispatcher, params: CreateMarketParams
+) -> felt252 {
     start_prank(CheatTarget::One(market_manager.contract_address), params.owner);
     let market_id = id::market_id(
         MarketInfo {

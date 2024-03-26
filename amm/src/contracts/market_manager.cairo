@@ -46,9 +46,11 @@ pub mod MarketManager {
     #[abi(embed_v0)]
     pub impl ERC721Impl = ERC721Component::ERC721Impl<ContractState>;
     #[abi(embed_v0)]
-    pub impl ERC721MetadataImpl = ERC721Component::ERC721MetadataImpl<ContractState>;
+    pub impl ERC721MetadataImpl =
+        ERC721Component::ERC721MetadataImpl<ContractState>;
     #[abi(embed_v0)]
-    pub impl ERC721CamelOnlyImpl = ERC721Component::ERC721CamelOnlyImpl<ContractState>;
+    pub impl ERC721CamelOnlyImpl =
+        ERC721Component::ERC721CamelOnlyImpl<ContractState>;
 
     pub impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
     #[abi(embed_v0)]
@@ -696,7 +698,11 @@ pub mod MarketManager {
             configs: Option<MarketConfigs>,
         ) -> felt252 {
             // Validate inputs.
-            assert(base_token != contract_address_const::<0x0>() && quote_token != contract_address_const::<0x0>(), 'TokensNull');
+            assert(
+                base_token != contract_address_const::<0x0>()
+                    && quote_token != contract_address_const::<0x0>(),
+                'TokensNull'
+            );
             assert(width != 0, 'WidthZero');
             assert(width <= MAX_WIDTH, 'WidthOF');
             assert(swap_fee_rate <= MAX_FEE_RATE, 'FeeRateOF');

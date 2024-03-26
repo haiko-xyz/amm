@@ -88,7 +88,9 @@ pub fn liquidity_to_base(
     } // Case 2: used for smaller sqrt prices 
     else {
         let product = u256_wide_mul(lower_sqrt_price, upper_sqrt_price);
-        let sqrt_price_delta: NonZero<u256> = (upper_sqrt_price - lower_sqrt_price).try_into().unwrap();
+        let sqrt_price_delta: NonZero<u256> = (upper_sqrt_price - lower_sqrt_price)
+            .try_into()
+            .unwrap();
         let (q, r) = u512_safe_div_rem_by_u256(product, sqrt_price_delta);
         let q_u256 = u256 { low: q.limb0, high: q.limb1 };
         let denominator = q_u256 + if r != 0 && !round_up {

@@ -140,7 +140,9 @@ pub fn default_market_params() -> CreateMarketParams {
         quote_token: contract_address_const::<0x0>(), // Replaced with actual address on deployment
         width: 1,
         swap_fee_rate: 30, // 0.3%
-        fee_controller: contract_address_const::<0x0>(), // Replaced with actual address on deployment
+        fee_controller: contract_address_const::<
+            0x0
+        >(), // Replaced with actual address on deployment
         strategy: contract_address_const::<0x0>(), // Replaced with actual address on deployment
         start_limit: OFFSET + 749558,
         controller: contract_address_const::<0x0>(),

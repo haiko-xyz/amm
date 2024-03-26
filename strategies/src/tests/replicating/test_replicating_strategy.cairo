@@ -27,7 +27,8 @@ use strategies::strategies::replicating::{
     pragma::{DataType, PragmaPricesResponse}, types::{StrategyParams, StrategyState},
     mocks::{
         upgraded_replicating_strategy::{
-            UpgradedReplicatingStrategy, IUpgradedReplicatingStrategyDispatcher, IUpgradedReplicatingStrategyDispatcherTrait
+            UpgradedReplicatingStrategy, IUpgradedReplicatingStrategyDispatcher,
+            IUpgradedReplicatingStrategyDispatcherTrait
         },
         mock_pragma_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait},
     },
@@ -3749,7 +3750,7 @@ fn test_upgrade_replicating_strategy() {
     let class_hash = declare("UpgradedReplicatingStrategy").class_hash;
     strategy.upgrade(class_hash);
     // Should be able to call new entrypoint
-    IUpgradedReplicatingStrategyDispatcher{ contract_address: strategy.contract_address }.foo();
+    IUpgradedReplicatingStrategyDispatcher { contract_address: strategy.contract_address }.foo();
 
     // Check event emitted.
     spy
@@ -3757,7 +3758,9 @@ fn test_upgrade_replicating_strategy() {
             @array![
                 (
                     strategy.contract_address,
-                    ReplicatingStrategy::Event::Upgraded(ReplicatingStrategy::Upgraded { class_hash })
+                    ReplicatingStrategy::Event::Upgraded(
+                        ReplicatingStrategy::Upgraded { class_hash }
+                    )
                 )
             ]
         );

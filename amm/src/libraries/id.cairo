@@ -42,7 +42,9 @@ pub fn market_id(params: MarketInfo) -> felt252 {
 //
 // # Returns
 // * `position_id` - The position ID
-pub fn position_id(market_id: felt252, owner: felt252, lower_limit: u32, upper_limit: u32,) -> felt252 {
+pub fn position_id(
+    market_id: felt252, owner: felt252, lower_limit: u32, upper_limit: u32,
+) -> felt252 {
     let mut input = ArrayTrait::<felt252>::new();
     market_id.serialize(ref input);
     owner.serialize(ref input);

@@ -48,7 +48,9 @@ pub fn deploy_market_manager_with_salt(
     IMarketManagerDispatcher { contract_address: deployed_address }
 }
 
-pub fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketParams) -> felt252 {
+pub fn create_market(
+    market_manager: IMarketManagerDispatcher, params: CreateMarketParams
+) -> felt252 {
     set_contract_address(params.owner);
     let market_id = id::market_id(
         MarketInfo {

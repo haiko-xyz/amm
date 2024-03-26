@@ -57,9 +57,7 @@ fn test_mul_div() {
         'mul_div(MAX,MAX,MAX,F)'
     );
     assert(
-        mul_div(
-            BoundedInt::max(), BoundedInt::max(), BoundedInt::max(), true
-        ) == BoundedInt::max(),
+        mul_div(BoundedInt::max(), BoundedInt::max(), BoundedInt::max(), true) == BoundedInt::max(),
         'mul_div(MAX,MAX,MAX,T)'
     );
 }
