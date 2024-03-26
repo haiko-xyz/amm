@@ -38,6 +38,20 @@ fn deploy_market_manager(owner: ContractAddress,) -> IMarketManagerDispatcher {
     IMarketManagerDispatcher { contract_address: deployed_address }
 }
 
+fn deploy_market_manager_with_salt(owner: ContractAddress, salt: felt252) -> IMarketManagerDispatcher {
+    let mut constructor_calldata = ArrayTrait::<felt252>::new();
+    owner.serialize(ref constructor_calldata);
+    'Haiko Liquidity Positions'.serialize(ref constructor_calldata);
+    'HAIKO-LP'.serialize(ref constructor_calldata);
+
+    let (deployed_address, _) = deploy_syscall(
+        MarketManager::TEST_CLASS_HASH.try_into().unwrap(), salt, constructor_calldata.span(), false
+    )
+        .unwrap();
+
+    IMarketManagerDispatcher { contract_address: deployed_address }
+}
+
 fn create_market(market_manager: IMarketManagerDispatcher, params: CreateMarketParams) -> felt252 {
     set_contract_address(params.owner);
     let market_id = id::market_id(

@@ -15,7 +15,7 @@ use amm::interfaces::IQuoter::{IQuoterDispatcher, IQuoterDispatcherTrait};
 use amm::types::core::MarketState;
 use amm::types::i128::{i128, I128Trait};
 use amm::tests::cairo_test::helpers::market_manager::{
-    deploy_market_manager, create_market, modify_position, swap
+    deploy_market_manager, deploy_market_manager_with_salt, create_market, modify_position, swap
 };
 use amm::tests::cairo_test::helpers::token::{deploy_token, fund, approve};
 use amm::tests::cairo_test::helpers::quoter::deploy_quoter;
@@ -104,7 +104,22 @@ fn before_with_market() -> (
     (market_manager, base_token, quote_token, market_id)
 }
 
-fn market_state_test_cases() -> Array<MarketStateCase> {
+fn deploy_tokens() -> (ERC20ABIDispatcher, ERC20ABIDispatcher) {
+    // Deploy tokens.
+    let (_treasury, base_token_params, quote_token_params) = default_token_params();
+    let base_token = deploy_token(base_token_params);
+    let quote_token = deploy_token(quote_token_params);
+
+    // Fund LP with initial token balances and approve market manager as spender.
+    let initial_base_amount = to_e28(5000000000000000000000000000000000000000000);
+    let initial_quote_amount = to_e28(100000000000000000000000000000000000000000000);
+    fund(base_token, alice(), initial_base_amount);
+    fund(quote_token, alice(), initial_quote_amount);
+
+    (base_token, quote_token)
+}
+
+fn market_state_test_cases_set1() -> Array<MarketStateCase> {
     let mut markets = ArrayTrait::<MarketStateCase>::new();
 
     //  0.05% swap fee, 1 width, 1:1 price, 2e28 liquidity over entire range
@@ -342,6 +357,12 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
                     .span()
             }
         );
+
+    markets
+}
+
+fn market_state_test_cases_set2() -> Array<MarketStateCase> {
+    let mut markets = ArrayTrait::<MarketStateCase>::new();
 
     // 0.25% swap fee, 10 width, 1:1 price, 4e28 liquidity around (excluding) curr price
     markets
@@ -590,6 +611,13 @@ fn market_state_test_cases() -> Array<MarketStateCase> {
             }
         );
 
+    markets
+}
+
+fn market_state_test_cases_set3() -> Array<MarketStateCase> {
+    let mut markets = ArrayTrait::<MarketStateCase>::new();
+
+    
     // 0.25% swap fee, 10 width, near max price, 2e28 liquidity over entire range
     markets
         .append(
@@ -929,10 +957,18 @@ fn swap_test_cases() -> Array<SwapCase> {
 // TESTS
 ////////////////////////////////
 
-#[test]
-fn test_swap_cases() {
+fn _test_swap_cases(set: u32) {
+    // Deploy tokens.
+    let (base_token, quote_token) = deploy_tokens();
+
     // Fetch test cases.
-    let market_cases = market_state_test_cases();
+    let market_cases = if set == 1 {
+        market_state_test_cases_set1()
+    } else if set == 2 {
+        market_state_test_cases_set2()
+    } else {
+        market_state_test_cases_set3()
+    };
 
     // Iterate through pool test cases.
     let mut index = 0;
@@ -945,7 +981,7 @@ fn test_swap_cases() {
         let market_case: MarketStateCase = *market_cases[index];
         let swap_cases = swap_test_cases();
 
-        println!("*** MARKET: {}", index + 1);
+        println!("*** MARKET: {}", (set - 1) * 5 + index + 1);
 
         // Iterate through swap test cases.
         let mut swap_index = 0;
@@ -958,7 +994,13 @@ fn test_swap_cases() {
             let swap_case: SwapCase = *swap_cases[swap_index];
 
             if !_contains(market_case.skip_cases, swap_index.into() + 1) {
-                let (market_manager, base_token, quote_token) = before();
+                // Deploy market manager with salt and approve token spend.
+                let salt: u32 = index * 1000 + swap_index;
+                let market_manager = deploy_market_manager_with_salt(owner(), salt.into());
+                let initial_base_amount = to_e28(5000000000000000000000000000000000000000000);
+                let initial_quote_amount = to_e28(100000000000000000000000000000000000000000000);
+                approve(base_token, alice(), market_manager.contract_address, initial_base_amount);
+                approve(quote_token, alice(), market_manager.contract_address, initial_quote_amount);
 
                 // Create the market.
                 let mut params = default_market_params();
@@ -1061,6 +1103,7 @@ fn test_swap_cases() {
                 let MAX_DEVIATION = 20;
                 let PRECISION_PLACES = 8;
 
+                println!("amount_in: {}, amount_in_exp: {}", amount_in, amount_in_exp);
                 if !(if amount_in == 0 || market_case.liquidity.into() / amount_in >= THRESHOLD {
                     if !swap_case.exact_input {
                         amount_in >= amount_in_exp
@@ -1128,6 +1171,22 @@ fn test_swap_cases() {
         index += 1;
     };
 }
+
+#[test]
+fn test_swap_cases_set1() {
+    _test_swap_cases(1);
+}
+
+#[test]
+fn test_swap_cases_set2() {
+    _test_swap_cases(2);
+}
+
+#[test]
+fn test_swap_cases_set3() {
+    _test_swap_cases(3);
+}
+
 
 #[test]
 fn test_swap_threshold_amount_exact_input() {
