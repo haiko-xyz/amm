@@ -1,6 +1,5 @@
 use amm::types::core::MarketInfo;
 use amm::libraries::id;
-use debug::PrintTrait;
 use starknet::{ContractAddress, contract_address_const};
 
 ////////////////////////////////

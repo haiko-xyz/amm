@@ -1,5 +1,5 @@
 #[starknet::contract]
-mod Quoter {
+pub mod Quoter {
     ////////////////////////////////
     // IMPORTS
     ////////////////////////////////
@@ -8,8 +8,8 @@ mod Quoter {
     use core::array::ArrayTrait;
     use starknet::syscalls::call_contract_syscall;
     use starknet::ContractAddress;
-    use starknet::info::get_caller_address;
-    use starknet::replace_class_syscall;
+    use starknet::get_caller_address;
+    use starknet::syscalls::replace_class_syscall;
     use starknet::class_hash::ClassHash;
 
     // Local imports.

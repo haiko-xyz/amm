@@ -1,12 +1,10 @@
-use integer::{BoundedU128, BoundedU256};
+use core::integer::BoundedInt;
 
 use amm::libraries::math::fee_math::gross_to_net;
 use amm::libraries::constants::{ONE, MAX};
 use amm::libraries::swap_lib::{compute_swap_amounts, next_sqrt_price_input, next_sqrt_price_output};
 use amm::tests::common::utils::encode_sqrt_price;
 use amm::tests::common::utils::{to_e28, to_e28_u128};
-
-use debug::PrintTrait;
 
 ////////////////////////////////
 // TESTS - compute_swap_amounts
@@ -221,12 +219,12 @@ fn test_compute_swap_amounts_sell_exact_output_intermediate_insufficient_liquidi
 fn test_next_sqrt_price_in_cases() {
     let one: u128 = 10000000000000000000000000000;
     assert(
-        next_sqrt_price_input(1, 1, BoundedU256::max(), false) == 1, 'next_sqrt_price_in amt max'
+        next_sqrt_price_input(1, 1, BoundedInt::max(), false) == 1, 'next_sqrt_price_in amt max'
     );
     assert(next_sqrt_price_input(256, 100, 0, false) == 256, 'next_sqrt_price_in buy amt 0');
     assert(next_sqrt_price_input(256, 100, 0, true) == 256, 'next_sqrt_price_in sell amt_0');
     assert(
-        next_sqrt_price_input(MAX, BoundedU128::max(), BoundedU256::max(), false) == 1,
+        next_sqrt_price_input(MAX, BoundedInt::max(), BoundedInt::max(), false) == 1,
         'next_sqrt_price_in all MAX'
     );
     assert(
@@ -238,7 +236,7 @@ fn test_next_sqrt_price_in_cases() {
         'next_sqrt_price_in sell amt 0.1'
     );
     assert(
-        next_sqrt_price_input(ONE, 1, BoundedU256::max() / 2, false) == 1,
+        next_sqrt_price_input(ONE, 1, BoundedInt::max() / 2, false) == 1,
         'next_sqrt_price_in sell rtns 1'
     );
 }
@@ -299,13 +297,13 @@ fn test_next_sqrt_price_out_liq_0() {
 #[test]
 #[should_panic(expected: ('PriceOF',))]
 fn test_next_sqrt_price_out_buy_price_overflow() {
-    next_sqrt_price_output(ONE, 1, BoundedU256::max(), true);
+    next_sqrt_price_output(ONE, 1, BoundedInt::max(), true);
 }
 
 #[test]
 #[should_panic(expected: ('MulDivOF',))]
 fn test_next_sqrt_price_out_sell_price_overflow() {
-    next_sqrt_price_output(ONE, 1, BoundedU256::max(), false);
+    next_sqrt_price_output(ONE, 1, BoundedInt::max(), false);
 }
 
 #[test]

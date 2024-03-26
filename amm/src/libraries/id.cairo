@@ -1,11 +1,6 @@
 // Core lib imports.
-use traits::{Into, TryInto};
-use array::ArrayTrait;
-use serde::Serde;
-use integer::u256_from_felt252;
 use starknet::ContractAddress;
-use starknet::ContractAddressIntoFelt252;
-use poseidon::poseidon_hash_span;
+use core::poseidon::poseidon_hash_span;
 
 // Local imports.
 use amm::types::core::MarketInfo;
@@ -24,7 +19,7 @@ use amm::types::core::MarketInfo;
 //
 // # Returns
 // * `salt` - salt for Starknet contract address
-fn market_id(params: MarketInfo) -> felt252 {
+pub fn market_id(params: MarketInfo) -> felt252 {
     let mut input = ArrayTrait::<felt252>::new();
     params.base_token.serialize(ref input);
     params.quote_token.serialize(ref input);
@@ -47,7 +42,7 @@ fn market_id(params: MarketInfo) -> felt252 {
 //
 // # Returns
 // * `position_id` - The position ID
-fn position_id(market_id: felt252, owner: felt252, lower_limit: u32, upper_limit: u32,) -> felt252 {
+pub fn position_id(market_id: felt252, owner: felt252, lower_limit: u32, upper_limit: u32,) -> felt252 {
     let mut input = ArrayTrait::<felt252>::new();
     market_id.serialize(ref input);
     owner.serialize(ref input);
@@ -66,7 +61,7 @@ fn position_id(market_id: felt252, owner: felt252, lower_limit: u32, upper_limit
 //
 // # Returns
 // * `batch_id` - The order ID
-fn batch_id(market_id: felt252, limit: u32, nonce: u128,) -> felt252 {
+pub fn batch_id(market_id: felt252, limit: u32, nonce: u128,) -> felt252 {
     let mut input = ArrayTrait::<felt252>::new();
     market_id.serialize(ref input);
     limit.serialize(ref input);
@@ -83,7 +78,7 @@ fn batch_id(market_id: felt252, limit: u32, nonce: u128,) -> felt252 {
 //
 // # Returns
 // * `order_id` - The order ID
-fn order_id(batch_id: felt252, owner: ContractAddress,) -> felt252 {
+pub fn order_id(batch_id: felt252, owner: ContractAddress,) -> felt252 {
     let mut input = ArrayTrait::<felt252>::new();
     batch_id.serialize(ref input);
     owner.serialize(ref input);

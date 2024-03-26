@@ -5,7 +5,7 @@ use starknet::contract_address_const;
 // Local imports.
 use amm::libraries::constants::OFFSET;
 use amm::libraries::math::{fee_math, price_math, liquidity_math};
-use amm::types::i128::{I128Trait, I128Zeroable};
+use amm::types::i128::{I128Trait};
 use amm::contracts::market_manager::MarketManager;
 use amm::contracts::mocks::manual_strategy::{
     ManualStrategy, IManualStrategyDispatcher, IManualStrategyDispatcherTrait

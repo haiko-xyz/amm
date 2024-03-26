@@ -2,7 +2,6 @@
 use starknet::ContractAddress;
 use starknet::contract_address_const;
 use starknet::testing::set_contract_address;
-use debug::PrintTrait;
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager;

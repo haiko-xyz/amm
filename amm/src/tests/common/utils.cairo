@@ -1,37 +1,38 @@
-use cmp::min;
-use clone::Clone;
+// Core lib imports.
+use core::cmp::min;
 
+// Local imports.
 use amm::libraries::math::math;
 
 //////////////////////////////
 // CONSTANTS
 //////////////////////////////
 
-const Q128: u256 = 340282366920938463463374607431768211456;
+pub const Q128: u256 = 340282366920938463463374607431768211456;
 
-const Q100: u256 = 1267650600228229401496703205376;
+pub const Q100: u256 = 1267650600228229401496703205376;
 
-const Q64: u256 = 18446744073709551616;
+pub const Q64: u256 = 18446744073709551616;
 
-const Q32: u256 = 4294967296;
+pub const Q32: u256 = 4294967296;
 
-const Q16: u256 = 65536;
+pub const Q16: u256 = 65536;
 
-const E18: u256 = 1000000000000000000;
+pub const E18: u256 = 1000000000000000000;
 
-const ONE: u256 = 10000000000000000000000000000;
+pub const ONE: u256 = 10000000000000000000000000000;
 
-const ONE_SQUARED: u256 = 100000000000000000000000000000000000000000000000000000000;
+pub const ONE_SQUARED: u256 = 100000000000000000000000000000000000000000000000000000000;
 
 //////////////////////////////
 // FUNCTIONS
 //////////////////////////////
 
-fn encode_sqrt_price(quote_reserves: u256, base_reserves: u256) -> u256 {
+pub fn encode_sqrt_price(quote_reserves: u256, base_reserves: u256) -> u256 {
     _sqrt(math::mul_div(quote_reserves, ONE_SQUARED, base_reserves, false))
 }
 
-fn approx_eq(x: u256, y: u256, threshold: u256) -> bool {
+pub fn approx_eq(x: u256, y: u256, threshold: u256) -> bool {
     if x > y {
         x - y <= threshold
     } else {
@@ -39,7 +40,7 @@ fn approx_eq(x: u256, y: u256, threshold: u256) -> bool {
     }
 }
 
-fn approx_eq_pct(x: u256, y: u256, precision: u256) -> bool {
+pub fn approx_eq_pct(x: u256, y: u256, precision: u256) -> bool {
     // Handle x == y == 0
     if x == y {
         return true;
@@ -53,19 +54,19 @@ fn approx_eq_pct(x: u256, y: u256, precision: u256) -> bool {
     }
 }
 
-fn to_e18(x: u256) -> u256 {
+pub fn to_e18(x: u256) -> u256 {
     x * E18
 }
 
-fn to_e28(x: u256) -> u256 {
+pub fn to_e28(x: u256) -> u256 {
     x * ONE
 }
 
-fn to_e18_u128(x: u128) -> u128 {
+pub fn to_e18_u128(x: u128) -> u128 {
     x * 1000000000000000000
 }
 
-fn to_e28_u128(x: u128) -> u128 {
+pub fn to_e28_u128(x: u128) -> u128 {
     x * 10000000000000000000000000000
 }
 
@@ -80,7 +81,7 @@ fn to_e28_u128(x: u128) -> u128 {
 //
 // # Returns
 // * `result` - The square root of x.
-fn _sqrt(x: u256) -> u256 {
+pub fn _sqrt(x: u256) -> u256 {
     if x == 0 {
         return 0;
     }

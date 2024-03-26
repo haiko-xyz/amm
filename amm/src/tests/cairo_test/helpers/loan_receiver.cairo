@@ -1,17 +1,14 @@
-use serde::Serde;
-use core::result::ResultTrait;
-use traits::TryInto;
-use option::OptionTrait;
-use array::ArrayTrait;
-use starknet::{ContractAddress, ClassHash, deploy_syscall};
+// Core lib imports.
+use starknet::{ContractAddress, ClassHash, syscalls::deploy_syscall};
 
+// Local imports.
 use amm::tests::mocks::flash_loan_receiver::FlashLoanReceiver;
 use amm::tests::mocks::flash_loan_stealer::FlashLoanStealer;
 use amm::interfaces::ILoanReceiver::{
     ILoanReceiver, ILoanReceiverDispatcher, ILoanReceiverDispatcherTrait
 };
 
-fn deploy_loan_receiver(
+pub fn deploy_loan_receiver(
     market_manager: ContractAddress, use_stealer: bool
 ) -> ILoanReceiverDispatcher {
     let mut constructor_calldata = ArrayTrait::<felt252>::new();

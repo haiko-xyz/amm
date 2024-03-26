@@ -1,9 +1,6 @@
 // Core lib imports.
-use array::SpanTrait;
 use starknet::ContractAddress;
-use cmp::{min, max};
-use debug::PrintTrait;
-use integer::BoundedU256;
+use core::cmp::{min, max};
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
@@ -1011,7 +1008,7 @@ fn _test_swap_cases(set: u32) {
                 params.width = market_case.width;
                 params.swap_fee_rate = market_case.swap_fee_rate;
 
-                market_case.description.print();
+                println!("{}", market_case.description);
                 let market_id = create_market(market_manager, params);
 
                 // Mint positions.

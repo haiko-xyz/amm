@@ -1,6 +1,5 @@
 // Core lib imports.
 use starknet::testing::set_contract_address;
-use debug::PrintTrait;
 
 // Local imports.
 use amm::libraries::constants::OFFSET;

@@ -1,7 +1,7 @@
 // Core lib imports.
 use starknet::contract_address_const;
 use starknet::testing::set_contract_address;
-use integer::BoundedU32;
+use core::integer::BoundedInt;
 
 // Local imports.
 use amm::contracts::market_manager::MarketManager;
@@ -67,7 +67,7 @@ fn test_enable_concentrated() {
         OFFSET + MAX_LIMIT,
         OFFSET + MAX_LIMIT,
         1,
-        BoundedU32::max()
+        BoundedInt::max()
     );
     let mut market_configs: MarketConfigs = Default::default();
     market_configs.limits = config(valid_limits, false);
@@ -104,7 +104,7 @@ fn test_enable_concentrated_not_owner() {
         OFFSET + MAX_LIMIT,
         OFFSET + MAX_LIMIT,
         1,
-        BoundedU32::max()
+        BoundedInt::max()
     );
     let mut market_configs: MarketConfigs = Default::default();
     market_configs.limits = config(valid_limits, false);

@@ -1,5 +1,5 @@
 #[starknet::contract]
-mod ERC20 {
+pub mod ERC20 {
     use openzeppelin::token::erc20::ERC20Component;
     use openzeppelin::token::erc20::interface::IERC20Metadata;
     use starknet::ContractAddress;

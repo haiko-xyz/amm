@@ -1,5 +1,5 @@
 #[starknet::contract]
-mod FlashLoanReceiver {
+pub mod FlashLoanReceiver {
     use starknet::ContractAddress;
     use amm::interfaces::ILoanReceiver::ILoanReceiver;
     use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};

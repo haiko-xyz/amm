@@ -1,11 +1,10 @@
 // Core lib imports.
-use traits::Into;
+use core::cmp::max;
+
+// Local imports.
 use amm::types::core::Position;
 use amm::types::i256::{i256, I256Trait};
 use amm::libraries::constants::ONE;
-use cmp::max;
-
-// Local imports.
 use amm::libraries::math::math;
 use amm::libraries::constants::MAX_FEE_RATE;
 use amm::types::core::{LimitInfo, MarketState};
@@ -22,7 +21,7 @@ use amm::types::core::{LimitInfo, MarketState};
 //
 // # Returns
 // * `fee` - The fee amount
-fn calc_fee(amount: u256, fee_rate: u16,) -> u256 {
+pub fn calc_fee(amount: u256, fee_rate: u16,) -> u256 {
     assert(fee_rate <= MAX_FEE_RATE, 'FeeRateOF');
     math::mul_div(amount, fee_rate.into(), MAX_FEE_RATE.into(), true)
 }
@@ -35,7 +34,7 @@ fn calc_fee(amount: u256, fee_rate: u16,) -> u256 {
 //
 // # Returns
 // * `fee` - Fee amount
-fn net_to_fee(net_amount: u256, fee_rate: u16,) -> u256 {
+pub fn net_to_fee(net_amount: u256, fee_rate: u16,) -> u256 {
     assert(fee_rate <= MAX_FEE_RATE, 'FeeRateOF');
     math::mul_div(net_amount, fee_rate.into(), MAX_FEE_RATE.into() - fee_rate.into(), false)
 }
@@ -48,7 +47,7 @@ fn net_to_fee(net_amount: u256, fee_rate: u16,) -> u256 {
 //
 // # Returns
 // * `fee` - Fee amount
-fn net_to_gross(net_amount: u256, fee_rate: u16,) -> u256 {
+pub fn net_to_gross(net_amount: u256, fee_rate: u16,) -> u256 {
     assert(fee_rate <= MAX_FEE_RATE, 'FeeRateOF');
     math::mul_div(net_amount, MAX_FEE_RATE.into(), MAX_FEE_RATE.into() - fee_rate.into(), false)
 }
@@ -62,7 +61,7 @@ fn net_to_gross(net_amount: u256, fee_rate: u16,) -> u256 {
 //
 // # Returns
 // * `gross_amount` - Amount gross of fees
-fn gross_to_net(gross_amount: u256, fee_rate: u16) -> u256 {
+pub fn gross_to_net(gross_amount: u256, fee_rate: u16) -> u256 {
     assert(fee_rate <= MAX_FEE_RATE, 'FeeRateOF');
     math::mul_div(gross_amount, (MAX_FEE_RATE - fee_rate).into(), MAX_FEE_RATE.into(), false)
 }
@@ -85,7 +84,7 @@ fn gross_to_net(gross_amount: u256, fee_rate: u16) -> u256 {
 // * `quote_fees` - quote fees accrued inside position
 // * `base_fee_factor` - new position base fee factor after update
 // * `quote_fee_factor` - new position quote fee factor after update
-fn get_fee_inside(
+pub fn get_fee_inside(
     position: Position,
     lower_limit_info: LimitInfo,
     upper_limit_info: LimitInfo,

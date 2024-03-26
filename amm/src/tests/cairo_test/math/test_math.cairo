@@ -1,4 +1,4 @@
-use integer::BoundedU256;
+use core::integer::BoundedInt;
 
 use amm::libraries::math::math::{pow, mul_div};
 
@@ -23,7 +23,7 @@ fn test_pow() {
     assert(pow(1, 31953) == 1, 'pow(1,31953)');
     assert(pow(2, 3) == 8, 'pow(2,3)');
     assert(pow(10, 4) == 10000, 'pow(10,4)');
-    assert(pow(BoundedU256::max(), 1) == BoundedU256::max(), 'pow(MAX,1)');
+    assert(pow(BoundedInt::max(), 1) == BoundedInt::max(), 'pow(MAX,1)');
     assert(
         pow(
             340282366920938463463374607431768211455, 2
@@ -52,14 +52,14 @@ fn test_mul_div() {
     );
     assert(
         mul_div(
-            BoundedU256::max(), BoundedU256::max(), BoundedU256::max(), false
-        ) == BoundedU256::max(),
+            BoundedInt::max(), BoundedInt::max(), BoundedInt::max(), false
+        ) == BoundedInt::max(),
         'mul_div(MAX,MAX,MAX,F)'
     );
     assert(
         mul_div(
-            BoundedU256::max(), BoundedU256::max(), BoundedU256::max(), true
-        ) == BoundedU256::max(),
+            BoundedInt::max(), BoundedInt::max(), BoundedInt::max(), true
+        ) == BoundedInt::max(),
         'mul_div(MAX,MAX,MAX,T)'
     );
 }
@@ -79,24 +79,24 @@ fn test_mul_div_denominator_0_roundup() {
 #[test]
 #[should_panic(expected: ('MulDivOF',))]
 fn test_mul_div_numerator_overflow() {
-    mul_div(BoundedU256::max(), BoundedU256::max(), 1, false);
+    mul_div(BoundedInt::max(), BoundedInt::max(), 1, false);
 }
 
 #[test]
 #[should_panic(expected: ('MulDivOF',))]
 fn test_mul_div_numerator_overflow_roundup() {
-    mul_div(BoundedU256::max(), BoundedU256::max(), 1, true);
+    mul_div(BoundedInt::max(), BoundedInt::max(), 1, true);
 }
 
 #[test]
 #[should_panic(expected: ('MulDivOF',))]
 fn test_mul_div_result_overflow_roundup() {
-    mul_div(BoundedU256::max() / 2 + 1, 2, 1, true);
+    mul_div(BoundedInt::max() / 2 + 1, 2, 1, true);
 }
 
 #[test]
 #[should_panic(expected: ('MulDivOF',))]
 fn test_mul_div_result_overflow_roundup_alt() {
-    mul_div(BoundedU256::max(), BoundedU256::max(), BoundedU256::max() - 1, true);
+    mul_div(BoundedInt::max(), BoundedInt::max(), BoundedInt::max() - 1, true);
 }
 

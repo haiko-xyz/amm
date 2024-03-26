@@ -23,9 +23,8 @@ trait IFaucet<TContractState> {
 mod Faucet {
     // Core lib imports.
     use starknet::ContractAddress;
-    use starknet::info::get_caller_address;
-    use starknet::info::get_contract_address;
-    use starknet::replace_class_syscall;
+    use starknet::{get_caller_address, get_contract_address};
+    use starknet::syscalls::replace_class_syscall;
     use starknet::class_hash::ClassHash;
 
     // Local imports.

@@ -1,5 +1,4 @@
-use integer::BoundedU128;
-use debug::PrintTrait;
+use core::integer::BoundedInt;
 
 use amm::libraries::math::price_math::limit_to_sqrt_price;
 use amm::libraries::math::liquidity_math::{
@@ -56,7 +55,7 @@ fn test_add_delta_cases() {
     add_delta(ref liquidity, delta);
     assert(liquidity == 0, '10 + -10');
 
-    let max = BoundedU128::max();
+    let max = BoundedInt::max();
     liquidity = max - 5;
     delta = I128Trait::new(5, false);
     add_delta(ref liquidity, delta);
@@ -348,5 +347,5 @@ fn test_max_liquidity_per_limit() {
 
     assert(max_liquidity_per_limit(250) == 5379618157285522867539991264295826, 'max_liq(250)');
 
-    assert(max_liquidity_per_limit(MAX_NUM_LIMITS) == BoundedU128::max(), 'max_liq(MAX)');
+    assert(max_liquidity_per_limit(MAX_NUM_LIMITS) == BoundedInt::max(), 'max_liq(MAX)');
 }

@@ -1,43 +1,20 @@
-use traits::{Into, TryInto, Rem};
-use integer::{U32Mul, U32Div, U32Rem, u32_try_from_felt252, u32_overflowing_sub};
-use option::OptionTrait;
-use result::ResultTrait;
-use hash::LegacyHash;
-
 ////////////////////////////////
 // TYPES
 ////////////////////////////////
 
 #[derive(Copy, Drop, Serde, storage_access::StorageAccess)]
-struct i32 {
-    val: u32,
-    sign: bool
+pub struct i32 {
+    pub val: u32,
+    pub sign: bool
 }
 
 ////////////////////////////////
 // METHODS
 ////////////////////////////////
 
-trait I32Trait {
+pub trait I32Trait {
     fn new(val: u32, sign: bool) -> i32;
     fn one() -> i32;
-}
-
-impl I32Zeroable of Zeroable<i32> {
-    #[inline(always)]
-    fn zero() -> i32 {
-        I32Trait::new(0_u32, false)
-    }
-
-    #[inline(always)]
-    fn is_zero(self: i32) -> bool {
-        self.val == 0_u32
-    }
-
-    #[inline(always)]
-    fn is_non_zero(self: i32) -> bool {
-        self.val != 0_u32
-    }
 }
 
 impl I32Impl of I32Trait {
@@ -162,7 +139,7 @@ impl I32Mul of Mul<i32> {
     #[inline(always)]
     fn mul(lhs: i32, rhs: i32) -> i32 {
         let res_sign: bool = lhs.sign ^ rhs.sign;
-        let mag: u32 = U32Mul::mul(lhs.val, rhs.val);
+        let mag: u32 = lhs.val * rhs.val;
         I32Trait::new(mag, res_sign)
     }
 }
@@ -171,7 +148,7 @@ impl I32Div of Div<i32> {
     #[inline(always)]
     fn div(lhs: i32, rhs: i32) -> i32 {
         let res_sign = lhs.sign ^ rhs.sign;
-        let mag: u32 = U32Div::div(lhs.val, rhs.val);
+        let mag: u32 = lhs.val / rhs.val;
         I32Trait::new(mag, res_sign)
     }
 }
@@ -180,7 +157,7 @@ impl I32Rem of Rem<i32> {
     #[inline(always)]
     fn rem(lhs: i32, rhs: i32) -> i32 {
         let res_sign = lhs.sign;
-        let mag: u32 = U32Rem::rem(lhs.val, rhs.val);
+        let mag: u32 = lhs.val % rhs.val;
         I32Trait::new(mag, res_sign)
     }
 }

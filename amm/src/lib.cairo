@@ -1,7 +1,7 @@
-mod contracts;
-mod interfaces;
-mod libraries;
-mod types;
+pub mod contracts;
+pub mod interfaces;
+pub mod libraries;
+pub mod types;
 
 #[cfg(test)]
-mod tests;
+pub mod tests;

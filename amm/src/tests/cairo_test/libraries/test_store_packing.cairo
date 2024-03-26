@@ -1,7 +1,9 @@
-use starknet::deploy_syscall;
+// Core lib imports.
+use starknet::syscalls::deploy_syscall;
 use starknet::contract_address::contract_address_const;
 use starknet::testing::set_contract_address;
 
+// Local imports.
 use amm::tests::mocks::store_packing_contract::StorePackingContract;
 use amm::tests::mocks::store_packing_contract::{
     IStorePackingContractDispatcher, IStorePackingContractDispatcherTrait,

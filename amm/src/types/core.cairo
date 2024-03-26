@@ -4,8 +4,7 @@
 
 // Core lib imports.
 use starknet::ContractAddress;
-use starknet::StorePacking;
-use option::Option;
+use starknet::storage_access::StorePacking;
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_LIMIT_SHIFTED, MAX_WIDTH};
@@ -26,14 +25,14 @@ use amm::types::i256::i256;
 // * `fee_controller` - fee controller contract, if unset then swap fee is 0
 // * `controller` - market controller, or 0 if market is not controlled
 #[derive(Copy, Drop, Serde)]
-struct MarketInfo {
-    base_token: ContractAddress,
-    quote_token: ContractAddress,
-    width: u32,
-    strategy: ContractAddress,
-    swap_fee_rate: u16,
-    fee_controller: ContractAddress,
-    controller: ContractAddress,
+pub struct MarketInfo {
+    pub base_token: ContractAddress,
+    pub quote_token: ContractAddress,
+    pub width: u32,
+    pub strategy: ContractAddress,
+    pub swap_fee_rate: u16,
+    pub fee_controller: ContractAddress,
+    pub controller: ContractAddress,
 }
 
 // Granular market settings for creating custom market types.
@@ -55,14 +54,14 @@ struct MarketInfo {
 // * `collect_order` - whether collecting orders is enabled
 // * `swap` - whether swapping is enabled
 #[derive(Copy, Drop, Serde, PartialEq)]
-struct MarketConfigs {
-    limits: Config<ValidLimits>,
-    add_liquidity: Config<ConfigOption>,
-    remove_liquidity: Config<ConfigOption>,
-    create_bid: Config<ConfigOption>,
-    create_ask: Config<ConfigOption>,
-    collect_order: Config<ConfigOption>,
-    swap: Config<ConfigOption>,
+pub struct MarketConfigs {
+    pub limits: Config<ValidLimits>,
+    pub add_liquidity: Config<ConfigOption>,
+    pub remove_liquidity: Config<ConfigOption>,
+    pub create_bid: Config<ConfigOption>,
+    pub create_ask: Config<ConfigOption>,
+    pub collect_order: Config<ConfigOption>,
+    pub swap: Config<ConfigOption>,
 }
 
 // Default market configs.
@@ -87,9 +86,9 @@ impl DefaultMarketConfigs of Default<MarketConfigs> {
 // * `value` - current value
 // * `fixed` - whether config is fixed at its current value
 #[derive(Copy, Drop, Serde, PartialEq)]
-struct Config<T> {
-    value: T,
-    fixed: bool,
+pub struct Config<T> {
+    pub value: T,
+    pub fixed: bool,
 }
 
 // Struct representing valid limits.
@@ -101,13 +100,13 @@ struct Config<T> {
 // * `min_width` - minimum width
 // * `max_width` - maximum width
 #[derive(Copy, Drop, Serde, PartialEq)]
-struct ValidLimits {
-    min_lower: u32,
-    max_lower: u32,
-    min_upper: u32,
-    max_upper: u32,
-    min_width: u32,
-    max_width: u32,
+pub struct ValidLimits {
+    pub min_lower: u32,
+    pub max_lower: u32,
+    pub min_upper: u32,
+    pub max_upper: u32,
+    pub min_width: u32,
+    pub max_width: u32,
 }
 
 // Default valid limits.
@@ -132,7 +131,7 @@ impl DefaultValidLimits of Default<ValidLimits> {
 // * `OnlyOwner` - setting is enabled only for market owner
 // * `OnlyStrategy` - setting is enabled only for the market strategy
 #[derive(Copy, Drop, Serde, PartialEq)]
-enum ConfigOption {
+pub enum ConfigOption {
     Enabled,
     Disabled,
     OnlyOwner,
@@ -147,12 +146,12 @@ enum ConfigOption {
 // * `base_fee_factor` - accumulated base fees per unit of liquidity (constrained to felt252)
 // * `quote_fee_factor` - accumulated quote fees per unit of liquidity (constrained to felt252)
 #[derive(Copy, Drop, Serde, PartialEq, Default)]
-struct MarketState {
-    liquidity: u128,
-    curr_limit: u32,
-    curr_sqrt_price: u256,
-    base_fee_factor: u256,
-    quote_fee_factor: u256,
+pub struct MarketState {
+    pub liquidity: u128,
+    pub curr_limit: u32,
+    pub curr_sqrt_price: u256,
+    pub base_fee_factor: u256,
+    pub quote_fee_factor: u256,
 }
 
 // An individual price limit.
@@ -163,12 +162,12 @@ struct MarketState {
 // * `quote_fee_factor` - cumulative quote fee factor outside of current price (constrained to felt252) 
 // * `nonce` - current nonce of limit, used for batching limit orders
 #[derive(Copy, Drop, Serde)]
-struct LimitInfo {
-    liquidity: u128,
-    liquidity_delta: i128,
-    base_fee_factor: u256,
-    quote_fee_factor: u256,
-    nonce: u128,
+pub struct LimitInfo {
+    pub liquidity: u128,
+    pub liquidity_delta: i128,
+    pub base_fee_factor: u256,
+    pub quote_fee_factor: u256,
+    pub nonce: u128,
 }
 
 // A liquidity position.
@@ -180,13 +179,13 @@ struct LimitInfo {
 // * `base_fee_factor_last` - base fee factor of position at last update
 // * `quote_fee_factor_last` - quote fee factor of position at last update
 #[derive(Copy, Drop, Serde)]
-struct Position {
-    market_id: felt252,
-    lower_limit: u32,
-    upper_limit: u32,
-    liquidity: u128,
-    base_fee_factor_last: i256,
-    quote_fee_factor_last: i256,
+pub struct Position {
+    pub market_id: felt252,
+    pub lower_limit: u32,
+    pub upper_limit: u32,
+    pub liquidity: u128,
+    pub base_fee_factor_last: i256,
+    pub quote_fee_factor_last: i256,
 }
 
 // Information about batched limit orders within a nonce.
@@ -198,13 +197,13 @@ struct Position {
 // * `base_amount` - base amounts withdrawn and pending collection
 // * `quote_amount` - quote amounts withdrawn and pending collection
 #[derive(Copy, Drop, Serde, PartialEq)]
-struct OrderBatch {
-    liquidity: u128,
-    filled: bool,
-    limit: u32,
-    is_bid: bool,
-    base_amount: u128,
-    quote_amount: u128,
+pub struct OrderBatch {
+    pub liquidity: u128,
+    pub filled: bool,
+    pub limit: u32,
+    pub is_bid: bool,
+    pub base_amount: u128,
+    pub quote_amount: u128,
 }
 
 // A limit order.
@@ -212,9 +211,9 @@ struct OrderBatch {
 // * `batch_id` - order batch to which order belongs
 // * `liquidity` - liquidity of order
 #[derive(Copy, Drop, Serde)]
-struct LimitOrder {
-    batch_id: felt252,
-    liquidity: u128,
+pub struct LimitOrder {
+    pub batch_id: felt252,
+    pub liquidity: u128,
 }
 
 // Information about a swap.
@@ -223,10 +222,10 @@ struct LimitOrder {
 // * `amount` - amount swapped in or out
 // * `exact_input` - whether amount is exact input or exact output
 #[derive(Copy, Drop, Serde)]
-struct SwapParams {
-    is_buy: bool,
-    amount: u256,
-    exact_input: bool,
+pub struct SwapParams {
+    pub is_buy: bool,
+    pub amount: u256,
+    pub exact_input: bool,
 }
 
 // Strategy position info.
@@ -235,10 +234,10 @@ struct SwapParams {
 // * `upper_limit` - upper limit of position
 // * `liquidity` - liquidity of position
 #[derive(Copy, Drop, Serde, starknet::Store, Default, PartialEq)]
-struct PositionInfo {
-    lower_limit: u32,
-    upper_limit: u32,
-    liquidity: u128,
+pub struct PositionInfo {
+    pub lower_limit: u32,
+    pub upper_limit: u32,
+    pub liquidity: u128,
 }
 
 // Depth data.
@@ -246,10 +245,10 @@ struct PositionInfo {
 // * `limit` - price limit
 // * `liquidity_delta` - liquidity delta at price limit
 #[derive(Copy, Drop, Serde, PartialEq)]
-struct Depth {
-    limit: u32,
-    price: u256,
-    liquidity_delta: i128,
+pub struct Depth {
+    pub limit: u32,
+    pub price: u256,
+    pub liquidity_delta: i128,
 }
 
 // Position info returned for ERC721.
@@ -267,19 +266,19 @@ struct Depth {
 // * `lower_limit` - lower limit of position
 // * `upper_limit` - upper limit of position
 #[derive(Copy, Drop, Serde)]
-struct ERC721PositionInfo {
-    base_token: ContractAddress,
-    quote_token: ContractAddress,
-    width: u32,
-    strategy: ContractAddress,
-    swap_fee_rate: u16,
-    fee_controller: ContractAddress,
-    controller: ContractAddress,
-    liquidity: u128,
-    base_amount: u256,
-    quote_amount: u256,
-    lower_limit: u32,
-    upper_limit: u32,
+pub struct ERC721PositionInfo {
+    pub base_token: ContractAddress,
+    pub quote_token: ContractAddress,
+    pub width: u32,
+    pub strategy: ContractAddress,
+    pub swap_fee_rate: u16,
+    pub fee_controller: ContractAddress,
+    pub controller: ContractAddress,
+    pub liquidity: u128,
+    pub base_amount: u256,
+    pub quote_amount: u256,
+    pub lower_limit: u32,
+    pub upper_limit: u32,
 }
 
 ////////////////////////////////
@@ -295,13 +294,13 @@ struct ERC721PositionInfo {
 // * `controller` - market controller (or 0 if market is not controlled)
 // * `slab0` - packed `width` + `swap_fee_rate`
 #[derive(starknet::Store)]
-struct PackedMarketInfo {
-    base_token: felt252,
-    quote_token: felt252,
-    strategy: felt252,
-    fee_controller: felt252,
-    controller: felt252,
-    slab0: felt252,
+pub struct PackedMarketInfo {
+    pub base_token: felt252,
+    pub quote_token: felt252,
+    pub strategy: felt252,
+    pub fee_controller: felt252,
+    pub controller: felt252,
+    pub slab0: felt252,
 }
 
 // Packed version of `MarketState`.
@@ -311,11 +310,11 @@ struct PackedMarketInfo {
 // * `quote_fee_factor` - quote_fee_factor (constrained to felt252)
 // * `slab0` - `curr_limit` + `liquidity`
 #[derive(starknet::Store)]
-struct PackedMarketState {
-    curr_sqrt_price: felt252,
-    base_fee_factor: felt252,
-    quote_fee_factor: felt252,
-    slab0: felt252,
+pub struct PackedMarketState {
+    pub curr_sqrt_price: felt252,
+    pub base_fee_factor: felt252,
+    pub quote_fee_factor: felt252,
+    pub slab0: felt252,
 }
 
 // Packed version of `MarketConfigs`.
@@ -326,8 +325,8 @@ struct PackedMarketState {
 //
 // * `slab` - 128 bits of `ValidLimits` + 12 bits of `ConfigOption`s + 7 bits of `Config`s
 #[derive(starknet::Store)]
-struct PackedMarketConfigs {
-    slab: felt252,
+pub struct PackedMarketConfigs {
+    pub slab: felt252,
 }
 
 // Packed version of `LimitInfo`.
@@ -337,11 +336,11 @@ struct PackedMarketConfigs {
 // * `slab0` - `liquidity` + first 124 bits of `liquidity_delta`
 // * `slab1` - last 4 bits of `liquidity_delta` + sign of `liquidity_delta` + `nonce` 
 #[derive(starknet::Store)]
-struct PackedLimitInfo {
-    base_fee_factor: felt252,
-    quote_fee_factor: felt252,
-    slab0: felt252,
-    slab1: felt252,
+pub struct PackedLimitInfo {
+    pub base_fee_factor: felt252,
+    pub quote_fee_factor: felt252,
+    pub slab0: felt252,
+    pub slab1: felt252,
 }
 
 // Packed version of `OrderBatch`.
@@ -349,9 +348,9 @@ struct PackedLimitInfo {
 // * `slab0` - first 128 bits of `base_amount` + first 124 bits of `quote_amount`
 // * `slab1` - last 4 bits of `quote_amount` + `filled` + `is_bid` + `limit` + `liquidity`
 #[derive(starknet::Store)]
-struct PackedOrderBatch {
-    slab0: felt252,
-    slab1: felt252,
+pub struct PackedOrderBatch {
+    pub slab0: felt252,
+    pub slab1: felt252,
 }
 
 // Packed version of `Position`.
@@ -361,11 +360,11 @@ struct PackedOrderBatch {
 // * `quote_fee_factor_last` - `quote_fee_factor_last` (constrained to felt252, with sign packed at top bit)
 // * `slab0` - `lower_limit` + `upper_limit` + `liquidity`
 #[derive(starknet::Store)]
-struct PackedPosition {
-    market_id: felt252,
-    base_fee_factor_last: felt252,
-    quote_fee_factor_last: felt252,
-    slab0: felt252,
+pub struct PackedPosition {
+    pub market_id: felt252,
+    pub base_fee_factor_last: felt252,
+    pub quote_fee_factor_last: felt252,
+    pub slab0: felt252,
 }
 
 // A limit order.
@@ -373,7 +372,7 @@ struct PackedPosition {
 // * `batch_id` - batch id
 // * `liquidity` - liquidity of order coerced to felt252
 #[derive(starknet::Store)]
-struct PackedLimitOrder {
-    batch_id: felt252,
-    liquidity: felt252,
+pub struct PackedLimitOrder {
+    pub batch_id: felt252,
+    pub liquidity: felt252,
 }

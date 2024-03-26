@@ -9,13 +9,13 @@ use amm::contracts::mocks::manual_strategy::{
 // External imports.
 use snforge_std::{declare, ContractClassTrait, start_prank, stop_prank, CheatTarget};
 
-fn deploy_strategy(owner: ContractAddress) -> IManualStrategyDispatcher {
+pub fn deploy_strategy(owner: ContractAddress) -> IManualStrategyDispatcher {
     let contract = declare("ManualStrategy");
     let contract_address = contract.deploy(@array![owner.into()]).unwrap();
     IManualStrategyDispatcher { contract_address }
 }
 
-fn initialise_strategy(
+pub fn initialise_strategy(
     strategy: IManualStrategyDispatcher,
     owner: ContractAddress,
     name: felt252,

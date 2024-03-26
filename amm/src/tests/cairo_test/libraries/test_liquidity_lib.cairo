@@ -1,6 +1,3 @@
-// Core lib imports.
-use debug::PrintTrait;
-
 // Local imports.
 use amm::types::i128::I128Trait;
 use amm::libraries::constants::{OFFSET};

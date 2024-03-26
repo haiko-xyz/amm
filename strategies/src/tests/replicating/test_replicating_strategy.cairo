@@ -1,7 +1,6 @@
 // Core lib imports.
 use starknet::ContractAddress;
 use starknet::contract_address_const;
-use integer::{BoundedU32, BoundedU128, BoundedU256};
 
 // Local imports.
 use amm::libraries::constants::{OFFSET, MAX_LIMIT, MAX_SCALED};

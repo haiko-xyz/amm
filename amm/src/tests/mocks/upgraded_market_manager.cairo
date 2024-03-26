@@ -1,15 +1,15 @@
 use starknet::ContractAddress;
 
 #[starknet::interface]
-trait IUpgradedMarketManager<TContractState> {
+pub trait IUpgradedMarketManager<TContractState> {
     fn owner(self: @TContractState) -> ContractAddress;
 }
 
 #[starknet::contract]
-mod UpgradedMarketManager {
+pub mod UpgradedMarketManager {
     // Core lib imports.
     use starknet::ContractAddress;
-    use starknet::info::get_caller_address;
+    use starknet::get_caller_address;
 
     // Local imports.
     use super::IUpgradedMarketManager;
