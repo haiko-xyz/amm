@@ -36,7 +36,11 @@ pub trait IQuoter<TContractState> {
     ) -> Span<u256>;
 
     fn amounts_inside_position_array(
-        self: @TContractState, position_ids: Span<felt252>
+        self: @TContractState,
+        market_ids: Span<felt252>,
+        owners: Span<felt252>,
+        lower_limits: Span<u32>,
+        upper_limits: Span<u32>,
     ) -> Span<(u256, u256, u256, u256)>;
 
     fn amounts_inside_order_array(

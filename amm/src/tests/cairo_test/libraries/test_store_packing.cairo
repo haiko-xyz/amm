@@ -171,9 +171,6 @@ fn test_store_packing_position() {
     let store_packing_contract = before();
 
     let position = Position {
-        market_id: 121381238912,
-        lower_limit: 7906725,
-        upper_limit: 7906825,
         liquidity: 28123192319023231239,
         quote_fee_factor_last: I256Trait::new(31892319283213127389127312831273123123, false),
         base_fee_factor_last: I256Trait::new(9938560381238123811392129756646474789, true),
@@ -182,9 +179,6 @@ fn test_store_packing_position() {
     store_packing_contract.set_position(1, position);
     let unpacked = store_packing_contract.get_position(1);
 
-    assert(unpacked.market_id == position.market_id, 'Position: market id');
-    assert(unpacked.lower_limit == position.lower_limit, 'Position: lower limit');
-    assert(unpacked.upper_limit == position.upper_limit, 'Position: upper limit');
     assert(unpacked.liquidity == position.liquidity, 'Position: liquidity');
     assert(
         unpacked.quote_fee_factor_last == position.quote_fee_factor_last,

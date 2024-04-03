@@ -2,7 +2,7 @@
 // TYPES
 ////////////////////////////////
 
-#[derive(Copy, Drop, Serde, storage_access::StorageAccess)]
+#[derive(Copy, Drop, Serde, Default, storage_access::StorageAccess)]
 pub struct i128 {
     pub val: u128,
     pub sign: bool

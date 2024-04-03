@@ -67,9 +67,8 @@ fn test_amounts_inside_position() {
     modify_position(market_manager, params);
 
     // Check amounts inside position.
-    let position_id = id::position_id(market_id, alice().into(), lower_limit, upper_limit);
     let (base_amount, quote_amount, base_fees, quote_fees) = market_manager
-        .amounts_inside_position(position_id);
+        .amounts_inside_position(market_id, alice().into(), lower_limit, upper_limit);
     assert(base_amount == 49874959321712300625, 'Base amount 1');
     assert(quote_amount == 49874959321712300625, 'Quote amount 1');
     assert(base_fees == 0, 'Base fees 1');
@@ -102,7 +101,7 @@ fn test_amounts_inside_position() {
 
     // Recheck amounts inside position.
     let (base_amount_2, quote_amount_2, base_fees_2, quote_fees_2) = market_manager
-        .amounts_inside_position(position_id);
+        .amounts_inside_position(market_id, alice().into(), lower_limit, upper_limit);
     assert(
         approx_eq(base_amount_2, base_amount - amount_out + (amount_in_2 - fees_2), 10),
         'Base amount 2'

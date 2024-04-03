@@ -189,8 +189,8 @@ fn test_create_multiple_bid_orders() {
     // Fetch limit order, batch and position.
     order = market_manager.order(order_id);
     batch = market_manager.batch(order.batch_id);
-    let position_id = id::position_id(market_id, order.batch_id, limit, limit + width);
-    let (batch_base, batch_quote, _, _) = market_manager.amounts_inside_position(position_id);
+    let (batch_base, batch_quote, _, _) = market_manager
+        .amounts_inside_position(market_id, order.batch_id, limit, limit + width);
     assert(order.liquidity == liquidity, 'Create bid 2: liquidity');
     assert(batch.liquidity == batch_liquidity, 'Create bid 2: batch liquidity');
     assert(batch_base == 0, 'Create bid 2: batch base amt');
@@ -234,8 +234,8 @@ fn test_create_multiple_ask_orders() {
     // Fetch limit order, batch and position.
     order = market_manager.order(order_id);
     batch = market_manager.batch(order.batch_id);
-    let position_id = id::position_id(market_id, order.batch_id, limit, limit + width);
-    let (batch_base, batch_quote, _, _) = market_manager.amounts_inside_position(position_id);
+    let (batch_base, batch_quote, _, _) = market_manager
+        .amounts_inside_position(market_id, order.batch_id, limit, limit + width);
     assert(order.liquidity == liquidity, 'Create ask 2: liquidity');
     assert(batch.liquidity == batch_liquidity, 'Create ask 2: batch liquidity');
     assert(approx_eq(batch_base, batch_base_amount_exp.into(), 10), 'Create ask 2: batch base amt');
@@ -295,8 +295,8 @@ fn test_swap_fully_fills_bid_limit_orders() {
 
     // Check batch position collected.
     let order_1 = market_manager.order(order_id_1);
-    let position_id = id::position_id(market_id, order_1.batch_id, limit, limit + width);
-    let (pos_base_amt, pos_quote_amt, _, _) = market_manager.amounts_inside_position(position_id);
+    let (pos_base_amt, pos_quote_amt, _, _) = market_manager
+        .amounts_inside_position(market_id, order_1.batch_id, limit, limit + width);
     assert(pos_base_amt == 0, 'Create bid: batch base amt');
     assert(pos_quote_amt == 0, 'Create bid: batch quote amt');
 
@@ -368,8 +368,8 @@ fn test_swap_fully_fills_ask_limit_orders() {
 
     // Check batch position collected.
     let order_1 = market_manager.order(order_id_1);
-    let position_id = id::position_id(market_id, order_1.batch_id, limit, limit + width);
-    let (pos_base_amt, pos_quote_amt, _, _) = market_manager.amounts_inside_position(position_id);
+    let (pos_base_amt, pos_quote_amt, _, _) = market_manager
+        .amounts_inside_position(market_id, order_1.batch_id, limit, limit + width);
     assert(pos_base_amt == 0, 'Create ask: batch base amt');
     assert(pos_quote_amt == 0, 'Create ask: batch quote amt');
 
@@ -411,11 +411,10 @@ fn test_create_and_collect_unfilled_bid_order() {
     let user_base_bal_after = base_token.balanceOf(alice());
     let user_quote_bal_after = quote_token.balanceOf(alice());
     let order = market_manager.order(order_id);
-    let position_id = id::position_id(market_id, order.batch_id, limit, limit + market_info.width);
-    let (position_base, position_quote, _, _) = market_manager.amounts_inside_position(position_id);
+    let (position_base, position_quote, _, _) = market_manager
+        .amounts_inside_position(market_id, order.batch_id, limit, limit + market_info.width);
 
     // Fetch order and batch. Run checks.
-    let order = market_manager.order(order_id);
     let batch = market_manager.batch(order.batch_id);
     assert(approx_eq(quote_amount, quote_amount_exp, 10), 'Collect bid: quote amount');
     assert(base_amount == 0, 'Collect bid: base amount');

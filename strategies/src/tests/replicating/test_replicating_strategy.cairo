@@ -1841,11 +1841,10 @@ fn test_deposit_single_sided_ask_liquidity() {
     let mut spy = spy_events(SpyOn::One(strategy.contract_address));
 
     // Deposit single-sided bid liquidity.
-    let position_id = id::position_id(
-        market_id, strategy.contract_address.into(), ask.lower_limit, ask.upper_limit
-    );
     let (base_amount, _quote_amount, base_fees, _quote_fees) = market_manager
-        .amounts_inside_position(position_id);
+        .amounts_inside_position(
+            market_id, strategy.contract_address.into(), ask.lower_limit, ask.upper_limit
+        );
     start_prank(CheatTarget::One(strategy.contract_address), alice());
     let (_, _, shares) = strategy.deposit(market_id, base_amount + base_fees, 0);
 

@@ -261,12 +261,10 @@ pub(crate) impl PositionStorePacking of StorePacking<Position, PackedPosition> {
         quote_fee_factor_last += bool_to_u256(value.quote_fee_factor_last.sign)
             * TWO_POW_251.into();
 
-        let mut slab0: u256 = value.lower_limit.into();
-        slab0 += value.upper_limit.into() * TWO_POW_32.into();
-        slab0 += value.liquidity.into() * TWO_POW_64.into();
+        let mut slab0: u256 = value.liquidity.into() * TWO_POW_64.into();
 
         PackedPosition {
-            market_id: value.market_id,
+            market_id: 0,
             base_fee_factor_last: base_fee_factor_last.try_into().unwrap(),
             quote_fee_factor_last: quote_fee_factor_last.try_into().unwrap(),
             slab0: slab0.try_into().unwrap()
@@ -274,7 +272,6 @@ pub(crate) impl PositionStorePacking of StorePacking<Position, PackedPosition> {
     }
 
     fn unpack(value: PackedPosition) -> Position {
-        let market_id = value.market_id;
         let base_fee_factor_val: u256 = value.base_fee_factor_last.into() & MASK_251.into();
         let base_fee_factor_sign: bool = ((value.base_fee_factor_last.into() / TWO_POW_251.into())
             & MASK_1) == 1;
@@ -283,22 +280,11 @@ pub(crate) impl PositionStorePacking of StorePacking<Position, PackedPosition> {
             & MASK_1) == 1;
         let base_fee_factor_last = I256Trait::new(base_fee_factor_val, base_fee_factor_sign);
         let quote_fee_factor_last = I256Trait::new(quote_fee_factor_val, quote_fee_factor_sign);
-        let lower_limit: u32 = (value.slab0.into() & MASK_32).try_into().unwrap();
-        let upper_limit: u32 = ((value.slab0.into() / TWO_POW_32.into()) & MASK_32)
-            .try_into()
-            .unwrap();
         let liquidity: u128 = ((value.slab0.into() / TWO_POW_64.into()) & MASK_128)
             .try_into()
             .unwrap();
 
-        Position {
-            market_id,
-            lower_limit,
-            upper_limit,
-            liquidity,
-            base_fee_factor_last,
-            quote_fee_factor_last
-        }
+        Position { liquidity, base_fee_factor_last, quote_fee_factor_last }
     }
 }
 

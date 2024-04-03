@@ -180,12 +180,10 @@ pub mod ManualStrategy {
             let contract: felt252 = get_contract_address().into();
             let market_id = self.market_id.read();
             let market_manager = self.market_manager.read();
-            let bid_pos_id = id::position_id(market_id, contract, bid.lower_limit, bid.upper_limit);
-            let ask_pos_id = id::position_id(market_id, contract, ask.lower_limit, ask.upper_limit);
             let (bid_base, bid_quote, bid_base_fees, bid_quote_fees) = market_manager
-                .amounts_inside_position(bid_pos_id);
+                .amounts_inside_position(market_id, contract, bid.lower_limit, bid.upper_limit);
             let (ask_base, ask_quote, ask_base_fees, ask_quote_fees) = market_manager
-                .amounts_inside_position(ask_pos_id);
+                .amounts_inside_position(market_id, contract, ask.lower_limit, ask.upper_limit);
 
             // Calculate liquidity.
             let width = market_manager.width(market_id);

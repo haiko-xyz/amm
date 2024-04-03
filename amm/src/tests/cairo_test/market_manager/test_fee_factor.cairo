@@ -171,9 +171,6 @@ fn test_fee_factor_store_packing_overflow() {
 
     // Create position with fee factors > max allowable
     let position = Position {
-        market_id: 1,
-        lower_limit: 10,
-        upper_limit: 20,
         liquidity: 10000,
         base_fee_factor_last: I256Trait::new(BoundedInt::max(), false),
         quote_fee_factor_last: I256Trait::new(BoundedInt::max(), false),

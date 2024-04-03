@@ -64,11 +64,6 @@ pub fn update_liquidity(
     // If writing to position for first time, initialise immutables.
     let position_id = id::position_id(market_id, owner, lower_limit, upper_limit);
     let mut position = self.positions.read(position_id);
-    if position.market_id == 0 {
-        position.market_id = market_id;
-        position.lower_limit = lower_limit;
-        position.upper_limit = upper_limit;
-    }
 
     // Get fee factors and calculate accrued fees.
     let (base_fees, quote_fees, base_fee_factor, quote_fee_factor) = fee_math::get_fee_inside(
@@ -182,7 +177,10 @@ pub fn update_limit(
 // Get token amounts inside a position.
 //
 // # Arguments
-// * `position_id` - position id
+// * `market_id` - market id
+// * `owner` - owner address (or batch id for limit orders)
+// * `lower_limit` - lower limit of position
+// * `upper_limit` - upper limit of position
 //
 // # Returns
 // * `base_amount` - amount of base tokens inside position, exclusive of fees
@@ -190,29 +188,30 @@ pub fn update_limit(
 // * `base_fees` - base fees accumulated inside position
 // * `quote_fees` - quote fees accumulated inside position
 pub fn amounts_inside_position(
-    self: @ContractState, position_id: felt252,
+    self: @ContractState, market_id: felt252, owner: felt252, lower_limit: u32, upper_limit: u32
 ) -> (u256, u256, u256, u256) {
     // Fetch position.
+    let position_id = id::position_id(market_id, owner, lower_limit, upper_limit);
     let position = self.positions.read(position_id);
 
     // Handle uninitialised position.
-    if position.market_id == 0 {
+    if position.liquidity == 0 {
         return (0, 0, 0, 0);
     }
 
     // Fetch market state.
-    let market_state = self.market_state.read(position.market_id);
-    let market_info = self.market_info.read(position.market_id);
-    let lower_limit_info = self.limit_info.read((position.market_id, position.lower_limit));
-    let upper_limit_info = self.limit_info.read((position.market_id, position.upper_limit));
+    let market_state = self.market_state.read(market_id);
+    let market_info = self.market_info.read(market_id);
+    let lower_limit_info = self.limit_info.read((market_id, lower_limit));
+    let upper_limit_info = self.limit_info.read((market_id, upper_limit));
 
     // Get fee factors and calculate accrued fees.
     let (base_fees, quote_fees, _, _) = fee_math::get_fee_inside(
         position,
         lower_limit_info,
         upper_limit_info,
-        position.lower_limit,
-        position.upper_limit,
+        lower_limit,
+        upper_limit,
         market_state.curr_limit,
         market_state.base_fee_factor,
         market_state.quote_fee_factor,
@@ -222,8 +221,8 @@ pub fn amounts_inside_position(
     let (base_amount, quote_amount) = liquidity_math::liquidity_to_amounts(
         I128Trait::new(position.liquidity, true),
         market_state.curr_sqrt_price,
-        price_math::limit_to_sqrt_price(position.lower_limit, market_info.width),
-        price_math::limit_to_sqrt_price(position.upper_limit, market_info.width),
+        price_math::limit_to_sqrt_price(lower_limit, market_info.width),
+        price_math::limit_to_sqrt_price(upper_limit, market_info.width),
     );
 
     // Return amounts
