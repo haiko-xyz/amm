@@ -33,6 +33,14 @@ pub struct StrategyParams {
     pub max_age: u64,
 }
 
+#[derive(Drop, Copy, Serde, Default, PartialEq)]
+pub struct PositionRange {
+    // Lower limit
+    pub lower_limit: u32,
+    // Upper limit
+    pub upper_limit: u32,
+}
+
 #[derive(Drop, Copy, Serde, Default)]
 pub struct StrategyState {
     // Whether strategy is initialised
@@ -43,10 +51,10 @@ pub struct StrategyState {
     pub base_reserves: u256,
     // Quote reserves
     pub quote_reserves: u256,
-    // Placed bid, or 0 if none placed
-    pub bid: PositionInfo,
-    // Placed ask, or 0 if none placed
-    pub ask: PositionInfo,
+    // Placed bid, or lower_limit = upper_limit = 0 if none placed
+    pub bid: PositionRange,
+    // Placed ask, or lower_limit = upper_limit = 0 if none placed
+    pub ask: PositionRange,
 }
 
 // // Number of limits, defined either as:
@@ -80,10 +88,17 @@ pub struct PackedStrategyParams {
 
 // Packed strategy state.
 //
+// Can be packed as either V1 or V2. Interpret based on `is_v2` boolean flag.
+// V1:
 // * `slab0` - base reserves (coerced to felt252)
 // * `slab1` - quote reserves (coerced to felt252)
 // * `slab2` - `bid_lower_limit` + `bid_upper_limit` + `bid_liquidity` + `is_initialised` + `is_paused`
 // * `slab3` - `ask_lower_limit` + `ask_upper_limit` + `ask_liquidity`
+// V2:
+// * `slab0` - base reserves (coerced to felt252)
+// * `slab1` - quote reserves (coerced to felt252)
+// * `slab2` - `bid_lower_limit` + `bid_upper_limit` + `ask_lower_limit` + `ask_lower_limit` + `is_initialised` + `is_paused` + `is_v2` (RIGHTMOST BIT - 0 by default)
+// * `slab3` - UNUSED
 #[derive(starknet::Store)]
 pub struct PackedStrategyState {
     pub slab0: felt252,
