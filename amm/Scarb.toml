@@ -24,6 +24,11 @@ fuzzer_runs = 30
 fuzzer_seed = 88888
 
 [[tool.snforge.fork]]
-name = "TESTNET"
-url = 'https://starknet-testnet.public.blastapi.io'
+name = "MAINNET"
+url = 'https://free-rpc.nethermind.io/mainnet-juno'
+block_id.tag = "Latest"
+
+[[tool.snforge.fork]]
+name = "SEPOLIA"
+url = 'https://free-rpc.nethermind.io/sepolia-juno'
 block_id.tag = "Latest"

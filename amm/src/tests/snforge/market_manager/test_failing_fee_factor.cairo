@@ -1,14 +1,14 @@
 use starknet::ContractAddress;
 use starknet::contract_address_const;
 use starknet::syscalls::call_contract_syscall;
-use starknet::info::get_block_timestamp;
+use starknet::get_block_timestamp;
 
 use amm::libraries::id;
 use amm::types::i128::I128Trait;
 use amm::interfaces::IMarketManager::{IMarketManagerDispatcher, IMarketManagerDispatcherTrait};
 use amm::interfaces::IStrategy::{IStrategyDispatcher, IStrategyDispatcherTrait};
 
-use snforge_std::{start_prank, stop_prank, PrintTrait, CheatTarget};
+use snforge_std::{start_prank, stop_prank, CheatTarget};
 
 #[test]
 #[fork("TESTNET")]

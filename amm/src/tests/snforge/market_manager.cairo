@@ -8,5 +8,6 @@ pub mod test_swap_multiple_events;
 pub mod benchmark_gas;
 // Note: disabled but saved for future debugging
 // pub mod test_failing_fee_factor;
+// pub mod test_upgrade_market_manager;
 
 

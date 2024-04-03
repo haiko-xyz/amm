@@ -27,3 +27,8 @@ sierra-replace-ids = true
 [tool.snforge]
 fuzzer_runs = 30
 fuzzer_seed = 88888
+
+[[tool.snforge.fork]]
+name = "MAINNET"
+url = 'https://starknet-mainnet.g.alchemy.com/v2/W0Et338bj6xJ9-gP2Obx32k1FYl6nTxD'
+block_id.tag = "Latest"
