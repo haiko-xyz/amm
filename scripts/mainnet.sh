@@ -9,6 +9,13 @@ export ORACLE_SUMMARY=0x54563a0537b3ae0ba91032d674a6d468f30a59dc4deb8f0dce4e642b
 
 # Declare contract classes
 # MarketManager
+starkli declare --rpc $STARKNET_RPC --account $STARKNET_ACCOUNT --keystore $STARKNET_KEYSTORE --compiler-version 2.5.4 '/Users/parkyeung/dev/amm/target/dev/amm_MarketManager.contract_class.json'
+# Quoter
+starkli declare --rpc $STARKNET_RPC --account $STARKNET_ACCOUNT --keystore $STARKNET_KEYSTORE --compiler-version 2.5.4 '/Users/parkyeung/dev/amm/target/dev/amm_Quoter.contract_class.json'
+# Strategy
+starkli declare --rpc $STARKNET_RPC --account $STARKNET_ACCOUNT --keystore $STARKNET_KEYSTORE --compiler-version 2.5.4 '/Users/parkyeung/dev/amm/target/dev/strategies_ReplicatingStrategy.contract_class.json'
+
+# MarketManager
 sncast --url $STARKNET_RPC --keystore $STARKNET_KEYSTORE --account $STARKNET_ACCOUNT declare --contract-name MarketManager
 # Quoter
 sncast --url $STARKNET_RPC --keystore $STARKNET_KEYSTORE --account $STARKNET_ACCOUNT declare --contract-name Quoter
