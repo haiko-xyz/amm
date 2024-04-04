@@ -21,6 +21,8 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 // This is a fork test that tests the functionality of the AMM after upgrading to 
 // a new class hash.
 // It is disabled by default and enabled only for contract upgrades.
+// TODO: replace RPC URL with private one before running this test.
+// Run with `snforge test test_upgrade_replicating_strategy --max-n-steps 4294967295` to override step limit.
 #[test]
 #[fork("MAINNET")]
 fn test_upgrade_replicating_strategy() {
@@ -53,10 +55,10 @@ fn test_upgrade_replicating_strategy() {
     let quote_token = ERC20ABIDispatcher { contract_address: market_info.quote_token };
 
     // Declare new class hash and upgrade contract.
-    // start_prank(CheatTarget::One(market_manager_addr), owner);
-    // let new_market_manager_class = declare("MarketManager");
-    // market_manager.upgrade(new_market_manager_class.class_hash);
-    // println!("Upgraded MarketManager");
+    start_prank(CheatTarget::One(market_manager_addr), owner);
+    let new_market_manager_class = declare("MarketManager");
+    market_manager.upgrade(new_market_manager_class.class_hash);
+    println!("Upgraded MarketManager");
     start_prank(CheatTarget::One(strategy_addr), owner);
     let new_strategy_class = declare("ReplicatingStrategy");
     strategy.upgrade(new_strategy_class.class_hash);
@@ -107,7 +109,7 @@ fn test_upgrade_replicating_strategy() {
 
     // 1. Deposit to strategy vault.
     start_prank(CheatTarget::One(strategy_addr), lp);
-    let mut strategy_state = strategy.strategy_state(strategy_market_id);
+    let strategy_state = strategy.strategy_state(strategy_market_id);
     let base_deposit = to_e18(100);
     let quote_deposit = math::mul_div(
         base_deposit, strategy_state.quote_reserves, strategy_state.base_reserves, false
@@ -126,7 +128,9 @@ fn test_upgrade_replicating_strategy() {
     start_prank(CheatTarget::One(strategy_addr), market_manager_addr);
     let mut market_state = market_manager.market_state(strategy_market_id);
     println!("* START STRATEGY STATE *");
-    print_strategy_state(market_state, strategy_state.bid, strategy_state.ask);
+    let mut bid = strategy.bid(strategy_market_id);
+    let mut ask = strategy.ask(strategy_market_id);
+    print_strategy_state(market_state, bid, ask);
     println!("* QUEUED POSITIONS (uncond) *");
     let queued_positions = strategy_alt.queued_positions(strategy_market_id, Option::None(()));
     print_strategy_state(market_state, *queued_positions.at(0), *queued_positions.at(1));
@@ -142,8 +146,9 @@ fn test_upgrade_replicating_strategy() {
         );
     println!("* AFTER SELL SWAP *");
     market_state = market_manager.market_state(strategy_market_id);
-    strategy_state = strategy.strategy_state(strategy_market_id);
-    print_strategy_state(market_state, strategy_state.bid, strategy_state.ask);
+    bid = strategy.bid(strategy_market_id);
+    ask = strategy.ask(strategy_market_id);
+    print_strategy_state(market_state, bid, ask);
     market_manager
         .swap(
             strategy_market_id,
@@ -156,8 +161,9 @@ fn test_upgrade_replicating_strategy() {
         );
     println!("* AFTER BUY SWAP *");
     market_state = market_manager.market_state(strategy_market_id);
-    strategy_state = strategy.strategy_state(strategy_market_id);
-    print_strategy_state(market_state, strategy_state.bid, strategy_state.ask);
+    bid = strategy.bid(strategy_market_id);
+    ask = strategy.ask(strategy_market_id);
+    print_strategy_state(market_state, bid, ask);
     println!("3. Swapped against vault");
 
     // 4. Fully withdraw from strategy vault.
