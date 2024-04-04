@@ -16,6 +16,7 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 // This is a fork test that tests the functionality of the AMM after upgrading to 
 // a new class hash.
 // It is disabled by default and enabled only for contract upgrades.
+// TODO: replace RPC URL with private one before running this test.
 #[test]
 #[fork("MAINNET")]
 fn test_upgrade_market_manager() {

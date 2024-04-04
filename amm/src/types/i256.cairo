@@ -2,7 +2,7 @@
 // TYPES
 ////////////////////////////////
 
-#[derive(Copy, Drop, Serde, storage_access::StorageAccess)]
+#[derive(Copy, Drop, Serde, Default, storage_access::StorageAccess)]
 pub struct i256 {
     pub val: u256,
     pub sign: bool

@@ -8,7 +8,7 @@ use amm::types::core::PositionInfo;
 use strategies::strategies::replicating::mocks::store_packing_contract::{
     StorePackingContract, IStorePackingContractDispatcher, IStorePackingContractDispatcherTrait
 };
-use strategies::strategies::replicating::types::{StrategyParams, StrategyState};
+use strategies::strategies::replicating::types::{StrategyParams, StrategyState, PositionRange};
 
 // External imports.
 use snforge_std::{
@@ -78,12 +78,8 @@ fn test_store_packing_strategy_state() {
     let strategy_state = StrategyState {
         base_reserves: 1389123122000000000000000000000,
         quote_reserves: 2401299999999999999999999999999,
-        bid: PositionInfo {
-            lower_limit: 85719030, upper_limit: 90719030, liquidity: 123900000000000000000000
-        },
-        ask: PositionInfo {
-            lower_limit: 105719030, upper_limit: 110719030, liquidity: 123900000000000000000000
-        },
+        bid: PositionRange { lower_limit: 85719030, upper_limit: 90719030 },
+        ask: PositionRange { lower_limit: 105719030, upper_limit: 110719030 },
         is_initialised: true,
         is_paused: false,
     };

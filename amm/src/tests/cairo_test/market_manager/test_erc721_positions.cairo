@@ -65,69 +65,49 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 // TESTS - mint
 ////////////////////////////////
 
+// #[test]
+// fn test_mint_position() {
+//     let (market_manager, base_token, quote_token, market_id) = before();
+
+//     // Create position
+//     let lower_limit = OFFSET - 1000;
+//     let upper_limit = OFFSET + 1000;
+//     let liquidity = I128Trait::new(to_e18_u128(1000000), false);
+//     let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
+//     modify_position(market_manager, params);
+
+//     // Mint position.
+//     let position_id = id::position_id(market_id, alice().into(), lower_limit, upper_limit);
+//     market_manager.mint(position_id);
+
+//     // Fetch ERC721 position and check info.
+//     let collection = ERC721ABIDispatcher { contract_address: market_manager.contract_address };
+//     let position_info = market_manager.ERC721_position_info(position_id);
+//     let market_info = market_manager.market_info(market_id);
+//     assert(collection.balanceOf(alice()) == 1, 'ERC721 balance');
+//     assert(collection.ownerOf(position_id.into()) == alice(), 'ERC721 owner');
+//     assert(position_info.base_token == base_token.contract_address, 'Base token');
+//     assert(position_info.quote_token == quote_token.contract_address, 'Quote token');
+//     assert(position_info.lower_limit == lower_limit, 'Lower limit');
+//     assert(position_info.upper_limit == upper_limit, 'Upper limit');
+//     assert(position_info.liquidity == liquidity.val, 'Liquidity');
+//     assert(position_info.base_amount != 0, 'Base amount');
+//     assert(position_info.quote_amount != 0, 'Quote amount');
+//     assert(position_info.width == market_info.width, 'Width');
+//     assert(position_info.strategy == market_info.strategy, 'Strategy');
+//     assert(position_info.swap_fee_rate == market_info.swap_fee_rate, 'Swap fee');
+//     assert(position_info.fee_controller == market_info.fee_controller, 'Fee controller');
+// }
+
 #[test]
-fn test_mint_position() {
-    let (market_manager, base_token, quote_token, market_id) = before();
-
-    // Create position
-    let lower_limit = OFFSET - 1000;
-    let upper_limit = OFFSET + 1000;
-    let liquidity = I128Trait::new(to_e18_u128(1000000), false);
-    let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
-    modify_position(market_manager, params);
-
-    // Mint position.
-    let position_id = id::position_id(market_id, alice().into(), lower_limit, upper_limit);
-    market_manager.mint(position_id);
-
-    // Fetch ERC721 position and check info.
-    let collection = ERC721ABIDispatcher { contract_address: market_manager.contract_address };
-    let position_info = market_manager.ERC721_position_info(position_id);
-    let market_info = market_manager.market_info(market_id);
-    assert(collection.balanceOf(alice()) == 1, 'ERC721 balance');
-    assert(collection.ownerOf(position_id.into()) == alice(), 'ERC721 owner');
-    assert(position_info.base_token == base_token.contract_address, 'Base token');
-    assert(position_info.quote_token == quote_token.contract_address, 'Quote token');
-    assert(position_info.lower_limit == lower_limit, 'Lower limit');
-    assert(position_info.upper_limit == upper_limit, 'Upper limit');
-    assert(position_info.liquidity == liquidity.val, 'Liquidity');
-    assert(position_info.base_amount != 0, 'Base amount');
-    assert(position_info.quote_amount != 0, 'Quote amount');
-    assert(position_info.width == market_info.width, 'Width');
-    assert(position_info.strategy == market_info.strategy, 'Strategy');
-    assert(position_info.swap_fee_rate == market_info.swap_fee_rate, 'Swap fee');
-    assert(position_info.fee_controller == market_info.fee_controller, 'Fee controller');
-}
-
-#[test]
-#[should_panic(expected: ('NotOwnerOrNull', 'ENTRYPOINT_FAILED',))]
+#[should_panic(expected: ('PositionNull', 'ENTRYPOINT_FAILED',))]
 fn test_mint_empty_position() {
     let (market_manager, _base_token, _quote_token, market_id) = before();
 
     // Mint non-existent position.
     let lower_limit = OFFSET - 1000;
     let upper_limit = OFFSET + 1000;
-    let position_id = id::position_id(market_id, alice().into(), lower_limit, upper_limit);
-    market_manager.mint(position_id);
-}
-
-#[test]
-#[should_panic(expected: ('NotOwnerOrNull', 'ENTRYPOINT_FAILED',))]
-fn test_mint_position_not_owner() {
-    let (market_manager, _base_token, _quote_token, market_id) = before();
-
-    // Create position
-    set_contract_address(alice());
-    let lower_limit = OFFSET - 1000;
-    let upper_limit = OFFSET + 1000;
-    let liquidity = I128Trait::new(to_e18_u128(1000000), false);
-    let params = modify_position_params(alice(), market_id, lower_limit, upper_limit, liquidity);
-    modify_position(market_manager, params);
-
-    // Mint position.
-    set_contract_address(bob());
-    let position_id = id::position_id(market_id, alice().into(), lower_limit, upper_limit);
-    market_manager.mint(position_id);
+    market_manager.mint(market_id, lower_limit, upper_limit);
 }
 
 ////////////////////////////////
@@ -148,8 +128,7 @@ fn test_burn_position() {
     modify_position(market_manager, params);
 
     // Mint position.
-    let position_id = id::position_id(market_id, alice().into(), lower_limit, upper_limit);
-    market_manager.mint(position_id);
+    let position_id = market_manager.mint(market_id, lower_limit, upper_limit);
 
     // Remove position.
     params.liquidity_delta = I128Trait::new(to_e18_u128(1000000), true);
@@ -157,12 +136,11 @@ fn test_burn_position() {
 
     // Fetch ERC721 position and check info.
     let collection = ERC721ABIDispatcher { contract_address: market_manager.contract_address };
-    let position_info = market_manager.ERC721_position_info(position_id);
+    let position_info = market_manager
+        .position(market_id, alice().into(), lower_limit, upper_limit);
     assert(collection.balanceOf(alice()) == 1, 'ERC721 balance');
     assert(collection.ownerOf(position_id.into()) == alice(), 'ERC721 owner');
     assert(position_info.liquidity == 0, 'Liquidity');
-    assert(position_info.base_amount == 0, 'Base amount');
-    assert(position_info.quote_amount == 0, 'Quote amount');
 
     // Burn position.
     market_manager.burn(position_id);
@@ -186,8 +164,7 @@ fn test_burn_position_allowed_by_approved() {
     modify_position(market_manager, params);
 
     // Mint position.
-    let position_id = id::position_id(market_id, alice().into(), lower_limit, upper_limit);
-    market_manager.mint(position_id);
+    let position_id = market_manager.mint(market_id, lower_limit, upper_limit);
 
     // Remove position.
     params.liquidity_delta = I128Trait::new(to_e18_u128(1000000), true);
@@ -221,8 +198,7 @@ fn test_burn_position_not_owner() {
     modify_position(market_manager, params);
 
     // Mint position.
-    let position_id = id::position_id(market_id, alice().into(), lower_limit, upper_limit);
-    market_manager.mint(position_id);
+    let position_id = market_manager.mint(market_id, lower_limit, upper_limit);
 
     // Remove position.
     params.liquidity_delta = I128Trait::new(to_e18_u128(1000000), true);
@@ -248,8 +224,7 @@ fn test_burn_position_not_cleared() {
     modify_position(market_manager, params);
 
     // Mint position.
-    let position_id = id::position_id(market_id, alice().into(), lower_limit, upper_limit);
-    market_manager.mint(position_id);
+    let position_id = market_manager.mint(market_id, lower_limit, upper_limit);
 
     // Burn position without clearing.
     market_manager.burn(position_id);

@@ -180,42 +180,69 @@ pub mod ManualStrategy {
             let contract: felt252 = get_contract_address().into();
             let market_id = self.market_id.read();
             let market_manager = self.market_manager.read();
-            let bid_pos_id = id::position_id(market_id, contract, bid.lower_limit, bid.upper_limit);
-            let ask_pos_id = id::position_id(market_id, contract, ask.lower_limit, ask.upper_limit);
             let (bid_base, bid_quote, bid_base_fees, bid_quote_fees) = market_manager
-                .amounts_inside_position(bid_pos_id);
+                .amounts_inside_position(market_id, contract, bid.lower_limit, bid.upper_limit);
             let (ask_base, ask_quote, ask_base_fees, ask_quote_fees) = market_manager
-                .amounts_inside_position(ask_pos_id);
+                .amounts_inside_position(market_id, contract, ask.lower_limit, ask.upper_limit);
+
+            let update_bid: bool = next_bid.lower_limit != bid.lower_limit
+                || next_bid.upper_limit != bid.upper_limit;
+            let update_ask: bool = next_ask.lower_limit != ask.lower_limit
+                || next_ask.upper_limit != ask.upper_limit;
 
             // Calculate liquidity.
             let width = market_manager.width(market_id);
             let quote_amount = quote_reserves
-                + bid_quote
-                + ask_quote
-                + bid_quote_fees
-                + ask_quote_fees;
-            let bid_liquidity = if quote_amount == 0 {
-                0
+                + if update_bid {
+                    bid_quote + bid_quote_fees
+                } else {
+                    0
+                }
+                + if update_ask {
+                    ask_quote + ask_quote_fees
+                } else {
+                    0
+                };
+            let bid_liquidity = if update_bid {
+                if quote_amount == 0 {
+                    0
+                } else {
+                    // Rounded down as per convention when depositing liquidity.
+                    liquidity_math::quote_to_liquidity(
+                        price_math::limit_to_sqrt_price(next_bid.lower_limit, width),
+                        price_math::limit_to_sqrt_price(next_bid.upper_limit, width),
+                        quote_amount,
+                        false
+                    )
+                }
             } else {
-                // Rounded down as per convention when depositing liquidity.
-                liquidity_math::quote_to_liquidity(
-                    price_math::limit_to_sqrt_price(next_bid.lower_limit, width),
-                    price_math::limit_to_sqrt_price(next_bid.upper_limit, width),
-                    quote_amount,
-                    false
-                )
+                bid.liquidity
             };
-            let base_amount = base_reserves + bid_base + ask_base + bid_base_fees + ask_base_fees;
-            let ask_liquidity = if base_amount == 0 {
-                0
+            let base_amount = base_reserves
+                + if update_bid {
+                    bid_base + bid_base_fees
+                } else {
+                    0
+                }
+                + if update_ask {
+                    ask_base + ask_base_fees
+                } else {
+                    0
+                };
+            let ask_liquidity = if update_ask {
+                if base_amount == 0 {
+                    0
+                } else {
+                    // Rounded down as per convention when depositing liquidity.
+                    liquidity_math::base_to_liquidity(
+                        price_math::limit_to_sqrt_price(next_ask.lower_limit, width),
+                        price_math::limit_to_sqrt_price(next_ask.upper_limit, width),
+                        base_amount,
+                        false
+                    )
+                }
             } else {
-                // Rounded down as per convention when depositing liquidity.
-                liquidity_math::base_to_liquidity(
-                    price_math::limit_to_sqrt_price(next_ask.lower_limit, width),
-                    price_math::limit_to_sqrt_price(next_ask.upper_limit, width),
-                    base_amount,
-                    false
-                )
+                ask.liquidity
             };
 
             bid.lower_limit = next_bid.lower_limit;
@@ -246,8 +273,10 @@ pub mod ManualStrategy {
             let queued_positions = self.queued_positions(market_id, Option::Some(params));
             let next_bid = *queued_positions.at(0);
             let next_ask = *queued_positions.at(1);
-            let update_bid: bool = next_bid != bid;
-            let update_ask: bool = next_ask != ask;
+            let update_bid: bool = next_bid.lower_limit != bid.lower_limit
+                || next_bid.upper_limit != bid.upper_limit;
+            let update_ask: bool = next_ask.lower_limit != ask.lower_limit
+                || next_ask.upper_limit != ask.upper_limit;
 
             // Update positions.
             // If old positions exist at different price ranges, first remove them.
@@ -277,7 +306,7 @@ pub mod ManualStrategy {
             }
 
             // Place new positions.
-            if next_bid.liquidity != 0 {
+            if next_bid.liquidity != 0 && update_bid {
                 let (_, quote_amount, _, _) = market_manager
                     .modify_position(
                         market_id,
@@ -288,7 +317,7 @@ pub mod ManualStrategy {
                 quote_reserves -= quote_amount.val;
                 bid = next_bid;
             };
-            if next_ask.liquidity != 0 {
+            if next_ask.liquidity != 0 && update_ask {
                 let (base_amount, _, _, _) = market_manager
                     .modify_position(
                         market_id,
@@ -336,8 +365,6 @@ pub mod ManualStrategy {
         }
 
         fn deposit(ref self: ContractState, base_amount: u256, quote_amount: u256) {
-            self.assert_only_owner();
-
             // Fetch market info.
             let market_manager = self.market_manager.read();
             let market_info = market_manager.market_info(self.market_id.read());
@@ -364,8 +391,6 @@ pub mod ManualStrategy {
         }
 
         fn withdraw(ref self: ContractState) {
-            self.assert_only_owner();
-
             // Fetch market info.
             let market_manager = self.market_manager.read();
             let market_id = self.market_id.read();

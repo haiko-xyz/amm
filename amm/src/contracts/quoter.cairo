@@ -284,7 +284,10 @@ pub mod Quoter {
         // Proxies call to token amounts (including accrued fees) inside a list of liquidity positions.
         // 
         // # Arguments
-        // * `position_ids` - list of position ids
+        // * `market_ids` - list of market ids
+        // * `owners` - list of owners
+        // * `lower_limits` - list of lower limits
+        // * `upper_limits` - list of upper limits
         //
         // # Returns
         // * `base_amount` - amount of base tokens inside position, exclusive of fees
@@ -292,18 +295,39 @@ pub mod Quoter {
         // * `base_fees` - base fees accumulated inside position
         // * `quote_fees` - quote fees accumulated inside position
         fn amounts_inside_position_array(
-            self: @ContractState, position_ids: Span<felt252>
+            self: @ContractState,
+            market_ids: Span<felt252>,
+            owners: Span<felt252>,
+            lower_limits: Span<u32>,
+            upper_limits: Span<u32>,
         ) -> Span<(u256, u256, u256, u256)> {
+            // Check amounts of equal length.
+            assert(
+                market_ids.len() == owners.len()
+                    && market_ids.len() == lower_limits.len()
+                    && market_ids.len() == upper_limits.len(),
+                'LengthMismatch'
+            );
+
+            // Loop through positions and obtain amounts.
             let mut i = 0;
             let mut amounts: Array<(u256, u256, u256, u256)> = array![];
             let dispatcher = IMarketManagerDispatcher {
                 contract_address: self.market_manager.read()
             };
             loop {
-                if i == position_ids.len() {
+                if i == market_ids.len() {
                     break;
                 }
-                amounts.append(dispatcher.amounts_inside_position(*position_ids.at(i)));
+                let market_id = *market_ids.at(i);
+                let owner = *owners.at(i);
+                let lower_limit = *lower_limits.at(i);
+                let upper_limit = *upper_limits.at(i);
+                amounts
+                    .append(
+                        dispatcher
+                            .amounts_inside_position(market_id, owner, lower_limit, upper_limit)
+                    );
                 i += 1;
             };
             amounts.span()

@@ -161,7 +161,7 @@ pub struct MarketState {
 // * `base_fee_factor` - cumulative base fee factor outside of current price (constrained to felt252)
 // * `quote_fee_factor` - cumulative quote fee factor outside of current price (constrained to felt252) 
 // * `nonce` - current nonce of limit, used for batching limit orders
-#[derive(Copy, Drop, Serde)]
+#[derive(Copy, Drop, Serde, Default)]
 pub struct LimitInfo {
     pub liquidity: u128,
     pub liquidity_delta: i128,
@@ -172,17 +172,14 @@ pub struct LimitInfo {
 
 // A liquidity position.
 //
-// * `market_id` - market id of position
-// * `lower_limit` - lower limit of position
-// * `upper_limit` - upper limit of position
 // * `liquidity` - amount of liquidity in position
 // * `base_fee_factor_last` - base fee factor of position at last update
 // * `quote_fee_factor_last` - quote fee factor of position at last update
-#[derive(Copy, Drop, Serde)]
+#[derive(Copy, Drop, Serde, Default)]
 pub struct Position {
-    pub market_id: felt252,
-    pub lower_limit: u32,
-    pub upper_limit: u32,
+    // pub market_id: felt252,
+    // pub lower_limit: u32,
+    // pub upper_limit: u32,
     pub liquidity: u128,
     pub base_fee_factor_last: i256,
     pub quote_fee_factor_last: i256,
@@ -249,36 +246,6 @@ pub struct Depth {
     pub limit: u32,
     pub price: u256,
     pub liquidity_delta: i128,
-}
-
-// Position info returned for ERC721.
-//
-// * `base_token` - base token address
-// * `quote_token` - quote token address
-// * `width` - width of market position is in
-// * `strategy` - strategy contract address of market
-// * `swap_fee_rate` - swap fee denominated in bps
-// * `fee_controller` - fee controller contract address of market (or 0 if not controlled)
-// * `controller` - controller contract address of market (or 0 if not controlled)
-// * `liquidity` - liquidity of position
-// * `base_amount` - amount of base tokens inside position
-// * `quote_amount` - amount of quote tokens inside position
-// * `lower_limit` - lower limit of position
-// * `upper_limit` - upper limit of position
-#[derive(Copy, Drop, Serde)]
-pub struct ERC721PositionInfo {
-    pub base_token: ContractAddress,
-    pub quote_token: ContractAddress,
-    pub width: u32,
-    pub strategy: ContractAddress,
-    pub swap_fee_rate: u16,
-    pub fee_controller: ContractAddress,
-    pub controller: ContractAddress,
-    pub liquidity: u128,
-    pub base_amount: u256,
-    pub quote_amount: u256,
-    pub lower_limit: u32,
-    pub upper_limit: u32,
 }
 
 ////////////////////////////////
@@ -355,7 +322,7 @@ pub struct PackedOrderBatch {
 
 // Packed version of `Position`.
 //
-// * `market_id` - market id
+// * `market_id` - market id (DEPRECATED)
 // * `base_fee_factor_last` - `base_fee_factor_last` (constrained to felt252, with sign packed at top bit)
 // * `quote_fee_factor_last` - `quote_fee_factor_last` (constrained to felt252, with sign packed at top bit)
 // * `slab0` - `lower_limit` + `upper_limit` + `liquidity`

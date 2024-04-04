@@ -25,7 +25,7 @@ pub mod MarketManager {
     use amm::interfaces::ILoanReceiver::{ILoanReceiverDispatcher, ILoanReceiverDispatcherTrait};
     use amm::types::core::{
         MarketInfo, MarketConfigs, MarketState, OrderBatch, Position, LimitInfo, LimitOrder,
-        ERC721PositionInfo, SwapParams, ConfigOption, Config, Depth
+        SwapParams, ConfigOption, Config, Depth
     };
     use amm::types::i128::{i128, I128Trait};
     use amm::types::i256::{i256, I256Trait};
@@ -501,7 +501,10 @@ pub mod MarketManager {
         // Returns total amount of tokens and accrued fees inside of a liquidity position.
         // 
         // # Arguments
-        // * `position_id` - position id
+        // * `market_id` - market id
+        // * `owner` - owner of position
+        // * `lower_limit` - lower limit of position
+        // * `upper_limit` - upper limit of position
         //
         // # Returns
         // * `base_amount` - amount of base tokens inside position, exclusive of fees
@@ -509,9 +512,13 @@ pub mod MarketManager {
         // * `base_fees` - base fees accumulated inside position
         // * `quote_fees` - quote fees accumulated inside position
         fn amounts_inside_position(
-            self: @ContractState, position_id: felt252,
+            self: @ContractState,
+            market_id: felt252,
+            owner: felt252,
+            lower_limit: u32,
+            upper_limit: u32
         ) -> (u256, u256, u256, u256) {
-            liquidity_lib::amounts_inside_position(self, position_id)
+            liquidity_lib::amounts_inside_position(self, market_id, owner, lower_limit, upper_limit)
         }
 
         // Returns total amount of tokens inside of a limit order.
@@ -623,47 +630,6 @@ pub mod MarketManager {
             };
 
             depth.span()
-        }
-
-        // Information corresponding to ERC721 position token.
-        //
-        // # Arguments
-        // * `token_id` - token id (position id)
-        //
-        // # Returns
-        // * `base_token` - base token address
-        // * `quote_token` - quote token address
-        // * `width` - width of market position is in
-        // * `strategy` - strategy contract address of market
-        // * `swap_fee_rate` - swap fee denominated in bps
-        // * `fee_controller` - fee controller contract address of market
-        // * `liquidity` - liquidity of position
-        // * `base_amount` - amount of base tokens inside position
-        // * `quote_amount` - amount of quote tokens inside position
-        // * `lower_limit` - lower limit of position
-        // * `upper_limit` - upper limit of position
-        fn ERC721_position_info(self: @ContractState, token_id: felt252) -> ERC721PositionInfo {
-            let position = self.positions.read(token_id);
-            let market_info = self.market_info.read(position.market_id);
-            let (base_amount, quote_amount, base_fees, quote_fees) =
-                liquidity_lib::amounts_inside_position(
-                self, token_id
-            );
-
-            ERC721PositionInfo {
-                base_token: market_info.base_token,
-                quote_token: market_info.quote_token,
-                width: market_info.width,
-                strategy: market_info.strategy,
-                swap_fee_rate: market_info.swap_fee_rate,
-                fee_controller: market_info.fee_controller,
-                controller: market_info.controller,
-                liquidity: position.liquidity,
-                base_amount: base_amount + base_fees,
-                quote_amount: quote_amount + quote_fees,
-                lower_limit: position.lower_limit,
-                upper_limit: position.upper_limit,
-            }
         }
 
         ////////////////////////////////
@@ -1525,21 +1491,31 @@ pub mod MarketManager {
         }
 
         // Mint ERC721 to represent an open liquidity position.
+        // Callable by owner only.
         //
         // # Arguments
-        // * `position_id` - id of position mint
-        fn mint(ref self: ContractState, position_id: felt252) {
+        // * `market_id` - market id
+        // * `lower_limit` - lower limit at which position starts
+        // * `upper_limit` - higher limit at which position ends
+        //
+        // # Returns
+        // * `position_id` - id of minted position
+        fn mint(
+            ref self: ContractState, market_id: felt252, lower_limit: u32, upper_limit: u32
+        ) -> felt252 {
+            // Fetch position.
+            let caller = get_caller_address();
+            let position_id = id::position_id(market_id, caller.into(), lower_limit, upper_limit);
             let position = self.positions.read(position_id);
 
-            // Check caller is owner.
-            let caller = get_caller_address();
-            let expected_position_id = id::position_id(
-                position.market_id, caller.into(), position.lower_limit, position.upper_limit
-            );
-            assert(position_id == expected_position_id, 'NotOwnerOrNull');
+            // Check position exists.
+            assert(position.liquidity > 0, 'PositionNull');
 
             // Mint ERC721 token.
             self.erc721._mint(caller, position_id.into());
+
+            // Return position id
+            position_id
         }
 
         // Burn ERC721 to unlock capital from open liquidity positions.
@@ -1554,13 +1530,8 @@ pub mod MarketManager {
             );
 
             // Check position is empty.
-            let position_info = self.ERC721_position_info(position_id);
-            assert(
-                position_info.liquidity == 0
-                    && position_info.base_amount == 0
-                    && position_info.quote_amount == 0,
-                'NotCleared'
-            );
+            let position = self.positions.read(position_id);
+            assert(position.liquidity == 0, 'NotCleared');
 
             // Burn ERC721 token.
             self.erc721._burn(position_id.into());

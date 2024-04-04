@@ -98,25 +98,28 @@ fn test_amounts_inside_position_array() {
     modify_position(market_manager, params_3);
 
     // Fetch amounts inside each position. 
-    let position_id_1 = id::position_id(
-        market_id, alice().into(), params_1.lower_limit, params_1.upper_limit
-    );
-    let position_id_2 = id::position_id(
-        market_id, alice().into(), params_2.lower_limit, params_2.upper_limit
-    );
-    let position_id_3 = id::position_id(
-        market_id, alice().into(), params_3.lower_limit, params_3.upper_limit
-    );
     let (base_amount_1, quote_amount_1, base_fees_1, quote_fees_1) = market_manager
-        .amounts_inside_position(position_id_1);
+        .amounts_inside_position(
+            market_id, alice().into(), params_1.lower_limit, params_1.upper_limit
+        );
     let (base_amount_2, quote_amount_2, base_fees_2, quote_fees_2) = market_manager
-        .amounts_inside_position(position_id_2);
+        .amounts_inside_position(
+            market_id, alice().into(), params_2.lower_limit, params_2.upper_limit
+        );
     let (base_amount_3, quote_amount_3, base_fees_3, quote_fees_3) = market_manager
-        .amounts_inside_position(position_id_3);
+        .amounts_inside_position(
+            market_id, alice().into(), params_3.lower_limit, params_3.upper_limit
+        );
 
     // Fetch amounts from array.
-    let position_ids = array![position_id_1, position_id_2, position_id_3].span();
-    let amounts = quoter.amounts_inside_position_array(position_ids);
+    let market_ids = array![market_id, market_id, market_id].span();
+    let owners = array![alice().into(), alice().into(), alice().into()].span();
+    let lower_limits = array![params_1.lower_limit, params_2.lower_limit, params_3.lower_limit]
+        .span();
+    let upper_limits = array![params_1.upper_limit, params_2.upper_limit, params_3.upper_limit]
+        .span();
+    let amounts = quoter
+        .amounts_inside_position_array(market_ids, owners, lower_limits, upper_limits);
     let (base_amount_1a, quote_amount_1a, base_fees_1a, quote_fees_1a) = *amounts.at(0);
     let (base_amount_2a, quote_amount_2a, base_fees_2a, quote_fees_2a) = *amounts.at(1);
     let (base_amount_3a, quote_amount_3a, base_fees_3a, quote_fees_3a) = *amounts.at(2);
