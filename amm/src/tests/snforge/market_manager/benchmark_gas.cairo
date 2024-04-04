@@ -61,7 +61,9 @@ fn setup_and_deploy_strategy(
     // Deploy and initialise strategy.
     let strategy = deploy_strategy(owner());
     let market_id = setup_strategy_market(market_manager, base_token, quote_token, strategy);
-    initialise_strategy(strategy, owner(), 'Manual', 'MANU', '1.0.0', market_manager.contract_address, market_id);
+    initialise_strategy(
+        strategy, owner(), 'Manual', 'MANU', '1.0.0', market_manager.contract_address, market_id
+    );
 
     // Fund LP with initial token balances and approve market manager as spender.
     let initial_base_amount = to_e28(500000000000000);
@@ -72,8 +74,15 @@ fn setup_and_deploy_strategy(
     // Allow strategy to swap via market manager.
     fund(base_token, strategy.contract_address, initial_base_amount);
     fund(quote_token, strategy.contract_address, initial_quote_amount);
-    approve(base_token, strategy.contract_address, market_manager.contract_address, initial_base_amount);
-    approve(quote_token, strategy.contract_address, market_manager.contract_address, initial_quote_amount);
+    approve(
+        base_token, strategy.contract_address, market_manager.contract_address, initial_base_amount
+    );
+    approve(
+        quote_token,
+        strategy.contract_address,
+        market_manager.contract_address,
+        initial_quote_amount
+    );
 
     (strategy, market_id)
 }
@@ -1314,7 +1323,8 @@ fn before_benchmark_27_swap_within_tick_with_strategy_enabled_no_position_update
     start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
     start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     let amount = to_e18(10);
-    market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+    market_manager
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
 }
 
 #[test]
@@ -1336,10 +1346,12 @@ fn benchmark_27_swap_within_tick_with_strategy_enabled_no_position_updates() {
     start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
     start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     let amount = to_e18(10);
-    market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+    market_manager
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
 
     // Swap again.
-    market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+    market_manager
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
 }
 
 // Benchmark 28: Swap within a tick with strategy enabled, ome position update
@@ -1359,11 +1371,12 @@ fn before_benchmark_28_swap_within_tick_with_strategy_enabled_one_position_updat
     let quote_amount = to_e18(125000000);
     strategy.deposit(base_amount, quote_amount);
 
-   // Execute swap to trigger initial place.
+    // Execute swap to trigger initial place.
     start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
     start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     let amount = to_e18(10);
-    market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+    market_manager
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
 
     // Set positions
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -1389,7 +1402,8 @@ fn benchmark_28_swap_within_tick_with_strategy_enabled_one_position_update() {
     start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
     start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     let amount = to_e18(10);
-    market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+    market_manager
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
 
     // Set positions
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -1398,7 +1412,8 @@ fn benchmark_28_swap_within_tick_with_strategy_enabled_one_position_update() {
     // Execute swap to trigger rebalance.
     start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
     start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
-    market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+    market_manager
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
 }
 
 // Benchmark 29: Swap within a tick with strategy enabled, both position updates
@@ -1423,7 +1438,8 @@ fn before_benchmark_29_swap_within_tick_with_strategy_enabled_both_position_upda
     start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
     start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     let amount = to_e18(10);
-    market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+    market_manager
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
 
     // Set positions
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -1450,7 +1466,8 @@ fn benchmark_29_swap_within_tick_with_strategy_enabled_both_position_updates() {
     start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
     start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     let amount = to_e18(10);
-    market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+    market_manager
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
 
     // Set positions
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -1459,5 +1476,6 @@ fn benchmark_29_swap_within_tick_with_strategy_enabled_both_position_updates() {
     // Execute swap to trigger rebalance.
     start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
     start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
-    market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+    market_manager
+        .swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
 }

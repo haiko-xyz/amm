@@ -184,15 +184,25 @@ pub mod ManualStrategy {
                 .amounts_inside_position(market_id, contract, bid.lower_limit, bid.upper_limit);
             let (ask_base, ask_quote, ask_base_fees, ask_quote_fees) = market_manager
                 .amounts_inside_position(market_id, contract, ask.lower_limit, ask.upper_limit);
-            
-            let update_bid: bool = next_bid.lower_limit != bid.lower_limit || next_bid.upper_limit != bid.upper_limit;
-            let update_ask: bool = next_ask.lower_limit != ask.lower_limit || next_ask.upper_limit != ask.upper_limit;
+
+            let update_bid: bool = next_bid.lower_limit != bid.lower_limit
+                || next_bid.upper_limit != bid.upper_limit;
+            let update_ask: bool = next_ask.lower_limit != ask.lower_limit
+                || next_ask.upper_limit != ask.upper_limit;
 
             // Calculate liquidity.
             let width = market_manager.width(market_id);
             let quote_amount = quote_reserves
-                + if update_bid { bid_quote + bid_quote_fees } else { 0 }
-                + if update_ask { ask_quote + ask_quote_fees } else { 0 };
+                + if update_bid {
+                    bid_quote + bid_quote_fees
+                } else {
+                    0
+                }
+                + if update_ask {
+                    ask_quote + ask_quote_fees
+                } else {
+                    0
+                };
             let bid_liquidity = if update_bid {
                 if quote_amount == 0 {
                     0
@@ -209,8 +219,16 @@ pub mod ManualStrategy {
                 bid.liquidity
             };
             let base_amount = base_reserves
-                + if update_bid { bid_base + bid_base_fees } else { 0 }
-                + if update_ask { ask_base + ask_base_fees } else { 0 };
+                + if update_bid {
+                    bid_base + bid_base_fees
+                } else {
+                    0
+                }
+                + if update_ask {
+                    ask_base + ask_base_fees
+                } else {
+                    0
+                };
             let ask_liquidity = if update_ask {
                 if base_amount == 0 {
                     0
@@ -255,8 +273,10 @@ pub mod ManualStrategy {
             let queued_positions = self.queued_positions(market_id, Option::Some(params));
             let next_bid = *queued_positions.at(0);
             let next_ask = *queued_positions.at(1);
-            let update_bid: bool = next_bid.lower_limit != bid.lower_limit || next_bid.upper_limit != bid.upper_limit;
-            let update_ask: bool = next_ask.lower_limit != ask.lower_limit || next_ask.upper_limit != ask.upper_limit;
+            let update_bid: bool = next_bid.lower_limit != bid.lower_limit
+                || next_bid.upper_limit != bid.upper_limit;
+            let update_ask: bool = next_ask.lower_limit != ask.lower_limit
+                || next_ask.upper_limit != ask.upper_limit;
 
             // Update positions.
             // If old positions exist at different price ranges, first remove them.
