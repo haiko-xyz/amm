@@ -334,8 +334,6 @@ pub mod ManualStrategy {
         }
 
         fn deposit(ref self: ContractState, base_amount: u256, quote_amount: u256) {
-            self.assert_only_owner();
-
             // Fetch market info.
             let market_manager = self.market_manager.read();
             let market_info = market_manager.market_info(self.market_id.read());
@@ -362,8 +360,6 @@ pub mod ManualStrategy {
         }
 
         fn withdraw(ref self: ContractState) {
-            self.assert_only_owner();
-
             // Fetch market info.
             let market_manager = self.market_manager.read();
             let market_id = self.market_id.read();
