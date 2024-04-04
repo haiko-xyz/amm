@@ -54,14 +54,14 @@ fn setup_deploy_and_approve() -> (
 }
 
 fn setup_and_deploy_strategy(
-    market_manager: ContractAddress,
-    market_id: felt252,
+    market_manager: IMarketManagerDispatcher,
     base_token: ERC20ABIDispatcher,
     quote_token: ERC20ABIDispatcher
-) -> IManualStrategyDispatcher {
+) -> (IManualStrategyDispatcher, felt252) {
     // Deploy and initialise strategy.
     let strategy = deploy_strategy(owner());
-    initialise_strategy(strategy, owner(), 'Manual', 'MANU', '1.0.0', market_manager, market_id);
+    let market_id = setup_strategy_market(market_manager, base_token, quote_token, strategy);
+    initialise_strategy(strategy, owner(), 'Manual', 'MANU', '1.0.0', market_manager.contract_address, market_id);
 
     // Fund LP with initial token balances and approve market manager as spender.
     let initial_base_amount = to_e28(500000000000000);
@@ -69,7 +69,13 @@ fn setup_and_deploy_strategy(
     approve(base_token, alice(), strategy.contract_address, initial_base_amount);
     approve(quote_token, alice(), strategy.contract_address, initial_quote_amount);
 
-    strategy
+    // Allow strategy to swap via market manager.
+    fund(base_token, strategy.contract_address, initial_base_amount);
+    fund(quote_token, strategy.contract_address, initial_quote_amount);
+    approve(base_token, strategy.contract_address, market_manager.contract_address, initial_base_amount);
+    approve(quote_token, strategy.contract_address, market_manager.contract_address, initial_quote_amount);
+
+    (strategy, market_id)
 }
 
 fn setup_create_market(
@@ -81,6 +87,23 @@ fn setup_create_market(
     let mut params = default_market_params();
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
+    params.start_limit = OFFSET;
+    params.width = 1;
+
+    create_market(market_manager, params)
+}
+
+fn setup_strategy_market(
+    market_manager: IMarketManagerDispatcher,
+    base_token: ERC20ABIDispatcher,
+    quote_token: ERC20ABIDispatcher,
+    strategy: IManualStrategyDispatcher
+) -> felt252 {
+    // Create market.
+    let mut params = default_market_params();
+    params.base_token = base_token.contract_address;
+    params.quote_token = quote_token.contract_address;
+    params.strategy = strategy.contract_address;
     params.start_limit = OFFSET;
     params.width = 1;
 
@@ -1174,109 +1197,108 @@ fn setup_create_market(
 // // assert(base_amount == 0 && quote_amount != 0, 'Full fill');
 // }
 
-// Benchmark 23: Create limit order
+// // Benchmark 23: Create limit order
 
-#[test]
-fn before_benchmark_23_create_limit_order() {
-    let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
-    setup_create_market(market_manager, base_token, quote_token);
-}
+// #[test]
+// fn before_benchmark_23_create_limit_order() {
+//     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
+//     setup_create_market(market_manager, base_token, quote_token);
+// }
 
-#[test]
-fn benchmark_23_create_limit_order() {
-    let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
-    let market_id = setup_create_market(market_manager, base_token, quote_token);
+// #[test]
+// fn benchmark_23_create_limit_order() {
+//     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
+//     let market_id = setup_create_market(market_manager, base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
-    market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
-}
+//     start_prank(CheatTarget::One(market_manager.contract_address), alice());
+//     market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
+// }
 
-// Benchmark 24: Collect unfilled limit order
+// // Benchmark 24: Collect unfilled limit order
 
-#[test]
-fn before_benchmark_24_collect_unfilled_limit_order() {
-    let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
-    let market_id = setup_create_market(market_manager, base_token, quote_token);
+// #[test]
+// fn before_benchmark_24_collect_unfilled_limit_order() {
+//     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
+//     let market_id = setup_create_market(market_manager, base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
-    market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
-}
+//     start_prank(CheatTarget::One(market_manager.contract_address), alice());
+//     market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
+// }
 
-#[test]
-fn benchmark_24_collect_unfilled_limit_order() {
-    let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
-    let market_id = setup_create_market(market_manager, base_token, quote_token);
+// #[test]
+// fn benchmark_24_collect_unfilled_limit_order() {
+//     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
+//     let market_id = setup_create_market(market_manager, base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
-    let order_id = market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
-    market_manager.collect_order(market_id, order_id);
-}
+//     start_prank(CheatTarget::One(market_manager.contract_address), alice());
+//     let order_id = market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
+//     market_manager.collect_order(market_id, order_id);
+// }
 
-// Benchmark 25: Collect partially filled limit order
+// // Benchmark 25: Collect partially filled limit order
 
-#[test]
-fn before_benchmark_25_collect_partially_filled_limit_order() {
-    let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
-    let market_id = setup_create_market(market_manager, base_token, quote_token);
+// #[test]
+// fn before_benchmark_25_collect_partially_filled_limit_order() {
+//     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
+//     let market_id = setup_create_market(market_manager, base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
-    market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
-    market_manager
-        .swap(
-            market_id, true, 10000000, true, Option::None(()), Option::None(()), Option::None(())
-        );
-}
+//     start_prank(CheatTarget::One(market_manager.contract_address), alice());
+//     market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
+//     market_manager
+//         .swap(
+//             market_id, true, 10000000, true, Option::None(()), Option::None(()), Option::None(())
+//         );
+// }
 
-#[test]
-fn benchmark_25_collect_partially_filled_limit_order() {
-    let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
-    let market_id = setup_create_market(market_manager, base_token, quote_token);
+// #[test]
+// fn benchmark_25_collect_partially_filled_limit_order() {
+//     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
+//     let market_id = setup_create_market(market_manager, base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
-    let order_id = market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
-    market_manager
-        .swap(
-            market_id, true, 10000000, true, Option::None(()), Option::None(()), Option::None(())
-        );
-    market_manager.collect_order(market_id, order_id);
-}
+//     start_prank(CheatTarget::One(market_manager.contract_address), alice());
+//     let order_id = market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
+//     market_manager
+//         .swap(
+//             market_id, true, 10000000, true, Option::None(()), Option::None(()), Option::None(())
+//         );
+//     market_manager.collect_order(market_id, order_id);
+// }
 
-// Benchmark 26: Collect fully filled limit order
+// // Benchmark 26: Collect fully filled limit order
 
-#[test]
-fn before_benchmark_26_collect_fully_filled_limit_order() {
-    let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
-    let market_id = setup_create_market(market_manager, base_token, quote_token);
+// #[test]
+// fn before_benchmark_26_collect_fully_filled_limit_order() {
+//     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
+//     let market_id = setup_create_market(market_manager, base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
-    let _order_id = market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
-    market_manager
-        .swap(
-            market_id, true, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
-        );
-}
+//     start_prank(CheatTarget::One(market_manager.contract_address), alice());
+//     let _order_id = market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
+//     market_manager
+//         .swap(
+//             market_id, true, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
+//         );
+// }
 
-#[test]
-fn benchmark_26_collect_fully_filled_limit_order() {
-    let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
-    let market_id = setup_create_market(market_manager, base_token, quote_token);
+// #[test]
+// fn benchmark_26_collect_fully_filled_limit_order() {
+//     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
+//     let market_id = setup_create_market(market_manager, base_token, quote_token);
 
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
-    let order_id = market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
-    market_manager
-        .swap(
-            market_id, true, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
-        );
-    market_manager.collect_order(market_id, order_id);
-}
+//     start_prank(CheatTarget::One(market_manager.contract_address), alice());
+//     let order_id = market_manager.create_order(market_id, false, OFFSET + 1000, to_e18_u128(1000));
+//     market_manager
+//         .swap(
+//             market_id, true, to_e18(1), true, Option::None(()), Option::None(()), Option::None(())
+//         );
+//     market_manager.collect_order(market_id, order_id);
+// }
 
 // Benchmark 27: Swap within a tick with strategy enabled, no position updates
 
 #[test]
 fn before_benchmark_27_swap_within_tick_with_strategy_enabled_no_position_updates() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
-    let market_id = setup_create_market(market_manager, base_token, quote_token);
-    let strategy = setup_and_deploy_strategy(market_manager.contract_address, market_id, base_token, quote_token);
+    let (strategy, market_id) = setup_and_deploy_strategy(market_manager, base_token, quote_token);
 
     // Set positions
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -1287,13 +1309,18 @@ fn before_benchmark_27_swap_within_tick_with_strategy_enabled_no_position_update
     let base_amount = to_e18(10000);
     let quote_amount = to_e18(125000000);
     strategy.deposit(base_amount, quote_amount);
+
+    // Execute swap to trigger initial place.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    let amount = to_e18(10);
+    market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
 }
 
 #[test]
 fn benchmark_27_swap_within_tick_with_strategy_enabled_no_position_updates() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
-    let market_id = setup_create_market(market_manager, base_token, quote_token);
-    let strategy = setup_and_deploy_strategy(market_manager.contract_address, market_id, base_token, quote_token);
+    let (strategy, market_id) = setup_and_deploy_strategy(market_manager, base_token, quote_token);
 
     // Set positions
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -1305,9 +1332,13 @@ fn benchmark_27_swap_within_tick_with_strategy_enabled_no_position_updates() {
     let quote_amount = to_e18(125000000);
     strategy.deposit(base_amount, quote_amount);
 
-    // Execute swap to trigger rebalance.
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
+    // Execute swap to trigger initial place.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     let amount = to_e18(10);
+    market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Swap again.
     market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
 }
 
@@ -1316,8 +1347,7 @@ fn benchmark_27_swap_within_tick_with_strategy_enabled_no_position_updates() {
 #[test]
 fn before_benchmark_28_swap_within_tick_with_strategy_enabled_one_position_update() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
-    let market_id = setup_create_market(market_manager, base_token, quote_token);
-    let strategy = setup_and_deploy_strategy(market_manager.contract_address, market_id, base_token, quote_token);
+    let (strategy, market_id) = setup_and_deploy_strategy(market_manager, base_token, quote_token);
 
     // Set positions
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -1328,6 +1358,12 @@ fn before_benchmark_28_swap_within_tick_with_strategy_enabled_one_position_updat
     let base_amount = to_e18(10000);
     let quote_amount = to_e18(125000000);
     strategy.deposit(base_amount, quote_amount);
+
+   // Execute swap to trigger initial place.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    let amount = to_e18(10);
+    market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
 
     // Set positions
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -1337,8 +1373,7 @@ fn before_benchmark_28_swap_within_tick_with_strategy_enabled_one_position_updat
 #[test]
 fn benchmark_28_swap_within_tick_with_strategy_enabled_one_position_update() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
-    let market_id = setup_create_market(market_manager, base_token, quote_token);
-    let strategy = setup_and_deploy_strategy(market_manager.contract_address, market_id, base_token, quote_token);
+    let (strategy, market_id) = setup_and_deploy_strategy(market_manager, base_token, quote_token);
 
     // Set positions
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -1350,13 +1385,19 @@ fn benchmark_28_swap_within_tick_with_strategy_enabled_one_position_update() {
     let quote_amount = to_e18(125000000);
     strategy.deposit(base_amount, quote_amount);
 
+    // Execute swap to trigger initial place.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    let amount = to_e18(10);
+    market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+
     // Set positions
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.set_positions(OFFSET + 721930, OFFSET + 741930, OFFSET + 747550, OFFSET + 767550);
 
     // Execute swap to trigger rebalance.
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
-    let amount = to_e18(10);
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
 }
 
@@ -1365,8 +1406,7 @@ fn benchmark_28_swap_within_tick_with_strategy_enabled_one_position_update() {
 #[test]
 fn before_benchmark_29_swap_within_tick_with_strategy_enabled_both_position_updates() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
-    let market_id = setup_create_market(market_manager, base_token, quote_token);
-    let strategy = setup_and_deploy_strategy(market_manager.contract_address, market_id, base_token, quote_token);
+    let (strategy, market_id) = setup_and_deploy_strategy(market_manager, base_token, quote_token);
 
     // Set positions
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -1377,6 +1417,13 @@ fn before_benchmark_29_swap_within_tick_with_strategy_enabled_both_position_upda
     let base_amount = to_e18(10000);
     let quote_amount = to_e18(125000000);
     strategy.deposit(base_amount, quote_amount);
+
+    // Set positions
+    // Execute swap to trigger initial place.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    let amount = to_e18(10);
+    market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
 
     // Set positions
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -1386,8 +1433,7 @@ fn before_benchmark_29_swap_within_tick_with_strategy_enabled_both_position_upda
 #[test]
 fn benchmark_29_swap_within_tick_with_strategy_enabled_both_position_updates() {
     let (market_manager, base_token, quote_token) = setup_deploy_and_approve();
-    let market_id = setup_create_market(market_manager, base_token, quote_token);
-    let strategy = setup_and_deploy_strategy(market_manager.contract_address, market_id, base_token, quote_token);
+    let (strategy, market_id) = setup_and_deploy_strategy(market_manager, base_token, quote_token);
 
     // Set positions
     start_prank(CheatTarget::One(strategy.contract_address), owner());
@@ -1400,11 +1446,18 @@ fn benchmark_29_swap_within_tick_with_strategy_enabled_both_position_updates() {
     strategy.deposit(base_amount, quote_amount);
 
     // Set positions
+    // Execute swap to trigger initial place.
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
+    let amount = to_e18(10);
+    market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
+
+    // Set positions
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy.set_positions(OFFSET + 716930, OFFSET + 736930, OFFSET + 747550, OFFSET + 767550);
 
     // Execute swap to trigger rebalance.
-    start_prank(CheatTarget::One(market_manager.contract_address), alice());
-    let amount = to_e18(10);
+    start_prank(CheatTarget::One(market_manager.contract_address), strategy.contract_address);
+    start_prank(CheatTarget::One(strategy.contract_address), market_manager.contract_address);
     market_manager.swap(market_id, true, amount, true, Option::None(()), Option::None(()), Option::None(()));
 }
