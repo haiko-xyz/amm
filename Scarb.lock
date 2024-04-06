@@ -2,19 +2,21 @@
 version = 1
 
 [[package]]
-name = "amm"
+name = "haiko_amm"
 version = "0.1.0"
 dependencies = [
+ "haiko_lib",
  "openzeppelin",
  "snforge_std",
 ]
 
 [[package]]
-name = "haiko"
+name = "haiko_lib"
 version = "0.1.0"
+source = "git+https://github.com/haiko-xyz/library.git#8d8b49706c65f72fc9ed5ff28b33af194b618837"
 dependencies = [
- "amm",
- "strategies",
+ "openzeppelin",
+ "snforge_std",
 ]
 
 [[package]]
@@ -26,12 +28,3 @@ source = "git+https://github.com/OpenZeppelin/cairo-contracts.git?tag=v0.9.0#364
 name = "snforge_std"
 version = "0.19.0"
 source = "git+https://github.com/foundry-rs/starknet-foundry.git?tag=v0.19.0#a3391dce5bdda51c63237032e6cfc64fb7a346d4"
-
-[[package]]
-name = "strategies"
-version = "0.1.0"
-dependencies = [
- "amm",
- "openzeppelin",
- "snforge_std",
-]

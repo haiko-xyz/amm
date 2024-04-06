@@ -28,15 +28,8 @@ jobs:
       - name: Add Foundry to PATH
         run: echo "PATH=/home/runner/.local/bin:$PATH" >> $GITHUB_ENV
 
-      - name: Build and test `amm`
-        working-directory: ./amm
+      - name: Build and test
+        working-directory: .
         run: |
-          scarb test -f cairo_test
-          snforge test snforge
-          scarb build
-
-      - name: Build and test `strategies`
-        working-directory: ./strategies
-        run: |
-          snforge test
+          snforge test --max-n-steps 4294967295
           scarb build
