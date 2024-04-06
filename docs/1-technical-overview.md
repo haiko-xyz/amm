@@ -18,7 +18,7 @@ The `MarketManager` contract is the main entrypoint for user interactions. It is
 
 ### `Strategy`
 
-`Strategy` contracts are optional contracts that can be deployed alongside a market. They are responsible for:
+`Strategy` contracts are contracts that can be optionally deployed alongside a market. They are responsible for:
 
 1. Providing liquidity to the market by placing and removing liquidity positions and limit orders
 2. Collecting and distributing swap fees on behalf of LPs that deposit to the strategy
@@ -33,10 +33,10 @@ trait IStrategy<TContractState> {
   fn market_id(self: @TContractState) -> felt252;
   fn strategy_name(self: @TContractState) -> felt252;
   fn strategy_symbol(self: @TContractState) -> felt252;
-  fn placed_positions(self: @TContractState) -> Span<PositionInfo>;
-  fn queued_positions(self: @TContractState) -> Span<PositionInfo>;
+  fn placed_positions(self: @TContractState, market_id: felt252) -> Span<PositionInfo>;
+  fn queued_positions(self: @TContractState, market_id: felt252, swap_params: Option<SwapParams>) -> Span<PositionInfo>;
   // External
-  fn update_positions(ref self: TContractState, params: SwapParams);
+  fn update_positions(ref self: TContractState, market_id: felt252, params: SwapParams);
 }
 ```
 
@@ -44,7 +44,9 @@ trait IStrategy<TContractState> {
 
 The `Quoter` contract is responsible for providing quotes for swaps.
 
-It calls `quote()` and `quote_multiple()` in the `MarketManager` contract, and extracts the quoted amount via an error message. Terminating the call with an error message is necessary to avoid committing state updates to the `MarketManager` contract.
+It calls `quote()` and `quote_multiple()` in the `MarketManager` contract, and extracts the quoted amount via an error message.
+
+Alternatively, it can return an array of quotes by calling `unsafe_quote()` and `unsafe_quote_multiple()` in the `MarketManager` contract, which always return correct quotes for non-strategy markets, and return correct quotes for strategy markets so long as `placed_positions` and `queued_positions` are reported correctly.
 
 ## Contract interactions
 
@@ -61,21 +63,19 @@ fn create_market(
   strategy: ContractAddress,
   swap_fee_rate: u16,
   fee_controller: ContractAddress,
-  protocol_share: u16,
   start_limit: u32,
-  allow_positions: bool,
-  allow_orders: bool,
-  is_concentrated: bool,
+  controller: ContractAddress,
+  configs: Option<MarketConfig>,
 ) -> felt252;
 ```
 
-This initialises a market with the provided parameters and assigns a `market_id`, which is simply the Poseidon chain hash of the immutable parameters (i.e. those in the list above, excluding `start_limit`, `protocol_share` and `is_concentrated`).
+This initialises a market with the provided parameters and assigns a `market_id`, which is simply the Poseidon chain hash of the immutable parameters (i.e. those in the list above, excluding `configs`).
 
-Duplicate markets are disallowed by checking the `market_id` against a mapping of existing markets.
+Duplicate markets are disallowed.
 
 ### Adding or removing liquidity
 
-Liquidity providers can add or remove liquidity by calling `modify_liquidity()`, and passing in the relevant `market_id`, a price range denominated in limits, and either a positive or negative `liquidity_delta`.
+Liquidity providers can add or remove liquidity by calling `modify_position()`, and passing in the relevant `market_id`, a price range denominated in limits, and either a positive or negative `liquidity_delta`.
 
 ```rust
 fn modify_position(
@@ -128,9 +128,8 @@ A multi-market swap is intitiated when a swapper calls `swap_multiple()` in the 
 ```rust
 fn swap_multiple(
   ref self: TContractState,
-  base_token: ContractAddress,
-  quote_token: ContractAddress,
-  is_buy: bool,
+  in_token: ContractAddress,
+  out_token: ContractAddress,
   amount: u256,
   route: Span<felt252>,
   threshold_amount: Option<u256>,
@@ -150,7 +149,7 @@ fn create_order(
     market_id: felt252,
     is_bid: bool,
     limit: u32,
-    liquidity_delta: u256,
+    liquidity_delta: u128,
 ) -> felt252;
 ```
 
@@ -160,7 +159,7 @@ All limit orders placed at the same `limit` are batched for efficient filling. O
 
 The filling of limit orders is handled in the `swap()` function. While iterating through initialised limits, the `swap()` function will also check for limit orders that it should fill. If, after swapping, a limit order becomes:
 
-- Fully filled, the liquidity for that batch is removed by calling the internal `_modify_liquidity()` function, and the base and quote balances for that batch updated.
+- Fully filled, the liquidity for that batch is removed by calling the internal `_modify_position()` function, and the base and quote balances for that batch updated.
 - Partially filled, the base and quote balances for the batch are updated without removing liquidity from the batch.
 
 ### Collecting a limit order
@@ -177,7 +176,7 @@ fn collect_order(
 ) -> (u256, u256);
 ```
 
-Collecting an order withdraws the owner's pro rata share of a batch's base and quote balances. If the order is partially filled, a further`_modify_position()` call is made to remove the user's liquidity from the batch and pool.
+Collecting an order withdraws the owner's pro rata share of a batch's base and quote balances, plus earned fees up to the swap fee rate. If the order is partially filled, a further `_modify_position()` call is made to remove the user's liquidity from the batch and pool.
 
 The lifecycle of a limit order is summarised in the diagrams below.
 
@@ -214,6 +213,8 @@ fn quote_multiple(
   route: Span<felt252>,
 ) -> u256;
 ```
+
+Alternatively, `unsafe_quote()` and `unsafe_quote_multiple()` can be called. These functions always return correct quotes for non-strategy markets, and return correct quotes for strategy markets so long as `placed_positions` and `queued_positions` are reported correctly.
 
 ### Upgrading the `MarketManager` contract
 
