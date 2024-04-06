@@ -12,12 +12,8 @@ You can get started by reading through the following docs:
 ## Getting started
 
 ```shell
-# Navigate to folder
-cd amm
-
 # Run the tests
-scarb test -f cairo_test
-snforge test snforge
+snforge test --max-n-steps 4294967295
 
 # Build contracts
 scarb build
@@ -28,3 +24,4 @@ scarb build
 - [Scarb](https://github.com/software-mansion/scarb) 2.5.4
 - [Cairo](https://github.com/starkware-libs/cairo) 2.5.4
 - [Starknet Foundry](https://github.com/foundry-rs/starknet-foundry) 0.19.0
+- [Haiko Common Library](https://github.com/haiko-xyz/library) 0.1.0

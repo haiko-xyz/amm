@@ -21,8 +21,8 @@ The table below summarises the key terminology used by Haiko, and their closest 
 | Term                 | Equivalent to                                         |
 | -------------------- | ----------------------------------------------------- |
 | Market               | Pool                                                  |
-| Base asset           | None (Uniswap's token0 and token1 are order agnostic) |
-| Quote asset          | None (as above)                                       |
+| Base asset / token   | None (Uniswap's token0 and token1 are order agnostic) |
+| Quote asset / token  | None (as above)                                       |
 | Limit                | Tick                                                  |
 | Width                | Tick spacing                                          |
 | Fee factor           | Fee growth inside                                     |
@@ -101,7 +101,7 @@ Specifically, any time a swap is executed, a designated `updatePositions()` func
 
 Note that strategies are not trading strategies, but rather market making strategies. They help LPs automatically manage liquidity positions without the overhead of active management.
 
-The `amm` repo contains a library of reusable strategies under `/strategies`. These are designed to be as generic as possible, implementing a minimal `IStrategy` interface, and can be used across multiple markets. They are also designed to be easily extensible, allowing developers to modify and create their own custom strategies.
+Strategies are designed to be as generic as possible, implementing a minimal `IStrategy` interface, and can be used across multiple markets. They are also designed to be easily extensible, allowing developers to modify and create their own custom strategies.
 
 ## 6. Limits vs Ticks
 
