@@ -84,7 +84,6 @@ fn _before(
             owner(),
             'Manual Strategy',
             'MANU',
-            '1.0.0',
             market_manager.contract_address,
             market_id,
         );

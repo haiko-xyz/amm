@@ -63,7 +63,7 @@ fn setup_and_deploy_strategy(
     let strategy = deploy_strategy(owner());
     let market_id = setup_strategy_market(market_manager, base_token, quote_token, strategy);
     initialise_strategy(
-        strategy, owner(), 'Manual', 'MANU', '1.0.0', market_manager.contract_address, market_id
+        strategy, owner(), 'Manual', 'MANU', market_manager.contract_address, market_id
     );
 
     // Fund LP with initial token balances and approve market manager as spender.

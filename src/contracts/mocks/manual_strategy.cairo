@@ -21,7 +21,6 @@ pub trait IManualStrategy<TContractState> {
         ref self: TContractState,
         name: felt252,
         symbol: felt252,
-        version: felt252,
         market_manager: ContractAddress,
         market_id: felt252,
     );
@@ -87,7 +86,6 @@ pub mod ManualStrategy {
         owner: ContractAddress,
         name: felt252,
         symbol: felt252,
-        version: felt252,
         market_manager: IMarketManagerDispatcher,
         market_id: felt252,
         // Strategy state
@@ -154,11 +152,6 @@ pub mod ManualStrategy {
         // Get strategy symbol
         fn symbol(self: @ContractState) -> felt252 {
             self.symbol.read()
-        }
-
-        // Get strategy symbol
-        fn version(self: @ContractState) -> felt252 {
-            self.version.read()
         }
 
         // Get placed positions.
@@ -356,14 +349,12 @@ pub mod ManualStrategy {
             ref self: ContractState,
             name: felt252,
             symbol: felt252,
-            version: felt252,
             market_manager: ContractAddress,
             market_id: felt252,
         ) {
             self.assert_only_owner();
             self.name.write(name);
             self.symbol.write(symbol);
-            self.version.write(version);
             self
                 .market_manager
                 .write(IMarketManagerDispatcher { contract_address: market_manager });

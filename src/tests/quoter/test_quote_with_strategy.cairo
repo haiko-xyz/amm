@@ -77,7 +77,7 @@ fn before() -> (
     // Initialise strategy.
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy
-        .initialise('Manual Strategy', 'MANU', '1.0.0', market_manager.contract_address, market_id);
+        .initialise('Manual Strategy', 'MANU', market_manager.contract_address, market_id);
 
     // Fund LP with initial token balances and approve market manager as spender.
     let initial_base_amount = to_e28(5000000000000000000000000);
