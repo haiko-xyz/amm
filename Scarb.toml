@@ -18,6 +18,8 @@ build-external-contracts = [
   'haiko_lib::mocks::erc20::ERC20'
 ]
 
+[lib]
+
 [cairo]
 sierra-replace-ids = true
 
