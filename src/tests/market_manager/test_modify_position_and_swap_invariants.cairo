@@ -76,8 +76,8 @@ fn before(
     // Deploy tokens.
     let (_treasury, base_token_params, quote_token_params) = default_token_params();
 
-    let base_token = deploy_token(token, base_token_params);
-    let quote_token = deploy_token(token, quote_token_params);
+    let base_token = deploy_token(token, @base_token_params);
+    let quote_token = deploy_token(token, @quote_token_params);
 
     // Fund LP with initial token balances and approve market manager as spender.
     let initial_base_amount = to_e28(5000000000000000000000000000000000000000000);

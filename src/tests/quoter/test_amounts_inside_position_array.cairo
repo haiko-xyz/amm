@@ -33,8 +33,8 @@ fn before() -> (
     // Deploy tokens.
     let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let erc20_class = declare("ERC20");
-    let base_token = deploy_token(erc20_class, base_token_params);
-    let quote_token = deploy_token(erc20_class, quote_token_params);
+    let base_token = deploy_token(erc20_class, @base_token_params);
+    let quote_token = deploy_token(erc20_class, @quote_token_params);
 
     // Create the market.
     let mut params = default_market_params();

@@ -41,17 +41,17 @@ fn before() -> (
 
     // Deploy tokens.
     let max: u256 = BoundedInt::max();
-    let eth_params = token_params('Ethereum', 'ETH', 18, max, treasury());
-    let btc_params = token_params('Bitcoin', 'BTC', 18, max, treasury());
-    let usdc_params = token_params('USDC', 'USDC', 18, max, treasury());
-    let usdt_params = token_params('USDT', 'USDT', 18, max, treasury());
-    let dai_params = token_params('DAI', 'DAI', 18, max, treasury());
+    let eth_params = token_params("Ethereum", "ETH", 18, max, treasury());
+    let btc_params = token_params("Bitcoin", "BTC", 18, max, treasury());
+    let usdc_params = token_params("USDC", "USDC", 18, max, treasury());
+    let usdt_params = token_params("USDT", "USDT", 18, max, treasury());
+    let dai_params = token_params("DAI", "DAI", 18, max, treasury());
     let erc20_class = declare("ERC20");
-    let eth = deploy_token(erc20_class, eth_params);
-    let btc = deploy_token(erc20_class, btc_params);
-    let usdc = deploy_token(erc20_class, usdc_params);
-    let usdt = deploy_token(erc20_class, usdt_params);
-    let dai = deploy_token(erc20_class, dai_params);
+    let eth = deploy_token(erc20_class, @eth_params);
+    let btc = deploy_token(erc20_class, @btc_params);
+    let usdc = deploy_token(erc20_class, @usdc_params);
+    let usdt = deploy_token(erc20_class, @usdt_params);
+    let dai = deploy_token(erc20_class, @dai_params);
 
     // Fund LP with initial token balances and approve market manager as spender.
     fund(eth, alice(), max);

@@ -13,7 +13,7 @@ dependencies = [
 [[package]]
 name = "haiko_lib"
 version = "2.0.0"
-source = "git+https://github.com/haiko-xyz/library.git?branch=v2.0.0#793ed70391cbc764664e79a7d1cbdbfcb2288cf3"
+source = "git+https://github.com/haiko-xyz/library.git?branch=v2.0.0#a1548809db9a717e51cdb54ee09e6dd30844307d"
 dependencies = [
  "openzeppelin",
  "snforge_std",
@@ -21,10 +21,10 @@ dependencies = [
 
 [[package]]
 name = "openzeppelin"
-version = "0.9.0"
-source = "git+https://github.com/OpenZeppelin/cairo-contracts.git?tag=v0.9.0#364db5b1aecc1335d2e65db887291d19aa28937d"
+version = "0.11.0"
+source = "git+https://github.com/OpenZeppelin/cairo-contracts.git?tag=v0.11.0#a83f36b23f1af6e160288962be4a2701c3ecbcda"
 
 [[package]]
 name = "snforge_std"
-version = "0.19.0"
-source = "git+https://github.com/foundry-rs/starknet-foundry.git?tag=v0.19.0#a3391dce5bdda51c63237032e6cfc64fb7a346d4"
+version = "0.21.0"
+source = "git+https://github.com/foundry-rs/starknet-foundry.git?tag=v0.21.0#2996b8c1dd66b2715fc67e69578089f278a46790"

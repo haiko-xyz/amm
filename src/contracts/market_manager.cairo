@@ -333,11 +333,11 @@ pub mod MarketManager {
 
     #[constructor]
     fn constructor(
-        ref self: ContractState, owner: ContractAddress, name: felt252, symbol: felt252
+        ref self: ContractState, owner: ContractAddress, name: ByteArray, symbol: ByteArray, base_uri: ByteArray
     ) {
         self.owner.write(owner);
         self.swap_id.write(1);
-        self.erc721.initializer(name, symbol);
+        self.erc721.initializer(name, symbol, base_uri);
         self
             .emit(
                 Event::ChangeOwner(ChangeOwner { old: contract_address_const::<0x0>(), new: owner })

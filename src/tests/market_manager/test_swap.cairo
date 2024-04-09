@@ -70,8 +70,8 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
     // Deploy tokens.
     let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let erc20_class = declare("ERC20");
-    let base_token = deploy_token(erc20_class, base_token_params);
-    let quote_token = deploy_token(erc20_class, quote_token_params);
+    let base_token = deploy_token(erc20_class, @base_token_params);
+    let quote_token = deploy_token(erc20_class, @quote_token_params);
 
     // Fund LP with initial token balances and approve market manager as spender.
     let initial_base_amount = to_e28(5000000000000000000000000000000000000000000);
@@ -104,8 +104,8 @@ fn deploy_tokens() -> (ERC20ABIDispatcher, ERC20ABIDispatcher) {
     // Deploy tokens.
     let (_treasury, base_token_params, quote_token_params) = default_token_params();
     let erc20_class = declare("ERC20");
-    let base_token = deploy_token(erc20_class, base_token_params);
-    let quote_token = deploy_token(erc20_class, quote_token_params);
+    let base_token = deploy_token(erc20_class, @base_token_params);
+    let quote_token = deploy_token(erc20_class, @quote_token_params);
 
     // Fund LP with initial token balances and approve market manager as spender.
     let initial_base_amount = to_e28(5000000000000000000000000000000000000000000);

@@ -15,9 +15,9 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 #[available_gas(40000000)]
 fn test_deploy_token_initialises_immutables() {
     // Deploy token.
-    let params = token_params('USDC', 'USDC', 18, to_e28(1000000000), treasury());
+    let params = token_params("USDC", "USDC", 18, to_e28(1000000000), treasury());
     let erc20_class = declare("ERC20");
-    let token = deploy_token(erc20_class, params);
+    let token = deploy_token(erc20_class, @params);
 
     // Check immutables.
     assert(token.name() == params.name_, 'Deploy token: Wrong name');

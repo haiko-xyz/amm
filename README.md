@@ -21,7 +21,7 @@ scarb build
 
 ## Version control
 
-- [Scarb](https://github.com/software-mansion/scarb) 2.5.4
-- [Cairo](https://github.com/starkware-libs/cairo) 2.5.4
-- [Starknet Foundry](https://github.com/foundry-rs/starknet-foundry) 0.19.0
+- [Scarb](https://github.com/software-mansion/scarb) 2.6.3
+- [Cairo](https://github.com/starkware-libs/cairo) 2.6.3
+- [Starknet Foundry](https://github.com/foundry-rs/starknet-foundry) 0.21.0
 - [Haiko Common Library](https://github.com/haiko-xyz/library) 2.0.0
