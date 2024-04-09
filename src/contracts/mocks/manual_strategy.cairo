@@ -19,8 +19,8 @@ pub trait IManualStrategy<TContractState> {
 
     fn initialise(
         ref self: TContractState,
-        name: felt252,
-        symbol: felt252,
+        name: ByteArray,
+        symbol: ByteArray,
         market_manager: ContractAddress,
         market_id: felt252,
     );
@@ -84,8 +84,8 @@ pub mod ManualStrategy {
     struct Storage {
         // Immutables
         owner: ContractAddress,
-        name: felt252,
-        symbol: felt252,
+        name: ByteArray,
+        symbol: ByteArray,
         market_manager: IMarketManagerDispatcher,
         market_id: felt252,
         // Strategy state
@@ -145,12 +145,12 @@ pub mod ManualStrategy {
         }
 
         // Get strategy name
-        fn name(self: @ContractState) -> felt252 {
+        fn name(self: @ContractState) -> ByteArray {
             self.name.read()
         }
 
         // Get strategy symbol
-        fn symbol(self: @ContractState) -> felt252 {
+        fn symbol(self: @ContractState) -> ByteArray {
             self.symbol.read()
         }
 
@@ -347,8 +347,8 @@ pub mod ManualStrategy {
         // * `market_id` - market id
         fn initialise(
             ref self: ContractState,
-            name: felt252,
-            symbol: felt252,
+            name: ByteArray,
+            symbol: ByteArray,
             market_manager: ContractAddress,
             market_id: felt252,
         ) {

@@ -71,8 +71,8 @@ fn before() -> (
     initialise_strategy(
         strategy,
         owner(),
-        'ETH-USDC Manual 1 0.3%',
-        'ETH-USDC MANU-1-0.3%',
+        "ETH-USDC Manual 1 0.3%",
+        "ETH-USDC MANU-1-0.3%",
         market_manager.contract_address,
         market_id
     );

@@ -18,8 +18,8 @@ pub fn deploy_strategy(owner: ContractAddress) -> IManualStrategyDispatcher {
 pub fn initialise_strategy(
     strategy: IManualStrategyDispatcher,
     owner: ContractAddress,
-    name: felt252,
-    symbol: felt252,
+    name: ByteArray,
+    symbol: ByteArray,
     market_manager: ContractAddress,
     market_id: felt252
 ) {

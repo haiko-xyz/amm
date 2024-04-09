@@ -65,7 +65,7 @@ fn before() -> (
     start_prank(CheatTarget::One(strategy.contract_address), owner());
     strategy
         .initialise(
-            'Manual Strategy', 'MANU', market_manager.contract_address, market_id,
+            "Manual Strategy", "MANU", market_manager.contract_address, market_id,
         );
 
     // Fund owner with initial token balances and approve strategy and market manager as spenders.

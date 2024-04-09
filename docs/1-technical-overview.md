@@ -31,8 +31,8 @@ trait IStrategy<TContractState> {
   // View
   fn market_manager(self: @TContractState) -> ContractAddress;
   fn market_id(self: @TContractState) -> felt252;
-  fn strategy_name(self: @TContractState) -> felt252;
-  fn strategy_symbol(self: @TContractState) -> felt252;
+  fn name(self: @TContractState) -> ByteArray;
+  fn symbol(self: @TContractState) -> ByteArray;
   fn placed_positions(self: @TContractState, market_id: felt252) -> Span<PositionInfo>;
   fn queued_positions(self: @TContractState, market_id: felt252, swap_params: Option<SwapParams>) -> Span<PositionInfo>;
   // External

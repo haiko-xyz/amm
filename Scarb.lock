@@ -13,7 +13,7 @@ dependencies = [
 [[package]]
 name = "haiko_lib"
 version = "2.0.0"
-source = "git+https://github.com/haiko-xyz/library.git?branch=v2.0.0#a1548809db9a717e51cdb54ee09e6dd30844307d"
+source = "git+https://github.com/haiko-xyz/library.git?branch=v2.0.0#8198ca1cb2c22305a9d6420d8feedab1059e3e25"
 dependencies = [
  "openzeppelin",
  "snforge_std",

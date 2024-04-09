@@ -82,8 +82,8 @@ fn _before(
         initialise_strategy(
             strategy,
             owner(),
-            'Manual Strategy',
-            'MANU',
+            "Manual Strategy",
+            "MANU",
             market_manager.contract_address,
             market_id,
         );
