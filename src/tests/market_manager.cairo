@@ -25,6 +25,5 @@ mod test_upgrade_market_manager;
 mod test_whitelist;
 // Note: disabled but saved for future debugging
 // pub mod test_failing_fee_factor;
-// pub mod test_upgrade_market_manager;
-
+// pub mod test_fork_upgrade_market_manager;
 

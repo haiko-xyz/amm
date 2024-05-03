@@ -74,8 +74,8 @@ fn test_upgrade_market_manager() {
     // Test common ops.
 
     // 1. Create liquidity position
-    let lower_limit = 5210000;
-    let upper_limit = 5216000;
+    let lower_limit = 5170000;
+    let upper_limit = 5180000;
     let liquidity = 10000000000000000;
     market_manager
         .modify_position(market_id, lower_limit, upper_limit, I128Trait::new(liquidity, false));
@@ -101,7 +101,7 @@ fn test_upgrade_market_manager() {
     println!("4. Position fully removed");
 
     // 5. Create 1st order
-    let order_limit = 5200000;
+    let order_limit = 5150000;
     let order_liquidity = 1000000000000000;
     let order_id_1 = market_manager.create_order(market_id, true, order_limit, order_liquidity);
     println!("5. Order 1 created");
