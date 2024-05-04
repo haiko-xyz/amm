@@ -9,30 +9,28 @@ export ORACLE_SUMMARY=0x54563a0537b3ae0ba91032d674a6d468f30a59dc4deb8f0dce4e642b
 
 # Declare contract classes
 # MarketManager
-starkli declare --rpc $STARKNET_RPC --account $STARKNET_ACCOUNT --keystore $STARKNET_KEYSTORE --compiler-version 2.5.4 '/Users/parkyeung/dev/amm/target/dev/amm_MarketManager.contract_class.json'
+starkli declare --rpc $STARKNET_RPC --account $STARKNET_ACCOUNT --keystore $STARKNET_KEYSTORE --compiler-version 2.5.4 '/Users/parkyeung/dev/amm/target/dev/haiko_amm_MarketManager.contract_class.json'
 # Quoter
-starkli declare --rpc $STARKNET_RPC --account $STARKNET_ACCOUNT --keystore $STARKNET_KEYSTORE --compiler-version 2.5.4 '/Users/parkyeung/dev/amm/target/dev/amm_Quoter.contract_class.json'
-# Strategy
-starkli declare --rpc $STARKNET_RPC --account $STARKNET_ACCOUNT --keystore $STARKNET_KEYSTORE --compiler-version 2.5.4 '/Users/parkyeung/dev/amm/target/dev/strategies_ReplicatingStrategy.contract_class.json'
+starkli declare --rpc $STARKNET_RPC --account $STARKNET_ACCOUNT --keystore $STARKNET_KEYSTORE --compiler-version 2.5.4 '/Users/parkyeung/dev/amm/target/dev/haiko_amm_Quoter.contract_class.json'
 
 # MarketManager
 sncast --url $STARKNET_RPC --keystore $STARKNET_KEYSTORE --account $STARKNET_ACCOUNT declare --contract-name MarketManager
 # Quoter
 sncast --url $STARKNET_RPC --keystore $STARKNET_KEYSTORE --account $STARKNET_ACCOUNT declare --contract-name Quoter
-# Strategy
-sncast --url $STARKNET_RPC --keystore $STARKNET_KEYSTORE --account $STARKNET_ACCOUNT declare --contract-name ReplicatingStrategy
 
 # Deployment params (use UDC: 0x041a78e741e5af2fec34b695679bc6891742439f7afb8484ecd7766661ad02bf)
 # -- MarketManager
 # 0x043777a54d5e36179709060698118f1f6f5553ca1918d1004b07640dfc425000, 454339855225115730158504377457697996934802783974843747364467, 5206523232016747600
 # -- Quoter
 # 0x043777a54d5e36179709060698118f1f6f5553ca1918d1004b07640dfc425000, 0x38925b0bcf4dce081042ca26a96300d9e181b910328db54a6c89e5451503f5
-# -- ReplicatingStrategy
-# 0x043777a54d5e36179709060698118f1f6f5553ca1918d1004b07640dfc425000, 99610950070389980829150823, 1380274252, 211228306992, 0x38925b0bcf4dce081042ca26a96300d9e181b910328db54a6c89e5451503f5, 0x2a85bd616f912537c50a49a4076db02c00b29b2cdc8a197ce92ed1837fa875b, 0x54563a0537b3ae0ba91032d674a6d468f30a59dc4deb8f0dce4e642b94be15c
+
 
 # Deployments
 
-# 4 Apr 2023
+# 4 May 2024
+export MARKET_MANAGER_CLASS_HASH=0x0308af9482c7b7859dabfe647d1ba475df7b848f91029987e744ca106dc8ac16
+
+# 4 Apr 2024
 export MARKET_MANAGER_CLASS_HASH=0x0196595445040b99665ee97a97a9ac985588dc65ab671a37c43953bbe9c3c746
 export QUOTER_CLASS_HASH=0x02764d10164de27419d1e2452b9e30bb0e89f46a2d9a888d20b27b417d92c273
 export REPLICATING_STRATEGY_CLASS_HASH=0x050111f4025e444d8ff4b8b32796823ceffad10ac1c2bc831401af0120829674

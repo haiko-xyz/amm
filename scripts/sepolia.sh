@@ -9,13 +9,11 @@ export ORACLE_SUMMARY=0x54563a0537b3ae0ba91032d674a6d468f30a59dc4deb8f0dce4e642b
 
 # Declare contract classes
 # MarketManager
-starkli declare --rpc $STARKNET_RPC --account $STARKNET_ACCOUNT --keystore $STARKNET_KEYSTORE --compiler-version 2.5.4 '/Users/parkyeung/dev/amm/target/dev/amm_MarketManager.contract_class.json'
+starkli declare --rpc $STARKNET_RPC --account $STARKNET_ACCOUNT --keystore $STARKNET_KEYSTORE --compiler-version 2.5.4 '/Users/parkyeung/dev/amm/target/dev/haiko_amm_MarketManager.contract_class.json'
 # Quoter
-starkli declare --rpc $STARKNET_RPC --account $STARKNET_ACCOUNT --keystore $STARKNET_KEYSTORE --compiler-version 2.5.4 '/Users/parkyeung/dev/amm/target/dev/amm_Quoter.contract_class.json'
-# Strategy
-starkli declare --rpc $STARKNET_RPC --account $STARKNET_ACCOUNT --keystore $STARKNET_KEYSTORE --compiler-version 2.5.4 '/Users/parkyeung/dev/amm/target/dev/strategies_ReplicatingStrategy.contract_class.json'
+starkli declare --rpc $STARKNET_RPC --account $STARKNET_ACCOUNT --keystore $STARKNET_KEYSTORE --compiler-version 2.5.4 '/Users/parkyeung/dev/amm/target/dev/haiko_amm_Quoter.contract_class.json'
 # Faucet
-starkli declare --rpc $STARKNET_RPC --account $STARKNET_ACCOUNT --keystore $STARKNET_KEYSTORE --compiler-version 2.5.4 '/Users/parkyeung/dev/amm/target/dev/amm_Faucet.contract_class.json'
+starkli declare --rpc $STARKNET_RPC --account $STARKNET_ACCOUNT --keystore $STARKNET_KEYSTORE --compiler-version 2.5.4 '/Users/parkyeung/dev/amm/target/dev/haiko_amm_Faucet.contract_class.json'
 
 # Deploy contracts
 # ERC20
@@ -31,8 +29,6 @@ starkli deploy $ERC20_CLASS_HASH 39084176521446475273950020 1431520340 8 1000000
 # Deployment params
 # -- MarketManager
 # 0x0469334529F1414f16B7eC53Ce369e79928847cC6A022993f155B44D3378C50C, 454339855225115730158504377457697996934802783974843747364467, 5206523232016747600
-# -- ReplicatingStrategy
-# 0x0469334529F1414f16B7eC53Ce369e79928847cC6A022993f155B44D3378C50C, 99610950070389980829150823, 1380274252, 211228372528, 0x0626A1a49681c78784A27B13Cc9926c2a49f6f7Dee99C1CeE00225882888478b, 0x36031daa264c24520b11d93af622c848b2499b66b41d611bac95e13cfca131a, 0x54563a0537b3ae0ba91032d674a6d468f30a59dc4deb8f0dce4e642b94be15c
 # -- Quoter
 # 0x0469334529F1414f16B7eC53Ce369e79928847cC6A022993f155B44D3378C50C, 0x0626A1a49681c78784A27B13Cc9926c2a49f6f7Dee99C1CeE00225882888478b
 # -- Faucet 
@@ -40,18 +36,21 @@ starkli deploy $ERC20_CLASS_HASH 39084176521446475273950020 1431520340 8 1000000
 
 # Deployments
 
-# 4 Apr 2023
+# 5 May 2024
+export MARKET_MANAGER_CLASS_HASH=0x0308af9482c7b7859dabfe647d1ba475df7b848f91029987e744ca106dc8ac16
+
+# 4 Apr 2024
 export MARKET_MANAGER_CLASS_HASH=0x0196595445040b99665ee97a97a9ac985588dc65ab671a37c43953bbe9c3c746
 export QUOTER_CLASS_HASH=0x02764d10164de27419d1e2452b9e30bb0e89f46a2d9a888d20b27b417d92c273
 export REPLICATING_STRATEGY_CLASS_HASH=0x050111f4025e444d8ff4b8b32796823ceffad10ac1c2bc831401af0120829674
 
-# 29 Mar 2023
+# 29 Mar 2024
 export ETH_ADDRESS=0x052e4366eceb8234dfbc431cb9e8d1db1a062392300d68d35ec2fc09d99af2e2
 export STRK_ADDRESS=0x04757e1150c243399a9accb7df2eb4b2956315b0effec8d5f26bb6065cf4edd2
 export USDC_ADDRESS=0x02613a46ec7f06ae803a16bce8ede8a72f5bf3daf883c530d3a6e7719d31a7a7
 export USDT_ADDRESS=0x02af4e46d0c0ece7cfa26e7b5c53438de6b6960899dd71adb7027915e727101a
 
-# 27 Mar 2023
+# 27 Mar 2024
 export MARKET_MANAGER_CLASS_HASH=0x07287609643c58ab2ad3c5598a7c88c10a67148869c2ea01b72626305b53fdd4
 export QUOTER_CLASS_HASH=0x03aa60bc4ce81493609d196f610540cce8ac2d8b3b1f152a7dce09f7a6281e36
 export REPLICATING_STRATEGY_CLASS_HASH=0x050a232b681b877409710964c96c0ebc8b27f6d8ec9c38c7fe778b850279d125
