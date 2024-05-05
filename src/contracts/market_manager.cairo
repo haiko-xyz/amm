@@ -76,7 +76,6 @@ pub mod MarketManager {
         market_state: LegacyMap::<felt252, MarketState>,
         market_configs: LegacyMap::<felt252, MarketConfigs>,
         whitelisted_markets: LegacyMap::<felt252, bool>,
-        whitelisted_tokens: LegacyMap::<ContractAddress, bool>,
         // Indexed by (market_id: felt252, limit: u32)
         limit_info: LegacyMap::<(felt252, u32), LimitInfo>,
         // Indexed by position id = hash(market_id: felt252, owner: ContractAddress, lower_limit: u32, upper_limit: u32)
@@ -120,7 +119,6 @@ pub mod MarketManager {
         MultiSwap: MultiSwap,
         FlashLoan: FlashLoan,
         Whitelist: Whitelist,
-        WhitelistToken: WhitelistToken,
         Donate: Donate,
         Sweep: Sweep,
         ChangeOwner: ChangeOwner,
@@ -260,12 +258,6 @@ pub mod MarketManager {
     }
 
     #[derive(Drop, starknet::Event)]
-    pub(crate) struct WhitelistToken {
-        #[key]
-        pub token: ContractAddress
-    }
-
-    #[derive(Drop, starknet::Event)]
     pub(crate) struct Donate {
         #[key]
         pub token: ContractAddress,
@@ -383,10 +375,6 @@ pub mod MarketManager {
 
         fn is_market_whitelisted(self: @ContractState, market_id: felt252) -> bool {
             self.whitelisted_markets.read(market_id)
-        }
-
-        fn is_token_whitelisted(self: @ContractState, token: ContractAddress) -> bool {
-            self.whitelisted_tokens.read(token)
         }
 
         fn base_token(self: @ContractState, market_id: felt252) -> ContractAddress {
@@ -693,19 +681,16 @@ pub mod MarketManager {
             let market_info = self.market_info.read(market_id);
             assert(market_info.base_token == contract_address_const::<0x0>(), 'MarketExists');
 
-            // Check market is whitelisted. A market can be explicitly whitelisted via the market id.
-            // Alternatively, if both base and quote tokens are whitelisted, any market for the pair
-            // can be created as long as it has no attached strategy or controllers.
+            // Check market is whitelisted. Alternatively, any market can be created as long as it has 
+            // no attached strategy or controllers. 
             let market_white_listed = self.whitelisted_markets.read(market_id);
             if !market_white_listed {
                 assert(
-                    self.whitelisted_tokens.read(base_token)
-                        && self.whitelisted_tokens.read(quote_token)
-                        && strategy == contract_address_const::<0x0>()
+                    strategy == contract_address_const::<0x0>()
                         && fee_controller == contract_address_const::<0x0>()
                         && controller == contract_address_const::<0x0>(),
                     'NotWhitelisted'
-                )
+                );
             }
 
             self.market_info.write(market_id, new_market_info);
@@ -1540,35 +1525,6 @@ pub mod MarketManager {
 
             // Burn ERC721 token.
             self.erc721._burn(position_id.into());
-        }
-
-        // Whitelist tokens.
-        // Callable by owner only.
-        //
-        // # Arguments
-        // * `tokens` - market id
-        fn whitelist_tokens(ref self: ContractState, tokens: Array<ContractAddress>) {
-            // Validate caller and inputs.
-            self.assert_only_owner();
-
-            // Whitelist markets.
-            let mut i = 0;
-            loop {
-                if i == tokens.len() {
-                    break;
-                }
-                // Check not already whitelisted.
-                let token = *tokens.at(i);
-                let whitelisted = self.whitelisted_tokens.read(token);
-                assert(!whitelisted, 'AlreadyWhitelisted');
-
-                // Update whitelist.
-                self.whitelisted_tokens.write(token, true);
-
-                // Emit event.
-                self.emit(Event::WhitelistToken(WhitelistToken { token }));
-                i += 1;
-            }
         }
 
         // Whitelist markets.
