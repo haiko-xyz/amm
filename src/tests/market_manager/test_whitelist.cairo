@@ -42,9 +42,26 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 ////////////////////////////////
 
 #[test]
-fn test_create_market_works() {
+fn test_create_market_whitelisted_works() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
+
+    // Create market.
+    let mut params = default_market_params();
+    params.base_token = base_token.contract_address;
+    params.quote_token = quote_token.contract_address;
+    create_market(market_manager, params);
+}
+
+#[test]
+fn test_create_market_whitelisted_tokens_work() {
+    // Deploy market manager and tokens.
+    let (market_manager, base_token, quote_token) = before();
+
+    // Whitelist tokens.
+    start_prank(CheatTarget::One(market_manager.contract_address), owner());
+    market_manager
+        .whitelist_tokens(array![base_token.contract_address, quote_token.contract_address]);
 
     // Create market.
     let mut params = default_market_params();
@@ -52,24 +69,39 @@ fn test_create_market_works() {
     params.quote_token = quote_token.contract_address;
     create_market_without_whitelisting(market_manager, params);
 }
+
 #[test]
-fn test_create_whitelisted_strategy_market_works() {
+#[should_panic(expected: ('NotWhitelisted',))]
+fn test_create_market_not_whitelisted() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
 
     // Create market.
-    let mut params = default_market_params();
-    params.base_token = base_token.contract_address;
-    params.quote_token = quote_token.contract_address;
-    params.strategy = contract_address_const::<0x123>();
-    create_market(market_manager, params);
+    start_prank(CheatTarget::One(market_manager.contract_address), owner());
+    market_manager
+        .create_market(
+            base_token.contract_address,
+            quote_token.contract_address,
+            1,
+            contract_address_const::<0x0>(),
+            10,
+            contract_address_const::<0x0>(),
+            OFFSET + 0,
+            contract_address_const::<0x0>(),
+            Option::None(()),
+        );
 }
 
 #[test]
 #[should_panic(expected: ('NotWhitelisted',))]
-fn test_create_strategy_market_not_whitelisted() {
+fn test_create_market_whitelisted_pair_with_strategy() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
+
+    // Whitelist tokens.
+    start_prank(CheatTarget::One(market_manager.contract_address), owner());
+    market_manager
+        .whitelist_tokens(array![base_token.contract_address, quote_token.contract_address]);
 
     // Create market.
     let mut params = default_market_params();
@@ -84,6 +116,11 @@ fn test_create_strategy_market_not_whitelisted() {
 fn test_create_market_whitelisted_pair_with_fee_controller() {
     // Deploy market manager and tokens.
     let (market_manager, base_token, quote_token) = before();
+
+    // Whitelist tokens.
+    start_prank(CheatTarget::One(market_manager.contract_address), owner());
+    market_manager
+        .whitelist_tokens(array![base_token.contract_address, quote_token.contract_address]);
 
     // Create market.
     let mut params = default_market_params();
@@ -100,6 +137,11 @@ fn test_create_market_whitelisted_pair_with_controller() {
     let (market_manager, base_token, quote_token) = before();
 
     // Whitelist tokens.
+    start_prank(CheatTarget::One(market_manager.contract_address), owner());
+    market_manager
+        .whitelist_tokens(array![base_token.contract_address, quote_token.contract_address]);
+
+    // Create market.
     let mut params = default_market_params();
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
@@ -127,7 +169,6 @@ fn test_whitelist_market_twice() {
     let mut params = default_market_params();
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
-    params.strategy = contract_address_const::<0x123>();
     let market_id = create_market(market_manager, params);
 
     start_prank(CheatTarget::One(market_manager.contract_address), owner());
