@@ -385,10 +385,6 @@ pub mod MarketManager {
             self.whitelisted_markets.read(market_id)
         }
 
-        fn is_token_whitelisted(self: @ContractState, token: ContractAddress) -> bool {
-            self.whitelisted_tokens.read(token)
-        }
-
         fn base_token(self: @ContractState, market_id: felt252) -> ContractAddress {
             self.market_info.read(market_id).base_token
         }
@@ -699,13 +695,21 @@ pub mod MarketManager {
             let market_white_listed = self.whitelisted_markets.read(market_id);
             if !market_white_listed {
                 assert(
-                    self.whitelisted_tokens.read(base_token)
-                        && self.whitelisted_tokens.read(quote_token)
-                        && strategy == contract_address_const::<0x0>()
+                    strategy == contract_address_const::<0x0>()
                         && fee_controller == contract_address_const::<0x0>()
                         && controller == contract_address_const::<0x0>(),
                     'NotWhitelisted'
-                )
+                );
+                let base_whitelisted = self.whitelisted_tokens.read(base_token);
+                let quote_whitelisted = self.whitelisted_tokens.read(quote_token);
+                if !base_whitelisted {
+                    self.whitelisted_tokens.write(base_token, true);
+                    self.emit(Event::WhitelistToken(WhitelistToken { token: base_token }));
+                }
+                if !quote_whitelisted {
+                    self.whitelisted_tokens.write(quote_token, true);
+                    self.emit(Event::WhitelistToken(WhitelistToken { token: quote_token }));
+                }
             }
 
             self.market_info.write(market_id, new_market_info);
@@ -1540,35 +1544,6 @@ pub mod MarketManager {
 
             // Burn ERC721 token.
             self.erc721._burn(position_id.into());
-        }
-
-        // Whitelist tokens.
-        // Callable by owner only.
-        //
-        // # Arguments
-        // * `tokens` - market id
-        fn whitelist_tokens(ref self: ContractState, tokens: Array<ContractAddress>) {
-            // Validate caller and inputs.
-            self.assert_only_owner();
-
-            // Whitelist markets.
-            let mut i = 0;
-            loop {
-                if i == tokens.len() {
-                    break;
-                }
-                // Check not already whitelisted.
-                let token = *tokens.at(i);
-                let whitelisted = self.whitelisted_tokens.read(token);
-                assert(!whitelisted, 'AlreadyWhitelisted');
-
-                // Update whitelist.
-                self.whitelisted_tokens.write(token, true);
-
-                // Emit event.
-                self.emit(Event::WhitelistToken(WhitelistToken { token }));
-                i += 1;
-            }
         }
 
         // Whitelist markets.
