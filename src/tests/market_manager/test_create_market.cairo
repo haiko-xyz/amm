@@ -9,7 +9,8 @@ use haiko_lib::interfaces::IMarketManager::{
     IMarketManagerDispatcher, IMarketManagerDispatcherTrait
 };
 use haiko_lib::helpers::actions::{
-    market_manager::{deploy_market_manager, create_market}, token::deploy_token,
+    market_manager::{deploy_market_manager, create_market_without_whitelisting}, 
+    token::deploy_token,
 };
 use haiko_lib::helpers::params::{owner, default_token_params, default_market_params};
 
@@ -48,7 +49,7 @@ fn test_create_market_initialises_immutables() {
     let mut params = default_market_params();
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
-    let market_id = create_market(market_manager, params);
+    let market_id = create_market_without_whitelisting(market_manager, params);
 
     // Check market was initialised with correct immutables.
     let market_info = market_manager.market_info(market_id);
@@ -69,7 +70,7 @@ fn test_create_market_initialises_state() {
     let mut params = default_market_params();
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
-    let market_id = create_market(market_manager, params);
+    let market_id = create_market_without_whitelisting(market_manager, params);
 
     // Check market was initialised with correct state.
     let market_state = market_manager.market_state(market_id);
@@ -95,7 +96,7 @@ fn test_create_market_min_start_limit() {
     params.quote_token = quote_token.contract_address;
     params.start_limit = 0;
 
-    create_market(market_manager, params);
+    create_market_without_whitelisting(market_manager, params);
 }
 
 #[test]
@@ -108,7 +109,7 @@ fn test_create_market_max_start_limit_less_1_width_1() {
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
     params.start_limit = OFFSET + MAX_LIMIT - 1;
-    create_market(market_manager, params);
+    create_market_without_whitelisting(market_manager, params);
 }
 
 #[test]
@@ -122,7 +123,7 @@ fn test_create_market_max_start_limit_less_1_width_10() {
     params.quote_token = quote_token.contract_address;
     params.width = 10;
     params.start_limit = OFFSET + 7906610;
-    create_market(market_manager, params);
+    create_market_without_whitelisting(market_manager, params);
 }
 
 #[test]
@@ -136,7 +137,7 @@ fn test_create_market_max_width() {
     params.quote_token = quote_token.contract_address;
     params.width = MAX_WIDTH;
     params.start_limit = OFFSET;
-    create_market(market_manager, params);
+    create_market_without_whitelisting(market_manager, params);
 }
 
 #[test]
@@ -149,10 +150,10 @@ fn test_create_market_duplicate_market() {
     let mut params = default_market_params();
     params.base_token = base_token.contract_address;
     params.quote_token = quote_token.contract_address;
-    create_market(market_manager, params);
+    create_market_without_whitelisting(market_manager, params);
 
     // Create duplicate market.
-    create_market(market_manager, params);
+    create_market_without_whitelisting(market_manager, params);
 }
 
 // Disabled: not supported by Foundry.
@@ -196,7 +197,7 @@ fn test_create_market_start_limit_overflow() {
     params.width = 10;
     params.start_limit = OFFSET + 21901630;
 
-    create_market(market_manager, params);
+    create_market_without_whitelisting(market_manager, params);
 }
 
 #[test]
@@ -211,7 +212,7 @@ fn test_create_market_width_zero() {
     params.quote_token = quote_token.contract_address;
     params.width = 0;
 
-    create_market(market_manager, params);
+    create_market_without_whitelisting(market_manager, params);
 }
 
 #[test]
@@ -226,7 +227,7 @@ fn test_create_market_width_overflow() {
     params.quote_token = quote_token.contract_address;
     params.width = MAX_WIDTH + 1;
 
-    create_market(market_manager, params);
+    create_market_without_whitelisting(market_manager, params);
 }
 
 #[test]
@@ -241,5 +242,5 @@ fn test_create_market_fee_rate_overflow() {
     params.quote_token = quote_token.contract_address;
     params.swap_fee_rate = 10001;
 
-    create_market(market_manager, params);
+    create_market_without_whitelisting(market_manager, params);
 }
