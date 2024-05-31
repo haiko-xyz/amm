@@ -5,11 +5,13 @@ use starknet::contract_address_const;
 use haiko_amm::contracts::market_manager::MarketManager;
 
 // Haiko imports.
+use haiko_lib::id;
 use haiko_lib::math::price_math;
 use haiko_lib::constants::{OFFSET, MAX_LIMIT, MAX_WIDTH};
 use haiko_lib::interfaces::IMarketManager::{
     IMarketManager, IMarketManagerDispatcher, IMarketManagerDispatcherTrait
 };
+use haiko_lib::types::core::MarketInfo;
 use haiko_lib::helpers::actions::{
     market_manager::{deploy_market_manager, create_market, create_market_without_whitelisting},
     token::deploy_token,
@@ -26,7 +28,9 @@ use openzeppelin::token::erc20::interface::{ERC20ABIDispatcher, ERC20ABIDispatch
 // SETUP
 ////////////////////////////////
 
-fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher) {
+fn before() -> (
+    IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
+) {
     // Deploy market manager.
     let market_manager_class = declare("MarketManager");
     let market_manager = deploy_market_manager(market_manager_class, owner());
@@ -37,7 +41,12 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
     let base_token = deploy_token(erc20_class, base_token_params);
     let quote_token = deploy_token(erc20_class, quote_token_params);
 
-    (market_manager, base_token, quote_token)
+    let mut new_token_params = base_token_params;
+    new_token_params.name_ = 'New Token';
+    new_token_params.symbol_ = 'NT';
+    let new_token = deploy_token(erc20_class, new_token_params);
+
+    (market_manager, base_token, quote_token, new_token)
 }
 
 ////////////////////////////////
@@ -47,7 +56,7 @@ fn before() -> (IMarketManagerDispatcher, ERC20ABIDispatcher, ERC20ABIDispatcher
 #[test]
 fn test_create_regular_market_works() {
     // Deploy market manager and tokens.
-    let (market_manager, base_token, quote_token) = before();
+    let (market_manager, base_token, quote_token, _) = before();
 
     let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
 
@@ -79,7 +88,7 @@ fn test_create_regular_market_works() {
 #[test]
 fn test_create_whitelisted_strategy_market_works() {
     // Deploy market manager and tokens.
-    let (market_manager, base_token, quote_token) = before();
+    let (market_manager, base_token, quote_token, _) = before();
 
     let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
 
@@ -102,10 +111,71 @@ fn test_create_whitelisted_strategy_market_works() {
 }
 
 #[test]
+fn test_whitelisted_market_for_new_token_emits_event() {
+    // Deploy market manager and tokens.
+    let (market_manager, _, quote_token, new_token) = before();
+
+    // Whitelist market.
+    start_prank(CheatTarget::One(market_manager.contract_address), owner());
+    let mut params = default_market_params();
+    params.base_token = new_token.contract_address;
+    params.quote_token = quote_token.contract_address;
+    params.strategy = contract_address_const::<0x123>();
+    let market_id = id::market_id(
+        MarketInfo {
+            base_token: new_token.contract_address,
+            quote_token: quote_token.contract_address,
+            strategy: params.strategy,
+            width: params.width,
+            swap_fee_rate: params.swap_fee_rate,
+            fee_controller: contract_address_const::<0x0>(),
+            controller: contract_address_const::<0x0>(),
+        }
+    );
+    market_manager.whitelist_markets(array![market_id]);
+
+    let mut spy = spy_events(SpyOn::One(market_manager.contract_address));
+
+    // Create market.
+    let market_id = create_market(market_manager, params);
+
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    market_manager.contract_address,
+                    MarketManager::Event::WhitelistToken(
+                        MarketManager::WhitelistToken { token: new_token.contract_address }
+                    )
+                ),
+                (
+                    market_manager.contract_address,
+                    MarketManager::Event::CreateMarket(
+                        MarketManager::CreateMarket {
+                            market_id,
+                            base_token: new_token.contract_address,
+                            quote_token: quote_token.contract_address,
+                            width: params.width,
+                            strategy: params.strategy,
+                            swap_fee_rate: params.swap_fee_rate,
+                            fee_controller: contract_address_const::<0x0>(),
+                            controller: contract_address_const::<0x0>(),
+                            start_limit: params.start_limit,
+                            start_sqrt_price: price_math::limit_to_sqrt_price(
+                                params.start_limit, params.width
+                            ),
+                        }
+                    )
+                )
+            ]
+        );
+}
+
+#[test]
 #[should_panic(expected: ('NotWhitelisted',))]
 fn test_create_market_strategy_not_whitelisted() {
     // Deploy market manager and tokens.
-    let (market_manager, base_token, quote_token) = before();
+    let (market_manager, base_token, quote_token, _) = before();
 
     // Create market.
     let mut params = default_market_params();
@@ -119,7 +189,7 @@ fn test_create_market_strategy_not_whitelisted() {
 #[should_panic(expected: ('NotWhitelisted',))]
 fn test_create_market_fee_controller_not_whitelisted() {
     // Deploy market manager and tokens.
-    let (market_manager, base_token, quote_token) = before();
+    let (market_manager, base_token, quote_token, _) = before();
 
     // Create market.
     let mut params = default_market_params();
@@ -133,7 +203,7 @@ fn test_create_market_fee_controller_not_whitelisted() {
 #[should_panic(expected: ('NotWhitelisted',))]
 fn test_create_market_controller_not_whitelisted() {
     // Deploy market manager and tokens.
-    let (market_manager, base_token, quote_token) = before();
+    let (market_manager, base_token, quote_token, _) = before();
 
     // Create market.
     let mut params = default_market_params();
@@ -147,7 +217,7 @@ fn test_create_market_controller_not_whitelisted() {
 #[should_panic(expected: ('OnlyOwner',))]
 fn test_whitelist_market_not_owner() {
     // Deploy market manager and tokens.
-    let (market_manager, _base_token, _quote_token) = before();
+    let (market_manager, _base_token, _quote_token, _) = before();
 
     start_prank(CheatTarget::One(market_manager.contract_address), alice());
     market_manager.whitelist_markets(array![123]);
@@ -157,7 +227,7 @@ fn test_whitelist_market_not_owner() {
 #[should_panic(expected: ('AlreadyWhitelisted',))]
 fn test_whitelist_market_twice() {
     // Deploy market manager and tokens.
-    let (market_manager, base_token, quote_token) = before();
+    let (market_manager, base_token, quote_token, _) = before();
 
     // Create market (whitelist both tokens).
     let mut params = default_market_params();

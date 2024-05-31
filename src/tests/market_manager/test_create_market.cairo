@@ -9,7 +9,7 @@ use haiko_lib::interfaces::IMarketManager::{
     IMarketManagerDispatcher, IMarketManagerDispatcherTrait
 };
 use haiko_lib::helpers::actions::{
-    market_manager::{deploy_market_manager, create_market_without_whitelisting}, 
+    market_manager::{deploy_market_manager, create_market_without_whitelisting},
     token::deploy_token,
 };
 use haiko_lib::helpers::params::{owner, default_token_params, default_market_params};

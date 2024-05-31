@@ -700,16 +700,16 @@ pub mod MarketManager {
                         && controller == contract_address_const::<0x0>(),
                     'NotWhitelisted'
                 );
-                let base_whitelisted = self.whitelisted_tokens.read(base_token);
-                let quote_whitelisted = self.whitelisted_tokens.read(quote_token);
-                if !base_whitelisted {
-                    self.whitelisted_tokens.write(base_token, true);
-                    self.emit(Event::WhitelistToken(WhitelistToken { token: base_token }));
-                }
-                if !quote_whitelisted {
-                    self.whitelisted_tokens.write(quote_token, true);
-                    self.emit(Event::WhitelistToken(WhitelistToken { token: quote_token }));
-                }
+            }
+            let base_whitelisted = self.whitelisted_tokens.read(base_token);
+            let quote_whitelisted = self.whitelisted_tokens.read(quote_token);
+            if !base_whitelisted {
+                self.whitelisted_tokens.write(base_token, true);
+                self.emit(Event::WhitelistToken(WhitelistToken { token: base_token }));
+            }
+            if !quote_whitelisted {
+                self.whitelisted_tokens.write(quote_token, true);
+                self.emit(Event::WhitelistToken(WhitelistToken { token: quote_token }));
             }
 
             self.market_info.write(market_id, new_market_info);
